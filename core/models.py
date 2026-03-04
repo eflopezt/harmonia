@@ -164,6 +164,116 @@ class PreferenciaUsuario(models.Model):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# PerfilAcceso — Roles/perfiles que controlan visibilidad de módulos
+# ─────────────────────────────────────────────────────────────────────
+
+class PerfilAcceso(models.Model):
+    """
+    Perfil de acceso (rol): define qué módulos del sidebar puede ver y usar
+    un grupo de usuarios.
+
+    Lógica de aplicación:
+      - Superusuarios ignoran el perfil (acceso total siempre).
+      - Los módulos del perfil son INTERSECCIÓN con los activados en
+        ConfiguracionSistema: un perfil no puede habilitar lo que la empresa
+        tiene desactivado.
+      - Se asigna a Personal.perfil_acceso. Usuarios sin Personal asociado
+        (staff sin empleado) heredan acceso de superuser o acceso mínimo.
+
+    Roles predefinidos (creados por seed_perfiles_acceso):
+      ADMIN_RRHH · JEFE_AREA · CONSULTOR · EMPLEADO
+    """
+
+    CODIGO_CHOICES = [
+        ('ADMIN_RRHH',    'Administrador RRHH'),
+        ('JEFE_AREA',     'Jefe de Área'),
+        ('CONSULTOR',     'Consultor / Solo lectura'),
+        ('EMPLEADO',      'Empleado (solo portal)'),
+        ('PERSONALIZADO', 'Personalizado'),
+    ]
+
+    nombre      = models.CharField(max_length=100, verbose_name='Nombre del Perfil')
+    codigo      = models.SlugField(max_length=50, unique=True, verbose_name='Código')
+    descripcion = models.TextField(blank=True, verbose_name='Descripción')
+    es_sistema  = models.BooleanField(
+        default=False,
+        verbose_name='Perfil del sistema',
+        help_text='Los perfiles del sistema no se pueden eliminar.',
+    )
+
+    # ── Módulos del sidebar admin ──────────────────────────────────────
+    mod_personal        = models.BooleanField(default=True,  verbose_name='Personal')
+    mod_asistencia      = models.BooleanField(default=True,  verbose_name='Asistencia & Tareo')
+    mod_vacaciones      = models.BooleanField(default=True,  verbose_name='Vacaciones')
+    mod_documentos      = models.BooleanField(default=True,  verbose_name='Documentos')
+    mod_capacitaciones  = models.BooleanField(default=True,  verbose_name='Capacitaciones')
+    mod_disciplinaria   = models.BooleanField(default=False, verbose_name='Disciplinaria')
+    mod_evaluaciones    = models.BooleanField(default=False, verbose_name='Evaluaciones')
+    mod_encuestas       = models.BooleanField(default=True,  verbose_name='Encuestas')
+    mod_salarios        = models.BooleanField(default=False, verbose_name='Salarios')
+    mod_reclutamiento   = models.BooleanField(default=False, verbose_name='Reclutamiento')
+    mod_prestamos       = models.BooleanField(default=True,  verbose_name='Préstamos')
+    mod_viaticos        = models.BooleanField(default=False, verbose_name='Viáticos')
+    mod_onboarding      = models.BooleanField(default=False, verbose_name='Onboarding')
+    mod_calendario      = models.BooleanField(default=True,  verbose_name='Calendario')
+    mod_analytics       = models.BooleanField(default=False, verbose_name='Analytics')
+    mod_configuracion   = models.BooleanField(default=False, verbose_name='Configuración')
+    mod_roster          = models.BooleanField(default=False, verbose_name='Roster')
+
+    # ── Capacidades globales ──────────────────────────────────────────
+    puede_aprobar  = models.BooleanField(
+        default=False,
+        verbose_name='Puede aprobar solicitudes',
+        help_text='Habilita botones de aprobación en vacaciones, permisos, roster, etc.',
+    )
+    puede_exportar = models.BooleanField(
+        default=True,
+        verbose_name='Puede exportar datos',
+        help_text='Habilita botones de exportación a Excel/PDF en todas las vistas.',
+    )
+
+    creado_en      = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = 'Perfil de Acceso'
+        verbose_name_plural = 'Perfiles de Acceso'
+        ordering            = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+    def delete(self, *args, **kwargs):
+        if self.es_sistema:
+            raise ValueError(
+                f'El perfil "{self.nombre}" es de sistema y no puede eliminarse.'
+            )
+        super().delete(*args, **kwargs)
+
+    def as_modulos_dict(self) -> dict:
+        """Retorna dict {mod_<modulo>: bool} para aplicar en el context processor."""
+        return {
+            'mod_personal':       self.mod_personal,
+            'mod_asistencia':     self.mod_asistencia,
+            'mod_vacaciones':     self.mod_vacaciones,
+            'mod_documentos':     self.mod_documentos,
+            'mod_capacitaciones': self.mod_capacitaciones,
+            'mod_disciplinaria':  self.mod_disciplinaria,
+            'mod_evaluaciones':   self.mod_evaluaciones,
+            'mod_encuestas':      self.mod_encuestas,
+            'mod_salarios':       self.mod_salarios,
+            'mod_reclutamiento':  self.mod_reclutamiento,
+            'mod_prestamos':      self.mod_prestamos,
+            'mod_viaticos':       self.mod_viaticos,
+            'mod_onboarding':     self.mod_onboarding,
+            'mod_calendario':     self.mod_calendario,
+            'mod_analytics':      self.mod_analytics,
+            'mod_configuracion':  self.mod_configuracion,
+            'mod_roster':         self.mod_roster,
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────
 # PermisoModulo — Permisos granulares por módulo (INFRA.3)
 # ─────────────────────────────────────────────────────────────────────
 

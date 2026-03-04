@@ -25,6 +25,12 @@ from ..permissions import (
 @login_required
 def roster_list(request):
     """Lista de registros de roster."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    if not config.mod_roster and not request.user.is_superuser:
+        messages.warning(request, 'El módulo Roster no está activo en esta empresa.')
+        return redirect('home')
+
     rosters = Roster.objects.select_related('personal', 'personal__subarea__area').all()
 
     # Filtros
@@ -65,7 +71,21 @@ def roster_matricial(request):
     """
     Vista matricial del roster: filas=personal, columnas=días del mes.
     Incluye columna de días libres ganados y días trabajados calculados.
+
+    Solo disponible si mod_roster=True en ConfiguracionSistema.
+    El personal que aparece depende de roster_aplica_a:
+      - FORANEOS → solo condicion='FORANEO'
+      - TODOS    → todo el personal activo
+    Las celdas sin entrada muestran 'T' implícito (el empleado trabaja por defecto).
     """
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+
+    # Guard: si el módulo está desactivado, redirigir
+    if not config.mod_roster and not request.user.is_superuser:
+        messages.warning(request, 'El módulo Roster no está activo en esta empresa.')
+        return redirect('home')
+
     # Obtener mes y año de los parámetros o usar el actual
     hoy = datetime.now().date()
     mes = int(request.GET.get('mes', hoy.month))
@@ -99,6 +119,11 @@ def roster_matricial(request):
 
     # Obtener personal activo con filtros según usuario
     personal_qs = filtrar_personal(request.user).filter(estado='Activo').select_related('subarea', 'subarea__area')
+
+    # Filtrar por roster_aplica_a: solo foráneos o todos
+    roster_aplica_a = config.roster_aplica_a
+    if roster_aplica_a == 'FORANEOS':
+        personal_qs = personal_qs.filter(condicion='FORANEO')
 
     if subarea_id:
         personal_qs = personal_qs.filter(subarea_id=subarea_id)
@@ -135,22 +160,44 @@ def roster_matricial(request):
         # Obtener códigos del mes con sus fechas
         codigos_mes = []
         for fecha in fechas_mes:
-            codigo = roster_dict[persona.id].get(fecha, '')
-            estado = roster_estados[persona.id].get(fecha, 'aprobado')  # Nuevo: obtener estado
-            roster_id = roster_ids[persona.id].get(fecha, None)  # Nuevo: obtener ID
-            # Determinar día de la semana (0=lunes, 6=domingo)
+            codigo_db  = roster_dict[persona.id].get(fecha)     # None = sin entrada explícita
+            estado     = roster_estados[persona.id].get(fecha, 'aprobado')
+            roster_id  = roster_ids[persona.id].get(fecha, None)
             dia_semana = fecha.weekday()
+            es_sabado  = dia_semana == 5
+            es_domingo = dia_semana == 6
+
+            # Celda sin entrada = T implícito (el empleado trabaja por defecto).
+            # Es solo visual: roster_id=None indica que no hay entrada real en BD.
+            # El template distingue 'T_IMPLICITO' de 'T' explícito para colorear diferente.
+            if codigo_db is None:
+                # Sin entrada real — aplicar lógica de régimen:
+                # Si es sábado/domingo y regimen es 5x2 → D implícito
+                regimen = (persona.regimen_turno or '').strip()
+                if regimen.startswith('5x') and (es_sabado or es_domingo):
+                    codigo_display = 'D'
+                    es_implicito   = True
+                else:
+                    codigo_display = 'T'
+                    es_implicito   = True
+            else:
+                codigo_display = codigo_db
+                es_implicito   = False
+
             codigos_mes.append({
-                'fecha': fecha,
-                'codigo': codigo,
-                'estado': estado,  # Nuevo: incluir estado
-                'roster_id': roster_id,  # Nuevo: incluir ID
-                'es_sabado': dia_semana == 5,
-                'es_domingo': dia_semana == 6,
-                'es_hoy': fecha == fecha_hoy
+                'fecha':      fecha,
+                'codigo':     codigo_display,
+                'es_implicito': es_implicito,   # True = sin entrada real en BD
+                'estado':     estado,
+                'roster_id':  roster_id,
+                'es_sabado':  es_sabado,
+                'es_domingo': es_domingo,
+                'es_hoy':     fecha == fecha_hoy,
             })
 
         # Calcular días libres ganados del mes usando el régimen de turno
+        # Nota: contamos solo los T/TR explícitos (no los implícitos) para evitar
+        # sobrecontar; el saldo real se calcula desde todos los registros históricos.
         count_t = sum(1 for item in codigos_mes if item['codigo'] == 'T')
         count_tr = sum(1 for item in codigos_mes if item['codigo'] == 'TR')
         count_dl = sum(1 for item in codigos_mes if item['codigo'] == 'DL')
@@ -251,8 +298,11 @@ def roster_matricial(request):
         'page_obj': tabla_datos_paginada if paginator else None,
         'paginator': paginator,
         'per_page': per_page,
-        'borradores_count': borradores_count,  # Nuevo: contador de borradores
-        'roster_estados': json.dumps(roster_estados_dict),  # Nuevo: estados para JavaScript
+        'borradores_count': borradores_count,
+        'roster_estados': json.dumps(roster_estados_dict),
+        # Config roster
+        'roster_aplica_a':     roster_aplica_a,
+        'roster_solo_foraneos': roster_aplica_a == 'FORANEOS',
     }
 
     return render(request, 'personal/roster_matricial.html', context)
@@ -261,6 +311,12 @@ def roster_matricial(request):
 @login_required
 def roster_create(request):
     """Crear nuevo registro de roster."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    if not config.mod_roster and not request.user.is_superuser:
+        messages.warning(request, 'El módulo Roster no está activo en esta empresa.')
+        return redirect('home')
+
     if not request.user.is_superuser and not es_responsable_area(request.user):
         messages.error(request, 'No tienes permisos para crear registros de roster.')
         return redirect('roster_matricial')
@@ -284,6 +340,12 @@ def roster_create(request):
 @login_required
 def roster_update(request, pk):
     """Actualizar registro de roster."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    if not config.mod_roster and not request.user.is_superuser:
+        messages.warning(request, 'El módulo Roster no está activo en esta empresa.')
+        return redirect('home')
+
     roster = get_object_or_404(Roster, pk=pk)
 
     puede, mensaje = roster.puede_editar(request.user)
@@ -315,6 +377,12 @@ from ..excel_utils import crear_plantilla_roster
 @login_required
 def roster_export(request):
     """Exportar roster a Excel con plantilla y catálogos."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    if not config.mod_roster and not request.user.is_superuser:
+        messages.warning(request, 'El módulo Roster no está activo en esta empresa.')
+        return redirect('home')
+
     mes = int(request.GET.get('mes', datetime.now().month))
     anio = int(request.GET.get('anio', datetime.now().year))
 
@@ -338,6 +406,12 @@ def roster_export(request):
 @login_required
 def roster_import(request):
     """Importar roster desde Excel."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    if not config.mod_roster and not request.user.is_superuser:
+        messages.warning(request, 'El módulo Roster no está activo en esta empresa.')
+        return redirect('home')
+
     if not request.user.is_superuser and not es_responsable_area(request.user):
         messages.error(request, 'No tienes permisos para importar roster.')
         return redirect('roster_matricial')

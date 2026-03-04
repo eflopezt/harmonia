@@ -140,9 +140,11 @@
                     <a href="{% url 'mi_banco_horas' %}" class="nav-item" data-match="/mi-portal/banco-horas">
                         <i class="fas fa-piggy-bank"></i><span>Banco de Horas</span>
                     </a>
+                    {% if mod_roster %}
                     <a href="{% url 'mi_roster' %}" class="nav-item" data-match="/mi-portal/roster">
                         <i class="fas fa-calendar-alt"></i><span>Mi Roster</span>
                     </a>
+                    {% endif %}
                     <a href="{% url 'mis_vacaciones' %}" class="nav-item" data-match="/vacaciones/mis">
                         <i class="fas fa-umbrella-beach"></i><span>Mis Vacaciones</span>
                     </a>
@@ -252,9 +254,11 @@
                     <a href="{% url 'subarea_list' %}" class="nav-item" data-match="/subareas">
                         <i class="fas fa-sitemap"></i><span>SubÁreas</span>
                     </a>
+                    {% if mod_roster %}
                     <a href="{% url 'roster_matricial' %}" class="nav-item" data-match="/roster">
                         <i class="fas fa-calendar-alt"></i><span>Roster Matricial</span>
                     </a>
+                    {% endif %}
                     {% if user.is_superuser %}
                     <a href="{% url 'calendario_view' %}" class="nav-item" data-match="/calendario">
                         <i class="fas fa-calendar-day"></i><span>Calendario Laboral</span>

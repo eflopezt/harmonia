@@ -1137,6 +1137,30 @@ class ConfiguracionSistema(models.Model):
     mod_salarios = models.BooleanField(
         default=False, verbose_name="Estructura Salarial")
 
+    # ── Roster / Control proyectado ──
+    mod_roster = models.BooleanField(
+        default=False,
+        verbose_name="Roster (Control Proyectado)",
+        help_text=(
+            "Activa el panel matricial de roster para planificar bajadas y pasajes. "
+            "Solo es necesario si tienes personal foráneo con régimen de turnos (14x7, 21x7, etc.). "
+            "Empresas con personal Lima/Local pueden desactivarlo — los días libres "
+            "se gestionan directamente como permisos/vacaciones."
+        ))
+
+    ROSTER_APLICA_CHOICES = [
+        ('FORANEOS', 'Solo Personal Foráneo'),
+        ('TODOS',    'Todos los trabajadores'),
+    ]
+    roster_aplica_a = models.CharField(
+        max_length=10, choices=ROSTER_APLICA_CHOICES, default='FORANEOS',
+        verbose_name="Roster aplica a",
+        help_text=(
+            "Define qué personal aparece en el panel de roster. "
+            "'Solo Foráneo' es lo habitual (régimen acumulativo, pasajes aéreos). "
+            "'Todos' si el turno rotativo aplica también a personal Lima/Local."
+        ))
+
     # ── Formato de Exportación ──
     export_incluir_sueldo = models.BooleanField(
         default=False, verbose_name="Incluir Sueldo Base en exportación")

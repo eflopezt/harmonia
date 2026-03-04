@@ -9,12 +9,20 @@ Invalidación:
   - invalidar_config()    → llamado en ConfiguracionSistema.save()
   - invalidar_badge(pk)   → llamado en signals de aprobaciones
   - invalidar_rol(pk)     → llamado al reasignar responsable de área
+  - invalidar_perfil(pk)  → llamado al cambiar perfil de un usuario
+
+RBAC (PerfilAcceso):
+  - Los superusuarios ignoran el perfil (acceso total siempre).
+  - El perfil RESTRINGE (intersección) los módulos activados en ConfiguracionSistema.
+  - Un perfil no puede habilitar lo que la empresa tiene desactivado.
+  - Cached 5 min por usuario.
 """
 from django.core.cache import cache
 
-_TTL_CONFIG = 300   # 5 min
-_TTL_ROLE   = 300   # 5 min
-_TTL_BADGE  = 60    # 60 s
+_TTL_CONFIG  = 300   # 5 min
+_TTL_ROLE    = 300   # 5 min
+_TTL_BADGE   = 60    # 60 s
+_TTL_PERFIL  = 300   # 5 min
 
 
 def harmoni_context(request):
@@ -32,9 +40,17 @@ def harmoni_context(request):
 
     user = request.user
     base.update(_get_config_context(user))
+    # Aplicar restricciones de PerfilAcceso ANTES de exponer al template.
+    # Superusuarios no se tocan — _get_perfil_overrides() devuelve {} para ellos.
+    perfil_overrides = _get_perfil_overrides(user)
+    for key, allowed in perfil_overrides.items():
+        if not allowed:
+            base[key] = False  # perfil restringe; nunca habilita lo ya desactivado
     base.update(_get_role_context(user))
     area_ids = base.pop('_area_ids', [])
     base['cambios_pendientes'] = _get_badge_count(user, area_ids)
+    # Exponer perfil del usuario al template (para mostrar nombre de rol, etc.)
+    base['perfil_acceso_usuario'] = _get_perfil_obj(user)
 
     # Multi-empresa
     base['empresa_actual'] = getattr(request, 'empresa_actual', None)
@@ -69,7 +85,7 @@ def _get_empresas_disponibles() -> list:
 
 
 def _get_config_context(user) -> dict:
-    cache_key = 'harmoni_ctx_config_v4'
+    cache_key = 'harmoni_ctx_config_v5'  # bump version when adding new fields
     cfg_data = cache.get(cache_key)
     if cfg_data is None:
         try:
@@ -87,6 +103,9 @@ def _get_config_context(user) -> dict:
                 'mod_reclutamiento':  config.mod_reclutamiento,
                 'mod_encuestas':      config.mod_encuestas,
                 'mod_salarios':       config.mod_salarios,
+                # Roster: solo activo si la empresa lo necesita (foráneos/turnos)
+                'mod_roster':         config.mod_roster,
+                'roster_aplica_a':    config.roster_aplica_a,
             }
             cache.set(cache_key, cfg_data, _TTL_CONFIG)
         except Exception:
@@ -97,13 +116,15 @@ def _get_config_context(user) -> dict:
                 'mod_documentos': True, 'mod_evaluaciones': False,
                 'mod_capacitaciones': False, 'mod_reclutamiento': False,
                 'mod_encuestas': False, 'mod_salarios': False,
+                'mod_roster': False, 'roster_aplica_a': 'FORANEOS',
             }
 
     result = dict(cfg_data)
     result['harmoni_config'] = result.pop('_config_obj', None)
     if user.is_superuser:
         for mod in ('mod_prestamos', 'mod_viaticos', 'mod_documentos', 'mod_evaluaciones',
-                    'mod_capacitaciones', 'mod_reclutamiento', 'mod_encuestas', 'mod_salarios'):
+                    'mod_capacitaciones', 'mod_reclutamiento', 'mod_encuestas', 'mod_salarios',
+                    'mod_roster'):
             result[mod] = True
     return result
 
@@ -175,6 +196,50 @@ def _calcular_badge(user, area_ids: list) -> int:
     return total
 
 
+# ── Perfil de Acceso (RBAC) ────────────────────────────────────────────────
+
+def _get_perfil_obj(user):
+    """Retorna el PerfilAcceso asignado al usuario o None. Sin caché (solo para display)."""
+    if user.is_superuser:
+        return None
+    try:
+        from personal.models import Personal
+        personal = Personal.objects.select_related('perfil_acceso').get(usuario=user)
+        return personal.perfil_acceso
+    except Exception:
+        return None
+
+
+def _get_perfil_overrides(user) -> dict:
+    """
+    Retorna dict {mod_*: bool} con las restricciones del PerfilAcceso del usuario.
+    Superusuarios → {} (sin restricciones).
+    Cached 5 min por usuario.
+    """
+    if user.is_superuser:
+        return {}
+
+    cache_key = f'harmoni_perfil_{user.pk}_v1'
+    data = cache.get(cache_key)
+    if data is None:
+        data = _calcular_perfil_overrides(user)
+        cache.set(cache_key, data, _TTL_PERFIL)
+    return data
+
+
+def _calcular_perfil_overrides(user) -> dict:
+    """Consulta el PerfilAcceso del usuario y retorna sus módulos como dict."""
+    try:
+        from personal.models import Personal
+        personal = Personal.objects.select_related('perfil_acceso').get(usuario=user)
+        if personal.perfil_acceso:
+            return personal.perfil_acceso.as_modulos_dict()
+    except Exception:
+        pass
+    # Sin perfil asignado → sin restricciones de perfil (acceso según config empresa)
+    return {}
+
+
 # ── API pública de invalidación ────────────────────────────────────────────
 
 def invalidar_badge(user_pk: int | None = None):
@@ -200,6 +265,20 @@ def invalidar_rol(user_pk: int):
 def invalidar_empresas():
     """Invalida cache de empresas disponibles. Llamar en Empresa.save()."""
     cache.delete('harmoni_ctx_empresas_v1')
+
+
+def invalidar_perfil(user_pk: int | None = None):
+    """
+    Invalida cache del perfil RBAC.
+    Llamar cuando se cambia personal.perfil_acceso o se modifica un PerfilAcceso.
+    """
+    if user_pk is not None:
+        cache.delete(f'harmoni_perfil_{user_pk}_v1')
+    else:
+        # Invalida perfiles de todos los usuarios activos no-superuser
+        from django.contrib.auth.models import User
+        pks = User.objects.filter(is_active=True, is_superuser=False).values_list('pk', flat=True)
+        cache.delete_many([f'harmoni_perfil_{pk}_v1' for pk in pks])
 
 
 def invalidar_extra_badges(user_pk: int | None = None):

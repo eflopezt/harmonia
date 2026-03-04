@@ -4,6 +4,25 @@ from vacaciones.models import TipoPermiso
 
 
 TIPOS = [
+    # ── Régimen de Turno (Foráneos) ───────────────────────────────────────────
+    # Aplica solo si mod_roster=True. Al aprobarse, crea entrada Roster(DL).
+    {'nombre': 'Bajada / Día Libre (Régimen)', 'codigo': 'bajada-dl',
+     'dias_max': 0, 'pagado': True, 'requiere_sustento': False,
+     'base_legal': 'DL 713 Art. 24 / Régimen acumulativo 14x7, 21x7, etc.',
+     'descripcion': (
+         'Día libre ganado por trabajar el régimen completo de turnos. '
+         'Solo aplica a personal foráneo con régimen acumulativo (14x7, 21x7, 28x14). '
+         'Al aprobarse, crea automáticamente una entrada de Roster con código DL.'
+     ), 'orden': 1},
+    {'nombre': 'Bajada Acumulada (Saldo 2025)', 'codigo': 'bajada-dla',
+     'dias_max': 0, 'pagado': True, 'requiere_sustento': False,
+     'base_legal': 'DL 713 / Saldo acumulado al 31/12/2025',
+     'descripcion': (
+         'Día libre del saldo acumulado al corte de 31/12/2025. '
+         'Al aprobarse, crea automáticamente una entrada de Roster con código DLA. '
+         'Máximo 7 días consecutivos.'
+     ), 'orden': 2},
+    # ── Permisos Legales (Legislación Peruana) ────────────────────────────────
     {'nombre': 'Licencia por Paternidad', 'codigo': 'paternidad', 'dias_max': 10, 'pagado': True, 'requiere_sustento': True, 'base_legal': 'Ley 29409 (10 días consecutivos)'},
     {'nombre': 'Licencia por Maternidad', 'codigo': 'maternidad', 'dias_max': 98, 'pagado': True, 'requiere_sustento': True, 'base_legal': 'Ley 26644 (98 días, 49 pre + 49 post parto)'},
     {'nombre': 'Licencia por Fallecimiento Familiar', 'codigo': 'fallecimiento', 'dias_max': 5, 'pagado': True, 'requiere_sustento': True, 'base_legal': 'Ley 30012 (padres, cónyuge, hijos)'},

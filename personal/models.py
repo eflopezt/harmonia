@@ -607,9 +607,24 @@ class Personal(models.Model):
         saldo_corte_2025 = float(self.dias_libres_corte_2025) - dias_dla_usados
         return saldo_corte_2025 + dias_ganados - dias_dl_usados
     
+    # --- Perfil de Acceso (RBAC) ---
+    perfil_acceso = models.ForeignKey(
+        'core.PerfilAcceso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='usuarios_asignados',
+        verbose_name='Perfil de Acceso',
+        help_text=(
+            'Define qué módulos del sistema puede ver este usuario. '
+            'Dejar vacío si el usuario no tiene cuenta de sistema, '
+            'o si es superusuario (acceso total siempre).'
+        ),
+    )
+
     # --- Observaciones ---
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
-    
+
     # --- Metadatos ---
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
