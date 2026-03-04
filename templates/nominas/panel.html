@@ -3,11 +3,346 @@
 
 {% block title %}Nóminas — Harmoni{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ══════════════════════════════════════════════════════════════
+   NOMINAS PANEL — Harmoni Design System
+   Teal palette: #0d2b27 | #134e4a | #0f766e | #5eead4
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── KPI Cards ─────────────────────────────────────────────── */
+.nom-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 992px) { .nom-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 576px)  { .nom-kpi-grid { grid-template-columns: 1fr; } }
+
+.nom-kpi {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.35rem 1.5rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  border-top: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: box-shadow .2s, transform .2s;
+}
+.nom-kpi:hover { box-shadow: 0 6px 18px rgba(0,0,0,.1); transform: translateY(-1px); }
+.nom-kpi.kpi-primary  { border-top-color: #0f766e; }
+.nom-kpi.kpi-accent   { border-top-color: #5eead4; }
+.nom-kpi.kpi-blue     { border-top-color: #3b82f6; }
+.nom-kpi.kpi-purple   { border-top-color: #8b5cf6; }
+
+.nom-kpi .kpi-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+.nom-kpi .kpi-icon.bg-teal    { background: rgba(15,118,110,.12); color: #0f766e; }
+.nom-kpi .kpi-icon.bg-accent  { background: rgba(94,234,212,.18); color: #0d9488; }
+.nom-kpi .kpi-icon.bg-blue    { background: rgba(59,130,246,.12); color: #2563eb; }
+.nom-kpi .kpi-icon.bg-purple  { background: rgba(139,92,246,.12); color: #7c3aed; }
+
+.nom-kpi .kpi-body { flex: 1; min-width: 0; }
+.nom-kpi .kpi-label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #6b7280;
+  margin-bottom: .2rem;
+  font-weight: 600;
+}
+.nom-kpi .kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nom-kpi .kpi-sub {
+  font-size: .72rem;
+  color: #9ca3af;
+  margin-top: .2rem;
+}
+
+/* ── Filter Bar ─────────────────────────────────────────────── */
+.nom-filter-bar {
+  background: #fff;
+  border-radius: 12px;
+  padding: .75rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Main Card ──────────────────────────────────────────────── */
+.nom-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  overflow: hidden;
+}
+.nom-card-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.nom-card-header h6 {
+  margin: 0;
+  font-size: .85rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -.01em;
+}
+.nom-card-body { padding: 1.25rem 1.5rem; }
+
+/* ── Period Table ───────────────────────────────────────────── */
+.nom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .84rem;
+}
+.nom-table thead th {
+  padding: .65rem 1rem;
+  text-align: left;
+  font-size: .69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #6b7280;
+  background: #f9fafb;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+}
+.nom-table thead th.text-end { text-align: right; }
+.nom-table thead th.text-center { text-align: center; }
+.nom-table tbody tr {
+  border-bottom: 1px solid #f9fafb;
+  transition: background .15s;
+}
+.nom-table tbody tr:hover { background: #f0fdf9; }
+.nom-table tbody td {
+  padding: .75rem 1rem;
+  color: #374151;
+  vertical-align: middle;
+}
+.nom-table tbody td.text-end  { text-align: right; }
+.nom-table tbody td.text-center { text-align: center; }
+.nom-table tbody tr:last-child { border-bottom: none; }
+
+/* ── Tipo Badge ─────────────────────────────────────────────── */
+.badge-tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .28rem .65rem;
+  border-radius: 20px;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+.badge-tipo.regular       { background: rgba(15,118,110,.1);  color: #0f766e; }
+.badge-tipo.gratificacion { background: rgba(59,130,246,.12); color: #1d4ed8; }
+.badge-tipo.cts           { background: rgba(139,92,246,.12); color: #6d28d9; }
+.badge-tipo.utilidades    { background: rgba(245,158,11,.12); color: #b45309; }
+.badge-tipo.liquidacion   { background: rgba(239,68,68,.1);   color: #b91c1c; }
+
+/* ── Estado Badge ───────────────────────────────────────────── */
+.badge-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .6rem;
+  border-radius: 20px;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.badge-estado.borrador   { background: rgba(107,114,128,.12); color: #374151; }
+.badge-estado.calculado  { background: rgba(59,130,246,.12);  color: #1d4ed8; }
+.badge-estado.aprobado   { background: rgba(16,185,129,.12);  color: #065f46; }
+.badge-estado.cerrado    { background: rgba(17,24,39,.12);    color: #1f2937; }
+.badge-estado.anulado    { background: rgba(239,68,68,.1);    color: #b91c1c; }
+
+/* ── Action Buttons ─────────────────────────────────────────── */
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  font-size: .8rem;
+  border: 1px solid;
+  text-decoration: none;
+  transition: all .15s;
+  cursor: pointer;
+}
+.btn-action.view   { border-color: #0f766e; color: #0f766e; background: transparent; }
+.btn-action.view:hover   { background: #0f766e; color: #fff; }
+.btn-action.export { border-color: #16a34a; color: #16a34a; background: transparent; }
+.btn-action.export:hover { background: #16a34a; color: #fff; }
+
+/* ── Comparativa Cards ──────────────────────────────────────── */
+.comp-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  transition: box-shadow .2s;
+}
+.comp-card.current { border-left-color: #5eead4; background: #f0fdf9; }
+.comp-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.09); }
+.comp-period { font-size: .72rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.comp-value  { font-size: 1.2rem; font-weight: 700; color: #111827; margin: .25rem 0 .1rem; }
+.comp-workers { font-size: .72rem; color: #9ca3af; }
+
+/* ── Sidebar Charts ─────────────────────────────────────────── */
+.nom-sidebar-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.nom-sidebar-header {
+  padding: .85rem 1.2rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.nom-sidebar-body { padding: 1rem 1.2rem; }
+
+/* ── Donut Legend ───────────────────────────────────────────── */
+.donut-legend-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .35rem 0;
+  border-bottom: 1px solid #f9fafb;
+  font-size: .78rem;
+}
+.donut-legend-item:last-child { border-bottom: none; }
+.donut-legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: .45rem;
+  flex-shrink: 0;
+}
+
+/* ── Top Neto List ──────────────────────────────────────────── */
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .5rem 0;
+  border-bottom: 1px solid #f9fafb;
+}
+.top-item:last-child { border-bottom: none; }
+.top-rank {
+  width: 1.5rem;
+  font-size: .75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-align: center;
+}
+.top-name { font-size: .82rem; font-weight: 500; color: #111827; line-height: 1.2; }
+.top-grupo { font-size: .7rem; color: #9ca3af; }
+.top-amount { font-size: .82rem; font-weight: 700; color: #0f766e; white-space: nowrap; margin-left: auto; }
+
+/* ── Empty State ────────────────────────────────────────────── */
+.nom-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+.nom-empty-icon {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: #f0fdf9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #5eead4;
+  margin-bottom: 1.25rem;
+}
+.nom-empty h5 { font-size: 1rem; font-weight: 700; color: #374151; margin-bottom: .5rem; }
+.nom-empty p  { font-size: .85rem; color: #9ca3af; margin-bottom: 1.25rem; max-width: 28rem; }
+
+/* ── Quick Actions ──────────────────────────────────────────── */
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .7rem 1rem;
+  border-radius: 10px;
+  font-size: .82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all .15s;
+  border: 1.5px solid;
+}
+.quick-action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.1); }
+.quick-action-btn .qa-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem;
+  flex-shrink: 0;
+}
+
+/* ── Page Layout ────────────────────────────────────────────── */
+.nom-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 1100px) { .nom-layout { grid-template-columns: 1fr; } }
+
+/* ── Responsive Amounts ─────────────────────────────────────── */
+.amount-cell { font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
+
 {% block content %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────────── #}
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title"><i class="fas fa-file-invoice-dollar me-2 text-accent"></i>{{ titulo }}</h1>
-    <p class="page-subtitle">Gestión de períodos de nómina y planilla</p>
+    <h1 class="page-title">
+      <i class="fas fa-file-invoice-dollar me-2 text-accent"></i>Nóminas
+    </h1>
+    <p class="page-subtitle">Gestión de períodos de planilla — ciclo 21 al 20</p>
   </div>
   <div class="page-header-actions">
     <a href="{% url 'nominas_periodo_crear' %}" class="btn btn-primary btn-sm">
@@ -25,263 +360,462 @@
   </div>
 </div>
 
-{% if ultimo %}
-{# Stats del último período aprobado #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-users"></i></div>
-      <div class="stat-value">{{ ultimo.total_trabajadores|intcomma }}</div>
-      <div class="stat-label">Trabajadores</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
-      <div class="stat-value">S/ {{ ultimo.total_bruto|floatformat:0|intcomma }}</div>
-      <div class="stat-label">Total Bruto</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
-      <div class="stat-value">S/ {{ ultimo.total_neto|floatformat:0|intcomma }}</div>
-      <div class="stat-label">Total Neto</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-building"></i></div>
-      <div class="stat-value">S/ {{ ultimo.total_costo_empresa|floatformat:0|intcomma }}</div>
-      <div class="stat-label">Costo Empresa</div>
-    </div>
-  </div>
-</div>
-{% endif %}
+{# ── KPI Cards ────────────────────────────────────────────────────────────────── #}
+<div class="nom-kpi-grid mb-4">
 
-{# ── Comparativa últimos 3 períodos ─────────────────────────────────────────── #}
-{% if comparativa_meses %}
-<div class="mb-4">
-  <h6 class="text-muted fw-semibold mb-2" style="font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;">
-    <i class="fas fa-exchange-alt me-1"></i>Comparativa de períodos
-  </h6>
-  <div class="row g-3">
-    {% for item in comparativa_meses %}
-    <div class="col-12 col-md-4">
-      <div class="dash-card h-100 py-3 px-3" style="border-left:3px solid {% if forloop.first %}var(--accent,#5eead4){% else %}rgba(255,255,255,.1){% endif %};">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="text-muted" style="font-size:.75rem;">{{ item.periodo }}</div>
-            <div class="fw-bold fs-5 mt-1">S/ {{ item.neto|floatformat:0|intcomma }}</div>
-            <div class="text-muted" style="font-size:.78rem;">{{ item.trabajadores }} trabajadores</div>
-          </div>
-          <div class="text-end">
-            {% if item.variacion_pct is not None %}
-              {% if item.variacion_pct >= 0 %}
-                <span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e;font-size:.8rem;">
-                  <i class="fas fa-arrow-up me-1"></i>{{ item.variacion_pct }}%
+  {# Total períodos #}
+  <div class="nom-kpi kpi-primary">
+    <div class="kpi-icon bg-teal"><i class="fas fa-layer-group"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-label">Períodos registrados</div>
+      <div class="kpi-value">{{ periodos|length }}</div>
+      <div class="kpi-sub">
+        {% if anio_filtro %}Filtrando: {{ anio_filtro }}{% else %}Todos los años{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Último neto #}
+  <div class="nom-kpi kpi-accent">
+    <div class="kpi-icon bg-accent"><i class="fas fa-hand-holding-usd"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-label">Neto — último período</div>
+      <div class="kpi-value">
+        {% if ultimo %}S/ {{ ultimo.total_neto|floatformat:0|intcomma }}{% else %}—{% endif %}
+      </div>
+      <div class="kpi-sub">
+        {% if ultimo %}{{ ultimo.mes_nombre|default:ultimo }} · {{ ultimo.anio }}{% else %}Sin período aprobado{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Total trabajadores último período #}
+  <div class="nom-kpi kpi-blue">
+    <div class="kpi-icon bg-blue"><i class="fas fa-users"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-label">Trabajadores en planilla</div>
+      <div class="kpi-value">
+        {% if ultimo %}{{ ultimo.total_trabajadores|default:"0" }}{% else %}—{% endif %}
+      </div>
+      <div class="kpi-sub">Último período procesado</div>
+    </div>
+  </div>
+
+  {# Estado último período #}
+  <div class="nom-kpi kpi-purple">
+    <div class="kpi-icon bg-purple"><i class="fas fa-check-shield"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-label">Estado último período</div>
+      <div class="kpi-value" style="font-size:1.1rem;">
+        {% if ultimo %}
+          {% if ultimo.estado == 'APROBADO' %}<span style="color:#059669;">Aprobado</span>
+          {% elif ultimo.estado == 'CERRADO' %}<span style="color:#374151;">Cerrado</span>
+          {% elif ultimo.estado == 'CALCULADO' %}<span style="color:#1d4ed8;">Calculado</span>
+          {% else %}<span style="color:#6b7280;">{{ ultimo.get_estado_display }}</span>
+          {% endif %}
+        {% else %}<span style="color:#9ca3af;">—</span>{% endif %}
+      </div>
+      <div class="kpi-sub">
+        {% if ultimo %}Costo empresa: S/ {{ ultimo.total_costo_empresa|floatformat:0|intcomma|default:"0" }}{% else %}Sin datos{% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── Main Layout: Table + Sidebar ─────────────────────────────────────────────── #}
+<div class="nom-layout">
+
+  {# ── LEFT: Filter + Table ─────────────────────────────────────────────────── #}
+  <div>
+
+    {# ── Comparativa últimos períodos ─────────────────────────────────────────── #}
+    {% if comparativa_meses %}
+    <div class="mb-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;">
+          <i class="fas fa-exchange-alt me-1"></i>Comparativa de períodos
+        </span>
+      </div>
+      <div class="row g-2">
+        {% for item in comparativa_meses %}
+        <div class="col-12 col-sm-4">
+          <div class="comp-card {% if forloop.first %}current{% endif %}">
+            <div class="comp-period">{{ item.periodo }}</div>
+            <div class="comp-value">S/ {{ item.neto|floatformat:0|intcomma }}</div>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="comp-workers">{{ item.trabajadores }} trabajadores</div>
+              <div class="d-flex align-items-center gap-1">
+                {% if item.variacion_pct is not None %}
+                  {% if item.variacion_pct >= 0 %}
+                  <span style="font-size:.72rem;font-weight:700;color:#059669;background:rgba(5,150,105,.1);padding:.15rem .45rem;border-radius:10px;">
+                    <i class="fas fa-arrow-up" style="font-size:.6rem;"></i> {{ item.variacion_pct }}%
+                  </span>
+                  {% else %}
+                  <span style="font-size:.72rem;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:.15rem .45rem;border-radius:10px;">
+                    <i class="fas fa-arrow-down" style="font-size:.6rem;"></i> {{ item.variacion_pct|slice:"1:" }}%
+                  </span>
+                  {% endif %}
+                {% else %}
+                <span style="font-size:.7rem;color:#9ca3af;">Base</span>
+                {% endif %}
+                <span class="badge-estado
+                  {% if item.estado == 'BORRADOR' %}borrador
+                  {% elif item.estado == 'CALCULADO' %}calculado
+                  {% elif item.estado == 'APROBADO' %}aprobado
+                  {% elif item.estado == 'CERRADO' %}cerrado
+                  {% else %}borrador{% endif %}"
+                  style="padding:.18rem .5rem;font-size:.65rem;">
+                  {{ item.estado }}
                 </span>
-              {% else %}
-                <span class="badge" style="background:rgba(239,68,68,.15);color:#ef4444;font-size:.8rem;">
-                  <i class="fas fa-arrow-down me-1"></i>{{ item.variacion_pct|slice:"1:" }}%
-                </span>
-              {% endif %}
-            {% else %}
-              <span class="badge bg-secondary" style="font-size:.8rem;">Base</span>
-            {% endif %}
-            <div class="mt-1">
-              <span class="badge bg-{{ item.color_estado }}" style="font-size:.7rem;">{{ item.estado }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-{# ── Analytics: Distribución + Tendencia + Top 5 ────────────────────────────── #}
-{% if ultimo %}
-<div class="row g-3 mb-4">
-
-  {# Doughnut distribución de conceptos #}
-  <div class="col-12 col-md-4">
-    <div class="dash-card h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="mb-0 fw-semibold" style="font-size:.85rem;">
-          <i class="fas fa-chart-pie me-1 text-accent"></i>Distribución — {{ ultimo }}
-        </h6>
-      </div>
-      <div class="d-flex justify-content-center">
-        <canvas id="chartDistribucion" width="180" height="180" style="max-width:180px;max-height:180px;"></canvas>
-      </div>
-      <div class="mt-3" style="font-size:.78rem;">
-        <div class="d-flex justify-content-between mb-1">
-          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#5eead4;margin-right:5px;"></span>Remuneraciones</span>
-          <span id="lblRemuneraciones" class="fw-semibold">—</span>
-        </div>
-        <div class="d-flex justify-content-between mb-1">
-          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;margin-right:5px;"></span>Descuentos</span>
-          <span id="lblDescuentos" class="fw-semibold">—</span>
-        </div>
-        <div class="d-flex justify-content-between">
-          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:5px;"></span>Aportes empresa</span>
-          <span id="lblAportes" class="fw-semibold">—</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# Top 5 netos #}
-  <div class="col-12 col-md-4">
-    <div class="dash-card h-100">
-      <h6 class="mb-3 fw-semibold" style="font-size:.85rem;">
-        <i class="fas fa-trophy me-1 text-warning"></i>Top 5 — Mayor neto a pagar
-      </h6>
-      {% if top_sueldos %}
-      <ol class="list-unstyled mb-0">
-        {% for reg in top_sueldos %}
-        <li class="d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid rgba(255,255,255,.06);">
-          <div class="d-flex align-items-center gap-2">
-            <span class="fw-bold" style="min-width:1.4rem;color:{% if forloop.counter == 1 %}#f59e0b{% elif forloop.counter == 2 %}#9ca3af{% elif forloop.counter == 3 %}#b45309{% else %}var(--text-muted){% endif %};font-size:.8rem;">
-              #{{ forloop.counter }}
-            </span>
-            <div>
-              <div style="font-size:.82rem;font-weight:500;line-height:1.2;">{{ reg.personal.apellidos_nombres|truncatechars:28 }}</div>
-              <div class="text-muted" style="font-size:.72rem;">{{ reg.grupo|default:"—" }}</div>
-            </div>
-          </div>
-          <span class="fw-bold text-accent" style="font-size:.85rem;">S/ {{ reg.neto_a_pagar|floatformat:0|intcomma }}</span>
-        </li>
         {% endfor %}
-      </ol>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Filter Bar ──────────────────────────────────────────────────────────── #}
+    <div class="nom-filter-bar mb-3">
+      <form method="get" class="d-flex align-items-center gap-2 flex-wrap w-100">
+        <i class="fas fa-filter text-muted" style="font-size:.85rem;"></i>
+        <select name="tipo" class="form-select form-select-sm" style="width:auto;min-width:140px;">
+          <option value="">Todos los tipos</option>
+          {% for v,l in tipo_choices %}
+          <option value="{{ v }}" {% if v == tipo_filtro %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+        <select name="anio" class="form-select form-select-sm" style="width:auto;min-width:100px;">
+          <option value="">Todos los años</option>
+          {% for a in anios_disp %}
+          <option value="{{ a }}" {% if a|stringformat:"s" == anio_filtro %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary px-3">
+          <i class="fas fa-search me-1"></i>Filtrar
+        </button>
+        {% if tipo_filtro or anio_filtro %}
+        <a href="{% url 'nominas_panel' %}" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-times me-1"></i>Limpiar
+        </a>
+        {% endif %}
+        {% if periodos %}
+        <span class="ms-auto text-muted" style="font-size:.78rem;">
+          {{ periodos|length }} período{{ periodos|length|pluralize:",s" }}
+        </span>
+        {% endif %}
+      </form>
+    </div>
+
+    {# ── Periods Table ───────────────────────────────────────────────────────── #}
+    <div class="nom-card">
+      {% if periodos %}
+      <div class="table-responsive">
+        <table class="nom-table">
+          <thead>
+            <tr>
+              <th>Período</th>
+              <th>Tipo</th>
+              <th class="text-center">Estado</th>
+              <th class="text-center">Trabajadores</th>
+              <th class="text-end">Total Bruto</th>
+              <th class="text-end">Total Neto</th>
+              <th class="text-end">Costo Empresa</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in periodos %}
+            <tr>
+              {# Período #}
+              <td>
+                <a href="{% url 'nominas_periodo_detalle' p.pk %}"
+                   class="fw-semibold text-decoration-none"
+                   style="color:#0f766e;font-size:.88rem;">
+                  {{ p }}
+                </a>
+                {% if p.fecha_pago %}
+                <div style="font-size:.72rem;color:#9ca3af;margin-top:.15rem;">
+                  <i class="fas fa-calendar-check me-1"></i>Pago {{ p.fecha_pago|date:"d/m/Y" }}
+                </div>
+                {% endif %}
+              </td>
+
+              {# Tipo #}
+              <td>
+                <span class="badge-tipo
+                  {% if p.tipo == 'REGULAR' %}regular
+                  {% elif p.tipo == 'GRATIFICACION' %}gratificacion
+                  {% elif p.tipo == 'CTS' %}cts
+                  {% elif p.tipo == 'UTILIDADES' %}utilidades
+                  {% else %}liquidacion{% endif %}">
+                  <i class="fas
+                    {% if p.tipo == 'REGULAR' %}fa-calendar-alt
+                    {% elif p.tipo == 'GRATIFICACION' %}fa-gift
+                    {% elif p.tipo == 'CTS' %}fa-piggy-bank
+                    {% elif p.tipo == 'UTILIDADES' %}fa-chart-line
+                    {% else %}fa-file-contract{% endif %}"
+                    style="font-size:.65rem;"></i>
+                  {{ p.get_tipo_display }}
+                </span>
+              </td>
+
+              {# Estado #}
+              <td class="text-center">
+                <span class="badge-estado
+                  {% if p.estado == 'BORRADOR' %}borrador
+                  {% elif p.estado == 'CALCULADO' %}calculado
+                  {% elif p.estado == 'APROBADO' %}aprobado
+                  {% elif p.estado == 'CERRADO' %}cerrado
+                  {% else %}anulado{% endif %}">
+                  <i class="fas
+                    {% if p.estado == 'BORRADOR' %}fa-circle-dot
+                    {% elif p.estado == 'CALCULADO' %}fa-calculator
+                    {% elif p.estado == 'APROBADO' %}fa-check-circle
+                    {% elif p.estado == 'CERRADO' %}fa-lock
+                    {% else %}fa-ban{% endif %}"
+                    style="font-size:.6rem;"></i>
+                  {{ p.get_estado_display }}
+                </span>
+              </td>
+
+              {# Trabajadores #}
+              <td class="text-center">
+                {% if p.total_trabajadores %}
+                <span class="fw-semibold" style="color:#374151;">{{ p.total_trabajadores|intcomma }}</span>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              {# Bruto #}
+              <td class="text-end amount-cell" style="color:#374151;">
+                {% if p.total_bruto %}S/ {{ p.total_bruto|floatformat:2|intcomma }}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+
+              {# Neto #}
+              <td class="text-end amount-cell">
+                {% if p.total_neto %}
+                <strong style="color:#0f766e;">S/ {{ p.total_neto|floatformat:2|intcomma }}</strong>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+
+              {# Costo empresa #}
+              <td class="text-end amount-cell" style="color:#6b7280;">
+                {% if p.total_costo_empresa %}S/ {{ p.total_costo_empresa|floatformat:2|intcomma }}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+
+              {# Acciones #}
+              <td class="text-center">
+                <div class="d-flex justify-content-center gap-1">
+                  <a href="{% url 'nominas_periodo_detalle' p.pk %}"
+                     class="btn-action view" title="Ver detalle">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  {% if p.estado == 'CALCULADO' or p.estado == 'APROBADO' or p.estado == 'CERRADO' %}
+                  <a href="{% url 'nominas_periodo_exportar' p.pk %}"
+                     class="btn-action export" title="Exportar CSV">
+                    <i class="fas fa-file-csv"></i>
+                  </a>
+                  {% else %}
+                  <span class="btn-action" style="border-color:#e5e7eb;color:#d1d5db;cursor:not-allowed;" title="Disponible al calcular">
+                    <i class="fas fa-file-csv"></i>
+                  </span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
       {% else %}
-      <p class="text-muted text-center py-3" style="font-size:.82rem;">Sin datos disponibles</p>
+      {# ── Empty State ──────────────────────────────────────────────────────── #}
+      <div class="nom-empty">
+        <div class="nom-empty-icon">
+          <i class="fas fa-file-invoice-dollar"></i>
+        </div>
+        <h5>Sin períodos de nómina</h5>
+        <p>
+          {% if tipo_filtro or anio_filtro %}
+            No hay períodos con los filtros aplicados. Prueba cambiar el tipo o año.
+          {% else %}
+            Aún no se han creado períodos de planilla. Crea el primero para comenzar
+            el ciclo de nómina de tu empresa.
+          {% endif %}
+        </p>
+        {% if tipo_filtro or anio_filtro %}
+        <a href="{% url 'nominas_panel' %}" class="btn btn-outline-secondary btn-sm me-2">
+          <i class="fas fa-times me-1"></i>Quitar filtros
+        </a>
+        {% endif %}
+        <a href="{% url 'nominas_periodo_crear' %}" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus me-1"></i>Crear primer período
+        </a>
+      </div>
       {% endif %}
     </div>
-  </div>
 
-  {# Tendencia masa salarial #}
-  <div class="col-12 col-md-4">
-    <div class="dash-card h-100">
-      <h6 class="mb-3 fw-semibold" style="font-size:.85rem;">
-        <i class="fas fa-chart-line me-1 text-accent"></i>Tendencia masa salarial
-      </h6>
-      <div style="position:relative;height:160px;">
-        <canvas id="chartTendencia"></canvas>
+  </div>{# /left #}
+
+  {# ── RIGHT: Sidebar ───────────────────────────────────────────────────────── #}
+  <div>
+
+    {# ── Quick Actions ──────────────────────────────────────────────────────── #}
+    <div class="nom-sidebar-card">
+      <div class="nom-sidebar-header">
+        <i class="fas fa-bolt" style="color:#f59e0b;"></i>Acciones rápidas
       </div>
-      <p class="text-muted mt-2 mb-0" style="font-size:.72rem;">Total neto a pagar — últimos 6 períodos regulares</p>
+      <div class="nom-sidebar-body" style="display:flex;flex-direction:column;gap:.6rem;">
+        <a href="{% url 'nominas_periodo_crear' %}"
+           class="quick-action-btn"
+           style="border-color:#0f766e;color:#0f766e;">
+          <div class="qa-icon" style="background:rgba(15,118,110,.1);color:#0f766e;">
+            <i class="fas fa-plus"></i>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:700;">Nuevo período</div>
+            <div style="font-size:.7rem;color:#9ca3af;font-weight:400;">Crear planilla mensual</div>
+          </div>
+        </a>
+        <a href="{% url 'nominas_gratificaciones' %}"
+           class="quick-action-btn"
+           style="border-color:#2563eb;color:#2563eb;">
+          <div class="qa-icon" style="background:rgba(37,99,235,.1);color:#2563eb;">
+            <i class="fas fa-gift"></i>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:700;">Gratificaciones</div>
+            <div style="font-size:.7rem;color:#9ca3af;font-weight:400;">Jul / Dic — Ley 27735</div>
+          </div>
+        </a>
+        <a href="{% url 'nominas_ir5ta' %}"
+           class="quick-action-btn"
+           style="border-color:#7c3aed;color:#7c3aed;">
+          <div class="qa-icon" style="background:rgba(124,58,237,.1);color:#7c3aed;">
+            <i class="fas fa-percent"></i>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:700;">IR 5ta Categoría</div>
+            <div style="font-size:.7rem;color:#9ca3af;font-weight:400;">Retención mensual SUNAT</div>
+          </div>
+        </a>
+        <a href="{% url 'nominas_conceptos' %}"
+           class="quick-action-btn"
+           style="border-color:#d97706;color:#d97706;">
+          <div class="qa-icon" style="background:rgba(217,119,6,.1);color:#d97706;">
+            <i class="fas fa-list-check"></i>
+          </div>
+          <div>
+            <div style="font-size:.82rem;font-weight:700;">Conceptos</div>
+            <div style="font-size:.7rem;color:#9ca3af;font-weight:400;">Ingresos y descuentos</div>
+          </div>
+        </a>
+      </div>
     </div>
-  </div>
 
-</div>
-{% endif %}
+    {% if ultimo %}
 
-{# Filtros #}
-<div class="dash-card mb-3 py-2">
-  <form method="get" class="row g-2 align-items-center">
-    <div class="col-auto">
-      <select name="tipo" class="form-select form-select-sm">
-        <option value="">— Tipo —</option>
-        {% for v,l in tipo_choices %}
-        <option value="{{ v }}" {% if v == tipo_filtro %}selected{% endif %}>{{ l }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <select name="anio" class="form-select form-select-sm">
-        <option value="">— Año —</option>
-        {% for a in anios_disp %}
-        <option value="{{ a }}" {% if a|stringformat:"s" == anio_filtro %}selected{% endif %}>{{ a }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <button type="submit" class="btn btn-sm btn-outline-primary">
-        <i class="fas fa-filter me-1"></i>Filtrar
-      </button>
-      <a href="{% url 'nominas_panel' %}" class="btn btn-sm btn-outline-secondary ms-1">Limpiar</a>
-    </div>
-  </form>
-</div>
-
-{# Tabla de períodos #}
-<div class="dash-card">
-  {% if periodos %}
-  <div class="table-responsive">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Período</th>
-          <th>Tipo</th>
-          <th>Trabajadores</th>
-          <th>Total Bruto</th>
-          <th>Total Neto</th>
-          <th>Costo Empresa</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in periodos %}
-        <tr>
-          <td>
-            <a href="{% url 'nominas_periodo_detalle' p.pk %}" class="fw-semibold text-decoration-none">
-              {{ p }}
-            </a>
-            {% if p.fecha_pago %}<div class="text-muted" style="font-size:.75rem;">Pago: {{ p.fecha_pago|date:"d/m/Y" }}</div>{% endif %}
-          </td>
-          <td>
-            <span class="badge
-              {% if p.tipo == 'REGULAR' %}bg-primary
-              {% elif p.tipo == 'GRATIFICACION' %}bg-info
-              {% elif p.tipo == 'CTS' %}bg-warning text-dark
-              {% else %}bg-secondary{% endif %}">
-              {{ p.get_tipo_display }}
+    {# ── Distribución Conceptos ─────────────────────────────────────────────── #}
+    <div class="nom-sidebar-card">
+      <div class="nom-sidebar-header">
+        <i class="fas fa-chart-pie" style="color:#0f766e;"></i>
+        Distribución — {{ ultimo.mes_nombre|default:ultimo }}
+      </div>
+      <div class="nom-sidebar-body">
+        <div class="d-flex justify-content-center mb-3">
+          <canvas id="chartDistribucion" width="160" height="160" style="max-width:160px;max-height:160px;"></canvas>
+        </div>
+        <div>
+          <div class="donut-legend-item">
+            <span>
+              <span class="donut-legend-dot" style="background:#5eead4;"></span>
+              Remuneraciones
             </span>
-          </td>
-          <td class="text-center">{{ p.total_trabajadores|default:"—" }}</td>
-          <td>{% if p.total_bruto %}S/ {{ p.total_bruto|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
-          <td>{% if p.total_neto %}<strong>S/ {{ p.total_neto|floatformat:2|intcomma }}</strong>{% else %}—{% endif %}</td>
-          <td>{% if p.total_costo_empresa %}S/ {{ p.total_costo_empresa|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
-          <td>
-            <span class="badge
-              {% if p.estado == 'BORRADOR' %}bg-secondary
-              {% elif p.estado == 'CALCULADO' %}bg-info
-              {% elif p.estado == 'APROBADO' %}bg-success
-              {% elif p.estado == 'CERRADO' %}bg-dark
-              {% else %}bg-danger{% endif %}">
-              {{ p.get_estado_display }}
+            <span class="fw-semibold" id="lblRemuneraciones" style="color:#0d9488;">—</span>
+          </div>
+          <div class="donut-legend-item">
+            <span>
+              <span class="donut-legend-dot" style="background:#ef4444;"></span>
+              Descuentos
             </span>
-          </td>
-          <td>
-            <div class="d-flex gap-1">
-              <a href="{% url 'nominas_periodo_detalle' p.pk %}" class="btn btn-xs btn-outline-primary" title="Ver">
-                <i class="fas fa-eye"></i>
-              </a>
-              {% if p.estado in 'CALCULADO,APROBADO,CERRADO' %}
-              <a href="{% url 'nominas_periodo_exportar' p.pk %}" class="btn btn-xs btn-outline-success" title="Exportar CSV">
-                <i class="fas fa-file-csv"></i>
-              </a>
-              {% endif %}
-            </div>
-          </td>
-        </tr>
+            <span class="fw-semibold" id="lblDescuentos" style="color:#dc2626;">—</span>
+          </div>
+          <div class="donut-legend-item">
+            <span>
+              <span class="donut-legend-dot" style="background:#3b82f6;"></span>
+              Aportes empresa
+            </span>
+            <span class="fw-semibold" id="lblAportes" style="color:#2563eb;">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Tendencia Masa Salarial ────────────────────────────────────────────── #}
+    <div class="nom-sidebar-card">
+      <div class="nom-sidebar-header">
+        <i class="fas fa-chart-line" style="color:#5eead4;"></i>Tendencia masa salarial
+      </div>
+      <div class="nom-sidebar-body">
+        <div style="position:relative;height:140px;">
+          <canvas id="chartTendencia"></canvas>
+        </div>
+        <p style="font-size:.7rem;color:#9ca3af;margin-top:.75rem;margin-bottom:0;">
+          Total neto a pagar — últimos períodos regulares
+        </p>
+      </div>
+    </div>
+
+    {# ── Top 5 Mayor Neto ───────────────────────────────────────────────────── #}
+    {% if top_sueldos %}
+    <div class="nom-sidebar-card">
+      <div class="nom-sidebar-header">
+        <i class="fas fa-trophy" style="color:#f59e0b;"></i>Top 5 — Mayor neto
+      </div>
+      <div class="nom-sidebar-body">
+        {% for reg in top_sueldos %}
+        <div class="top-item">
+          <div class="top-rank" style="
+            color:{% if forloop.counter == 1 %}#f59e0b{% elif forloop.counter == 2 %}#9ca3af{% elif forloop.counter == 3 %}#b45309{% else %}#d1d5db{% endif %};">
+            {% if forloop.counter == 1 %}<i class="fas fa-medal"></i>
+            {% elif forloop.counter == 2 %}<i class="fas fa-medal"></i>
+            {% elif forloop.counter == 3 %}<i class="fas fa-medal"></i>
+            {% else %}#{{ forloop.counter }}{% endif %}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div class="top-name">{{ reg.personal.apellidos_nombres|truncatechars:26 }}</div>
+            <div class="top-grupo">{{ reg.grupo|default:"—" }}</div>
+          </div>
+          <div class="top-amount">S/ {{ reg.neto_a_pagar|floatformat:0|intcomma }}</div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="text-center py-5 text-muted">
-    <i class="fas fa-file-invoice-dollar fa-3x mb-3 opacity-25"></i>
-    <p>No hay períodos de nómina registrados.</p>
-    <a href="{% url 'nominas_periodo_crear' %}" class="btn btn-primary btn-sm">
-      <i class="fas fa-plus me-1"></i>Crear primer período
-    </a>
-  </div>
-  {% endif %}
-</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# No hay período aprobado — mensaje en sidebar #}
+    <div class="nom-sidebar-card">
+      <div class="nom-sidebar-body text-center py-4">
+        <div style="font-size:2rem;color:#e5e7eb;margin-bottom:.75rem;">
+          <i class="fas fa-chart-pie"></i>
+        </div>
+        <p style="font-size:.82rem;color:#9ca3af;margin-bottom:0;">
+          Los gráficos y estadísticas se mostrarán cuando haya un período aprobado o cerrado.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>{# /sidebar #}
+
+</div>{# /nom-layout #}
 {% endblock %}
 
 {% block extra_js %}
@@ -289,25 +823,28 @@
 (function () {
   'use strict';
 
-  // ── Doughnut: distribución de conceptos ─────────────────────────────────────
+  /* ── Helper: formato monetario ──────────────────────────────────────────── */
+  function fmtS(v) {
+    return 'S/ ' + Math.round(v).toLocaleString('en-US');
+  }
+
+  /* ── Donut: Distribución de conceptos ──────────────────────────────────── */
   var distData = {{ distribucion_conceptos_json|safe }};
   var ctxDist  = document.getElementById('chartDistribucion');
-  if (ctxDist && distData) {
-    var remuneraciones = distData.remuneraciones || 0;
-    var descuentos     = distData.descuentos     || 0;
-    var aportes        = distData.aportes_empresa || 0;
-    var total          = remuneraciones + descuentos + aportes;
 
-    // Populate legend labels
-    function fmtS(v) {
-      return 'S/ ' + Math.round(v).toLocaleString('es-PE');
-    }
+  if (ctxDist && distData) {
+    var rem   = distData.remuneraciones || 0;
+    var desc  = distData.descuentos     || 0;
+    var ap    = distData.aportes_empresa || 0;
+    var total = rem + desc + ap;
+
+    /* Labels legend */
     var elRem  = document.getElementById('lblRemuneraciones');
     var elDesc = document.getElementById('lblDescuentos');
     var elAp   = document.getElementById('lblAportes');
-    if (elRem)  elRem.textContent  = fmtS(remuneraciones);
-    if (elDesc) elDesc.textContent = fmtS(descuentos);
-    if (elAp)   elAp.textContent   = fmtS(aportes);
+    if (elRem)  elRem.textContent  = fmtS(rem);
+    if (elDesc) elDesc.textContent = fmtS(desc);
+    if (elAp)   elAp.textContent   = fmtS(ap);
 
     if (total > 0) {
       new Chart(ctxDist, {
@@ -315,22 +852,27 @@
         data: {
           labels: ['Remuneraciones', 'Descuentos', 'Aportes empresa'],
           datasets: [{
-            data: [remuneraciones, descuentos, aportes],
+            data: [rem, desc, ap],
             backgroundColor: ['#5eead4', '#ef4444', '#3b82f6'],
-            borderColor: 'transparent',
-            hoverOffset: 6,
+            borderColor: '#ffffff',
+            borderWidth: 3,
+            hoverOffset: 8,
           }]
         },
         options: {
           responsive: false,
-          cutout: '68%',
+          cutout: '70%',
           plugins: {
             legend: { display: false },
             tooltip: {
+              backgroundColor: 'rgba(17,24,39,.9)',
+              titleFont: { size: 11 },
+              bodyFont: { size: 11 },
+              padding: 10,
               callbacks: {
                 label: function(ctx) {
                   var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                  return ' ' + ctx.label + ': ' + fmtS(ctx.parsed) + ' (' + pct + '%)';
+                  return '  ' + ctx.label + ': ' + fmtS(ctx.parsed) + ' (' + pct + '%)';
                 }
               }
             }
@@ -338,21 +880,25 @@
         }
       });
     } else {
-      // Empty state
       new Chart(ctxDist, {
         type: 'doughnut',
         data: {
           labels: ['Sin datos'],
-          datasets: [{ data: [1], backgroundColor: ['rgba(255,255,255,.08)'], borderColor: 'transparent' }]
+          datasets: [{ data: [1], backgroundColor: ['#f3f4f6'], borderColor: '#fff', borderWidth: 2 }]
         },
-        options: { responsive: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+        options: {
+          responsive: false,
+          cutout: '70%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
       });
     }
   }
 
-  // ── Line: tendencia masa salarial ────────────────────────────────────────────
+  /* ── Line: Tendencia masa salarial ─────────────────────────────────────── */
   var masaData = {{ masa_salarial_json|safe }};
   var ctxMasa  = document.getElementById('chartTendencia');
+
   if (ctxMasa && masaData && masaData.length > 0) {
     var labels = masaData.map(function(d) { return d.label; });
     var values = masaData.map(function(d) { return d.neto; });
@@ -364,15 +910,15 @@
         datasets: [{
           label: 'Neto total',
           data: values,
-          borderColor: '#5eead4',
-          backgroundColor: 'rgba(94,234,212,.12)',
-          borderWidth: 2,
+          borderColor: '#0f766e',
+          backgroundColor: 'rgba(15,118,110,.08)',
+          borderWidth: 2.5,
           pointRadius: 4,
           pointBackgroundColor: '#5eead4',
-          pointBorderColor: '#0d2b27',
+          pointBorderColor: '#0f766e',
           pointBorderWidth: 2,
           fill: true,
-          tension: 0.35,
+          tension: 0.4,
         }]
       },
       options: {
@@ -381,22 +927,26 @@
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: 'rgba(17,24,39,.9)',
+            titleFont: { size: 11 },
+            bodyFont: { size: 11 },
+            padding: 10,
             callbacks: {
               label: function(ctx) {
-                return ' S/ ' + Math.round(ctx.parsed.y).toLocaleString('es-PE');
+                return '  Neto: ' + fmtS(ctx.parsed.y);
               }
             }
           }
         },
         scales: {
           x: {
-            grid: { color: 'rgba(255,255,255,.05)' },
-            ticks: { color: 'rgba(255,255,255,.45)', font: { size: 10 } }
+            grid: { color: 'rgba(0,0,0,.04)', drawBorder: false },
+            ticks: { color: '#9ca3af', font: { size: 10 } }
           },
           y: {
-            grid: { color: 'rgba(255,255,255,.05)' },
+            grid: { color: 'rgba(0,0,0,.04)', drawBorder: false },
             ticks: {
-              color: 'rgba(255,255,255,.45)',
+              color: '#9ca3af',
               font: { size: 10 },
               callback: function(v) {
                 if (v >= 1000000) return 'S/ ' + (v / 1000000).toFixed(1) + 'M';

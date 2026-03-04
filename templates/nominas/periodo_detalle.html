@@ -1,292 +1,666 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}{{ titulo }} — Harmoni{% endblock %}
+{% block title %}{{ periodo }} — Nóminas — Harmoni{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══════════════════════════════════════════════════════════════
+   PERIODO DETALLE — Harmoni Design System
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── KPI Tiles ──────────────────────────────────────────────── */
+.det-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: .85rem;
+}
+@media (max-width: 1100px) { .det-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .det-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.det-kpi {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 1px 5px rgba(0,0,0,.07);
+  border-top: 3px solid #e5e7eb;
+  transition: box-shadow .2s, transform .2s;
+}
+.det-kpi:hover { box-shadow: 0 4px 14px rgba(0,0,0,.1); transform: translateY(-1px); }
+.det-kpi.kpi-workers  { border-top-color: #0f766e; }
+.det-kpi.kpi-bruto    { border-top-color: #3b82f6; }
+.det-kpi.kpi-desc     { border-top-color: #ef4444; }
+.det-kpi.kpi-neto     { border-top-color: #5eead4; }
+.det-kpi.kpi-costo    { border-top-color: #8b5cf6; }
+
+.det-kpi .k-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .95rem;
+  margin-bottom: .6rem;
+}
+.det-kpi .k-label {
+  font-size: .67rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #9ca3af;
+  font-weight: 700;
+  margin-bottom: .2rem;
+}
+.det-kpi .k-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.det-kpi .k-sub {
+  font-size: .7rem;
+  color: #9ca3af;
+  margin-top: .2rem;
+}
+
+/* ── Action Bar ─────────────────────────────────────────────── */
+.action-bar {
+  background: #fff;
+  border-radius: 12px;
+  padding: .85rem 1.25rem;
+  box-shadow: 0 1px 5px rgba(0,0,0,.07);
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+.action-bar-divider {
+  width: 1px;
+  height: 1.5rem;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+/* ── Filter Bar ─────────────────────────────────────────────── */
+.filter-bar {
+  background: #fff;
+  border-radius: 12px;
+  padding: .75rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Main Data Card ─────────────────────────────────────────── */
+.det-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  overflow: hidden;
+}
+
+/* ── Payroll Table ──────────────────────────────────────────── */
+.nom-det-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .83rem;
+}
+.nom-det-table thead th {
+  padding: .6rem .9rem;
+  text-align: left;
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #6b7280;
+  background: #f9fafb;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.nom-det-table thead th.text-end    { text-align: right; }
+.nom-det-table thead th.text-center { text-align: center; }
+
+.nom-det-table tbody tr {
+  border-bottom: 1px solid #f9fafb;
+  transition: background .12s;
+}
+.nom-det-table tbody tr:hover { background: #f0fdf9; }
+.nom-det-table tbody tr:last-child { border-bottom: none; }
+
+.nom-det-table tbody td {
+  padding: .65rem .9rem;
+  vertical-align: middle;
+  color: #374151;
+}
+.nom-det-table tbody td.text-end   { text-align: right; font-variant-numeric: tabular-nums; }
+.nom-det-table tbody td.text-center { text-align: center; }
+
+/* ── Total Footer ───────────────────────────────────────────── */
+.nom-det-table tfoot td {
+  padding: .75rem .9rem;
+  font-variant-numeric: tabular-nums;
+}
+.totals-row td {
+  background: #f0fdf9;
+  border-top: 2px solid #a7f3d0;
+  font-weight: 700;
+  color: #111827;
+  font-size: .84rem;
+}
+.subtotals-row td {
+  background: #f9fafb;
+  border-top: 1px dashed #e5e7eb;
+  color: #6b7280;
+  font-size: .82rem;
+}
+
+/* ── Badge Estado ───────────────────────────────────────────── */
+.badge-reg {
+  display: inline-flex;
+  align-items: center;
+  padding: .22rem .55rem;
+  border-radius: 20px;
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-reg.calculado { background:rgba(59,130,246,.1);  color:#1d4ed8; }
+.badge-reg.revisado  { background:rgba(245,158,11,.1);  color:#b45309; }
+.badge-reg.aprobado  { background:rgba(16,185,129,.1);  color:#065f46; }
+.badge-reg.borrador  { background:rgba(107,114,128,.1); color:#374151; }
+
+/* ── Action Buttons ─────────────────────────────────────────── */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 7px;
+  font-size: .78rem;
+  border: 1.5px solid;
+  text-decoration: none;
+  transition: all .15s;
+  cursor: pointer;
+  background: transparent;
+}
+.btn-icon.view   { border-color:#0f766e; color:#0f766e; }
+.btn-icon.view:hover   { background:#0f766e; color:#fff; }
+.btn-icon.pdf    { border-color:#dc2626; color:#dc2626; }
+.btn-icon.pdf:hover    { background:#dc2626; color:#fff; }
+.btn-icon.edit   { border-color:#6b7280; color:#6b7280; }
+.btn-icon.edit:hover   { background:#6b7280; color:#fff; }
+
+/* ── Pension Badge ──────────────────────────────────────────── */
+.badge-pension {
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .45rem;
+  border-radius: 6px;
+  font-size: .67rem;
+  font-weight: 700;
+}
+.badge-pension.afp { background:rgba(37,99,235,.1); color:#1d4ed8; }
+.badge-pension.onp { background:rgba(124,58,237,.1); color:#6d28d9; }
+
+/* ── Empty State ────────────────────────────────────────────── */
+.det-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 2rem;
+  text-align: center;
+}
+.det-empty-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: #f0fdf9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: #5eead4;
+  margin-bottom: 1rem;
+}
+.det-empty h5 { font-size: .95rem; font-weight: 700; color: #374151; margin-bottom: .5rem; }
+.det-empty p  { font-size: .83rem; color: #9ca3af; margin-bottom: 1rem; max-width: 26rem; }
+
+/* ── Meta Row ───────────────────────────────────────────────── */
+.meta-row {
+  background: #fff;
+  border-radius: 12px;
+  padding: .7rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: .8rem;
+  color: #6b7280;
+}
+.meta-row .meta-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.meta-row .meta-item i { color: #5eead4; font-size: .75rem; }
+
+/* ── Scroll wrapper for wide table ─────────────────────────── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Alert legal ─────────────────────────────────────────────── */
+.alert-legal {
+  border-radius: 12px;
+  border: none;
+  padding: .85rem 1.2rem;
+  font-size: .82rem;
+  display: flex;
+  gap: .85rem;
+  align-items: flex-start;
+}
+</style>
+{% endblock %}
 
 {% block content %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────────── #}
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title"><i class="fas fa-file-invoice-dollar me-2 text-accent"></i>{{ titulo }}</h1>
+    <h1 class="page-title">
+      <i class="fas fa-file-invoice-dollar me-2 text-accent"></i>{{ periodo }}
+    </h1>
     <p class="page-subtitle">
-      <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">Nóminas</a>
-      / {{ periodo }}
+      <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">
+        <i class="fas fa-chevron-left me-1" style="font-size:.7rem;"></i>Nóminas
+      </a>
+      <span class="text-muted mx-1">/</span>
+      {{ periodo }}
     </p>
   </div>
-  <div class="page-header-actions">
-    {% if puede_generar %}
-    <form method="post" action="{% url 'nominas_periodo_generar' periodo.pk %}" class="d-inline">
-      {% csrf_token %}
-      {% if periodo.estado == 'CALCULADO' %}
-      <button type="submit" class="btn btn-warning btn-sm"
-              onclick="return confirm('¿Recalcular toda la planilla? Los valores actuales serán reemplazados.')">
-        <i class="fas fa-sync-alt me-1"></i>Recalcular
-      </button>
-      {% else %}
-      <button type="submit" class="btn btn-primary btn-sm"
-              onclick="return confirm('¿Generar/recalcular toda la planilla?')">
-        <i class="fas fa-calculator me-1"></i>Generar planilla
-      </button>
-      {% endif %}
-    </form>
-    {% endif %}
-    {% if puede_aprobar %}
-    <form method="post" action="{% url 'nominas_periodo_aprobar' periodo.pk %}" class="d-inline">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-success btn-sm"
-              onclick="return confirm('¿Aprobar y cerrar el período? Esta acción bloquea la edición.')">
-        <i class="fas fa-check-circle me-1"></i>Aprobar
-      </button>
-    </form>
-    {% endif %}
-    {% if puede_exportar %}
-    <a href="{% url 'nominas_periodo_exportar' periodo.pk %}" class="btn btn-outline-success btn-sm">
-      <i class="fas fa-file-csv me-1"></i>Exportar CSV
-    </a>
-    <a href="{% url 'nominas_periodo_boletas_zip' periodo.pk %}" class="btn btn-outline-danger btn-sm">
-      <i class="fas fa-file-archive me-1"></i>Descargar todas las boletas
-    </a>
-    {% endif %}
-    <button type="button" class="btn btn-outline-info btn-sm" id="btn-resumen"
-            onclick="cargarResumen({{ periodo.pk }})">
-      <i class="fas fa-chart-pie me-1"></i>Resumen estadístico
+</div>
+
+{# ── KPI Tiles ────────────────────────────────────────────────────────────────── #}
+<div class="det-kpi-grid mb-3">
+
+  <div class="det-kpi kpi-workers">
+    <div class="k-icon" style="background:rgba(15,118,110,.1);color:#0f766e;">
+      <i class="fas fa-users"></i>
+    </div>
+    <div class="k-label">Trabajadores</div>
+    <div class="k-value">{{ periodo.total_trabajadores|default:"0"|intcomma }}</div>
+    <div class="k-sub">En este período</div>
+  </div>
+
+  <div class="det-kpi kpi-bruto">
+    <div class="k-icon" style="background:rgba(59,130,246,.1);color:#2563eb;">
+      <i class="fas fa-wallet"></i>
+    </div>
+    <div class="k-label">Total Bruto</div>
+    <div class="k-value" style="font-size:1rem;">S/ {{ periodo.total_bruto|floatformat:0|intcomma|default:"0" }}</div>
+    <div class="k-sub">Ingresos brutos</div>
+  </div>
+
+  <div class="det-kpi kpi-desc">
+    <div class="k-icon" style="background:rgba(239,68,68,.1);color:#dc2626;">
+      <i class="fas fa-minus-circle"></i>
+    </div>
+    <div class="k-label">Descuentos</div>
+    <div class="k-value" style="font-size:1rem;color:#dc2626;">
+      S/ {{ periodo.total_descuentos|default:0|floatformat:0|intcomma }}
+    </div>
+    <div class="k-sub">AFP + ONP + IR + otros</div>
+  </div>
+
+  <div class="det-kpi kpi-neto">
+    <div class="k-icon" style="background:rgba(94,234,212,.18);color:#0d9488;">
+      <i class="fas fa-hand-holding-usd"></i>
+    </div>
+    <div class="k-label">Neto a pagar</div>
+    <div class="k-value" style="font-size:1rem;color:#0f766e;">S/ {{ periodo.total_neto|floatformat:0|intcomma|default:"0" }}</div>
+    <div class="k-sub">Depósito trabajadores</div>
+  </div>
+
+  <div class="det-kpi kpi-costo">
+    <div class="k-icon" style="background:rgba(139,92,246,.1);color:#7c3aed;">
+      <i class="fas fa-building"></i>
+    </div>
+    <div class="k-label">Costo empresa</div>
+    <div class="k-value" style="font-size:1rem;">S/ {{ periodo.total_costo_empresa|floatformat:0|intcomma|default:"0" }}</div>
+    <div class="k-sub">Incluye EsSalud</div>
+  </div>
+
+</div>
+
+{# ── Meta Row: tipo, fechas, estado, generado por ─────────────────────────────── #}
+<div class="meta-row mb-3">
+  <div class="meta-item">
+    <i class="fas fa-tag"></i>
+    <span>Tipo:
+      <strong style="color:#111827;">
+        {% if periodo.tipo == 'REGULAR' %}Planilla Regular
+        {% elif periodo.tipo == 'GRATIFICACION' %}Gratificación Semestral
+        {% elif periodo.tipo == 'CTS' %}CTS Semestral
+        {% elif periodo.tipo == 'UTILIDADES' %}Utilidades
+        {% else %}{{ periodo.get_tipo_display }}{% endif %}
+      </strong>
+    </span>
+  </div>
+  {% if periodo.fecha_inicio %}
+  <div class="meta-item">
+    <i class="fas fa-calendar-alt"></i>
+    <span>{{ periodo.fecha_inicio|date:"d/m/Y" }} — {{ periodo.fecha_fin|date:"d/m/Y"|default:"?" }}</span>
+  </div>
+  {% endif %}
+  {% if periodo.fecha_pago %}
+  <div class="meta-item">
+    <i class="fas fa-money-check-alt"></i>
+    <span>Pago: <strong style="color:#0f766e;">{{ periodo.fecha_pago|date:"d/m/Y" }}</strong></span>
+  </div>
+  {% endif %}
+  <div class="meta-item ms-auto">
+    <span class="badge
+      {% if periodo.estado == 'BORRADOR' %}bg-secondary
+      {% elif periodo.estado == 'CALCULADO' %}bg-primary
+      {% elif periodo.estado == 'APROBADO' %}bg-success
+      {% elif periodo.estado == 'CERRADO' %}bg-dark
+      {% else %}bg-danger{% endif %}"
+      style="font-size:.78rem;padding:.3rem .7rem;">
+      <i class="fas
+        {% if periodo.estado == 'BORRADOR' %}fa-edit
+        {% elif periodo.estado == 'CALCULADO' %}fa-calculator
+        {% elif periodo.estado == 'APROBADO' %}fa-check-circle
+        {% elif periodo.estado == 'CERRADO' %}fa-lock
+        {% else %}fa-ban{% endif %} me-1" style="font-size:.65rem;"></i>
+      {{ periodo.get_estado_display }}
+    </span>
+  </div>
+</div>
+
+{# ── Legal info para Gratificacion / CTS ─────────────────────────────────────── #}
+{% if periodo.tipo == 'GRATIFICACION' %}
+<div class="alert-legal mb-3" style="background:rgba(245,158,11,.08);color:#92400e;">
+  <i class="fas fa-gift fa-lg flex-shrink-0 mt-1" style="color:#d97706;"></i>
+  <div>
+    <strong>Gratificación Semestral — Ley 27735 + Ley 29351</strong><br>
+    Base: <em>sueldo + asignación familiar</em> (las HE no computan).
+    Proporcional a meses trabajados en el semestre.
+    Se agrega <strong>Bonificación Extraordinaria 9%</strong> a cargo del empleador.
+    Aplican descuentos AFP/ONP sobre la gratificación. <strong>IR 5ta es inafecto</strong> (Art. 18° LIR).
+  </div>
+</div>
+{% elif periodo.tipo == 'CTS' %}
+<div class="alert-legal mb-3" style="background:rgba(59,130,246,.07);color:#1e3a5f;">
+  <i class="fas fa-piggy-bank fa-lg flex-shrink-0 mt-1" style="color:#2563eb;"></i>
+  <div>
+    <strong>CTS Semestral — DL 650 + Ley 30334</strong><br>
+    Base: <em>sueldo + asig. familiar + 1/6 sueldo (prov. gratif)</em>.
+    CTS = base × (meses trabajados / 12).
+    Inafecta a AFP/ONP e IR 5ta. El empleador deposita directamente en la cuenta CTS del banco del trabajador.
+  </div>
+</div>
+{% endif %}
+
+{# ── Action Bar ───────────────────────────────────────────────────────────────── #}
+<div class="action-bar mb-3">
+
+  {# Generar / Recalcular #}
+  {% if puede_generar %}
+  <form method="post" action="{% url 'nominas_periodo_generar' periodo.pk %}" class="d-inline">
+    {% csrf_token %}
+    {% if periodo.estado == 'CALCULADO' %}
+    <button type="submit" class="btn btn-warning btn-sm"
+            onclick="return confirm('¿Recalcular toda la planilla? Los valores actuales serán reemplazados.')">
+      <i class="fas fa-sync-alt me-1"></i>Recalcular
     </button>
-  </div>
+    {% else %}
+    <button type="submit" class="btn btn-primary btn-sm"
+            onclick="return confirm('¿Generar la planilla para todos los trabajadores activos?')">
+      <i class="fas fa-calculator me-1"></i>Generar planilla
+    </button>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {# Aprobar #}
+  {% if puede_aprobar %}
+  <div class="action-bar-divider"></div>
+  <form method="post" action="{% url 'nominas_periodo_aprobar' periodo.pk %}" class="d-inline">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success btn-sm"
+            onclick="return confirm('¿Aprobar y cerrar el período?\n\nEsta acción bloquea la edición de todos los registros.')">
+      <i class="fas fa-check-circle me-1"></i>Aprobar período
+    </button>
+  </form>
+  {% endif %}
+
+  {# Exportar CSV #}
+  {% if puede_exportar %}
+  <div class="action-bar-divider"></div>
+  <a href="{% url 'nominas_periodo_exportar' periodo.pk %}" class="btn btn-outline-success btn-sm">
+    <i class="fas fa-file-csv me-1"></i>Exportar CSV
+  </a>
+  <a href="{% url 'nominas_periodo_boletas_zip' periodo.pk %}" class="btn btn-outline-danger btn-sm">
+    <i class="fas fa-file-archive me-1"></i>Boletas ZIP
+  </a>
+  {% endif %}
+
+  {# Resumen estadístico #}
+  <div class="action-bar-divider"></div>
+  <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-resumen"
+          onclick="toggleResumen({{ periodo.pk }})">
+    <i class="fas fa-chart-pie me-1"></i>Estadísticas
+  </button>
+
 </div>
 
-{# Resumen del período #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-2">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-users"></i></div>
-      <div class="stat-value">{{ periodo.total_trabajadores|default:"0" }}</div>
-      <div class="stat-label">Trabajadores</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-wallet"></i></div>
-      <div class="stat-value" style="font-size:1rem;">S/ {{ periodo.total_bruto|floatformat:0|intcomma|default:"0" }}</div>
-      <div class="stat-label">Bruto</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-minus-circle text-danger"></i></div>
-      <div class="stat-value" style="font-size:1rem;">S/ {{ periodo.total_descuentos|floatformat:0|intcomma|default:"0" }}</div>
-      <div class="stat-label">Descuentos</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-hand-holding-usd text-success"></i></div>
-      <div class="stat-value" style="font-size:1rem;">S/ {{ periodo.total_neto|floatformat:0|intcomma|default:"0" }}</div>
-      <div class="stat-label">Neto a pagar</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-building"></i></div>
-      <div class="stat-value" style="font-size:1rem;">S/ {{ periodo.total_costo_empresa|floatformat:0|intcomma|default:"0" }}</div>
-      <div class="stat-label">Costo empresa</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card">
-      <div class="stat-icon">
-        <span class="badge
-          {% if periodo.estado == 'BORRADOR' %}bg-secondary
-          {% elif periodo.estado == 'CALCULADO' %}bg-info
-          {% elif periodo.estado == 'APROBADO' %}bg-success
-          {% elif periodo.estado == 'CERRADO' %}bg-dark
-          {% else %}bg-danger{% endif %}" style="font-size:.85rem;">
-          {{ periodo.get_estado_display }}
-        </span>
-      </div>
-      <div class="stat-label mt-2">Estado</div>
-    </div>
-  </div>
-</div>
-
-{# Panel de resumen estadístico (se muestra al hacer clic) #}
-<div id="panel-resumen" class="dash-card mb-3" style="display:none;">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h6 class="mb-0"><i class="fas fa-chart-pie me-2 text-accent"></i>Resumen Estadístico del Período</h6>
-    <button type="button" class="btn btn-xs btn-outline-secondary" onclick="document.getElementById('panel-resumen').style.display='none'">
+{# ── Panel de resumen estadístico (AJAX) ──────────────────────────────────────── #}
+<div id="panel-resumen" class="det-card mb-3" style="display:none;">
+  <div style="padding:1rem 1.25rem;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;">
+    <h6 style="margin:0;font-size:.85rem;font-weight:700;color:#111827;">
+      <i class="fas fa-chart-pie me-2" style="color:#0f766e;"></i>Resumen estadístico del período
+    </h6>
+    <button type="button" class="btn btn-sm btn-outline-secondary"
+            onclick="document.getElementById('panel-resumen').style.display='none'">
       <i class="fas fa-times"></i>
     </button>
   </div>
-  <div id="resumen-contenido">
+  <div id="resumen-contenido" style="padding:1.25rem;">
     <div class="text-center py-3 text-muted">
       <i class="fas fa-spinner fa-spin me-2"></i>Cargando estadísticas...
     </div>
   </div>
 </div>
 
-{# Meta del período #}
-<div class="dash-card mb-3 py-2">
-  <div class="row text-muted" style="font-size:.85rem;">
-    <div class="col-auto">
-      <i class="fas fa-tag me-1"></i>Tipo:
-      {% if periodo.tipo == 'GRATIFICACION' %}
-        <strong class="text-warning"><i class="fas fa-gift me-1"></i>Gratificación Semestral</strong>
-      {% elif periodo.tipo == 'CTS' %}
-        <strong class="text-info"><i class="fas fa-piggy-bank me-1"></i>CTS Semestral</strong>
-      {% else %}
-        <strong>{{ periodo.get_tipo_display }}</strong>
+{# ── Filter Bar ───────────────────────────────────────────────────────────────── #}
+<div class="filter-bar mb-3">
+  <form method="get" id="form-filtros" class="d-flex align-items-center gap-2 flex-wrap w-100">
+    <i class="fas fa-filter text-muted" style="font-size:.85rem;flex-shrink:0;"></i>
+
+    <select name="grupo" class="form-select form-select-sm" style="width:auto;min-width:140px;"
+            onchange="this.form.submit()">
+      <option value="">Todos los grupos</option>
+      {% for g in grupos %}
+      <option value="{{ g }}" {% if g == grupo_filtro %}selected{% endif %}>{{ g }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="q" value="{{ q }}">
+
+    <div class="input-group input-group-sm" style="width:auto;min-width:220px;">
+      <span class="input-group-text" style="border-right:none;background:#fafafa;">
+        <i class="fas fa-search" style="font-size:.8rem;color:#9ca3af;"></i>
+      </span>
+      <input type="text" id="filtro-nombre" class="form-control form-control-sm"
+             placeholder="Buscar por nombre o DNI…"
+             value="{{ q }}"
+             oninput="filtrarTabla(this.value)"
+             style="border-left:none;">
+      {% if q %}
+      <button type="button" class="btn btn-outline-secondary btn-sm"
+              onclick="limpiarFiltroNombre()" title="Limpiar búsqueda">
+        <i class="fas fa-times"></i>
+      </button>
       {% endif %}
     </div>
-    {% if periodo.fecha_inicio %}
-    <div class="col-auto">
-      <i class="fas fa-calendar me-1"></i>{{ periodo.fecha_inicio|date:"d/m/Y" }} — {{ periodo.fecha_fin|date:"d/m/Y"|default:"?" }}
-    </div>
-    {% endif %}
-    {% if periodo.fecha_pago %}
-    <div class="col-auto">
-      <i class="fas fa-money-check-alt me-1"></i>Pago: <strong>{{ periodo.fecha_pago|date:"d/m/Y" }}</strong>
-    </div>
-    {% endif %}
-    {% if periodo.generado_por %}
-    <div class="col-auto">
-      <i class="fas fa-user-cog me-1"></i>Generado por {{ periodo.generado_por.get_full_name|default:periodo.generado_por.username }}
-      {% if periodo.generado_en %}el {{ periodo.generado_en|date:"d/m/Y H:i" }}{% endif %}
-    </div>
-    {% endif %}
-  </div>
-</div>
 
-{# Panel informativo para GRATIFICACION y CTS #}
-{% if periodo.tipo == 'GRATIFICACION' %}
-<div class="alert alert-warning d-flex gap-3 mb-3 py-2" style="font-size:.85rem;">
-  <i class="fas fa-gift fa-lg flex-shrink-0 mt-1 text-warning"></i>
-  <div>
-    <strong>Gratificación Semestral — Ley 27735 + Ley 29351</strong><br>
-    Base: <em>sueldo + asignación familiar</em> (HE no computan).
-    Proporcional a meses trabajados en el semestre (<strong>campo "Días" = meses 1-6</strong>).
-    Se agrega <strong>Bonificación Extraordinaria 9%</strong> a cargo del empleador (no descuenta al trabajador).
-    Aplican descuentos AFP/ONP sobre la gratificación. <strong>IR 5ta es inafecto</strong> (Art. 18° LIR).
-  </div>
-</div>
-{% elif periodo.tipo == 'CTS' %}
-<div class="alert alert-info d-flex gap-3 mb-3 py-2" style="font-size:.85rem;">
-  <i class="fas fa-piggy-bank fa-lg flex-shrink-0 mt-1 text-info"></i>
-  <div>
-    <strong>CTS Semestral — DL 650 + Ley 30334</strong><br>
-    Base: <em>sueldo + asig. familiar + 1/6 sueldo (prov. gratif)</em>.
-    CTS = base × (meses trabajados / 12).
-    <strong>Campo "Días" = meses trabajados en el semestre (1-6)</strong>.
-    Inafecta a AFP/ONP e IR 5ta. El empleador deposita directamente en la cuenta CTS del banco del trabajador.
-  </div>
-</div>
-{% endif %}
+    {% if grupo_filtro or q %}
+    <a href="{% url 'nominas_periodo_detalle' periodo.pk %}"
+       class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-undo me-1"></i>Limpiar filtros
+    </a>
+    {% endif %}
 
-{# Filtros + búsqueda en tiempo real #}
-<div class="dash-card mb-3 py-2">
-  <div class="row g-2 align-items-center">
-    {# Filtro de grupo (server-side) #}
-    <div class="col-auto">
-      <form method="get" id="form-filtros" class="d-flex gap-2 align-items-center">
-        <select name="grupo" class="form-select form-select-sm" onchange="this.form.submit()">
-          <option value="">— Grupo —</option>
-          {% for g in grupos %}
-          <option value="{{ g }}" {% if g == grupo_filtro %}selected{% endif %}>{{ g }}</option>
-          {% endfor %}
-        </select>
-        <input type="hidden" name="q" value="{{ q }}">
-      </form>
-    </div>
-    {# Búsqueda en tiempo real por JS #}
-    <div class="col-md-3">
-      <div class="input-group input-group-sm">
-        <span class="input-group-text"><i class="fas fa-search"></i></span>
-        <input type="text" id="filtro-nombre" class="form-control form-control-sm"
-               placeholder="Filtrar por nombre..." value="{{ q }}"
-               oninput="filtrarTabla(this.value)">
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltroNombre()" title="Limpiar">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    </div>
-    <div class="col-auto">
-      <a href="{% url 'nominas_periodo_detalle' periodo.pk %}" class="btn btn-sm btn-outline-secondary">
-        <i class="fas fa-undo me-1"></i>Limpiar filtros
-      </a>
-    </div>
-    <div class="col-auto ms-auto">
-      <span class="text-muted" style="font-size:.8rem;">
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <span id="counter-visible" class="text-muted" style="font-size:.78rem;">
         <span id="count-visible">{{ registros|length }}</span> de {{ registros|length }} registros
       </span>
-    </div>
-    {# Exportar CSV desde cliente (tabla visible) #}
-    {% if puede_exportar %}
-    <div class="col-auto">
-      <button type="button" class="btn btn-sm btn-outline-success" onclick="exportarCSVVisible()" title="Exportar filas visibles a CSV">
+      {% if puede_exportar and registros %}
+      <button type="button" class="btn btn-sm btn-outline-success"
+              onclick="exportarCSVVisible()"
+              title="Exportar filas visibles a CSV">
         <i class="fas fa-download me-1"></i>CSV visible
       </button>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
+  </form>
 </div>
 
-{# Tabla de registros #}
-<div class="dash-card">
+{# ── Data Table ───────────────────────────────────────────────────────────────── #}
+<div class="det-card">
   {% if registros %}
-  <div class="table-responsive">
-    <table class="data-table" id="tabla-nomina">
+  <div class="table-scroll">
+    <table class="nom-det-table" id="tabla-nomina">
       <thead>
         <tr>
-          <th>Trabajador</th>
-          <th>Grupo</th>
-          <th class="text-center">
+          <th style="min-width:42px;">#</th>
+          <th style="min-width:180px;">Trabajador</th>
+          <th style="min-width:100px;">DNI</th>
+          <th style="min-width:110px;">Grupo</th>
+          <th style="min-width:110px;">Pensión</th>
+          <th class="text-center" style="min-width:70px;">
             {% if periodo.tipo == 'GRATIFICACION' or periodo.tipo == 'CTS' %}Meses{% else %}Días{% endif %}
           </th>
-          <th>Pensión</th>
-          <th class="text-end">Sueldo Base</th>
-          <th class="text-end">Ingresos</th>
-          <th class="text-end">Descuentos</th>
-          <th class="text-end fw-bold">Neto</th>
-          <th class="text-end">Costo Emp.</th>
-          <th>Estado</th>
-          <th></th>
+          <th class="text-end" style="min-width:120px;">Sueldo Base</th>
+          <th class="text-end" style="min-width:120px;">Ingresos</th>
+          <th class="text-end" style="min-width:120px;">Descuentos</th>
+          <th class="text-end" style="min-width:130px;">Neto</th>
+          <th class="text-end" style="min-width:120px;">Costo Emp.</th>
+          <th class="text-center" style="min-width:90px;">Estado</th>
+          <th class="text-center" style="min-width:80px;"></th>
         </tr>
       </thead>
       <tbody id="tbody-nomina">
         {% for r in registros %}
-        <tr data-nombre="{{ r.personal.apellidos_nombres|lower }}">
+        <tr data-nombre="{{ r.personal.apellidos_nombres|lower }}"
+            data-dni="{{ r.personal.numero_documento|lower }}"
+            data-base="{{ r.sueldo_base|floatformat:2 }}"
+            data-ing="{{ r.total_ingresos|floatformat:2 }}"
+            data-desc="{{ r.total_descuentos|floatformat:2 }}"
+            data-neto="{{ r.neto_a_pagar|floatformat:2 }}"
+            data-costo="{{ r.costo_total_empresa|floatformat:2 }}">
+
+          {# # index #}
+          <td style="color:#d1d5db;font-size:.75rem;font-weight:600;" class="row-index">{{ forloop.counter }}</td>
+
+          {# Trabajador #}
           <td>
-            <div class="fw-semibold">{{ r.personal.apellidos_nombres }}</div>
-            <div class="text-muted" style="font-size:.75rem;">{{ r.personal.numero_documento }}</div>
+            <div class="fw-semibold" style="font-size:.85rem;color:#111827;line-height:1.2;">
+              {{ r.personal.apellidos_nombres }}
+            </div>
           </td>
-          <td><span class="badge bg-light text-dark">{{ r.grupo|default:"—" }}</span></td>
-          <td class="text-center">{{ r.dias_trabajados }}</td>
+
+          {# DNI #}
           <td>
-            <span class="text-muted" style="font-size:.8rem;">
-              {{ r.regimen_pension }}{% if r.afp %} {{ r.afp }}{% endif %}
+            <span style="font-size:.78rem;color:#6b7280;font-variant-numeric:tabular-nums;">
+              {{ r.personal.numero_documento }}
             </span>
           </td>
-          <td class="text-end">S/ {{ r.sueldo_base|floatformat:2|intcomma }}</td>
-          <td class="text-end">S/ {{ r.total_ingresos|floatformat:2|intcomma }}</td>
-          <td class="text-end text-danger">S/ {{ r.total_descuentos|floatformat:2|intcomma }}</td>
-          <td class="text-end fw-bold text-success">S/ {{ r.neto_a_pagar|floatformat:2|intcomma }}</td>
-          <td class="text-end text-muted">S/ {{ r.costo_total_empresa|floatformat:2|intcomma }}</td>
+
+          {# Grupo #}
           <td>
-            <span class="badge
-              {% if r.estado == 'CALCULADO' %}bg-info
-              {% elif r.estado == 'REVISADO' %}bg-warning text-dark
-              {% elif r.estado == 'APROBADO' %}bg-success
-              {% else %}bg-secondary{% endif %}">
+            <span style="display:inline-block;padding:.2rem .55rem;border-radius:6px;background:#f3f4f6;color:#374151;font-size:.72rem;font-weight:600;">
+              {{ r.grupo|default:"—" }}
+            </span>
+          </td>
+
+          {# Pensión + AFP #}
+          <td>
+            {% if r.regimen_pension == 'AFP' or r.regimen_pension == 'afp' %}
+            <span class="badge-pension afp">AFP{% if r.afp %} · {{ r.afp }}{% endif %}</span>
+            {% elif r.regimen_pension == 'ONP' or r.regimen_pension == 'onp' %}
+            <span class="badge-pension onp">ONP</span>
+            {% else %}
+            <span style="font-size:.75rem;color:#9ca3af;">{{ r.regimen_pension|default:"—" }}</span>
+            {% endif %}
+          </td>
+
+          {# Días / Meses #}
+          <td class="text-center" style="font-weight:600;color:#374151;">
+            {{ r.dias_trabajados }}
+          </td>
+
+          {# Sueldo Base #}
+          <td class="text-end" style="color:#374151;">
+            S/ {{ r.sueldo_base|floatformat:2|intcomma }}
+          </td>
+
+          {# Ingresos #}
+          <td class="text-end" style="color:#374151;">
+            S/ {{ r.total_ingresos|floatformat:2|intcomma }}
+          </td>
+
+          {# Descuentos #}
+          <td class="text-end" style="color:#dc2626;">
+            S/ {{ r.total_descuentos|floatformat:2|intcomma }}
+          </td>
+
+          {# Neto — highlight #}
+          <td class="text-end">
+            <strong style="color:#0f766e;font-size:.88rem;">
+              S/ {{ r.neto_a_pagar|floatformat:2|intcomma }}
+            </strong>
+          </td>
+
+          {# Costo empresa #}
+          <td class="text-end" style="color:#6b7280;">
+            S/ {{ r.costo_total_empresa|floatformat:2|intcomma }}
+          </td>
+
+          {# Estado registro #}
+          <td class="text-center">
+            <span class="badge-reg
+              {% if r.estado == 'CALCULADO' %}calculado
+              {% elif r.estado == 'REVISADO' %}revisado
+              {% elif r.estado == 'APROBADO' %}aprobado
+              {% else %}borrador{% endif %}">
               {{ r.get_estado_display }}
             </span>
           </td>
-          <td>
-            <div class="d-flex gap-1">
-              <a href="{% url 'nominas_registro_detalle' r.pk %}" class="btn btn-xs btn-outline-primary" title="Ver boleta">
+
+          {# Acciones #}
+          <td class="text-center">
+            <div class="d-flex justify-content-center gap-1">
+              <a href="{% url 'nominas_registro_detalle' r.pk %}"
+                 class="btn-icon view" title="Ver boleta">
                 <i class="fas fa-eye"></i>
               </a>
-              <a href="{% url 'nominas_boleta_pdf' r.pk %}" class="btn btn-xs btn-outline-danger" title="Descargar boleta PDF" target="_blank">
+              <a href="{% url 'nominas_boleta_pdf' r.pk %}"
+                 class="btn-icon pdf" title="PDF" target="_blank">
                 <i class="fas fa-file-pdf"></i>
               </a>
               {% if puede_generar %}
-              <a href="{% url 'nominas_registro_editar' r.pk %}" class="btn btn-xs btn-outline-secondary" title="Editar">
+              <a href="{% url 'nominas_registro_editar' r.pk %}"
+                 class="btn-icon edit" title="Editar">
                 <i class="fas fa-edit"></i>
               </a>
               {% endif %}
@@ -295,187 +669,237 @@
         </tr>
         {% endfor %}
       </tbody>
-      {# Fila de TOTALES #}
+
+      {# ── Totals Footer ─────────────────────────────────────────────────────── #}
       <tfoot id="tfoot-totales">
-        <tr class="table-dark fw-bold" id="fila-totales">
-          <td colspan="4" class="text-end text-uppercase" style="font-size:.8rem; letter-spacing:.05em;">
-            <i class="fas fa-sigma me-1"></i>Totales ({{ registros|length }} registros)
+
+        {# Fila totales generales #}
+        <tr class="totals-row" id="fila-totales">
+          <td colspan="6" class="text-end" style="letter-spacing:.03em;font-size:.75rem;color:#374151;">
+            <i class="fas fa-sigma me-1" style="color:#0f766e;"></i>
+            TOTALES — <span id="label-total-count">{{ registros|length }}</span> registros
           </td>
           <td class="text-end">S/ {{ totales.sueldo_base|floatformat:2|intcomma }}</td>
           <td class="text-end">S/ {{ totales.total_ingresos|floatformat:2|intcomma }}</td>
-          <td class="text-end text-danger">S/ {{ totales.total_descuentos|floatformat:2|intcomma }}</td>
-          <td class="text-end text-success" style="font-size:1.05em;">S/ {{ totales.neto_a_pagar|floatformat:2|intcomma }}</td>
-          <td class="text-end text-muted">S/ {{ totales.costo_total_empresa|floatformat:2|intcomma }}</td>
+          <td class="text-end" style="color:#dc2626;">S/ {{ totales.total_descuentos|floatformat:2|intcomma }}</td>
+          <td class="text-end" style="color:#0f766e;font-size:.95em;">S/ {{ totales.neto_a_pagar|floatformat:2|intcomma }}</td>
+          <td class="text-end" style="color:#6b7280;">S/ {{ totales.costo_total_empresa|floatformat:2|intcomma }}</td>
           <td colspan="2"></td>
         </tr>
-        {# Fila de totales dinámicos (filtrado JS) — se muestra al filtrar #}
-        <tr class="table-secondary fw-semibold" id="fila-totales-filtrado" style="display:none;">
-          <td colspan="4" class="text-end text-uppercase" style="font-size:.8rem; letter-spacing:.05em;">
+
+        {# Fila subtotal filtrado (visible solo al filtrar) #}
+        <tr class="subtotals-row" id="fila-subtotales" style="display:none;">
+          <td colspan="6" class="text-end" style="font-size:.75rem;">
             <i class="fas fa-filter me-1"></i>Subtotal filtrado
           </td>
           <td class="text-end" id="tot-base">—</td>
           <td class="text-end" id="tot-ing">—</td>
-          <td class="text-end text-danger" id="tot-desc">—</td>
-          <td class="text-end fw-bold text-success" id="tot-neto">—</td>
-          <td class="text-end text-muted" id="tot-costo">—</td>
+          <td class="text-end" id="tot-desc" style="color:#dc2626;">—</td>
+          <td class="text-end" id="tot-neto" style="color:#0f766e;">—</td>
+          <td class="text-end" id="tot-costo">—</td>
           <td colspan="2"></td>
         </tr>
+
       </tfoot>
     </table>
   </div>
-  {# Mensaje sin resultados del filtro JS #}
-  <div id="sin-resultados" class="text-center py-4 text-muted" style="display:none;">
-    <i class="fas fa-search fa-2x mb-2 opacity-25"></i>
-    <p>No se encontraron trabajadores con ese nombre.</p>
+
+  {# Mensaje sin resultados de filtro #}
+  <div id="sin-resultados" class="det-empty" style="display:none;">
+    <div class="det-empty-icon"><i class="fas fa-search"></i></div>
+    <h5>Sin resultados</h5>
+    <p>No se encontraron trabajadores que coincidan con el criterio de búsqueda.</p>
+    <button type="button" onclick="limpiarFiltroNombre()"
+            class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-undo me-1"></i>Limpiar búsqueda
+    </button>
   </div>
+
   {% else %}
-  <div class="text-center py-5 text-muted">
-    <i class="fas fa-users fa-3x mb-3 opacity-25"></i>
-    <p>No hay registros en este período.</p>
+  {# ── Empty State ──────────────────────────────────────────────────────────── #}
+  <div class="det-empty">
+    <div class="det-empty-icon"><i class="fas fa-users"></i></div>
+    <h5>Sin registros de planilla</h5>
+    <p>
+      {% if grupo_filtro %}
+        No hay trabajadores en el grupo "{{ grupo_filtro }}" para este período.
+      {% else %}
+        Aún no se han generado los registros individuales de este período.
+        Haz clic en <strong>Generar planilla</strong> para calcular automáticamente
+        todos los trabajadores activos.
+      {% endif %}
+    </p>
+    {% if grupo_filtro %}
+    <a href="{% url 'nominas_periodo_detalle' periodo.pk %}" class="btn btn-outline-secondary btn-sm me-2">
+      <i class="fas fa-times me-1"></i>Ver todos
+    </a>
+    {% endif %}
     {% if puede_generar %}
-    <form method="post" action="{% url 'nominas_periodo_generar' periodo.pk %}">
+    <form method="post" action="{% url 'nominas_periodo_generar' periodo.pk %}" class="d-inline">
       {% csrf_token %}
-      <button type="submit" class="btn btn-primary btn-sm">
-        <i class="fas fa-calculator me-1"></i>Generar planilla ahora
+      <button type="submit" class="btn btn-primary btn-sm"
+              onclick="return confirm('¿Generar la planilla para todos los trabajadores activos?')">
+        <i class="fas fa-calculator me-1"></i>Generar planilla
       </button>
     </form>
     {% endif %}
   </div>
   {% endif %}
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// ── Filtro de tabla por nombre en tiempo real ─────────────────────────────
+/* ══════════════════════════════════════════════════════════════
+   periodo_detalle.js — Filtro tabla + CSV + Resumen AJAX
+   ══════════════════════════════════════════════════════════════ */
 
-function parseMonto(celda) {
-  // Extrae número de texto tipo "S/ 1,234.56" → 1234.56
-  const txt = celda ? celda.textContent.replace(/[^\d.]/g, '') : '0';
-  return parseFloat(txt) || 0;
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+function fmtS(v) {
+  return 'S/ ' + parseFloat(v || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
-function formatMonto(valor) {
-  return 'S/ ' + valor.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-}
-
+/* ── Filtrar tabla en tiempo real ─────────────────────────────────────────── */
 function filtrarTabla(termino) {
-  const filas = document.querySelectorAll('#tbody-nomina tr');
-  const txt = termino.toLowerCase().trim();
-  let visibles = 0;
+  var filas = document.querySelectorAll('#tbody-nomina tr');
+  var txt   = termino.toLowerCase().trim();
 
-  // Acumuladores para subtotal filtrado
-  let sumBase = 0, sumIng = 0, sumDesc = 0, sumNeto = 0, sumCosto = 0;
+  var visibles = 0;
+  var sBase = 0, sIng = 0, sDesc = 0, sNeto = 0, sCosto = 0;
 
   filas.forEach(function(fila) {
-    const nombre = fila.dataset.nombre || '';
-    const coincide = !txt || nombre.includes(txt);
+    var nombre = fila.dataset.nombre || '';
+    var dni    = fila.dataset.dni    || '';
+    var coincide = !txt || nombre.includes(txt) || dni.includes(txt);
+
     fila.style.display = coincide ? '' : 'none';
+
     if (coincide) {
       visibles++;
-      const celdas = fila.querySelectorAll('td');
-      // Índices: 0=trabajador, 1=grupo, 2=días, 3=pension, 4=base, 5=ing, 6=desc, 7=neto, 8=costo, 9=estado, 10=acciones
-      sumBase  += parseMonto(celdas[4]);
-      sumIng   += parseMonto(celdas[5]);
-      sumDesc  += parseMonto(celdas[6]);
-      sumNeto  += parseMonto(celdas[7]);
-      sumCosto += parseMonto(celdas[8]);
+      sBase  += parseFloat(fila.dataset.base  || 0);
+      sIng   += parseFloat(fila.dataset.ing   || 0);
+      sDesc  += parseFloat(fila.dataset.desc  || 0);
+      sNeto  += parseFloat(fila.dataset.neto  || 0);
+      sCosto += parseFloat(fila.dataset.costo || 0);
     }
   });
 
-  // Actualizar contador
-  document.getElementById('count-visible').textContent = visibles;
+  /* Contador */
+  var elCount = document.getElementById('count-visible');
+  if (elCount) elCount.textContent = visibles;
 
-  // Mostrar/ocultar mensaje vacío
-  const sinRes = document.getElementById('sin-resultados');
+  /* Mensaje vacío */
+  var sinRes = document.getElementById('sin-resultados');
   if (sinRes) sinRes.style.display = (visibles === 0 && txt) ? '' : 'none';
 
-  // Mostrar subtotal filtrado solo cuando hay término activo
-  const filaTotFiltrado = document.getElementById('fila-totales-filtrado');
-  const filaTotPrincipal = document.getElementById('fila-totales');
+  /* Subtotales */
+  var filaSubtotal   = document.getElementById('fila-subtotales');
+  var filaTotPrinc   = document.getElementById('fila-totales');
+  var labelCount     = document.getElementById('label-total-count');
+  var totalFilas     = document.querySelectorAll('#tbody-nomina tr').length;
+
   if (txt) {
-    filaTotFiltrado.style.display = '';
-    document.getElementById('tot-base').textContent  = formatMonto(sumBase);
-    document.getElementById('tot-ing').textContent   = formatMonto(sumIng);
-    document.getElementById('tot-desc').textContent  = formatMonto(sumDesc);
-    document.getElementById('tot-neto').textContent  = formatMonto(sumNeto);
-    document.getElementById('tot-costo').textContent = formatMonto(sumCosto);
-    // Actualizar leyenda totales principales
-    if (filaTotPrincipal) {
-      filaTotPrincipal.querySelector('td').textContent =
-        '\u03A3 Totales (' + document.querySelectorAll('#tbody-nomina tr').length + ' registros — tabla completa)';
-    }
+    filaSubtotal.style.display = '';
+    document.getElementById('tot-base').textContent  = fmtS(sBase);
+    document.getElementById('tot-ing').textContent   = fmtS(sIng);
+    document.getElementById('tot-desc').textContent  = fmtS(sDesc);
+    document.getElementById('tot-neto').textContent  = fmtS(sNeto);
+    document.getElementById('tot-costo').textContent = fmtS(sCosto);
+    if (labelCount) labelCount.textContent = totalFilas + ' (total tabla)';
   } else {
-    filaTotFiltrado.style.display = 'none';
-    if (filaTotPrincipal) {
-      const totalFilas = document.querySelectorAll('#tbody-nomina tr').length;
-      filaTotPrincipal.querySelector('td').innerHTML =
-        '<i class="fas fa-sigma me-1"></i>Totales (' + totalFilas + ' registros)';
-    }
+    filaSubtotal.style.display = 'none';
+    if (labelCount) labelCount.textContent = totalFilas;
   }
+
+  /* Update row indices */
+  var idx = 1;
+  filas.forEach(function(fila) {
+    var idxCell = fila.querySelector('.row-index');
+    if (fila.style.display !== 'none') {
+      if (idxCell) idxCell.textContent = idx++;
+    }
+  });
 }
 
 function limpiarFiltroNombre() {
-  const inp = document.getElementById('filtro-nombre');
+  var inp = document.getElementById('filtro-nombre');
   if (inp) { inp.value = ''; filtrarTabla(''); }
 }
 
-// ── Exportar CSV desde tabla visible ─────────────────────────────────────
-
+/* ── Exportar CSV desde tabla visible ─────────────────────────────────────── */
 function exportarCSVVisible() {
-  const filas = document.querySelectorAll('#tbody-nomina tr');
-  const encabezados = [
-    'Trabajador', 'DNI', 'Grupo', 'Dias', 'Pension',
-    'Sueldo Base', 'Total Ingresos', 'Total Descuentos', 'Neto a Pagar', 'Costo Empresa', 'Estado'
+  var filas = document.querySelectorAll('#tbody-nomina tr');
+  var headers = [
+    'N', 'Trabajador', 'DNI', 'Grupo', 'Pension', 'AFP',
+    'Dias', 'Sueldo Base', 'Total Ingresos', 'Total Descuentos',
+    'Neto a Pagar', 'Costo Empresa', 'Estado'
   ];
-  let csv = '\ufeff' + encabezados.join(';') + '\n';
+  var csv = '\ufeff' + headers.join(';') + '\n';
+  var idx = 1;
 
   filas.forEach(function(fila) {
     if (fila.style.display === 'none') return;
-    const celdas = fila.querySelectorAll('td');
-    if (celdas.length < 10) return;
+    var celdas = fila.querySelectorAll('td');
+    if (celdas.length < 12) return;
 
-    // Extraer nombre y DNI de la primera celda
-    const divs = celdas[0].querySelectorAll('div');
-    const nombre = divs[0] ? divs[0].textContent.trim() : '';
-    const dni    = divs[1] ? divs[1].textContent.trim() : '';
+    /* Trabajador */
+    var nombre = celdas[1].querySelector('.fw-semibold') ?
+      celdas[1].querySelector('.fw-semibold').textContent.trim() :
+      celdas[1].textContent.trim();
+    var dni = celdas[2].textContent.trim();
+    var grupo = celdas[3].textContent.trim();
+    var pension = celdas[4].textContent.trim();
+    var dias = celdas[5].textContent.trim();
 
-    const grupo   = celdas[1].textContent.trim();
-    const dias    = celdas[2].textContent.trim();
-    const pension = celdas[3].textContent.trim();
+    function cleanAmt(c) {
+      return c ? c.textContent.replace(/[^\d.]/g, '') : '0';
+    }
 
-    function toNum(c) { return c ? c.textContent.replace(/[^\d.-]/g, '') : '0'; }
+    var base  = cleanAmt(celdas[6]);
+    var ing   = cleanAmt(celdas[7]);
+    var desc  = cleanAmt(celdas[8]);
+    var neto  = cleanAmt(celdas[9]);
+    var costo = cleanAmt(celdas[10]);
+    var estado = celdas[11] ? celdas[11].textContent.trim() : '';
 
-    const base  = toNum(celdas[4]);
-    const ing   = toNum(celdas[5]);
-    const desc  = toNum(celdas[6]);
-    const neto  = toNum(celdas[7]);
-    const costo = toNum(celdas[8]);
-    const estado = celdas[9] ? celdas[9].textContent.trim() : '';
-
-    csv += [nombre, dni, grupo, dias, pension, base, ing, desc, neto, costo, estado].join(';') + '\n';
+    csv += [idx++, nombre, dni, grupo, pension, '', dias, base, ing, desc, neto, costo, estado]
+      .map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; })
+      .join(';') + '\n';
   });
 
-  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'nomina_filtrada.csv';
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href     = url;
+  link.download = 'nomina_{{ periodo.anio }}_{{ periodo.mes }}_filtrada.csv';
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
-// ── Resumen estadístico AJAX ──────────────────────────────────────────────
+/* ── Resumen estadístico AJAX ─────────────────────────────────────────────── */
+var resumenCargado = false;
 
-function cargarResumen(periodoPk) {
-  const panel = document.getElementById('panel-resumen');
-  const contenido = document.getElementById('resumen-contenido');
-
+function toggleResumen(periodoPk) {
+  var panel = document.getElementById('panel-resumen');
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
   panel.style.display = '';
-  contenido.innerHTML = '<div class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Cargando estadísticas...</div>';
+
+  if (resumenCargado) return;
+
+  var contenido = document.getElementById('resumen-contenido');
+  contenido.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Calculando estadísticas...</div>';
 
   fetch('/nominas/periodos/' + periodoPk + '/resumen/', {
-    headers: {'X-Requested-With': 'XMLHttpRequest'}
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
@@ -483,61 +907,61 @@ function cargarResumen(periodoPk) {
       contenido.innerHTML = '<div class="alert alert-warning">' + d.error + '</div>';
       return;
     }
-    let html = '<div class="row g-3">';
+    resumenCargado = true;
 
-    html += '<div class="col-6 col-md-2"><div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div>';
-    html += '<div class="stat-value">' + (d.trabajadores || 0) + '</div><div class="stat-label">Trabajadores</div></div></div>';
+    var html = '<div class="row g-3">';
 
-    html += '<div class="col-6 col-md-2"><div class="stat-card"><div class="stat-icon"><i class="fas fa-wallet text-primary"></i></div>';
-    html += '<div class="stat-value" style="font-size:.9rem;">S/ ' + fmtN(d.total_bruto) + '</div><div class="stat-label">Bruto</div></div></div>';
+    /* KPI tiles */
+    var kpis = [
+      { icon:'fas fa-users',            color:'#0f766e', label:'Trabajadores',    val: d.trabajadores || 0,         fmt: false },
+      { icon:'fas fa-wallet',           color:'#2563eb', label:'Bruto',           val: d.total_bruto || 0,          fmt: true  },
+      { icon:'fas fa-hand-holding-usd', color:'#059669', label:'Neto',            val: d.total_neto || 0,           fmt: true  },
+      { icon:'fas fa-hospital',         color:'#d97706', label:'EsSalud',         val: d.total_essalud || 0,        fmt: true  },
+      { icon:'fas fa-piggy-bank',       color:'#7c3aed', label:'AFP (trabajador)',val: d.total_afp || 0,            fmt: true  },
+      { icon:'fas fa-landmark',         color:'#6b7280', label:'ONP',             val: d.total_onp || 0,            fmt: true  },
+    ];
 
-    html += '<div class="col-6 col-md-2"><div class="stat-card"><div class="stat-icon"><i class="fas fa-hand-holding-usd text-success"></i></div>';
-    html += '<div class="stat-value" style="font-size:.9rem;">S/ ' + fmtN(d.total_neto) + '</div><div class="stat-label">Neto</div></div></div>';
+    kpis.forEach(function(k) {
+      var valStr = k.fmt ? fmtS(k.val) : k.val;
+      html += '<div class="col-6 col-md-2"><div class="det-kpi" style="border-top-color:' + k.color + ';">';
+      html += '<div class="k-icon" style="background:' + k.color + '18;color:' + k.color + ';"><i class="' + k.icon + '"></i></div>';
+      html += '<div class="k-label">' + k.label + '</div>';
+      html += '<div class="k-value" style="font-size:' + (k.fmt ? '.95rem' : '1.25rem') + ';">' + valStr + '</div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
 
-    html += '<div class="col-6 col-md-2"><div class="stat-card"><div class="stat-icon"><i class="fas fa-hospital text-warning"></i></div>';
-    html += '<div class="stat-value" style="font-size:.9rem;">S/ ' + fmtN(d.total_essalud) + '</div><div class="stat-label">EsSalud</div></div></div>';
+    /* Desglose régimen + grupo */
+    html += '<div class="row g-3 mt-2">';
 
-    html += '<div class="col-6 col-md-2"><div class="stat-card"><div class="stat-icon"><i class="fas fa-piggy-bank text-info"></i></div>';
-    html += '<div class="stat-value" style="font-size:.9rem;">S/ ' + fmtN(d.total_afp) + '</div><div class="stat-label">AFP (aportes)</div></div></div>';
-
-    html += '<div class="col-6 col-md-2"><div class="stat-card"><div class="stat-icon"><i class="fas fa-landmark text-secondary"></i></div>';
-    html += '<div class="stat-value" style="font-size:.9rem;">S/ ' + fmtN(d.total_onp) + '</div><div class="stat-label">ONP</div></div></div>';
-
-    html += '</div>'; // row
-
-    // Desglose régimen y grupo
-    html += '<div class="row g-3 mt-1">';
-
-    // Por régimen
-    html += '<div class="col-md-6"><div class="dash-card py-2"><h6 class="mb-2 text-muted" style="font-size:.8rem;"><i class="fas fa-shield-alt me-1"></i>Por Régimen Pensionario</h6>';
+    html += '<div class="col-md-6"><div class="det-card" style="padding:1rem 1.25rem;">';
+    html += '<div style="font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;">';
+    html += '<i class="fas fa-shield-alt me-1" style="color:#0f766e;"></i>Por régimen pensionario</div>';
     html += '<div class="d-flex flex-wrap gap-2">';
-    const regimen = d.por_regimen || {};
+    var regimen = d.por_regimen || {};
     Object.keys(regimen).forEach(function(k) {
-      html += '<span class="badge bg-primary" style="font-size:.85rem;">' + k + ': ' + regimen[k] + '</span>';
+      html += '<span style="padding:.3rem .7rem;border-radius:8px;font-size:.78rem;font-weight:700;background:#f0fdf9;color:#0f766e;">' + k + ': <strong>' + regimen[k] + '</strong></span>';
     });
+    if (!Object.keys(regimen).length) html += '<span class="text-muted" style="font-size:.8rem;">Sin datos</span>';
     html += '</div></div></div>';
 
-    // Por grupo
-    html += '<div class="col-md-6"><div class="dash-card py-2"><h6 class="mb-2 text-muted" style="font-size:.8rem;"><i class="fas fa-layer-group me-1"></i>Por Grupo</h6>';
+    html += '<div class="col-md-6"><div class="det-card" style="padding:1rem 1.25rem;">';
+    html += '<div style="font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;">';
+    html += '<i class="fas fa-layer-group me-1" style="color:#7c3aed;"></i>Por grupo</div>';
     html += '<div class="d-flex flex-wrap gap-2">';
-    const grupo = d.por_grupo || {};
-    Object.keys(grupo).forEach(function(k) {
-      html += '<span class="badge bg-secondary" style="font-size:.85rem;">' + k + ': ' + grupo[k] + '</span>';
+    var grupos = d.por_grupo || {};
+    Object.keys(grupos).forEach(function(k) {
+      html += '<span style="padding:.3rem .7rem;border-radius:8px;font-size:.78rem;font-weight:700;background:#f5f3ff;color:#6d28d9;">' + k + ': <strong>' + grupos[k] + '</strong></span>';
     });
+    if (!Object.keys(grupos).length) html += '<span class="text-muted" style="font-size:.8rem;">Sin datos</span>';
     html += '</div></div></div>';
 
-    html += '</div>'; // row
-
+    html += '</div>';
     contenido.innerHTML = html;
   })
   .catch(function(e) {
     contenido.innerHTML = '<div class="alert alert-danger">Error al cargar estadísticas: ' + e.message + '</div>';
   });
-}
-
-function fmtN(val) {
-  if (!val && val !== 0) return '0.00';
-  return parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 </script>
 {% endblock %}

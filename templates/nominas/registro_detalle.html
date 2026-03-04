@@ -1,189 +1,405 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}{{ titulo }} — Harmoni{% endblock %}
+{% block title %}Boleta — {{ reg.personal.apellidos_nombres }} — Harmoni{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Boleta header ── */
+  .boleta-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 12px;
+    color: #fff;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .boleta-header::after {
+    content: '';
+    position: absolute;
+    right: -40px; top: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: rgba(94,234,212,0.08);
+    pointer-events: none;
+  }
+  .boleta-header .emp-name { font-size: 1.35rem; font-weight: 700; letter-spacing: .3px; }
+  .boleta-header .emp-meta span { font-size: .82rem; opacity: .85; margin-right: 1.2rem; }
+  .boleta-header .badge-periodo {
+    background: rgba(94,234,212,0.18);
+    color: #5eead4;
+    border: 1px solid rgba(94,234,212,0.35);
+    font-size: .78rem; padding: .35em .75em;
+    border-radius: 20px; font-weight: 600;
+  }
+
+  /* ── KPI strip ── */
+  .kpi-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 768px) { .kpi-strip { grid-template-columns: repeat(2,1fr); } }
+  .kpi-card {
+    border-radius: 10px; padding: 1rem 1.25rem;
+    border: 1px solid rgba(0,0,0,.07);
+    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  }
+  .kpi-card .kpi-label { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.8px; margin-bottom:.3rem; }
+  .kpi-card .kpi-value { font-size:1.3rem; font-weight:700; line-height:1.1; }
+  .kpi-card.kpi-green  { border-top:3px solid #22c55e; }
+  .kpi-card.kpi-red    { border-top:3px solid #ef4444; }
+  .kpi-card.kpi-teal   { border-top:3px solid #5eead4; }
+  .kpi-card.kpi-indigo { border-top:3px solid #818cf8; }
+  .kpi-card.kpi-green  .kpi-label { color:#16a34a; }
+  .kpi-card.kpi-red    .kpi-label { color:#dc2626; }
+  .kpi-card.kpi-teal   .kpi-label { color:#0f766e; }
+  .kpi-card.kpi-indigo .kpi-label { color:#4f46e5; }
+  .kpi-card.kpi-green  .kpi-value { color:#15803d; }
+  .kpi-card.kpi-red    .kpi-value { color:#b91c1c; }
+  .kpi-card.kpi-teal   .kpi-value { color:#0f766e; }
+  .kpi-card.kpi-indigo .kpi-value { color:#3730a3; }
+
+  /* ── Detail tables ── */
+  .linea-section-title {
+    font-size:.7rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:1px; padding:.5rem .75rem; border-radius:6px 6px 0 0;
+  }
+  .linea-section-title.ing  { background:#dcfce7; color:#15803d; }
+  .linea-section-title.desc { background:#fee2e2; color:#b91c1c; }
+  .linea-section-title.apc  { background:#dbeafe; color:#1d4ed8; }
+  .linea-section-title.prov { background:#f3f4f6; color:#6b7280; }
+  .linea-table { font-size:.875rem; margin-bottom:0; }
+  .linea-table thead th {
+    font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.6px;
+    color:#6b7280; background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:.45rem .75rem;
+  }
+  .linea-table tbody td { padding:.4rem .75rem; border-color:#f3f4f6; vertical-align:middle; }
+  .linea-table tbody tr:hover { background:#f9fafb; }
+  .linea-table tfoot td {
+    font-weight:700; font-size:.9rem; padding:.5rem .75rem;
+    border-top:2px solid #e5e7eb; background:#f9fafb;
+  }
+  .monto-ing  { color:#15803d; font-weight:600; }
+  .monto-desc { color:#b91c1c; font-weight:600; }
+  .monto-apc  { color:#1d4ed8; font-weight:600; }
+  .monto-prov { color:#6b7280; font-weight:500; font-style:italic; }
+
+  /* ── Neto box ── */
+  .neto-box {
+    background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+    border-radius: 14px; padding: 2rem; text-align:center;
+    color:#fff; box-shadow: 0 8px 32px rgba(15,118,110,.3);
+  }
+  .neto-box .neto-label { font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; opacity:.8; margin-bottom:.5rem; }
+  .neto-box .neto-value { font-size:2.8rem; font-weight:800; letter-spacing:-1px; color:#5eead4; line-height:1; }
+  .neto-box .neto-sub   { font-size:.78rem; opacity:.65; margin-top:.5rem; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title"><i class="fas fa-receipt me-2 text-accent"></i>{{ titulo }}</h1>
+    <h1 class="page-title">
+      <i class="fas fa-receipt me-2 text-accent"></i>Boleta de Pago
+    </h1>
     <p class="page-subtitle">
       <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">Nóminas</a>
-      / <a href="{% url 'nominas_periodo_detalle' reg.periodo.pk %}" class="text-muted text-decoration-none">{{ reg.periodo }}</a>
-      / Boleta
+      / <a href="{% url 'nominas_periodo_detalle' pk=reg.periodo.pk %}" class="text-muted text-decoration-none">{{ reg.periodo }}</a>
+      / {{ reg.personal.apellidos_nombres }}
     </p>
   </div>
   <div class="page-header-actions">
     {% if puede_editar %}
-    <a href="{% url 'nominas_registro_editar' reg.pk %}" class="btn btn-outline-secondary btn-sm">
-      <i class="fas fa-edit me-1"></i>Editar
+    <a href="{% url 'nominas_registro_editar' pk=reg.pk %}" class="btn btn-warning btn-sm">
+      <i class="fas fa-sliders-h me-1"></i>Editar ajustes
     </a>
     {% endif %}
-    <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
-      <i class="fas fa-print me-1"></i>Imprimir
+    <a href="{% url 'nominas_boleta_pdf' pk=reg.pk %}" class="btn btn-danger btn-sm" target="_blank" rel="noopener">
+      <i class="fas fa-file-pdf me-1"></i>Ver PDF
+    </a>
+    <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalIR5ta">
+      <i class="fas fa-percent me-1"></i>IR 5ta Categoría
     </button>
-    <a href="{% url 'nominas_periodo_detalle' reg.periodo.pk %}" class="btn btn-outline-secondary btn-sm">
-      <i class="fas fa-arrow-left me-1"></i>Volver
+    <a href="{% url 'nominas_periodo_detalle' pk=reg.periodo.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Volver al período
     </a>
   </div>
 </div>
 
-<div class="row justify-content-center">
-  <div class="col-lg-9">
-
-    {# Encabezado boleta #}
-    <div class="dash-card mb-3">
-      <div class="row align-items-center">
-        <div class="col-md-7">
-          <div class="fw-bold fs-5">{{ reg.personal.apellidos_nombres }}</div>
-          <div class="text-muted mt-1" style="font-size:.85rem;">
-            <span class="me-3"><i class="fas fa-id-card me-1"></i>{{ reg.personal.numero_documento }}</span>
-            <span class="me-3"><i class="fas fa-briefcase me-1"></i>{{ reg.personal.cargo|default:"—" }}</span>
-            <span><i class="fas fa-layer-group me-1"></i>{{ reg.grupo|default:"—" }}</span>
-          </div>
-          <div class="text-muted mt-1" style="font-size:.85rem;">
-            <span class="me-3"><i class="fas fa-shield-alt me-1"></i>{{ reg.regimen_pension }}{% if reg.afp %} — {{ reg.afp }}{% endif %}</span>
-            <span><i class="fas fa-calendar-check me-1"></i>{{ reg.dias_trabajados }} días trabajados</span>
-          </div>
-        </div>
-        <div class="col-md-5 text-md-end mt-3 mt-md-0">
-          <div class="text-muted" style="font-size:.85rem;">Período</div>
-          <div class="fw-bold">{{ reg.periodo }}</div>
-          <div class="mt-1">
-            <span class="badge
-              {% if reg.estado == 'CALCULADO' %}bg-info
-              {% elif reg.estado == 'APROBADO' %}bg-success
-              {% else %}bg-secondary{% endif %}">
-              {{ reg.get_estado_display }}
-            </span>
-          </div>
-        </div>
+{# ── Employee header ── #}
+<div class="boleta-header">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+      <div class="emp-name">{{ reg.personal.apellidos_nombres }}</div>
+      <div class="emp-meta mt-1">
+        <span><i class="fas fa-id-card me-1 opacity-75"></i>DNI {{ reg.personal.numero_documento }}</span>
+        <span><i class="fas fa-layer-group me-1 opacity-75"></i>Grupo {{ reg.grupo }}</span>
+        <span><i class="fas fa-shield-alt me-1 opacity-75"></i>
+          {% if reg.regimen_pension == 'AFP' %}AFP — {{ reg.afp|default:"—" }}
+          {% elif reg.regimen_pension == 'ONP' %}ONP (13%)
+          {% else %}{{ reg.regimen_pension }}{% endif %}
+        </span>
+        <span><i class="fas fa-calendar-check me-1 opacity-75"></i>{{ reg.dias_trabajados }} días trabajados</span>
       </div>
     </div>
-
-    <div class="row g-3">
-      {# Ingresos #}
-      <div class="col-md-6">
-        <div class="dash-card h-100">
-          <h6 class="mb-3 text-success"><i class="fas fa-plus-circle me-2"></i>Ingresos</h6>
-          <table class="table table-sm mb-0">
-            <tbody>
-              {% for l in lineas_ing %}
-              <tr>
-                <td style="font-size:.85rem;">{{ l.concepto.nombre }}</td>
-                <td class="text-end fw-semibold">S/ {{ l.monto|floatformat:2|intcomma }}</td>
-              </tr>
-              {% if l.observacion %}
-              <tr>
-                <td colspan="2" class="text-muted py-0" style="font-size:.75rem;">{{ l.observacion }}</td>
-              </tr>
-              {% endif %}
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr class="border-top">
-                <td class="fw-bold">Total Ingresos</td>
-                <td class="text-end fw-bold text-success">S/ {{ reg.total_ingresos|floatformat:2|intcomma }}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-
-      {# Descuentos #}
-      <div class="col-md-6">
-        <div class="dash-card h-100">
-          <h6 class="mb-3 text-danger"><i class="fas fa-minus-circle me-2"></i>Descuentos Trabajador</h6>
-          <table class="table table-sm mb-0">
-            <tbody>
-              {% for l in lineas_desc %}
-              <tr>
-                <td style="font-size:.85rem;">
-                  {{ l.concepto.nombre }}
-                  {% if l.porcentaje_aplicado > 0 %}
-                  <span class="text-muted" style="font-size:.75rem;">({{ l.porcentaje_aplicado }}%)</span>
-                  {% endif %}
-                </td>
-                <td class="text-end fw-semibold text-danger">S/ {{ l.monto|floatformat:2|intcomma }}</td>
-              </tr>
-              {% if l.observacion %}
-              <tr>
-                <td colspan="2" class="text-muted py-0" style="font-size:.75rem;">{{ l.observacion }}</td>
-              </tr>
-              {% endif %}
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr class="border-top">
-                <td class="fw-bold">Total Descuentos</td>
-                <td class="text-end fw-bold text-danger">S/ {{ reg.total_descuentos|floatformat:2|intcomma }}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
+    <div class="d-flex flex-column align-items-end gap-2">
+      <span class="badge-periodo">{{ reg.periodo }} &nbsp;·&nbsp; {{ reg.periodo.get_tipo_display }}</span>
+      <span class="badge rounded-pill px-3 py-1"
+            style="font-size:.75rem; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2);">
+        {{ reg.estado }}
+      </span>
     </div>
-
-    {# Neto a pagar #}
-    <div class="dash-card mt-3" style="background:var(--primary);color:#fff;border:none;">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <div class="fs-5 fw-bold"><i class="fas fa-hand-holding-usd me-2"></i>Neto a Pagar</div>
-          <div style="opacity:.8;font-size:.85rem;">Total ingresos menos descuentos del trabajador</div>
-        </div>
-        <div class="fs-2 fw-bold">S/ {{ reg.neto_a_pagar|floatformat:2|intcomma }}</div>
-      </div>
-    </div>
-
-    {# Aportes empleador + provisiones #}
-    <div class="row g-3 mt-1">
-      <div class="col-md-6">
-        <div class="dash-card">
-          <h6 class="mb-3 text-muted"><i class="fas fa-building me-2"></i>Aportes Empleador</h6>
-          <table class="table table-sm mb-0">
-            <tbody>
-              {% for l in lineas_apc %}
-              <tr>
-                <td style="font-size:.85rem;">{{ l.concepto.nombre }}
-                  {% if l.porcentaje_aplicado > 0 %}
-                  <span class="text-muted" style="font-size:.75rem;">({{ l.porcentaje_aplicado }}%)</span>
-                  {% endif %}
-                </td>
-                <td class="text-end">S/ {{ l.monto|floatformat:2|intcomma }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr class="border-top">
-                <td class="fw-bold">Costo Total Empresa</td>
-                <td class="text-end fw-bold">S/ {{ reg.costo_total_empresa|floatformat:2|intcomma }}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <div class="dash-card">
-          <h6 class="mb-3 text-muted"><i class="fas fa-piggy-bank me-2"></i>Provisiones (informativo)</h6>
-          <table class="table table-sm mb-0">
-            <tbody>
-              {% for l in lineas_prov %}
-              <tr>
-                <td style="font-size:.85rem;">{{ l.concepto.nombre }}</td>
-                <td class="text-end text-muted">S/ {{ l.monto|floatformat:2|intcomma }}</td>
-              </tr>
-              {% if l.observacion %}
-              <tr>
-                <td colspan="2" class="text-muted py-0" style="font-size:.75rem;">{{ l.observacion }}</td>
-              </tr>
-              {% endif %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
+
+{# ── KPI strip ── #}
+<div class="kpi-strip">
+  <div class="kpi-card kpi-green">
+    <div class="kpi-label"><i class="fas fa-plus-circle me-1"></i>Ingresos brutos</div>
+    <div class="kpi-value">S/ {{ reg.total_ingresos|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="kpi-card kpi-red">
+    <div class="kpi-label"><i class="fas fa-minus-circle me-1"></i>Descuentos</div>
+    <div class="kpi-value">S/ {{ reg.total_descuentos|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="kpi-card kpi-teal">
+    <div class="kpi-label"><i class="fas fa-hand-holding-usd me-1"></i>Neto a pagar</div>
+    <div class="kpi-value">S/ {{ reg.neto_a_pagar|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="kpi-card kpi-indigo">
+    <div class="kpi-label"><i class="fas fa-building me-1"></i>Costo empresa</div>
+    <div class="kpi-value">S/ {{ reg.costo_total_empresa|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+
+{# ── Three-column detail table ── #}
+<div class="row g-3 mb-3">
+
+  {# Ingresos #}
+  <div class="col-lg-4">
+    <div class="card h-100 border-0 shadow-sm overflow-hidden">
+      <div class="linea-section-title ing">
+        <i class="fas fa-plus-circle me-1"></i>Ingresos
+      </div>
+      <div class="table-responsive">
+        <table class="table linea-table">
+          <thead>
+            <tr><th>Concepto</th><th class="text-end">Monto</th></tr>
+          </thead>
+          <tbody>
+            {% for l in lineas_ing %}
+            <tr>
+              <td>
+                {{ l.concepto.nombre }}
+                {% if l.observacion %}
+                <i class="fas fa-info-circle text-muted ms-1" style="font-size:.7rem;"
+                   data-bs-toggle="tooltip" data-bs-placement="top" title="{{ l.observacion }}"></i>
+                {% endif %}
+                {% if l.porcentaje_aplicado %}
+                <small class="text-muted d-block" style="font-size:.7rem;">
+                  {{ l.porcentaje_aplicado }}%{% if l.base_calculo %} sobre S/ {{ l.base_calculo|floatformat:2 }}{% endif %}
+                </small>
+                {% endif %}
+              </td>
+              <td class="text-end monto-ing">S/ {{ l.monto|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-center text-muted py-3" style="font-size:.8rem;">Sin líneas de ingreso</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="monto-ing">Total ingresos</td>
+              <td class="text-end monto-ing">S/ {{ reg.total_ingresos|floatformat:2|intcomma }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Descuentos #}
+  <div class="col-lg-4">
+    <div class="card h-100 border-0 shadow-sm overflow-hidden">
+      <div class="linea-section-title desc">
+        <i class="fas fa-minus-circle me-1"></i>Descuentos
+      </div>
+      <div class="table-responsive">
+        <table class="table linea-table">
+          <thead>
+            <tr><th>Concepto</th><th class="text-end">Monto</th></tr>
+          </thead>
+          <tbody>
+            {% for l in lineas_desc %}
+            <tr>
+              <td>
+                {{ l.concepto.nombre }}
+                {% if l.observacion %}
+                <i class="fas fa-info-circle text-muted ms-1" style="font-size:.7rem;"
+                   data-bs-toggle="tooltip" data-bs-placement="top" title="{{ l.observacion }}"></i>
+                {% endif %}
+                {% if l.porcentaje_aplicado %}
+                <small class="text-muted d-block" style="font-size:.7rem;">
+                  {{ l.porcentaje_aplicado }}%{% if l.base_calculo %} sobre S/ {{ l.base_calculo|floatformat:2 }}{% endif %}
+                </small>
+                {% endif %}
+              </td>
+              <td class="text-end monto-desc">S/ {{ l.monto|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-center text-muted py-3" style="font-size:.8rem;">Sin descuentos</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="monto-desc">Total descuentos</td>
+              <td class="text-end monto-desc">S/ {{ reg.total_descuentos|floatformat:2|intcomma }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Aportes empleador #}
+  <div class="col-lg-4">
+    <div class="card h-100 border-0 shadow-sm overflow-hidden">
+      <div class="linea-section-title apc">
+        <i class="fas fa-building me-1"></i>Aportes empleador
+      </div>
+      <div class="table-responsive">
+        <table class="table linea-table">
+          <thead>
+            <tr><th>Concepto</th><th class="text-end">Monto</th></tr>
+          </thead>
+          <tbody>
+            {% for l in lineas_apc %}
+            <tr>
+              <td>
+                {{ l.concepto.nombre }}
+                {% if l.observacion %}
+                <i class="fas fa-info-circle text-muted ms-1" style="font-size:.7rem;"
+                   data-bs-toggle="tooltip" data-bs-placement="top" title="{{ l.observacion }}"></i>
+                {% endif %}
+                {% if l.porcentaje_aplicado %}
+                <small class="text-muted d-block" style="font-size:.7rem;">{{ l.porcentaje_aplicado }}%</small>
+                {% endif %}
+              </td>
+              <td class="text-end monto-apc">S/ {{ l.monto|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-center text-muted py-3" style="font-size:.8rem;">Sin aportes registrados</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="monto-apc">EsSalud (9%)</td>
+              <td class="text-end monto-apc">S/ {{ reg.aporte_essalud|floatformat:2|intcomma }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Provisiones informativas ── #}
+{% if lineas_prov %}
+<div class="card border-0 shadow-sm mb-3 overflow-hidden">
+  <div class="linea-section-title prov">
+    <i class="fas fa-info-circle me-1"></i>Provisiones &mdash; informativas, no impactan el neto
+  </div>
+  <div class="table-responsive">
+    <table class="table linea-table mb-0">
+      <thead>
+        <tr>
+          <th>Concepto</th>
+          <th class="text-end">Monto</th>
+          <th>Observación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lineas_prov %}
+        <tr>
+          <td>{{ l.concepto.nombre }}</td>
+          <td class="text-end monto-prov">S/ {{ l.monto|floatformat:2|intcomma }}</td>
+          <td class="text-muted" style="font-size:.8rem;">{{ l.observacion|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Neto a Pagar box ── #}
+<div class="row justify-content-center mb-4">
+  <div class="col-md-6 col-lg-4">
+    <div class="neto-box">
+      <div class="neto-label"><i class="fas fa-hand-holding-usd me-1"></i>Neto a Pagar</div>
+      <div class="neto-value">S/ {{ reg.neto_a_pagar|floatformat:2|intcomma }}</div>
+      <div class="neto-sub">{{ reg.periodo }} &nbsp;&middot;&nbsp; {{ reg.periodo.get_tipo_display }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Info strip ── #}
+<div class="card border-0 bg-light mb-4">
+  <div class="card-body py-2 d-flex flex-wrap gap-4" style="font-size:.82rem; color:#6b7280;">
+    <span><strong class="text-dark">Sueldo base:</strong> S/ {{ reg.sueldo_base|floatformat:2|intcomma }}</span>
+    <span><strong class="text-dark">Asig. familiar:</strong>
+      {% if reg.asignacion_familiar %}S/ {{ reg.asignacion_familiar|floatformat:2|intcomma }}{% else %}No aplica{% endif %}
+    </span>
+    <span><strong class="text-dark">Grupo:</strong> {{ reg.grupo }}</span>
+    <span><strong class="text-dark">Régimen:</strong> {{ reg.regimen_pension }}{% if reg.afp %} — {{ reg.afp }}{% endif %}</span>
+    <span><strong class="text-dark">Días trabajados:</strong> {{ reg.dias_trabajados }}/30</span>
+  </div>
+</div>
+
+{# ── IR 5ta Modal ── #}
+<div class="modal fade" id="modalIR5ta" tabindex="-1" aria-labelledby="modalIR5taLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header" style="background:#0d2b27; color:#fff; border-radius:.5rem .5rem 0 0;">
+        <h5 class="modal-title" id="modalIR5taLabel">
+          <i class="fas fa-percent me-2" style="color:#5eead4;"></i>Impuesto a la Renta — 5ta Categoría
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="ir5ta-content">
+        <div class="text-center py-4">
+          <div class="spinner-border" style="color:#0f766e;" role="status"></div>
+          <p class="text-muted mt-2 mb-0" style="font-size:.85rem;">Cargando tramos IR 5ta...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Bootstrap tooltips
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+    new bootstrap.Tooltip(el, { trigger: 'hover' });
+  });
+
+  // AJAX load IR 5ta detail on modal open
+  var modalIR5ta = document.getElementById('modalIR5ta');
+  if (modalIR5ta) {
+    modalIR5ta.addEventListener('show.bs.modal', function () {
+      var content = document.getElementById('ir5ta-content');
+      if (content.dataset.loaded) return;
+      fetch("{% url 'nominas_ir5ta_detalle' pk=reg.pk %}", {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        content.innerHTML = html;
+        content.dataset.loaded = '1';
+      })
+      .catch(function() {
+        content.innerHTML = '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i>No se pudo cargar el detalle de IR 5ta.</div>';
+      });
+    });
+  }
+</script>
 {% endblock %}

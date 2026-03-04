@@ -1,112 +1,331 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}{{ titulo }} — Harmoni{% endblock %}
+{% block title %}Editar ajustes — {{ reg.personal.apellidos_nombres }} — Harmoni{% endblock %}
+
+{% block extra_css %}
+<style>
+  .emp-card-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 10px 10px 0 0;
+    color: #fff;
+    padding: 1.25rem 1.5rem;
+  }
+  .emp-card-header .emp-name { font-size: 1.15rem; font-weight: 700; }
+  .emp-card-header .emp-meta { font-size: .82rem; opacity: .82; }
+
+  .readonly-field {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: .5rem .75rem;
+    font-size: .9rem;
+    color: #374151;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    min-height: 38px;
+  }
+  .readonly-field .rf-label {
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: #9ca3af;
+    margin-bottom: .15rem;
+  }
+
+  .field-group {
+    border-left: 3px solid #5eead4;
+    padding-left: .75rem;
+    margin-bottom: 1.25rem;
+  }
+  .field-group.fg-desc { border-left-color: #f87171; }
+  .field-group.fg-bonus { border-left-color: #60a5fa; }
+
+  .legal-note {
+    font-size: .72rem;
+    color: #9ca3af;
+    margin-top: .2rem;
+    padding-left: .1rem;
+  }
+  .legal-note i { color: #5eead4; }
+
+  .info-recalc {
+    background: linear-gradient(135deg, rgba(15,118,110,.08) 0%, rgba(94,234,212,.05) 100%);
+    border: 1px solid rgba(15,118,110,.2);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-size: .83rem;
+    color: #0f766e;
+  }
+  .info-recalc i { color: #5eead4; }
+
+  .section-divider {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: .4rem;
+    margin: 1.5rem 0 1rem;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title"><i class="fas fa-edit me-2 text-accent"></i>{{ titulo }}</h1>
+    <h1 class="page-title">
+      <i class="fas fa-sliders-h me-2 text-accent"></i>Editar ajustes de planilla
+    </h1>
     <p class="page-subtitle">
       <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">Nóminas</a>
-      / <a href="{% url 'nominas_periodo_detalle' reg.periodo.pk %}" class="text-muted text-decoration-none">{{ reg.periodo }}</a>
-      / Editar registro
+      / <a href="{% url 'nominas_periodo_detalle' pk=reg.periodo.pk %}" class="text-muted text-decoration-none">{{ reg.periodo }}</a>
+      / <a href="{% url 'nominas_registro_detalle' pk=reg.pk %}" class="text-muted text-decoration-none">{{ reg.personal.apellidos_nombres }}</a>
+      / Editar
     </p>
   </div>
 </div>
 
 <div class="row justify-content-center">
-  <div class="col-lg-7">
-    <div class="dash-card mb-3 py-2">
-      <div class="fw-semibold">{{ reg.personal.apellidos_nombres }}</div>
-      <div class="text-muted" style="font-size:.85rem;">
-        {{ reg.personal.numero_documento }} —
-        {{ reg.regimen_pension }}{% if reg.afp %} {{ reg.afp }}{% endif %} —
-        Sueldo base: <strong>S/ {{ reg.sueldo_base|floatformat:2|intcomma }}</strong>
+  <div class="col-xl-8 col-lg-10">
+
+    {# ── Employee header ── #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="emp-card-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <div class="emp-name">{{ reg.personal.apellidos_nombres }}</div>
+            <div class="emp-meta mt-1">
+              <i class="fas fa-id-card me-1 opacity-75"></i>DNI {{ reg.personal.numero_documento }}
+              &nbsp;&middot;&nbsp;
+              <i class="fas fa-layer-group me-1 opacity-75"></i>Grupo {{ reg.grupo }}
+              &nbsp;&middot;&nbsp;
+              <i class="fas fa-calendar-alt me-1 opacity-75"></i>{{ reg.periodo }} &nbsp;&mdash;&nbsp; {{ reg.periodo.get_tipo_display }}
+            </div>
+          </div>
+          <span class="badge rounded-pill px-3 py-1"
+                style="font-size:.75rem; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2);">
+            {{ reg.estado }}
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body">
+
+        {# ── Readonly fields ── #}
+        <div class="section-divider"><i class="fas fa-lock me-1"></i>Datos calculados automáticamente</div>
+        <div class="row g-3 mb-2">
+          <div class="col-sm-4">
+            <div class="rf-label">Sueldo base</div>
+            <div class="readonly-field">
+              <i class="fas fa-wallet" style="color:#5eead4; font-size:.85rem;"></i>
+              S/ {{ reg.sueldo_base|floatformat:2|intcomma }}
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="rf-label">Régimen pensionario</div>
+            <div class="readonly-field">
+              <i class="fas fa-shield-alt" style="color:#5eead4; font-size:.85rem;"></i>
+              {{ reg.regimen_pension }}
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="rf-label">AFP / Sistema</div>
+            <div class="readonly-field">
+              <i class="fas fa-university" style="color:#5eead4; font-size:.85rem;"></i>
+              {{ reg.afp|default:"ONP / No aplica" }}
+            </div>
+          </div>
+        </div>
+        <p class="text-muted mb-3" style="font-size:.75rem;">
+          <i class="fas fa-info-circle me-1"></i>
+          Estos valores provienen del perfil del colaborador y se aplican automáticamente.
+          Para modificarlos, edita el perfil en el módulo de Personal.
+        </p>
+
+        {# ── Form ── #}
+        <form method="post" action="{% url 'nominas_registro_editar' pk=reg.pk %}" id="form-ajustes">
+          {% csrf_token %}
+
+          {# Days #}
+          <div class="section-divider"><i class="fas fa-calendar-check me-1"></i>Días y asistencia</div>
+
+          <div class="field-group">
+            <label for="id_dias_trabajados" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+              Días trabajados
+            </label>
+            <div class="d-flex align-items-center gap-2">
+              <input type="number" class="form-control" id="id_dias_trabajados" name="dias_trabajados"
+                     value="{{ reg.dias_trabajados|default:30 }}" min="0" max="30" step="1"
+                     style="max-width:120px;" required>
+              <span class="text-muted" style="font-size:.82rem;">/ 30 días del ciclo</span>
+            </div>
+            <div class="legal-note">
+              <i class="fas fa-gavel me-1"></i>
+              Ciclo planilla: día 21 mes anterior al día 20 del mes actual. Máximo 30.
+            </div>
+          </div>
+
+          {# HE #}
+          <div class="section-divider"><i class="fas fa-clock me-1"></i>Horas extras (D. Leg. 713)</div>
+
+          <div class="row g-3">
+            <div class="col-sm-4">
+              <div class="field-group">
+                <label for="id_horas_extra_25" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+                  HE 25% <span class="text-muted fw-normal">(horas)</span>
+                </label>
+                <input type="number" class="form-control" id="id_horas_extra_25" name="horas_extra_25"
+                       value="{{ reg.horas_extra_25|default:'0.00' }}" min="0" step="0.01">
+                <div class="legal-note">
+                  <i class="fas fa-gavel me-1"></i>Primeras 2h sobre la jornada ordinaria diaria.
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="field-group">
+                <label for="id_horas_extra_35" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+                  HE 35% <span class="text-muted fw-normal">(horas)</span>
+                </label>
+                <input type="number" class="form-control" id="id_horas_extra_35" name="horas_extra_35"
+                       value="{{ reg.horas_extra_35|default:'0.00' }}" min="0" step="0.01">
+                <div class="legal-note">
+                  <i class="fas fa-gavel me-1"></i>Horas en exceso de las 2 primeras HE del día.
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="field-group">
+                <label for="id_horas_extra_100" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+                  HE 100% <span class="text-muted fw-normal">(horas)</span>
+                </label>
+                <input type="number" class="form-control" id="id_horas_extra_100" name="horas_extra_100"
+                       value="{{ reg.horas_extra_100|default:'0.00' }}" min="0" step="0.01">
+                <div class="legal-note">
+                  <i class="fas fa-gavel me-1"></i>Feriados laborados y domingos / DSO trabajado.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# Asig. familiar #}
+          <div class="section-divider"><i class="fas fa-users me-1"></i>Beneficios</div>
+
+          <div class="field-group">
+            <div class="form-check form-switch d-flex align-items-center gap-2 ps-0">
+              <input class="form-check-input ms-0" type="checkbox" role="switch"
+                     id="id_asignacion_familiar" name="asignacion_familiar"
+                     {% if reg.asignacion_familiar %}checked{% endif %}
+                     style="width:2.5em; height:1.3em; cursor:pointer;">
+              <label class="form-check-label fw-semibold" for="id_asignacion_familiar" style="font-size:.9rem; cursor:pointer;">
+                Asignación familiar
+              </label>
+            </div>
+            <div class="legal-note mt-1">
+              <i class="fas fa-gavel me-1"></i>
+              10% RMV (Ley 25129). Aplica si el trabajador tiene hijos menores de 18 años o en educación superior hasta 24.
+            </div>
+          </div>
+
+          {# Otros ingresos #}
+          <div class="section-divider"><i class="fas fa-plus-circle me-1"></i>Otros ingresos y descuentos</div>
+
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <div class="field-group fg-bonus">
+                <label for="id_otros_ingresos" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+                  Otros ingresos (S/)
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text" style="font-size:.85rem;">S/</span>
+                  <input type="number" class="form-control" id="id_otros_ingresos" name="otros_ingresos"
+                         value="{{ reg.otros_ingresos|default:'0.00' }}" min="0" step="0.01">
+                </div>
+                <div class="legal-note">
+                  <i class="fas fa-info-circle me-1" style="color:#60a5fa;"></i>
+                  Bonificaciones, comisiones u otros conceptos manuales.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="field-group fg-desc">
+                <label for="id_descuento_prestamo" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+                  Descuento préstamo (S/)
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text" style="font-size:.85rem;">S/</span>
+                  <input type="number" class="form-control" id="id_descuento_prestamo" name="descuento_prestamo"
+                         value="{{ reg.descuento_prestamo|default:'0.00' }}" min="0" step="0.01">
+                </div>
+                <div class="legal-note">
+                  <i class="fas fa-info-circle me-1" style="color:#f87171;"></i>
+                  Cuota del préstamo o adelanto a descontar en esta planilla.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <div class="field-group fg-desc">
+                <label for="id_otros_descuentos" class="form-label fw-semibold mb-1" style="font-size:.85rem;">
+                  Otros descuentos (S/)
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text" style="font-size:.85rem;">S/</span>
+                  <input type="number" class="form-control" id="id_otros_descuentos" name="otros_descuentos"
+                         value="{{ reg.otros_descuentos|default:'0.00' }}" min="0" step="0.01">
+                </div>
+                <div class="legal-note">
+                  <i class="fas fa-info-circle me-1" style="color:#f87171;"></i>
+                  Tardanzas, descuentos autorizados u otros conceptos manuales.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# Recalc info box #}
+          <div class="info-recalc mb-4">
+            <i class="fas fa-sync-alt me-2"></i>
+            <strong>Recálculo automático:</strong> al guardar, el sistema recalculará todas las fórmulas —
+            AFP/ONP, EsSalud, IR 5ta categoría, provisiones de gratificación y CTS — aplicando
+            los valores ajustados. Los resultados se reflejarán en la boleta inmediatamente.
+          </div>
+
+          {# Buttons #}
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{% url 'nominas_registro_detalle' pk=reg.pk %}" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" id="btn-guardar">
+              <i class="fas fa-save me-1"></i>Guardar y recalcular
+            </button>
+          </div>
+
+        </form>
       </div>
     </div>
 
-    <div class="dash-card">
-      <form method="post">
-        {% csrf_token %}
-
-        <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Días trabajados</label>
-            <input type="number" name="dias_trabajados" class="form-control"
-                   min="0" max="31" value="{{ reg.dias_trabajados }}">
-            <div class="form-text">30 = mes completo</div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Horas extra 25%</label>
-            <input type="number" name="horas_extra_25" class="form-control"
-                   min="0" step="0.5" value="{{ reg.horas_extra_25 }}">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Horas extra 35%</label>
-            <input type="number" name="horas_extra_35" class="form-control"
-                   min="0" step="0.5" value="{{ reg.horas_extra_35 }}">
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label">Horas extra 100%</label>
-            <input type="number" name="horas_extra_100" class="form-control"
-                   min="0" step="0.5" value="{{ reg.horas_extra_100 }}">
-            <div class="form-text">Domingos / feriados</div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Otros ingresos</label>
-            <div class="input-group">
-              <span class="input-group-text">S/</span>
-              <input type="number" name="otros_ingresos" class="form-control"
-                     min="0" step="0.01" value="{{ reg.otros_ingresos }}">
-            </div>
-          </div>
-          <div class="col-md-4 d-flex align-items-end">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="asignacion_familiar"
-                     id="chkAsigFam" {% if reg.asignacion_familiar %}checked{% endif %}>
-              <label class="form-check-label" for="chkAsigFam">
-                Asignación familiar
-                <div class="text-muted" style="font-size:.75rem;">S/ 102.50 (10% RMV)</div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <hr>
-        <h6 class="mb-3 text-muted">Descuentos adicionales</h6>
-
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label">Descuento préstamo / adelanto</label>
-            <div class="input-group">
-              <span class="input-group-text">S/</span>
-              <input type="number" name="descuento_prestamo" class="form-control"
-                     min="0" step="0.01" value="{{ reg.descuento_prestamo }}">
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Otros descuentos</label>
-            <div class="input-group">
-              <span class="input-group-text">S/</span>
-              <input type="number" name="otros_descuentos" class="form-control"
-                     min="0" step="0.01" value="{{ reg.otros_descuentos }}">
-            </div>
-          </div>
-        </div>
-
-        <hr>
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-calculator me-1"></i>Guardar y recalcular
-          </button>
-          <a href="{% url 'nominas_registro_detalle' reg.pk %}" class="btn btn-outline-secondary">Cancelar</a>
-        </div>
-      </form>
-    </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Prevent double-submit
+  document.getElementById('form-ajustes').addEventListener('submit', function() {
+    var btn = document.getElementById('btn-guardar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Guardando...';
+  });
+
+  // Highlight HE 100 field when value > 0 (visual cue)
+  var he100 = document.getElementById('id_horas_extra_100');
+  he100.addEventListener('input', function() {
+    this.style.borderColor = parseFloat(this.value) > 0 ? '#5eead4' : '';
+  });
+</script>
 {% endblock %}

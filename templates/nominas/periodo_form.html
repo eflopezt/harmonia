@@ -1,96 +1,533 @@
 {% extends "base.html" %}
 
-{% block title %}{{ titulo }} — Harmoni{% endblock %}
+{% block title %}Nuevo período de nómina — Harmoni{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══════════════════════════════════════════════════════════════
+   PERIODO FORM — Harmoni Design System
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Form Card ──────────────────────────────────────────────── */
+.form-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+.form-card-header {
+  padding: 1.5rem 2rem 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+  background: linear-gradient(135deg, #f0fdf9 0%, #f9fafb 100%);
+}
+.form-card-header h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+.form-card-header p {
+  font-size: .82rem;
+  color: #6b7280;
+  margin: .3rem 0 0;
+}
+.form-card-body { padding: 2rem; }
+
+/* ── Tipo Selector Grid ─────────────────────────────────────── */
+.tipo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: .75rem;
+  margin-bottom: .5rem;
+}
+
+.tipo-option { display: none; }
+
+.tipo-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  padding: 1rem .75rem;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  transition: all .18s;
+  text-align: center;
+  background: #fafafa;
+  user-select: none;
+}
+.tipo-label:hover {
+  border-color: #a7f3d0;
+  background: #f0fdf9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(15,118,110,.12);
+}
+.tipo-option:checked + .tipo-label {
+  border-color: #0f766e;
+  background: #f0fdf9;
+  box-shadow: 0 0 0 3px rgba(15,118,110,.12);
+}
+
+.tipo-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.tipo-name {
+  font-size: .78rem;
+  font-weight: 700;
+  color: #374151;
+  line-height: 1.2;
+}
+.tipo-desc {
+  font-size: .68rem;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+/* Color variants per type */
+.tipo-option[value="REGULAR"]:checked + .tipo-label .tipo-icon         { background:rgba(15,118,110,.12);color:#0f766e; }
+.tipo-option[value="GRATIFICACION"]:checked + .tipo-label .tipo-icon   { background:rgba(37,99,235,.12);color:#1d4ed8; }
+.tipo-option[value="CTS"]:checked + .tipo-label .tipo-icon             { background:rgba(124,58,237,.12);color:#6d28d9; }
+.tipo-option[value="UTILIDADES"]:checked + .tipo-label .tipo-icon      { background:rgba(217,119,6,.12);color:#b45309; }
+.tipo-option[value="LIQUIDACION"]:checked + .tipo-label .tipo-icon     { background:rgba(220,38,38,.1);color:#b91c1c; }
+
+/* Default icon colors */
+.tipo-icon.icon-regular       { background:#f0fdf9;color:#0f766e; }
+.tipo-icon.icon-gratificacion { background:#eff6ff;color:#2563eb; }
+.tipo-icon.icon-cts           { background:#f5f3ff;color:#7c3aed; }
+.tipo-icon.icon-utilidades    { background:#fffbeb;color:#d97706; }
+.tipo-icon.icon-liquidacion   { background:#fef2f2;color:#dc2626; }
+
+/* ── Form Field Groups ──────────────────────────────────────── */
+.field-group { margin-bottom: 1.5rem; }
+.field-group-title {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #9ca3af;
+  margin-bottom: .85rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.field-group-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #f3f4f6;
+}
+
+/* ── Form Controls ──────────────────────────────────────────── */
+.nom-form-control {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  padding: .6rem .9rem;
+  font-size: .88rem;
+  color: #111827;
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+  background: #fff;
+}
+.nom-form-control:focus {
+  outline: none;
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15,118,110,.1);
+}
+.nom-form-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: .4rem;
+  display: block;
+}
+.nom-form-label .req { color: #dc2626; margin-left: .2rem; }
+
+/* ── Legal Info Box ─────────────────────────────────────────── */
+.legal-box {
+  background: #0d2b27;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  color: rgba(255,255,255,.9);
+  margin-top: 1.25rem;
+}
+.legal-box h6 {
+  font-size: .82rem;
+  font-weight: 700;
+  margin-bottom: .75rem;
+  color: #5eead4;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.legal-box li {
+  font-size: .8rem;
+  color: rgba(255,255,255,.75);
+  margin-bottom: .45rem;
+  padding-left: .25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  line-height: 1.45;
+}
+.legal-box li i {
+  color: #5eead4;
+  font-size: .5rem;
+  margin-top: .4rem;
+  flex-shrink: 0;
+}
+
+/* ── Form Footer ────────────────────────────────────────────── */
+.form-footer {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 1.75rem;
+}
+
+/* ── Tipo indicator bar ─────────────────────────────────────── */
+#tipo-indicator {
+  height: 3px;
+  border-radius: 2px;
+  background: #0f766e;
+  width: 100%;
+  margin-top: .5rem;
+  transition: background .2s;
+}
+</style>
+{% endblock %}
 
 {% block content %}
+
+{# ── Page Header ─────────────────────────────────────────────────────────────── #}
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title"><i class="fas fa-calendar-plus me-2 text-accent"></i>{{ titulo }}</h1>
+    <h1 class="page-title">
+      <i class="fas fa-calendar-plus me-2 text-accent"></i>Nuevo período de nómina
+    </h1>
     <p class="page-subtitle">
-      <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">Nóminas</a>
-      / Nuevo período
+      <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">
+        <i class="fas fa-chevron-left me-1" style="font-size:.7rem;"></i>Nóminas
+      </a>
+      <span class="text-muted mx-1">/</span>
+      Crear período
     </p>
   </div>
 </div>
 
 <div class="row justify-content-center">
-  <div class="col-lg-7">
-    <div class="dash-card">
-      <form method="post">
-        {% csrf_token %}
+  <div class="col-lg-8 col-xl-7">
 
-        <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
-            <select name="tipo" class="form-select">
+    <div class="form-card">
+
+      {# ── Card Header ──────────────────────────────────────────────────────── #}
+      <div class="form-card-header">
+        <div class="d-flex align-items-center gap-3">
+          <div style="width:2.75rem;height:2.75rem;border-radius:10px;background:rgba(15,118,110,.12);color:#0f766e;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <div>
+            <h5>Configurar período de planilla</h5>
+            <p>Define el tipo, período y fechas del ciclo de nómina</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card-body">
+        <form method="post" id="form-periodo">
+          {% csrf_token %}
+
+          {# ── TIPO DE PERÍODO ─────────────────────────────────────────────── #}
+          <div class="field-group">
+            <div class="field-group-title">
+              <i class="fas fa-tag" style="color:#0f766e;font-size:.8rem;"></i>
+              Tipo de período <span class="req" style="color:#dc2626;">*</span>
+            </div>
+
+            <div class="tipo-grid">
+
+              {# REGULAR #}
+              <div>
+                <input type="radio" name="tipo" id="tipo_REGULAR" value="REGULAR"
+                       class="tipo-option" checked>
+                <label for="tipo_REGULAR" class="tipo-label">
+                  <div class="tipo-icon icon-regular"><i class="fas fa-calendar-alt"></i></div>
+                  <div class="tipo-name">Regular</div>
+                  <div class="tipo-desc">Planilla mensual</div>
+                </label>
+              </div>
+
+              {# GRATIFICACION #}
               {% for v,l in tipo_choices %}
-              <option value="{{ v }}" {% if v == 'REGULAR' %}selected{% endif %}>{{ l }}</option>
+                {% if v == 'GRATIFICACION' %}
+              <div>
+                <input type="radio" name="tipo" id="tipo_GRATIFICACION" value="GRATIFICACION" class="tipo-option">
+                <label for="tipo_GRATIFICACION" class="tipo-label">
+                  <div class="tipo-icon icon-gratificacion"><i class="fas fa-gift"></i></div>
+                  <div class="tipo-name">Gratificación</div>
+                  <div class="tipo-desc">Jul / Dic</div>
+                </label>
+              </div>
+                {% endif %}
+                {% if v == 'CTS' %}
+              <div>
+                <input type="radio" name="tipo" id="tipo_CTS" value="CTS" class="tipo-option">
+                <label for="tipo_CTS" class="tipo-label">
+                  <div class="tipo-icon icon-cts"><i class="fas fa-piggy-bank"></i></div>
+                  <div class="tipo-name">CTS</div>
+                  <div class="tipo-desc">May / Nov</div>
+                </label>
+              </div>
+                {% endif %}
+                {% if v == 'UTILIDADES' %}
+              <div>
+                <input type="radio" name="tipo" id="tipo_UTILIDADES" value="UTILIDADES" class="tipo-option">
+                <label for="tipo_UTILIDADES" class="tipo-label">
+                  <div class="tipo-icon icon-utilidades"><i class="fas fa-chart-line"></i></div>
+                  <div class="tipo-name">Utilidades</div>
+                  <div class="tipo-desc">DL 892</div>
+                </label>
+              </div>
+                {% endif %}
+                {% if v == 'LIQUIDACION' %}
+              <div>
+                <input type="radio" name="tipo" id="tipo_LIQUIDACION" value="LIQUIDACION" class="tipo-option">
+                <label for="tipo_LIQUIDACION" class="tipo-label">
+                  <div class="tipo-icon icon-liquidacion"><i class="fas fa-file-contract"></i></div>
+                  <div class="tipo-name">Liquidación</div>
+                  <div class="tipo-desc">Cese laboral</div>
+                </label>
+              </div>
+                {% endif %}
               {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Año <span class="text-danger">*</span></label>
-            <select name="anio" class="form-select">
-              {% for a in anios %}
-              <option value="{{ a }}" {% if a == anio_actual %}selected{% endif %}>{{ a }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Mes <span class="text-danger">*</span></label>
-            <select name="mes" class="form-select">
-              {% for m in meses %}
-              <option value="{{ m }}" {% if m == mes_actual %}selected{% endif %}>
-                {% if m == 1 %}Enero{% elif m == 2 %}Febrero{% elif m == 3 %}Marzo
-                {% elif m == 4 %}Abril{% elif m == 5 %}Mayo{% elif m == 6 %}Junio
-                {% elif m == 7 %}Julio{% elif m == 8 %}Agosto{% elif m == 9 %}Setiembre
-                {% elif m == 10 %}Octubre{% elif m == 11 %}Noviembre{% else %}Diciembre{% endif %}
-              </option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
 
-        <div class="mb-3">
-          <label class="form-label">Descripción (opcional)</label>
-          <input type="text" name="descripcion" class="form-control"
-                 placeholder="Ej: Planilla regular febrero 2026">
-        </div>
+            </div>
+            <div id="tipo-indicator"></div>
+          </div>
 
-        <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label">Fecha inicio</label>
-            <input type="date" name="fecha_inicio" class="form-control">
+          {# ── PERÍODO ─────────────────────────────────────────────────────── #}
+          <div class="field-group">
+            <div class="field-group-title">
+              <i class="fas fa-calendar" style="color:#0f766e;font-size:.8rem;"></i>
+              Período
+            </div>
+            <div class="row g-3">
+              <div class="col-6">
+                <label class="nom-form-label" for="sel-anio">Año <span class="req">*</span></label>
+                <select name="anio" id="sel-anio" class="nom-form-control">
+                  {% for a in anios %}
+                  <option value="{{ a }}" {% if a == anio_actual %}selected{% endif %}>{{ a }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="nom-form-label" for="sel-mes">Mes <span class="req">*</span></label>
+                <select name="mes" id="sel-mes" class="nom-form-control">
+                  {% for m in meses %}
+                  <option value="{{ m }}" {% if m == mes_actual %}selected{% endif %}>
+                    {% if m == 1 %}Enero
+                    {% elif m == 2 %}Febrero
+                    {% elif m == 3 %}Marzo
+                    {% elif m == 4 %}Abril
+                    {% elif m == 5 %}Mayo
+                    {% elif m == 6 %}Junio
+                    {% elif m == 7 %}Julio
+                    {% elif m == 8 %}Agosto
+                    {% elif m == 9 %}Setiembre
+                    {% elif m == 10 %}Octubre
+                    {% elif m == 11 %}Noviembre
+                    {% else %}Diciembre{% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Fecha fin</label>
-            <input type="date" name="fecha_fin" class="form-control">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Fecha de pago</label>
-            <input type="date" name="fecha_pago" class="form-control">
-          </div>
-        </div>
 
-        <hr>
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-1"></i>Crear período
-          </button>
-          <a href="{% url 'nominas_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
-        </div>
-      </form>
+          {# ── DESCRIPCIÓN ─────────────────────────────────────────────────── #}
+          <div class="field-group">
+            <div class="field-group-title">
+              <i class="fas fa-align-left" style="color:#0f766e;font-size:.8rem;"></i>
+              Descripción
+            </div>
+            <label class="nom-form-label" for="id-descripcion">
+              Descripción <span style="color:#9ca3af;font-weight:400;">(opcional)</span>
+            </label>
+            <input type="text" name="descripcion" id="id-descripcion"
+                   class="nom-form-control"
+                   placeholder="Ej: Planilla regular {{ mes_actual }}/{{ anio_actual }}"
+                   maxlength="200">
+            <div style="font-size:.72rem;color:#9ca3af;margin-top:.35rem;">
+              Identificador adicional para diferenciar el período (máx. 200 caracteres).
+            </div>
+          </div>
+
+          {# ── FECHAS ──────────────────────────────────────────────────────── #}
+          <div class="field-group">
+            <div class="field-group-title">
+              <i class="fas fa-calendar-check" style="color:#0f766e;font-size:.8rem;"></i>
+              Fechas del período
+            </div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="nom-form-label" for="id-fecha-inicio">Fecha inicio</label>
+                <input type="date" name="fecha_inicio" id="id-fecha-inicio" class="nom-form-control">
+                <div style="font-size:.7rem;color:#9ca3af;margin-top:.3rem;">Día 21 mes anterior</div>
+              </div>
+              <div class="col-md-4">
+                <label class="nom-form-label" for="id-fecha-fin">Fecha fin</label>
+                <input type="date" name="fecha_fin" id="id-fecha-fin" class="nom-form-control">
+                <div style="font-size:.7rem;color:#9ca3af;margin-top:.3rem;">Día 20 mes actual</div>
+              </div>
+              <div class="col-md-4">
+                <label class="nom-form-label" for="id-fecha-pago">
+                  Fecha de pago
+                  <span style="color:#dc2626;font-size:.75rem;"></span>
+                </label>
+                <input type="date" name="fecha_pago" id="id-fecha-pago" class="nom-form-control">
+                <div style="font-size:.7rem;color:#9ca3af;margin-top:.3rem;">Fecha de depósito</div>
+              </div>
+            </div>
+          </div>
+
+          {# ── Form Footer ─────────────────────────────────────────────────── #}
+          <div class="form-footer">
+            <button type="submit" class="btn btn-primary px-4" style="border-radius:10px;font-weight:600;">
+              <i class="fas fa-check me-2"></i>Crear período
+            </button>
+            <a href="{% url 'nominas_panel' %}" class="btn btn-outline-secondary px-4" style="border-radius:10px;">
+              Cancelar
+            </a>
+            <span class="ms-auto text-muted" style="font-size:.75rem;">
+              <i class="fas fa-info-circle me-1"></i>
+              El período quedará en estado <strong>Borrador</strong> hasta calcular la planilla.
+            </span>
+          </div>
+
+        </form>
+      </div>
     </div>
 
-    {# Info box #}
-    <div class="dash-card mt-3" style="background:var(--sidebar-bg);color:#fff;border:none;">
-      <h6 class="mb-2"><i class="fas fa-info-circle text-accent me-2"></i>Ciclo de planilla</h6>
-      <ul class="list-unstyled mb-0" style="font-size:.85rem;opacity:.85;">
-        <li class="mb-1"><i class="fas fa-circle text-accent me-2" style="font-size:.5rem;"></i>El ciclo es del día 21 del mes anterior al día 20 del mes actual.</li>
-        <li class="mb-1"><i class="fas fa-circle text-accent me-2" style="font-size:.5rem;"></i>Después de crear el período, usa <strong>Generar</strong> para calcular automáticamente todos los trabajadores activos.</li>
-        <li><i class="fas fa-circle text-accent me-2" style="font-size:.5rem;"></i>Puedes editar registros individuales antes de <strong>Aprobar</strong>.</li>
+    {# ── Legal Info Box ───────────────────────────────────────────────────────── #}
+    <div class="legal-box">
+      <h6><i class="fas fa-balance-scale"></i>Normativa laboral — ciclo y tipos de planilla</h6>
+      <ul class="list-unstyled mb-0">
+        <li>
+          <i class="fas fa-circle"></i>
+          <span><strong style="color:#fff;">Ciclo planilla regular:</strong> del día 21 del mes anterior al día 20 del mes actual (Art. 1 D.Leg. 728).</span>
+        </li>
+        <li>
+          <i class="fas fa-circle"></i>
+          <span><strong style="color:#fff;">Gratificaciones:</strong> equivale a 1 sueldo. Se abona en julio y diciembre (Ley 27735 + Ley 29351). Se incluye bonificación extraordinaria 9%.</span>
+        </li>
+        <li>
+          <i class="fas fa-circle"></i>
+          <span><strong style="color:#fff;">CTS:</strong> depósito semestral en mayo y noviembre. Base = sueldo + AF + 1/6 sueldo (D.Leg. 650).</span>
+        </li>
+        <li>
+          <i class="fas fa-circle"></i>
+          <span><strong style="color:#fff;">Flujo:</strong> Crea el período → Genera la planilla (cálculo automático) → Revisa registros individuales → Aprueba.</span>
+        </li>
+        <li>
+          <i class="fas fa-circle"></i>
+          <span><strong style="color:#fff;">IR 5ta categoría:</strong> se retiene mensualmente. Solo afecto a rentas de cuarta-quinta y quinta categoría (Art. 75 LIR).</span>
+        </li>
       </ul>
     </div>
+
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  /* ── Tipo indicator color ───────────────────────────────────────────────── */
+  var TIPO_COLORS = {
+    REGULAR:       '#0f766e',
+    GRATIFICACION: '#2563eb',
+    CTS:           '#7c3aed',
+    UTILIDADES:    '#d97706',
+    LIQUIDACION:   '#dc2626',
+  };
+
+  function updateIndicator() {
+    var checked = document.querySelector('input[name="tipo"]:checked');
+    var bar = document.getElementById('tipo-indicator');
+    if (checked && bar) {
+      bar.style.background = TIPO_COLORS[checked.value] || '#0f766e';
+    }
+  }
+
+  document.querySelectorAll('input[name="tipo"]').forEach(function(radio) {
+    radio.addEventListener('change', updateIndicator);
+  });
+  updateIndicator();
+
+  /* ── Auto-fill fechas based on año + mes ─────────────────────────────── */
+  function autoFillFechas() {
+    var anio = parseInt(document.getElementById('sel-anio').value, 10);
+    var mes  = parseInt(document.getElementById('sel-mes').value, 10);
+    if (!anio || !mes) return;
+
+    /* Tipo seleccionado */
+    var tipoInput = document.querySelector('input[name="tipo"]:checked');
+    var tipo = tipoInput ? tipoInput.value : 'REGULAR';
+
+    if (tipo === 'REGULAR') {
+      /* Inicio: día 21 del mes anterior */
+      var mesAnterior = mes === 1 ? 12 : mes - 1;
+      var anioAnterior = mes === 1 ? anio - 1 : anio;
+      var inicio = anioAnterior + '-' + String(mesAnterior).padStart(2,'0') + '-21';
+
+      /* Fin: día 20 del mes actual */
+      var fin = anio + '-' + String(mes).padStart(2,'0') + '-20';
+
+      /* Pago: último día hábil del mes (aproximado: día 25) */
+      var pago = anio + '-' + String(mes).padStart(2,'0') + '-25';
+
+      var fiStart = document.getElementById('id-fecha-inicio');
+      var fiFin   = document.getElementById('id-fecha-fin');
+      var fiPago  = document.getElementById('id-fecha-pago');
+
+      if (fiStart && !fiStart.value) fiStart.value = inicio;
+      if (fiFin   && !fiFin.value)   fiFin.value   = fin;
+      if (fiPago  && !fiPago.value)  fiPago.value  = pago;
+    }
+  }
+
+  document.getElementById('sel-anio').addEventListener('change', function() {
+    clearFechas();
+    autoFillFechas();
+  });
+  document.getElementById('sel-mes').addEventListener('change', function() {
+    clearFechas();
+    autoFillFechas();
+  });
+  document.querySelectorAll('input[name="tipo"]').forEach(function(radio) {
+    radio.addEventListener('change', function() { clearFechas(); autoFillFechas(); });
+  });
+
+  function clearFechas() {
+    ['id-fecha-inicio','id-fecha-fin','id-fecha-pago'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  }
+
+  /* Initial auto-fill on load */
+  autoFillFechas();
+
+})();
+</script>
 {% endblock %}
