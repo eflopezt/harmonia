@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Plantillas de Notificaci&oacute;n{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-file-code text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Plantillas reutilizables para notificaciones</small>
+    </div>
+    <a href="{% url 'com_plantilla_crear' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Nueva Plantilla
+    </a>
+</div>
+
+<!-- Filtro por m&oacute;dulo -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end">
+            <div>
+                <label class="form-label small mb-0">M&oacute;dulo</label>
+                <select name="modulo" class="form-select form-select-sm" style="width:160px">
+                    <option value="">Todos</option>
+                    {% for val, label in modulos %}
+                    <option value="{{ val }}" {% if filtro_modulo == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>C&oacute;digo</th>
+                    <th class="text-center">M&oacute;dulo</th>
+                    <th class="text-center">Canal</th>
+                    <th class="text-center">Activa</th>
+                    <th>Asunto</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in plantillas %}
+                <tr>
+                    <td class="fw-semibold">{{ p.nombre }}</td>
+                    <td><code>{{ p.codigo }}</code></td>
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark">{{ p.get_modulo_display }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if p.tipo == 'EMAIL' %}<span class="badge bg-info">Email</span>
+                        {% elif p.tipo == 'IN_APP' %}<span class="badge bg-secondary">In-App</span>
+                        {% else %}<span class="badge bg-primary">Ambos</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if p.activa %}
+                        <i class="fas fa-check-circle text-success"></i>
+                        {% else %}
+                        <i class="fas fa-times-circle text-danger"></i>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ p.asunto_template|truncatechars:40 }}</td>
+                    <td>
+                        <a href="{% url 'com_plantilla_editar' p.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        No hay plantillas. <a href="{% url 'com_plantilla_crear' %}">Crear una</a>.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

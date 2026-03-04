@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ dossier.nombre }} — Harmoni{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'dossier_list' %}">Dossiers</a></li>
+        <li class="breadcrumb-item active">{{ dossier.nombre|truncatechars:50 }}</li>
+      </ol>
+    </nav>
+    <h1 class="page-title mb-1">
+      <i class="fas fa-archive me-2 text-primary"></i>{{ dossier.nombre }}
+    </h1>
+    {% if dossier.proyecto %}<p class="text-muted mb-0">{{ dossier.proyecto }}{% if dossier.cliente %} · {{ dossier.cliente }}{% endif %}</p>{% endif %}
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {# Cambiar estado #}
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <span class="badge bg-{{ dossier.color_estado }} me-1">{{ dossier.get_estado_display }}</span> Estado
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        {% for val, label in dossier.ESTADO_CHOICES %}
+        <li>
+          <form method="post" action="{% url 'dossier_cambiar_estado' dossier.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="estado" value="{{ val }}">
+            <button type="submit" class="dropdown-item {% if val == dossier.estado %}active{% endif %}">
+              {{ label }}
+            </button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {# Acciones #}
+    <button class="btn btn-success" id="btnVincular" onclick="vincularDocumentos()">
+      <i class="fas fa-link me-1"></i> Vincular Legajo
+    </button>
+  </div>
+</div>
+
+{# KPIs #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-primary">{{ dossier.total_personal }}</div>
+      <div class="stat-label">Trabajadores</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value" id="kpiCompletos">{{ dossier.items_completos }}</div>
+      <div class="stat-label">Docs Completos</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-warning">{{ dossier.total_items|add:"-1"|add:"1" }}</div>
+      <div class="stat-label">Total Ítems</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value" id="kpiProgreso">{{ dossier.progreso }}%</div>
+      <div class="stat-label">Completitud</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# Panel izquierdo: lista de trabajadores #}
+  <div class="col-md-4 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="fas fa-users me-1"></i> Personal</span>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarPersonal">
+          <i class="fas fa-user-plus"></i>
+        </button>
+      </div>
+      <div class="card-body p-0">
+        {% if progreso_personal %}
+        <div class="list-group list-group-flush">
+          {% for p in progreso_personal %}
+          <a href="?personal={{ p.personal.pk }}"
+             class="list-group-item list-group-item-action py-2 px-3 {% if personal_sel.pk == p.personal.pk %}active{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-semibold small">{{ p.personal.apellidos_nombres|truncatechars:28 }}</span>
+              <small class="text-{% if personal_sel.pk == p.personal.pk %}white{% else %}{{ p.color }}{% endif %}">
+                {{ p.pct }}%
+              </small>
+            </div>
+            <div class="progress" style="height:4px;">
+              <div class="progress-bar bg-{{ p.color }}" style="width:{{ p.pct }}%"></div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-user-slash fa-2x mb-2"></i>
+          <p class="small mb-0">Sin personal asignado</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Panel derecho: documentos del trabajador seleccionado #}
+  <div class="col-md-8 col-lg-9">
+    {% if personal_sel and items_personal %}
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">
+          <i class="fas fa-id-badge me-1"></i> {{ personal_sel.apellidos_nombres }}
+        </span>
+        <span class="text-muted small">
+          {{ items_personal|length }} ítems
+        </span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:30px">#</th>
+              <th>Documento</th>
+              <th>Categoría</th>
+              <th class="text-center">Estado</th>
+              <th class="text-center">Archivo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items_personal %}
+            {% if item.seccion and forloop.first or item.seccion != items_personal|slice:"0:forloop.counter0"|last %}
+              {# Sección header - simplificado #}
+            {% endif %}
+            <tr id="item-row-{{ item.pk }}">
+              <td class="text-muted small">{{ item.orden }}</td>
+              <td>
+                <span class="fw-semibold small">{{ item.tipo_documento.nombre }}</span>
+                {% if item.instruccion %}
+                <div class="text-muted" style="font-size:.75rem;">{{ item.instruccion }}</div>
+                {% endif %}
+              </td>
+              <td><small class="text-muted">{{ item.tipo_documento.categoria }}</small></td>
+              <td class="text-center">
+                <select class="form-select form-select-sm estado-select"
+                        data-item="{{ item.pk }}"
+                        style="min-width:110px;font-size:.75rem;">
+                  {% for val, label in item.ESTADO_CHOICES %}
+                  <option value="{{ val }}" {% if val == item.estado %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td class="text-center">
+                {% if item.documento %}
+                  <a href="{{ item.documento.archivo.url }}" target="_blank"
+                     class="btn btn-sm btn-outline-success py-0 px-1" title="Ver documento">
+                    <i class="fas fa-{{ item.documento.icono_archivo|slice:":2" }} fa-file-alt"></i>
+                  </a>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% elif personal_sel %}
+    <div class="card">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="fas fa-file-exclamation fa-3x mb-3"></i>
+        <p>No hay ítems generados para este trabajador.</p>
+        {% if dossier.plantilla %}
+        <button class="btn btn-primary" onclick="generarItems()">
+          <i class="fas fa-magic me-1"></i> Generar desde Plantilla
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="fas fa-hand-pointer fa-3x mb-3 opacity-50"></i>
+        <h5>Selecciona un trabajador</h5>
+        <p class="mb-0">Haz clic en un nombre de la lista para ver sus documentos.</p>
+        {% if dossier.plantilla and progreso_personal %}
+        <button class="btn btn-outline-success mt-3" onclick="vincularDocumentos()">
+          <i class="fas fa-link me-1"></i> Vincular documentos del legajo
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# Info footer #}
+{% if dossier.observaciones %}
+<div class="card mt-4">
+  <div class="card-body">
+    <strong>Observaciones:</strong> {{ dossier.observaciones }}
+  </div>
+</div>
+{% endif %}
+
+{# Modal: Agregar Personal #}
+<div class="modal fade" id="modalAgregarPersonal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form method="post" action="{% url 'dossier_agregar_personal' dossier.pk %}">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Agregar Personal al Dossier</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          {% if personal_disponible %}
+          <p class="text-muted small mb-3">Selecciona los trabajadores a incluir en el dossier.</p>
+          <div class="mb-2">
+            <input type="text" id="filtroPersonal" class="form-control form-control-sm"
+                   placeholder="Filtrar por nombre...">
+          </div>
+          <div class="personal-selector" style="max-height:350px;overflow-y:auto;">
+            {% for p in personal_disponible %}
+            <label class="d-flex align-items-center gap-2 p-2 rounded hover-bg personal-item"
+                   style="cursor:pointer;">
+              <input type="checkbox" name="personal_ids" value="{{ p.pk }}" class="form-check-input">
+              <span>{{ p.apellidos_nombres }}</span>
+              <small class="text-muted ms-auto">{{ p.subarea }}</small>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll(true)">Todos</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll(false)">Ninguno</button>
+          </div>
+          {% else %}
+          <p class="text-muted text-center py-3">Todo el personal activo ya está en el dossier.</p>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Agregar Seleccionados
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Toast #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toastDossier" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filtro de personal en modal
+document.getElementById('filtroPersonal')?.addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.personal-item').forEach(function(el) {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+function selectAll(val) {
+  document.querySelectorAll('input[name="personal_ids"]').forEach(cb => cb.checked = val);
+}
+
+// Cambio de estado de ítem via AJAX
+document.querySelectorAll('.estado-select').forEach(function(sel) {
+  sel.addEventListener('change', function() {
+    const itemPk = this.dataset.item;
+    const estado = this.value;
+    const csrf = document.cookie.match(/csrftoken=([\w-]+)/)?.[1] || '';
+    fetch(`/documentos/dossier/item/${itemPk}/estado/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+      body: `estado=${estado}`
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        showToast(`Estado actualizado a: ${data.estado_display}`);
+        const kpi = document.getElementById('kpiProgreso');
+        if (kpi) kpi.textContent = data.progreso_dossier + '%';
+      }
+    });
+  });
+});
+
+function vincularDocumentos() {
+  const csrf = document.cookie.match(/csrftoken=([\w-]+)/)?.[1] || '';
+  const btn = document.getElementById('btnVincular');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Vinculando...';
+  fetch('{% url "dossier_vincular" dossier.pk %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf}
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-link me-1"></i> Vincular Legajo';
+    showToast(data.msg);
+    if (data.vinculados > 0) setTimeout(() => location.reload(), 1200);
+  });
+}
+
+function generarItems() {
+  const csrf = document.cookie.match(/csrftoken=([\w-]+)/)?.[1] || '';
+  fetch('{% url "dossier_generar_items" dossier.pk %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf}
+  })
+  .then(r => r.json())
+  .then(data => {
+    showToast(data.msg);
+    if (data.creados > 0) setTimeout(() => location.reload(), 1200);
+  });
+}
+
+function showToast(msg) {
+  document.getElementById('toastMsg').textContent = msg;
+  const t = new bootstrap.Toast(document.getElementById('toastDossier'), {delay: 3000});
+  t.show();
+}
+</script>
+{% endblock %}

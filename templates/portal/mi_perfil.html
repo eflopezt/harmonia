@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi Perfil{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-user me-2 text-primary"></i>Mi Perfil</h1>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning">Tu usuario no está vinculado a un empleado. Contacta a RRHH o TI.</div>
+{% else %}
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO — Avatar + datos principales
+═══════════════════════════════════════════════════════════ -->
+<div class="dash-card mb-4">
+    <div class="dash-card-body">
+        <div class="d-flex flex-column flex-sm-row align-items-center align-items-sm-start gap-4">
+
+            <!-- Avatar circular con inicial -->
+            <div class="flex-shrink-0">
+                <div style="
+                    width: 88px; height: 88px; border-radius: 50%;
+                    background: linear-gradient(135deg, #0f766e, #5eead4);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 2.2rem; font-weight: 700; color: #fff;
+                    box-shadow: 0 4px 16px rgba(15,118,110,.25);
+                    flex-shrink: 0;
+                ">
+                    {{ empleado.apellidos_nombres|first|upper }}
+                </div>
+            </div>
+
+            <!-- Nombre, cargo, área y chips -->
+            <div class="flex-grow-1">
+                <h2 class="mb-1 fw-bold fs-4" style="color:#0d2b27;">
+                    {{ empleado.apellidos_nombres }}
+                </h2>
+
+                <p class="mb-2 text-muted fw-semibold" style="font-size:.95rem;">
+                    {{ empleado.cargo }}
+                    {% if empleado.subarea %}
+                    <span class="text-secondary mx-1">·</span>
+                    {{ empleado.subarea.nombre }}
+                    <span class="text-secondary mx-1">·</span>
+                    {{ empleado.subarea.area.nombre }}
+                    {% endif %}
+                </p>
+
+                <!-- Chips de estado / grupo / antigüedad -->
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    {% if empleado.estado == 'Activo' %}
+                        <span class="badge bg-success"><i class="fas fa-circle me-1" style="font-size:.55rem;"></i>Activo</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ empleado.estado }}</span>
+                    {% endif %}
+
+                    <span class="badge" style="background:#0f766e;">{{ empleado.grupo_tareo }}</span>
+
+                    {% if empleado.categoria != 'NORMAL' %}
+                        <span class="badge bg-warning text-dark">{{ empleado.get_categoria_display }}</span>
+                    {% endif %}
+
+                    {% if antiguedad %}
+                        <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;">
+                            <i class="fas fa-clock me-1"></i>
+                            {% if antiguedad.anios > 0 %}
+                                {{ antiguedad.anios }} año{% if antiguedad.anios != 1 %}s{% endif %}
+                                {% if antiguedad.meses > 0 %}, {{ antiguedad.meses }} mes{% if antiguedad.meses != 1 %}es{% endif %}{% endif %}
+                            {% else %}
+                                {{ antiguedad.meses }} mes{% if antiguedad.meses != 1 %}es{% endif %}
+                                {% if antiguedad.dias > 0 %}, {{ antiguedad.dias }} día{% if antiguedad.dias != 1 %}s{% endif %}{% endif %}
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Contacto rápido -->
+                <div class="d-flex flex-wrap gap-3" style="font-size:.87rem; color:#475569;">
+                    {% if empleado.correo_corporativo %}
+                    <span><i class="fas fa-envelope me-1 text-primary"></i>{{ empleado.correo_corporativo }}</span>
+                    {% elif empleado.correo_personal %}
+                    <span><i class="fas fa-envelope me-1 text-primary"></i>{{ empleado.correo_personal }}</span>
+                    {% endif %}
+                    {% if empleado.celular %}
+                    <span><i class="fas fa-mobile-alt me-1 text-primary"></i>{{ empleado.celular }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     FILA PRINCIPAL: Datos personales + Datos laborales
+═══════════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+
+    <!-- Datos personales -->
+    <div class="col-lg-6">
+        <div class="dash-card h-100">
+            <div class="dash-card-header"><span><i class="fas fa-id-card me-2 text-primary"></i>Datos Personales</span></div>
+            <div class="dash-card-body">
+                <dl class="data-label-grid mb-0">
+                    <div class="data-label-row">
+                        <dt>Nombre completo</dt>
+                        <dd class="fw-semibold">{{ empleado.apellidos_nombres }}</dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>{{ empleado.get_tipo_doc_display|default:"Documento" }}</dt>
+                        <dd>{{ empleado.nro_doc }}</dd>
+                    </div>
+                    {% if empleado.fecha_nacimiento %}
+                    <div class="data-label-row">
+                        <dt>Fecha de nacimiento</dt>
+                        <dd>{{ empleado.fecha_nacimiento|date:"d/m/Y" }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.sexo %}
+                    <div class="data-label-row">
+                        <dt>Sexo</dt>
+                        <dd>{{ empleado.get_sexo_display }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.celular %}
+                    <div class="data-label-row">
+                        <dt>Celular</dt>
+                        <dd>{{ empleado.celular }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.correo_personal %}
+                    <div class="data-label-row">
+                        <dt>Correo personal</dt>
+                        <dd>{{ empleado.correo_personal }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.correo_corporativo %}
+                    <div class="data-label-row">
+                        <dt>Correo corporativo</dt>
+                        <dd>{{ empleado.correo_corporativo }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.direccion %}
+                    <div class="data-label-row">
+                        <dt>Dirección</dt>
+                        <dd>{{ empleado.direccion }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos laborales -->
+    <div class="col-lg-6">
+        <div class="dash-card h-100">
+            <div class="dash-card-header"><span><i class="fas fa-briefcase me-2 text-primary"></i>Datos Laborales</span></div>
+            <div class="dash-card-body">
+                <dl class="data-label-grid mb-0">
+                    <div class="data-label-row">
+                        <dt>Cargo</dt>
+                        <dd class="fw-semibold">{{ empleado.cargo }}</dd>
+                    </div>
+                    {% if empleado.subarea %}
+                    <div class="data-label-row">
+                        <dt>SubÁrea</dt>
+                        <dd>{{ empleado.subarea.nombre }}</dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>Gerencia / Área</dt>
+                        <dd>{{ empleado.subarea.area.nombre }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="data-label-row">
+                        <dt>DNI / Documento</dt>
+                        <dd>{{ empleado.nro_doc }}</dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>Estado</dt>
+                        <dd>
+                            {% if empleado.estado == 'Activo' %}
+                                <span class="badge bg-success">{{ empleado.estado }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ empleado.estado }}</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>Grupo tareo</dt>
+                        <dd><span class="badge bg-light text-dark border">{{ empleado.grupo_tareo }}</span></dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>Categoría</dt>
+                        <dd>{{ empleado.get_categoria_display }}</dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>Régimen pensionario</dt>
+                        <dd>
+                            {{ empleado.get_regimen_pension_display }}
+                            {% if empleado.afp and empleado.regimen_pension == 'AFP' %}
+                                <span class="text-muted ms-1">({{ empleado.afp }})</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="data-label-row">
+                        <dt>Tipo de trabajador</dt>
+                        <dd>{{ empleado.tipo_trab }}</dd>
+                    </div>
+                    {% if empleado.fecha_alta %}
+                    <div class="data-label-row">
+                        <dt>Fecha de ingreso</dt>
+                        <dd>{{ empleado.fecha_alta|date:"d/m/Y" }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.fecha_fin_contrato %}
+                    <div class="data-label-row">
+                        <dt>Vencimiento contrato</dt>
+                        <dd>{{ empleado.fecha_fin_contrato|date:"d/m/Y" }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if empleado.tipo_contrato %}
+                    <div class="data-label-row">
+                        <dt>Modalidad contrato</dt>
+                        <dd>{{ empleado.get_tipo_contrato_display }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="data-label-row">
+                        <dt>Jornada</dt>
+                        <dd>{{ empleado.jornada_horas }}h / día</dd>
+                    </div>
+                    {% if empleado.regimen_turno %}
+                    <div class="data-label-row">
+                        <dt>Régimen de turno</dt>
+                        <dd>{{ empleado.regimen_turno }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     FILA: Evaluaciones recientes + Capacitaciones completadas
+═══════════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+
+    <!-- Evaluaciones recientes -->
+    {% if ultimas_evaluaciones %}
+    <div class="col-lg-6">
+        <div class="dash-card h-100">
+            <div class="dash-card-header">
+                <span><i class="fas fa-star me-2 text-primary"></i>Evaluaciones Recientes</span>
+            </div>
+            <div class="dash-card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for ev in ultimas_evaluaciones %}
+                    <li class="list-group-item px-3 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold" style="font-size:.9rem;">
+                                    {{ ev.ciclo.nombre }}
+                                </div>
+                                <div class="text-muted" style="font-size:.8rem;">
+                                    {{ ev.get_relacion_display }}
+                                    {% if ev.ciclo.fecha_inicio %}
+                                        · {{ ev.ciclo.fecha_inicio|date:"Y" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-end ms-3 flex-shrink-0">
+                                {% if ev.estado == 'COMPLETADA' or ev.estado == 'CALIBRADA' %}
+                                    {% if ev.puntaje_final %}
+                                        <span class="badge" style="background:#0f766e; font-size:.85rem;">
+                                            {{ ev.puntaje_final|floatformat:1 }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success">Completada</span>
+                                    {% endif %}
+                                {% elif ev.estado == 'EN_PROGRESO' %}
+                                    <span class="badge bg-warning text-dark">En progreso</span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">{{ ev.get_estado_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="px-3 py-2 border-top text-end">
+                    <a href="{% url 'portal:mis_evaluaciones' %}" class="small text-primary">
+                        Ver todas <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mis capacitaciones -->
+    {% if capacitaciones_completadas %}
+    <div class="col-lg-{% if ultimas_evaluaciones %}6{% else %}12{% endif %}">
+        <div class="dash-card h-100">
+            <div class="dash-card-header">
+                <span><i class="fas fa-graduation-cap me-2 text-primary"></i>Mis Capacitaciones</span>
+            </div>
+            <div class="dash-card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for asist in capacitaciones_completadas %}
+                    <li class="list-group-item px-3 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold" style="font-size:.9rem;">
+                                    {{ asist.capacitacion.titulo }}
+                                </div>
+                                <div class="text-muted" style="font-size:.8rem;">
+                                    {% if asist.capacitacion.categoria %}
+                                        {{ asist.capacitacion.categoria.nombre }} ·
+                                    {% endif %}
+                                    {{ asist.capacitacion.fecha_inicio|date:"d/m/Y" }}
+                                    · {{ asist.capacitacion.horas }}h
+                                </div>
+                            </div>
+                            <div class="ms-3 flex-shrink-0">
+                                {% if asist.aprobado %}
+                                    <span class="badge bg-success">Aprobado</span>
+                                {% elif asist.estado == 'ASISTIO' %}
+                                    <span class="badge" style="background:#0f766e;">Asistió</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Parcial</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="px-3 py-2 border-top text-end">
+                    <a href="{% url 'portal:mis_capacitaciones' %}" class="small text-primary">
+                        Ver todas <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Si ninguna de las dos secciones tiene datos, mostrar un mensaje suave -->
+    {% if not ultimas_evaluaciones and not capacitaciones_completadas %}
+    <div class="col-12">
+        <div class="dash-card">
+            <div class="dash-card-body text-center text-muted py-4" style="font-size:.9rem;">
+                <i class="fas fa-info-circle me-2"></i>
+                Aún no tienes evaluaciones ni capacitaciones registradas.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     Historial de cambios salariales
+═══════════════════════════════════════════════════════════ -->
+{% if historial_cargos %}
+<div class="row g-3">
+    <div class="col-12">
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <span><i class="fas fa-chart-line me-2 text-primary"></i>Historial de Cambios</span>
+            </div>
+            <div class="dash-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" style="font-size:.88rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha efectiva</th>
+                                <th>Motivo</th>
+                                <th class="text-end">Rem. anterior</th>
+                                <th class="text-end">Rem. nueva</th>
+                                <th class="text-end">Variación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in historial_cargos %}
+                            <tr>
+                                <td>{{ h.fecha_efectiva|date:"d/m/Y" }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ h.get_motivo_display }}</span>
+                                </td>
+                                <td class="text-end text-muted">S/ {{ h.remuneracion_anterior|floatformat:2 }}</td>
+                                <td class="text-end fw-semibold">S/ {{ h.remuneracion_nueva|floatformat:2 }}</td>
+                                <td class="text-end">
+                                    {% if h.porcentaje_incremento > 0 %}
+                                        <span class="text-success">+{{ h.porcentaje_incremento }}%</span>
+                                    {% elif h.porcentaje_incremento < 0 %}
+                                        <span class="text-danger">{{ h.porcentaje_incremento }}%</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

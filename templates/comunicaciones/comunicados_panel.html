@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Comunicados Masivos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-bullhorn text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} comunicado{{ total|pluralize:"s" }}</small>
+    </div>
+    <a href="{% url 'com_comunicado_crear' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Nuevo Comunicado
+    </a>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-4">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ total }}</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ enviados }}</div>
+            <div class="stat-label">Enviados</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ borradores }}</div>
+            <div class="stat-label">Borradores</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:140px">
+                    <option value="">Todos</option>
+                    <option value="COMUNICADO" {% if filtro_tipo == 'COMUNICADO' %}selected{% endif %}>Comunicado</option>
+                    <option value="MEMO" {% if filtro_tipo == 'MEMO' %}selected{% endif %}>Memo</option>
+                    <option value="POLITICA" {% if filtro_tipo == 'POLITICA' %}selected{% endif %}>Pol&iacute;tica</option>
+                    <option value="AVISO" {% if filtro_tipo == 'AVISO' %}selected{% endif %}>Aviso</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:130px">
+                    <option value="">Todos</option>
+                    <option value="BORRADOR" {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                    <option value="PROGRAMADO" {% if filtro_estado == 'PROGRAMADO' %}selected{% endif %}>Programado</option>
+                    <option value="ENVIADO" {% if filtro_estado == 'ENVIADO' %}selected{% endif %}>Enviado</option>
+                    <option value="ARCHIVADO" {% if filtro_estado == 'ARCHIVADO' %}selected{% endif %}>Archivado</option>
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>T&iacute;tulo</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Destinatarios</th>
+                    <th class="text-center">Estado</th>
+                    <th>Tasa lectura</th>
+                    <th>Creado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in comunicados %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ c.titulo|truncatechars:45 }}</div>
+                        {% if c.creado_por %}<small class="text-muted">por {{ c.creado_por.get_full_name|default:c.creado_por.username }}</small>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark">{{ c.get_tipo_display }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-secondary">{{ c.get_destinatarios_tipo_display }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if c.estado == 'ENVIADO' %}<span class="badge bg-success">Enviado</span>
+                        {% elif c.estado == 'BORRADOR' %}<span class="badge bg-warning text-dark">Borrador</span>
+                        {% elif c.estado == 'PROGRAMADO' %}<span class="badge bg-info">Programado</span>
+                        {% else %}<span class="badge bg-secondary">{{ c.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if c.estado == 'ENVIADO' and c.requiere_confirmacion %}
+                        <div class="progress" style="height:6px; width:70px; display:inline-block;">
+                            <div class="progress-bar bg-success" style="width:{{ c.tasa_lectura }}%"></div>
+                        </div>
+                        <span style="font-size:.7rem;">{{ c.tasa_lectura }}%</span>
+                        {% else %}
+                        <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ c.creado_en|date:"d/m/Y" }}</td>
+                    <td>
+                        <a href="{% url 'com_comunicado_detalle' c.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        No hay comunicados. <a href="{% url 'com_comunicado_crear' %}">Crear uno</a>.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

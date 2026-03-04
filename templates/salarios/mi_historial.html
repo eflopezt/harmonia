@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mi Historial Salarial{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-chart-line text-secondary me-2"></i>{{ titulo }}</h2>
+    {% if empleado %}<small class="text-muted">{{ empleado.apellidos_nombres }}</small>{% endif %}
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No tienes un perfil de empleado vinculado.</div>
+{% else %}
+
+{% if historial %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Motivo</th>
+                    <th class="text-end">Anterior</th>
+                    <th class="text-end">Nueva</th>
+                    <th class="text-center">% Cambio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in historial %}
+                <tr>
+                    <td>{{ h.fecha_efectiva|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if h.motivo == 'INGRESO' %}<span class="badge bg-success">Ingreso</span>
+                        {% elif h.motivo == 'INCREMENTO' %}<span class="badge bg-primary">Incremento</span>
+                        {% elif h.motivo == 'PROMOCION' %}<span class="badge bg-info">Promoción</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ h.get_motivo_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-end">S/ {{ h.remuneracion_anterior|floatformat:2|intcomma }}</td>
+                    <td class="text-end fw-semibold">S/ {{ h.remuneracion_nueva|floatformat:2|intcomma }}</td>
+                    <td class="text-center">
+                        {% if h.porcentaje_incremento is not None %}
+                        <span class="{% if h.porcentaje_incremento > 0 %}text-success{% endif %}">{{ h.porcentaje_incremento|floatformat:1 }}%</span>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No hay registros en tu historial salarial.</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Boletas de Pago{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-file-invoice-dollar text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} boleta{{ total|pluralize:"s" }}</small>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubir">
+        <i class="fas fa-upload me-1"></i>Subir Boleta
+    </button>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-primary">{{ stats.publicadas }}</div><div class="stat-label">Publicadas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ stats.leidas }}</div><div class="stat-label">Leídas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-warning">{{ stats.borradores }}</div><div class="stat-label">Borradores</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-info">{{ stats.tasa_lectura }}%</div><div class="stat-label">Tasa Lectura</div></div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Período</label>
+                <input type="month" name="periodo" value="{{ filtro_periodo }}" class="form-control form-control-sm" style="width:160px">
+            </div>
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:140px">
+                    <option value="">Todos</option>
+                    <option value="BORRADOR" {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                    <option value="PUBLICADA" {% if filtro_estado == 'PUBLICADA' %}selected{% endif %}>Publicada</option>
+                    <option value="LEIDA" {% if filtro_estado == 'LEIDA' %}selected{% endif %}>Leída</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:160px">
+                    <option value="">Todos</option>
+                    <option value="MENSUAL" {% if filtro_tipo == 'MENSUAL' %}selected{% endif %}>Mensual</option>
+                    <option value="GRATIFICACION" {% if filtro_tipo == 'GRATIFICACION' %}selected{% endif %}>Gratificación</option>
+                    <option value="CTS" {% if filtro_tipo == 'CTS' %}selected{% endif %}>CTS</option>
+                    <option value="LIQUIDACION" {% if filtro_tipo == 'LIQUIDACION' %}selected{% endif %}>Liquidación</option>
+                    <option value="UTILIDADES" {% if filtro_tipo == 'UTILIDADES' %}selected{% endif %}>Utilidades</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Nombre o DNI..." style="width:180px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- Acciones masivas -->
+{% if filtro_periodo %}
+<div class="mb-3">
+    <button class="btn btn-sm btn-success" onclick="publicarMasivo()">
+        <i class="fas fa-paper-plane me-1"></i>Publicar todas las borradores del período
+    </button>
+</div>
+{% endif %}
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Período</th>
+                    <th>Tipo</th>
+                    <th class="text-end">Neto</th>
+                    <th class="text-center">Estado</th>
+                    <th>Lectura</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in boletas %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ b.personal.apellidos_nombres|truncatechars:35 }}</div>
+                        <small class="text-muted">{{ b.personal.nro_doc }}</small>
+                    </td>
+                    <td>{{ b.periodo|date:"m/Y" }}</td>
+                    <td>{{ b.get_tipo_display }}</td>
+                    <td class="text-end fw-semibold">{% if b.neto_pagar %}S/ {{ b.neto_pagar|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                    <td class="text-center">
+                        {% if b.estado == 'LEIDA' %}<span class="badge bg-success">Leída</span>
+                        {% elif b.estado == 'PUBLICADA' %}<span class="badge bg-primary">Publicada</span>
+                        {% elif b.estado == 'BORRADOR' %}<span class="badge bg-warning text-dark">Borrador</span>
+                        {% else %}<span class="badge bg-secondary">{{ b.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">
+                        {% if b.fecha_lectura %}
+                            {{ b.fecha_lectura|date:"d/m/Y H:i" }}
+                            {% if b.confirmada %}<i class="fas fa-check-circle text-success ms-1" title="Confirmada"></i>{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{{ b.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2" title="Ver PDF"><i class="fas fa-eye"></i></a>
+                            {% if b.estado == 'BORRADOR' %}
+                            <button class="btn btn-xs btn-outline-success py-0 px-2" onclick="publicar({{ b.pk }})" title="Publicar"><i class="fas fa-paper-plane"></i></button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay boletas registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Subir -->
+<div class="modal fade" id="modalSubir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Subir Boleta de Pago</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <form id="formSubir" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Trabajador</label>
+                        <select name="personal_id" class="form-select" required>
+                            <option value="">Seleccionar...</option>
+                            {% for p in personal_list %}
+                            <option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Período</label>
+                            <input type="month" name="periodo" class="form-control" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Tipo</label>
+                            <select name="tipo" class="form-select">
+                                <option value="MENSUAL">Mensual</option>
+                                <option value="GRATIFICACION">Gratificación</option>
+                                <option value="CTS">CTS</option>
+                                <option value="LIQUIDACION">Liquidación</option>
+                                <option value="UTILIDADES">Utilidades</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Archivo PDF</label>
+                        <input type="file" name="archivo" class="form-control" accept=".pdf" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-4 mb-3">
+                            <label class="form-label small">Rem. Bruta</label>
+                            <input type="number" name="rem_bruta" class="form-control form-control-sm" step="0.01">
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label small">Descuentos</label>
+                            <input type="number" name="descuentos" class="form-control form-control-sm" step="0.01">
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label small">Neto</label>
+                            <input type="number" name="neto" class="form-control form-control-sm" step="0.01">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="subirBoleta()">Subir</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function subirBoleta() {
+    const form = document.getElementById('formSubir');
+    const fd = new FormData(form);
+    fetch("{% url 'boleta_subir' %}", {method:'POST', body:fd})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) { location.reload(); }
+        else { alert(d.error); }
+    });
+}
+function publicar(pk) {
+    fetch(`/documentos/boletas/${pk}/publicar/`, {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) location.reload();
+        else alert(d.error);
+    });
+}
+function publicarMasivo() {
+    if(!confirm('¿Publicar todas las boletas borrador del período?')) return;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken','{{ csrf_token }}');
+    fd.append('periodo','{{ filtro_periodo }}');
+    fetch("{% url 'boletas_publicar_masivo' %}", {method:'POST', body:fd})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) { alert(`${d.publicadas} boletas publicadas.`); location.reload(); }
+        else alert(d.error);
+    });
+}
+</script>
+{% endblock %}

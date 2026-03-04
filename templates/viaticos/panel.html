@@ -1,0 +1,562 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Viáticos y CDT{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-route text-secondary me-2"></i>Viáticos y CDT</h2>
+        <small class="text-muted">Asignaciones, rendiciones y conciliación</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'viaticos_dashboard' %}" class="btn btn-sm"
+           style="background-color:#0d2b27;color:#fff;border:none;">
+            <i class="fas fa-chart-line me-1"></i>Dashboard
+        </a>
+        <a href="{% url 'viaticos_reporte_excel' %}{% if filtro_periodo %}?mes={{ filtro_periodo|slice:'5:7' }}&anio={{ filtro_periodo|slice:'0:4' }}{% endif %}"
+           class="btn btn-outline-success btn-sm" title="Reporte Excel CDT del período">
+            <i class="fas fa-file-excel me-1"></i>Excel CDT
+        </a>
+        <a href="{% url 'viaticos_exportar' %}?estado={{ filtro_estado }}&periodo={{ filtro_periodo }}&q={{ buscar }}"
+           class="btn btn-outline-secondary btn-sm" title="Exportar vista actual a CSV">
+            <i class="fas fa-file-csv me-1"></i>CSV
+        </a>
+        <a href="{% url 'viatico_crear' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>Nueva Asignación
+        </a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ stats.total_mes }}</div>
+            <div class="stat-label">Este Mes</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-success">S/ {{ stats.total_asignado_mes|floatformat:2|intcomma }}</div>
+            <div class="stat-label">Asignado</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ stats.pendientes_rendicion }}</div>
+            <div class="stat-label">Pend. Rendición</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ stats.por_conciliar }}</div>
+            <div class="stat-label">Por Conciliar</div>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Row -->
+<div class="row g-3 mb-3">
+    <!-- Donut: Gastos por Concepto -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 px-3" style="background-color:#0d2b27;color:#fff;">
+                <span class="fw-semibold" style="font-size:.82rem;">
+                    <i class="fas fa-chart-pie me-1"></i>Gastos por Concepto
+                    <span class="text-muted fw-normal ms-1" style="font-size:.75rem;color:rgba(255,255,255,.55)!important;">{{ "now"|date:"Y" }}</span>
+                </span>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center py-3">
+                {% if gastos_por_concepto_json != '[]' %}
+                <div style="position:relative;max-height:190px;max-width:260px;width:100%;">
+                    <canvas id="chartGastosConcepto"></canvas>
+                </div>
+                {% else %}
+                <p class="text-muted small text-center mb-0">
+                    <i class="fas fa-info-circle me-1"></i>Sin gastos registrados este año.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 Beneficiarios -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 px-3" style="background-color:#0d2b27;color:#fff;">
+                <span class="fw-semibold" style="font-size:.82rem;">
+                    <i class="fas fa-medal me-1"></i>Top Beneficiarios
+                    <span class="text-muted fw-normal ms-1" style="font-size:.75rem;color:rgba(255,255,255,.55)!important;">{{ "now"|date:"Y" }}</span>
+                </span>
+            </div>
+            <div class="card-body py-2 px-3">
+                {% if top_beneficiarios %}
+                <ol class="mb-0 ps-3" style="font-size:.82rem;">
+                    {% for b in top_beneficiarios %}
+                    <li class="py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-truncate me-2" style="max-width:170px;" title="{{ b.nombre }}">
+                                {{ b.nombre }}
+                            </span>
+                            <span class="fw-semibold text-nowrap" style="color:#0f766e;">
+                                S/ {{ b.total_monto|floatformat:2 }}
+                            </span>
+                        </div>
+                        <!-- Progress bar relativa al primer puesto -->
+                        {% if forloop.first %}
+                        {% with max_val=b.total_monto %}
+                        <div class="progress mt-1" style="height:3px;border-radius:2px;">
+                            <div class="progress-bar" role="progressbar" style="width:100%;background-color:#5eead4;"></div>
+                        </div>
+                        {% endwith %}
+                        {% else %}
+                        <div class="progress mt-1" style="height:3px;border-radius:2px;">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width:{{ b.total_monto|floatformat:0 }}px;background-color:#99f6e4;"
+                                 data-valor="{{ b.total_monto }}"
+                                 data-max="{{ top_beneficiarios.0.total_monto }}">
+                            </div>
+                        </div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="text-muted small text-center mb-0 py-3">
+                    <i class="fas fa-info-circle me-1"></i>Sin datos este año.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Line: Tendencia Mensual -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 px-3" style="background-color:#0d2b27;color:#fff;">
+                <span class="fw-semibold" style="font-size:.82rem;">
+                    <i class="fas fa-chart-line me-1"></i>Tendencia Mensual
+                    <span class="text-muted fw-normal ms-1" style="font-size:.75rem;color:rgba(255,255,255,.55)!important;">últimos 6 meses</span>
+                </span>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center py-3">
+                {% if tendencia_mensual_json != '[]' %}
+                <div style="position:relative;max-height:190px;width:100%;">
+                    <canvas id="chartTendenciaMensual"></canvas>
+                </div>
+                {% else %}
+                <p class="text-muted small text-center mb-0">
+                    <i class="fas fa-info-circle me-1"></i>Sin datos de tendencia.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Buscar empleado, DNI, ubicación…" value="{{ buscar }}">
+            </div>
+            <div class="col-md-2">
+                <select name="estado" class="form-select form-select-sm">
+                    <option value="">Todos los estados</option>
+                    <option value="BORRADOR"     {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                    <option value="APROBADO"     {% if filtro_estado == 'APROBADO' %}selected{% endif %}>Aprobado</option>
+                    <option value="ENTREGADO"    {% if filtro_estado == 'ENTREGADO' %}selected{% endif %}>Entregado</option>
+                    <option value="EN_RENDICION" {% if filtro_estado == 'EN_RENDICION' %}selected{% endif %}>En Rendición</option>
+                    <option value="CONCILIADO"   {% if filtro_estado == 'CONCILIADO' %}selected{% endif %}>Conciliado</option>
+                    <option value="CANCELADO"    {% if filtro_estado == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="month" name="periodo" class="form-control form-control-sm"
+                       value="{{ filtro_periodo }}">
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-search me-1"></i>Filtrar
+                </button>
+                {% if buscar or filtro_estado or filtro_periodo %}
+                <a href="{% url 'viaticos_panel' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% if asignaciones %}
+            <div class="col-auto ms-auto">
+                <button type="button" id="btnConciliarMasivo"
+                        class="btn btn-sm"
+                        style="background-color:#0f766e;color:#fff;"
+                        data-bs-toggle="modal" data-bs-target="#modalConciliarMasivo"
+                        title="Conciliación masiva de seleccionados">
+                    <i class="fas fa-check-double me-1"></i>Conciliar Masivo
+                </button>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+{% if asignaciones %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:32px;">
+                        <input type="checkbox" id="checkAll" class="form-check-input">
+                    </th>
+                    <th>Trabajador</th>
+                    <th>Período</th>
+                    <th>Ubicación</th>
+                    <th class="text-center">Días</th>
+                    <th class="text-end">Asignado</th>
+                    <th class="text-end">Rendido</th>
+                    <th class="text-end">Saldo</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in asignaciones %}
+                {% with dias=a.fecha_entrega|default:a.periodo %}
+                <tr {% if a.estado in 'ENTREGADO,EN_RENDICION' %}data-conciliable="true" data-id="{{ a.pk }}"{% endif %}>
+                    <td>
+                        {% if a.estado == 'ENTREGADO' or a.estado == 'EN_RENDICION' %}
+                        <input type="checkbox" class="form-check-input chk-cdt" value="{{ a.pk }}">
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'personal_detail' a.personal_id %}" class="text-decoration-none">
+                            {{ a.personal.apellidos_nombres }}
+                        </a>
+                        <br><small class="text-muted">{{ a.personal.nro_doc }}</small>
+                    </td>
+                    <td>{{ a.periodo|date:"m/Y" }}</td>
+                    <td><small>{{ a.ubicacion|default:"—" }}</small></td>
+                    <td class="text-center">
+                        {% if a.fecha_entrega %}
+                            {% with hoy=today dias_calc=a.fecha_entrega %}
+                                <!-- Badge de días transcurridos -->
+                                <span class="badge {% if a.estado == 'ENTREGADO' or a.estado == 'EN_RENDICION' %}bg-warning text-dark{% else %}bg-light text-muted{% endif %}"
+                                      title="Días desde entrega">
+                                    {{ a.dias_campo }}d
+                                </span>
+                            {% endwith %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-semibold">S/ {{ a.monto_total|floatformat:2|intcomma }}</td>
+                    <td class="text-end">S/ {{ a.monto_rendido|floatformat:2|intcomma }}</td>
+                    <td class="text-end {% if a.saldo > 0 %}text-danger{% elif a.saldo < 0 %}text-success{% endif %}">
+                        {% if a.estado == 'CONCILIADO' %}
+                            S/ {{ a.saldo|floatformat:2|intcomma }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if a.estado == 'BORRADOR' %}
+                            <span class="badge bg-secondary">Borrador</span>
+                        {% elif a.estado == 'APROBADO' %}
+                            <span class="badge bg-info">Aprobado</span>
+                        {% elif a.estado == 'ENTREGADO' %}
+                            <span class="badge bg-primary">Entregado</span>
+                        {% elif a.estado == 'EN_RENDICION' %}
+                            <span class="badge bg-warning text-dark">En Rendición</span>
+                        {% elif a.estado == 'CONCILIADO' %}
+                            <span class="badge bg-success">Conciliado</span>
+                        {% elif a.estado == 'CANCELADO' %}
+                            <span class="badge bg-dark">Cancelado</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'viatico_detalle' a.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="text-muted small mt-2">{{ total }} asignacion{{ total|pluralize:"es" }}</div>
+
+<!-- Modal Conciliación Masiva -->
+<div class="modal fade" id="modalConciliarMasivo" tabindex="-1" aria-labelledby="lblConciliarMasivo" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color:#0d2b27;color:#fff;">
+                <h5 class="modal-title" id="lblConciliarMasivo">
+                    <i class="fas fa-check-double me-2"></i>Conciliación Masiva
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Selecciona las asignaciones a conciliar. Sólo se procesarán las que estén en estado
+                    <strong>Entregado</strong> o <strong>En Rendición</strong>.
+                </p>
+                <div id="listaConciliarMasivo">
+                    <p class="text-muted text-center py-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Selecciona asignaciones con el checkbox de la tabla para conciliarlas.
+                    </p>
+                </div>
+                <div id="resultadoConciliacion" class="alert alert-success d-none mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btnConfirmarConciliacion"
+                        class="btn btn-sm" style="background-color:#0f766e;color:#fff;"
+                        disabled>
+                    <i class="fas fa-check-double me-1"></i>Conciliar Seleccionados
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-route fa-3x text-muted mb-3" style="opacity:.3"></i>
+    <h5 class="text-muted">No hay asignaciones de viáticos</h5>
+    <p class="text-muted small">Crea la primera asignación para comenzar a gestionar viáticos.</p>
+    <a href="{% url 'viatico_crear' %}" class="btn btn-primary btn-sm mt-2">
+        <i class="fas fa-plus me-1"></i>Nueva Asignación
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Analytics Charts ─────────────────────────────────────────────────────── */
+(function () {
+    'use strict';
+
+    // Teal palette (Harmoni brand)
+    const TEAL_PALETTE = [
+        '#0f766e', '#5eead4', '#134e4a', '#99f6e4', '#0d9488',
+        '#ccfbf1', '#2dd4bf',
+    ];
+
+    // ── Donut: Gastos por Concepto ────────────────────────────────────────────
+    const canvasConcepto = document.getElementById('chartGastosConcepto');
+    if (canvasConcepto) {
+        const rawConcepto = {{ gastos_por_concepto_json|safe }};
+        if (rawConcepto.length) {
+            new Chart(canvasConcepto, {
+                type: 'doughnut',
+                data: {
+                    labels: rawConcepto.map(d => d.label),
+                    datasets: [{
+                        data: rawConcepto.map(d => d.value),
+                        backgroundColor: TEAL_PALETTE.slice(0, rawConcepto.length),
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        hoverOffset: 6,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '62%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                padding: 8,
+                                font: { size: 11 },
+                            },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const val = ctx.parsed;
+                                    const total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                                    const pct = total ? ((val / total) * 100).toFixed(1) : 0;
+                                    return ' S/ ' + val.toLocaleString('en-US', {minimumFractionDigits: 2}) + ' (' + pct + '%)';
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+        }
+    }
+
+    // ── Line: Tendencia Mensual ───────────────────────────────────────────────
+    const canvasTendencia = document.getElementById('chartTendenciaMensual');
+    if (canvasTendencia) {
+        const rawTendencia = {{ tendencia_mensual_json|safe }};
+        if (rawTendencia.length) {
+            new Chart(canvasTendencia, {
+                type: 'line',
+                data: {
+                    labels: rawTendencia.map(function (d) { return d.label; }),
+                    datasets: [{
+                        label: 'S/ Asignado',
+                        data: rawTendencia.map(function (d) { return d.value; }),
+                        borderColor: '#0f766e',
+                        backgroundColor: 'rgba(15,118,110,0.12)',
+                        pointBackgroundColor: '#5eead4',
+                        pointBorderColor: '#0d2b27',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    return ' S/ ' + ctx.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2});
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(0,0,0,.05)' },
+                            ticks: { font: { size: 11 } },
+                        },
+                        y: {
+                            grid: { color: 'rgba(0,0,0,.05)' },
+                            ticks: {
+                                font: { size: 11 },
+                                callback: function (v) { return 'S/ ' + v.toLocaleString('en-US'); },
+                            },
+                            beginAtZero: true,
+                        },
+                    },
+                },
+            });
+        }
+    }
+
+    // ── Normalizar progress bars de beneficiarios ─────────────────────────────
+    document.querySelectorAll('[data-valor][data-max]').forEach(function (el) {
+        const val = parseFloat(el.dataset.valor) || 0;
+        const max = parseFloat(el.dataset.max) || 1;
+        const pct = Math.round((val / max) * 100);
+        el.style.width = pct + '%';
+    });
+})();
+</script>
+
+<script>
+(function () {
+    'use strict';
+
+    // ── Selección múltiple ────────────────────────────────────────────────────
+    const checkAll = document.getElementById('checkAll');
+    if (checkAll) {
+        checkAll.addEventListener('change', function () {
+            document.querySelectorAll('.chk-cdt').forEach(c => { c.checked = this.checked; });
+            actualizarModal();
+        });
+        document.querySelectorAll('.chk-cdt').forEach(c => {
+            c.addEventListener('change', actualizarModal);
+        });
+    }
+
+    function getSeleccionados() {
+        return Array.from(document.querySelectorAll('.chk-cdt:checked')).map(c => c.value);
+    }
+
+    function actualizarModal() {
+        const ids = getSeleccionados();
+        const btn = document.getElementById('btnConfirmarConciliacion');
+        const lista = document.getElementById('listaConciliarMasivo');
+
+        if (ids.length === 0) {
+            lista.innerHTML = '<p class="text-muted text-center py-3"><i class="fas fa-info-circle me-1"></i>Selecciona asignaciones con el checkbox de la tabla.</p>';
+            if (btn) btn.disabled = true;
+        } else {
+            lista.innerHTML = `<div class="alert alert-info py-2"><i class="fas fa-check-circle me-1"></i><strong>${ids.length}</strong> asignación(es) seleccionada(s) para conciliar.</div>`;
+            if (btn) btn.disabled = false;
+        }
+        document.getElementById('resultadoConciliacion').classList.add('d-none');
+    }
+
+    // ── Confirmación conciliación masiva ─────────────────────────────────────
+    const btnConfirmar = document.getElementById('btnConfirmarConciliacion');
+    if (btnConfirmar) {
+        btnConfirmar.addEventListener('click', function () {
+            const ids = getSeleccionados();
+            if (!ids.length) return;
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando…';
+
+            fetch("{% url 'viaticos_conciliar_masivo' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ ids: ids }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                const res = document.getElementById('resultadoConciliacion');
+                if (data.ok) {
+                    res.className = 'alert alert-success mt-2';
+                    res.innerHTML = `<i class="fas fa-check-circle me-1"></i><strong>${data.count}</strong> CDT conciliados. Total: <strong>S/ ${parseFloat(data.total_conciliado).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>`;
+                    res.classList.remove('d-none');
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                } else {
+                    res.className = 'alert alert-danger mt-2';
+                    res.textContent = data.error || 'Error al procesar.';
+                    res.classList.remove('d-none');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-check-double me-1"></i>Conciliar Seleccionados';
+                }
+            })
+            .catch(() => {
+                const res = document.getElementById('resultadoConciliacion');
+                res.className = 'alert alert-danger mt-2';
+                res.textContent = 'Error de conexión.';
+                res.classList.remove('d-none');
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-check-double me-1"></i>Conciliar Seleccionados';
+            });
+        });
+    }
+
+    function getCookie(name) {
+        let v = null;
+        document.cookie.split(';').forEach(c => {
+            const [k, val] = c.trim().split('=');
+            if (k === name) v = decodeURIComponent(val);
+        });
+        return v;
+    }
+
+    // Actualizar modal al abrirlo
+    const modal = document.getElementById('modalConciliarMasivo');
+    if (modal) {
+        modal.addEventListener('show.bs.modal', actualizarModal);
+    }
+})();
+</script>
+{% endblock %}

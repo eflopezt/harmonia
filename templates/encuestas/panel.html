@@ -1,0 +1,720 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Encuestas y Clima Laboral{% endblock %}
+
+{% block extra_css %}
+<style>
+  .participacion-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #e9ecef;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .participacion-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #0f766e, #5eead4);
+  }
+  .estado-badge-BORRADOR    { background:#e9ecef; color:#495057; }
+  .estado-badge-PROGRAMADA  { background:#dbeafe; color:#1e40af; }
+  .estado-badge-ACTIVA      { background:#dcfce7; color:#166534; }
+  .estado-badge-CERRADA     { background:#f3f4f6; color:#374151; }
+  .estado-badge-ARCHIVADA   { background:#f8fafc; color:#9ca3af; }
+
+  /* ── eNPS analytics ─────────────────────────────────────────── */
+  .enps-card {
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 160px;
+  }
+  .enps-card.green  { background: linear-gradient(135deg, #15803d 0%, #16a34a 100%); }
+  .enps-card.amber  { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); }
+  .enps-card.red    { background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); }
+  .enps-card.empty  { background: linear-gradient(135deg, #374151 0%, #4b5563 100%); }
+  .enps-score-num {
+    font-size: 3.2rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .enps-label { font-size: .72rem; opacity: .85; text-transform: uppercase; letter-spacing: .05em; }
+  .enps-pnd-row {
+    display: flex;
+    gap: .75rem;
+    margin-top: .6rem;
+  }
+  .enps-pnd-chip {
+    flex: 1;
+    background: rgba(255,255,255,.18);
+    border-radius: .4rem;
+    padding: .2rem .4rem;
+    text-align: center;
+    font-size: .7rem;
+    font-weight: 600;
+  }
+  .enps-pnd-chip span { display:block; font-size: 1rem; font-weight: 800; line-height: 1.2; }
+
+  .trend-card {
+    border-radius: .75rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 1rem 1.25rem;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+  }
+  .trend-card-title {
+    font-size: .72rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .5rem;
+  }
+
+  .rate-card {
+    border-radius: .75rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .rate-circle {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: conic-gradient(#0f766e 0% var(--pct), #e5e7eb var(--pct) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .5rem;
+    position: relative;
+  }
+  .rate-circle-inner {
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f766e;
+  }
+
+  .cierre-alert {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-left: 4px solid #f59e0b;
+    border-radius: .5rem;
+    padding: .75rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .cierre-alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .3rem 0;
+    border-bottom: 1px solid #fde68a;
+    font-size: .83rem;
+  }
+  .cierre-alert-item:last-child { border-bottom: none; }
+
+  /* ── KPI strip ───────────────────────────────────────────────── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .75rem;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 768px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .kpi-strip { grid-template-columns: 1fr; }
+  }
+  .kpi-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-top: 3px solid #0f766e;
+    border-radius: .6rem;
+    padding: .9rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    transition: box-shadow .15s;
+  }
+  .kpi-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.09); }
+  .kpi-card-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f766e;
+    line-height: 1.1;
+  }
+  .kpi-card-label {
+    font-size: .72rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 600;
+  }
+  .kpi-card-sub {
+    font-size: .7rem;
+    color: #9ca3af;
+    margin-top: .1rem;
+  }
+  .kpi-card-icon {
+    font-size: 1.1rem;
+    color: #5eead4;
+    margin-bottom: .1rem;
+  }
+
+  /* ── Tipo chart container ─────────────────────────────────────── */
+  .tipo-chart-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: .75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .tipo-chart-title {
+    font-size: .72rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .75rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-poll me-2" style="color:#0f766e;"></i>{{ titulo }}</h2>
+    <small class="text-muted">{{ total }} encuesta{{ total|pluralize:"s" }}</small>
+  </div>
+  <a href="{% url 'encuesta_crear' %}" class="btn btn-sm" style="background:#0f766e;color:#fff;">
+    <i class="fas fa-plus me-1"></i>Nueva Encuesta
+  </a>
+</div>
+
+<!-- ══ KPI Strip ═══════════════════════════════════════════════ -->
+<div class="kpi-strip mb-1">
+
+  <!-- 1. Encuestas Activas -->
+  <div class="kpi-card">
+    <div class="kpi-card-icon"><i class="fas fa-circle-dot"></i></div>
+    <div class="kpi-card-value">{{ encuestas_activas|default:"0" }}</div>
+    <div class="kpi-card-label">Encuestas Activas</div>
+    <div class="kpi-card-sub">en curso ahora</div>
+  </div>
+
+  <!-- 2. Respuestas este mes -->
+  <div class="kpi-card">
+    <div class="kpi-card-icon"><i class="fas fa-pen-to-square"></i></div>
+    <div class="kpi-card-value">{{ respuestas_mes|default:"0" }}</div>
+    <div class="kpi-card-label">Respuestas este Mes</div>
+    <div class="kpi-card-sub">mes en curso</div>
+  </div>
+
+  <!-- 3. eNPS Score -->
+  <div class="kpi-card">
+    <div class="kpi-card-icon"><i class="fas fa-star-half-stroke"></i></div>
+    {% if enps_kpi is not None %}
+      {% if enps_kpi >= 30 %}
+        <div class="kpi-card-value" style="color:#16a34a;">{{ enps_kpi }}</div>
+      {% elif enps_kpi >= 0 %}
+        <div class="kpi-card-value" style="color:#d97706;">{{ enps_kpi }}</div>
+      {% else %}
+        <div class="kpi-card-value" style="color:#dc2626;">{{ enps_kpi }}</div>
+      {% endif %}
+    {% else %}
+      <div class="kpi-card-value" style="color:#d1d5db;">-</div>
+    {% endif %}
+    <div class="kpi-card-label">eNPS Score</div>
+    <div class="kpi-card-sub">ultimo resultado</div>
+  </div>
+
+  <!-- 4. Tasa de Participacion -->
+  <div class="kpi-card">
+    <div class="kpi-card-icon"><i class="fas fa-user-check"></i></div>
+    {% if tasa_participacion_kpi is not None %}
+      <div class="kpi-card-value">{{ tasa_participacion_kpi }}%</div>
+    {% else %}
+      <div class="kpi-card-value" style="color:#d1d5db;">-</div>
+    {% endif %}
+    <div class="kpi-card-label">Tasa Participacion</div>
+    <div class="kpi-card-sub">ultima encuesta cerrada</div>
+  </div>
+
+</div>
+
+<!-- ══ Distribucion por tipo (doughnut) ═══════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-12 col-md-4">
+    <div class="tipo-chart-card h-100">
+      <div class="tipo-chart-title"><i class="fas fa-chart-pie me-1" style="color:#0f766e;"></i>Encuestas por Tipo</div>
+      <div style="position:relative;height:180px;display:flex;align-items:center;justify-content:center;">
+        <canvas id="tipoChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-8">
+    <!-- placeholder to keep layout balanced — existing analytics cards fill this space below -->
+  </div>
+</div>
+
+<!-- ══ Analytics: eNPS + Trend + Rate ═════════════════════════ -->
+<div class="row g-3 mb-3">
+
+  <!-- 1. eNPS Score Card -->
+  <div class="col-12 col-md-4">
+    {% if enps_score_actual is not None %}
+      {% if enps_score_actual >= 30 %}
+        <div class="enps-card green shadow-sm">
+      {% elif enps_score_actual >= 0 %}
+        <div class="enps-card amber shadow-sm">
+      {% else %}
+        <div class="enps-card red shadow-sm">
+      {% endif %}
+    {% else %}
+      <div class="enps-card empty shadow-sm">
+    {% endif %}
+      <div>
+        <div class="enps-label"><i class="fas fa-star me-1"></i>eNPS Score (último)</div>
+        {% if enps_score_actual is not None %}
+          <div class="enps-score-num mt-1">{{ enps_score_actual }}</div>
+          {% if promotores_neutros_detractores %}
+            <div style="font-size:.68rem;opacity:.8;margin-top:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              {{ promotores_neutros_detractores.encuesta|truncatechars:38 }}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="enps-score-num mt-1" style="font-size:2rem;">—</div>
+          <div style="font-size:.72rem;opacity:.75;margin-top:.3rem;">Sin datos aún</div>
+        {% endif %}
+      </div>
+      {% if promotores_neutros_detractores %}
+        <div class="enps-pnd-row">
+          <div class="enps-pnd-chip">
+            <span>{{ promotores_neutros_detractores.promotores }}</span>Promotores
+          </div>
+          <div class="enps-pnd-chip">
+            <span>{{ promotores_neutros_detractores.neutros }}</span>Pasivos
+          </div>
+          <div class="enps-pnd-chip">
+            <span>{{ promotores_neutros_detractores.detractores }}</span>Detractores
+          </div>
+        </div>
+      {% else %}
+        <div style="font-size:.7rem;opacity:.6;margin-top:.5rem;">Cierra una encuesta eNPS para ver el desglose.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 2. Trend Line Chart -->
+  <div class="col-12 col-md-5">
+    <div class="trend-card shadow-sm">
+      <div class="trend-card-title"><i class="fas fa-chart-line me-1" style="color:#0f766e;"></i>Tendencia eNPS — últimas mediciones</div>
+      <div style="flex:1;min-height:0;position:relative;">
+        <canvas id="enpsChart" style="max-height:105px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Response Rate Chip -->
+  <div class="col-12 col-md-3">
+    <div class="rate-card shadow-sm">
+      <div style="font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">
+        <i class="fas fa-users me-1" style="color:#0f766e;"></i>Tasa de respuesta prom.
+      </div>
+      {% if tasa_respuesta_promedio is not None %}
+        {% with pct=tasa_respuesta_promedio %}
+          <div class="rate-circle" style="--pct:{{ pct }}%;">
+            <div class="rate-circle-inner">{{ pct }}%</div>
+          </div>
+        {% endwith %}
+        <div style="font-size:.74rem;color:#6b7280;">Promedio últimas 5 encuestas</div>
+      {% else %}
+        <div style="font-size:2rem;font-weight:800;color:#d1d5db;">—</div>
+        <div style="font-size:.74rem;color:#9ca3af;">Sin encuestas cerradas</div>
+      {% endif %}
+    </div>
+  </div>
+</div><!-- /analytics row -->
+
+<!-- ══ Alerta: encuestas próximas a cerrar ════════════════════ -->
+{% if encuestas_pendientes_cierre %}
+<div class="cierre-alert mb-3">
+  <div style="font-weight:700;font-size:.85rem;color:#92400e;margin-bottom:.4rem;">
+    <i class="fas fa-clock me-1"></i>
+    {{ encuestas_pendientes_cierre|length }} encuesta{{ encuestas_pendientes_cierre|length|pluralize:"s" }} por cerrar en los próximos 7 días
+  </div>
+  {% for e in encuestas_pendientes_cierre %}
+    <div class="cierre-alert-item">
+      <span>
+        <a href="{% url 'encuesta_detalle' e.pk %}" class="text-decoration-none fw-semibold" style="color:#92400e;">
+          {{ e.titulo|truncatechars:50 }}
+        </a>
+        <span class="badge bg-warning text-dark ms-1" style="font-size:.62rem;">{{ e.get_tipo_display }}</span>
+      </span>
+      <span style="white-space:nowrap;font-size:.78rem;color:#b45309;font-weight:600;">
+        <i class="fas fa-calendar-times me-1"></i>Cierra {{ e.fecha_fin|date:"d/m/Y" }}
+      </span>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ══ Stats ══════════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-success">{{ stats.activas }}</div>
+      <div class="stat-label">Activas</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-primary">{{ stats.total_respuestas }}</div>
+      <div class="stat-label">Respuestas Totales</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value" style="color:#0f766e;">{{ stats.cerradas|default:0 }}</div>
+      <div class="stat-label">Cerradas</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-secondary">{{ stats.borradores|default:0 }}</div>
+      <div class="stat-label">Borradores</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Filtros ════════════════════════════════════════════════ -->
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+      <div>
+        <label class="form-label small mb-0">Estado</label>
+        <select name="estado" class="form-select form-select-sm" style="width:140px">
+          <option value="">Todos</option>
+          <option value="BORRADOR"   {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+          <option value="PROGRAMADA" {% if filtro_estado == 'PROGRAMADA' %}selected{% endif %}>Programada</option>
+          <option value="ACTIVA"     {% if filtro_estado == 'ACTIVA' %}selected{% endif %}>Activa</option>
+          <option value="CERRADA"    {% if filtro_estado == 'CERRADA' %}selected{% endif %}>Cerrada</option>
+          <option value="ARCHIVADA"  {% if filtro_estado == 'ARCHIVADA' %}selected{% endif %}>Archivada</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label small mb-0">Tipo</label>
+        <select name="tipo" class="form-select form-select-sm" style="width:150px">
+          <option value="">Todos</option>
+          <option value="CLIMA"        {% if filtro_tipo == 'CLIMA' %}selected{% endif %}>Clima Laboral</option>
+          <option value="PULSO"        {% if filtro_tipo == 'PULSO' %}selected{% endif %}>Pulso Rápido</option>
+          <option value="ENPS"         {% if filtro_tipo == 'ENPS' %}selected{% endif %}>eNPS</option>
+          <option value="SATISFACCION" {% if filtro_tipo == 'SATISFACCION' %}selected{% endif %}>Satisfacción</option>
+          <option value="SALIDA"       {% if filtro_tipo == 'SALIDA' %}selected{% endif %}>Salida</option>
+          <option value="ONBOARDING"   {% if filtro_tipo == 'ONBOARDING' %}selected{% endif %}>Onboarding</option>
+          <option value="CUSTOM"       {% if filtro_tipo == 'CUSTOM' %}selected{% endif %}>Personalizada</option>
+        </select>
+      </div>
+      <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i> Filtrar</button>
+      {% if filtro_estado or filtro_tipo %}
+      <a href="{% url 'encuestas_panel' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-times"></i> Limpiar
+      </a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- ══ Tabla ══════════════════════════════════════════════════ -->
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.84rem;">
+        <thead style="background:#f8f9fa;">
+          <tr>
+            <th style="min-width:180px;">Título</th>
+            <th>Tipo</th>
+            <th>Período</th>
+            <th class="text-center">Preguntas</th>
+            <th class="text-center" style="min-width:140px;">Participación</th>
+            <th class="text-center" style="min-width:100px;">Estado</th>
+            <th class="text-end" style="min-width:100px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in encuestas %}
+          <tr>
+            <!-- Título -->
+            <td>
+              <a href="{% url 'encuesta_detalle' e.pk %}" class="text-decoration-none fw-semibold text-dark">
+                {{ e.titulo|truncatechars:45 }}
+              </a>
+              <div class="mt-1">
+                {% if e.anonima %}
+                <span class="badge bg-dark" style="font-size:.62rem;">
+                  <i class="fas fa-user-secret me-1"></i>Anónima
+                </span>
+                {% endif %}
+                {% if e.tipo == 'ENPS' %}
+                <span class="badge" style="background:#5eead4;color:#0d2b27;font-size:.62rem;">eNPS</span>
+                {% endif %}
+              </div>
+            </td>
+
+            <!-- Tipo -->
+            <td>
+              <span class="badge bg-light text-dark border">{{ e.get_tipo_display }}</span>
+            </td>
+
+            <!-- Período -->
+            <td style="font-size:.78rem;white-space:nowrap;">
+              <div>{{ e.fecha_inicio|date:"d/m/Y" }}</div>
+              <div class="text-muted">→ {{ e.fecha_fin|date:"d/m/Y" }}</div>
+            </td>
+
+            <!-- Preguntas -->
+            <td class="text-center">
+              <span class="fw-semibold">{{ e.total_preguntas }}</span>
+            </td>
+
+            <!-- Participación -->
+            <td class="text-center">
+              {% with resp=e.total_respuestas tasa=e.tasa_participacion %}
+              <div class="fw-semibold" style="font-size:.82rem;">
+                {{ resp }} resp.
+              </div>
+              <div class="participacion-bar mt-1" style="margin:0 auto;">
+                <div class="participacion-bar-fill" style="width:{{ tasa }}%;"></div>
+              </div>
+              <div style="font-size:.68rem;color:#6c757d;">{{ tasa }}% del universo</div>
+              {% endwith %}
+            </td>
+
+            <!-- Estado -->
+            <td class="text-center">
+              <span class="badge estado-badge-{{ e.estado }}" style="font-size:.72rem;padding:.3em .7em;border-radius:.5rem;">
+                {% if e.estado == 'ACTIVA' %}<i class="fas fa-circle me-1" style="font-size:.5rem;"></i>{% endif %}
+                {{ e.get_estado_display }}
+              </span>
+            </td>
+
+            <!-- Acciones -->
+            <td class="text-end">
+              <div class="d-flex gap-1 justify-content-end flex-wrap">
+                <a href="{% url 'encuesta_detalle' e.pk %}"
+                   class="btn btn-xs btn-outline-primary py-0 px-2"
+                   title="Ver detalle">
+                  <i class="fas fa-eye"></i>
+                </a>
+                {% if e.estado == 'CERRADA' or e.estado == 'ARCHIVADA' %}
+                <a href="{% url 'encuesta_resultados' e.pk %}"
+                   class="btn btn-xs py-0 px-2"
+                   style="background:#0f766e;color:#fff;border:none;"
+                   title="Ver resultados">
+                  <i class="fas fa-chart-bar"></i>
+                </a>
+                {% if e.total_respuestas > 0 %}
+                <a href="{% url 'encuesta_exportar' e.pk %}"
+                   class="btn btn-xs btn-outline-success py-0 px-2"
+                   title="Exportar a Excel">
+                  <i class="fas fa-file-excel"></i>
+                </a>
+                {% endif %}
+                {% elif e.estado == 'ACTIVA' %}
+                <a href="{% url 'encuesta_detalle' e.pk %}"
+                   class="btn btn-xs py-0 px-2"
+                   style="background:#16a34a;color:#fff;border:none;"
+                   title="En curso">
+                  <i class="fas fa-circle-dot"></i>
+                </a>
+                {% endif %}
+                <form method="post" action="{% url 'encuesta_duplicar' e.pk %}" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="btn btn-xs btn-outline-secondary py-0 px-2"
+                          title="Duplicar como borrador"
+                          onclick="return confirm('¿Duplicar «{{ e.titulo|truncatechars:30 }}»?')">
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-5">
+              <i class="fas fa-poll fa-2x mb-2 d-block" style="opacity:.3;"></i>
+              No hay encuestas {% if filtro_estado or filtro_tipo %}con estos filtros{% endif %}.
+              <div class="mt-2">
+                <a href="{% url 'encuesta_crear' %}" class="btn btn-sm btn-primary">
+                  <i class="fas fa-plus me-1"></i>Crear primera encuesta
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  // ── Doughnut: Encuestas por Tipo ────────────────────────────────────────
+  (function () {
+    var tipoRaw = {{ por_tipo_json|safe }};
+    var tipoCanvas = document.getElementById('tipoChart');
+    if (!tipoCanvas) return;
+
+    if (!tipoRaw || tipoRaw.length === 0) {
+      var parent = tipoCanvas.parentElement;
+      if (parent) {
+        var msg = document.createElement('div');
+        msg.style.cssText = 'color:#9ca3af;font-size:.8rem;text-align:center;';
+        msg.textContent = 'Sin encuestas registradas aun.';
+        parent.appendChild(msg);
+      }
+      tipoCanvas.style.display = 'none';
+      return;
+    }
+
+    var PALETTE = [
+      '#0f766e', '#5eead4', '#134e4a', '#a7f3d0',
+      '#0d9488', '#6ee7b7', '#059669', '#34d399',
+    ];
+
+    new Chart(tipoCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: tipoRaw.map(function (d) { return d.label; }),
+        datasets: [{
+          data: tipoRaw.map(function (d) { return d.count; }),
+          backgroundColor: tipoRaw.map(function (_, i) { return PALETTE[i % PALETTE.length]; }),
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        animation: { duration: 700 },
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              font: { size: 10 },
+              color: '#374151',
+              padding: 10,
+              boxWidth: 10,
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                var pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+                return ' ' + ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+              },
+            },
+          },
+        },
+      },
+    });
+  })();
+
+  // ── eNPS Trend chart ────────────────────────────────────────────────────
+  var raw = {{ enps_historico_json|safe }};
+  var canvas = document.getElementById('enpsChart');
+  if (!canvas) return;
+
+  if (!raw || raw.length === 0) {
+    var parent = canvas.closest('.trend-card');
+    if (parent) {
+      var msg = document.createElement('div');
+      msg.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:.8rem;';
+      msg.textContent = 'Sin datos históricos de eNPS aún.';
+      parent.appendChild(msg);
+    }
+    canvas.style.display = 'none';
+    return;
+  }
+
+  var labels = raw.map(function (d) { return d.label; });
+  var scores = raw.map(function (d) { return d.enps; });
+
+  new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'eNPS',
+        data: scores,
+        borderColor: '#0f766e',
+        backgroundColor: 'rgba(94,234,212,.15)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#0f766e',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function (ctx) { return ' eNPS: ' + ctx.parsed.y; }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, color: '#6b7280' }
+        },
+        y: {
+          min: -100,
+          max: 100,
+          grid: { color: '#f3f4f6' },
+          ticks: { font: { size: 10 }, color: '#6b7280', stepSize: 25 },
+          border: { dash: [3, 3] }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}

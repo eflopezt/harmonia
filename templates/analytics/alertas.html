@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Alertas RRHH{% endblock %}
+
+{% block extra_css %}
+<style>
+.alerta-card { border-left: 4px solid; border-radius: .5rem; margin-bottom: .75rem; }
+.alerta-card.CRITICAL { border-left-color: #dc2626; }
+.alerta-card.WARN { border-left-color: #f59e0b; }
+.alerta-card.INFO { border-left-color: #3b82f6; }
+.alerta-card.RESUELTA { border-left-color: #10b981; opacity: .7; }
+.alerta-card.DESCARTADA { border-left-color: #9ca3af; opacity: .5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Alertas RRHH</h2>
+    <div>
+        <a href="{% url 'analytics_dashboard' %}" class="btn btn-sm btn-outline-secondary me-1">
+            <i class="fas fa-arrow-left me-1"></i>Dashboard
+        </a>
+        <form method="post" action="{% url 'analytics_generar_alertas' %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-primary"><i class="fas fa-sync me-1"></i>Revisar Alertas</button>
+        </form>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="mb-3">
+    <div class="btn-group btn-group-sm">
+        <a href="?estado=ACTIVA" class="btn btn-{% if estado_filtro == 'ACTIVA' %}primary{% else %}outline-primary{% endif %}">Activas</a>
+        <a href="?estado=RESUELTA" class="btn btn-{% if estado_filtro == 'RESUELTA' %}primary{% else %}outline-primary{% endif %}">Resueltas</a>
+        <a href="?estado=TODAS" class="btn btn-{% if estado_filtro == 'TODAS' %}primary{% else %}outline-primary{% endif %}">Todas</a>
+    </div>
+</div>
+
+{% for alerta in alertas %}
+<div class="card shadow-sm alerta-card {{ alerta.severidad }}{% if alerta.estado != 'ACTIVA' %} {{ alerta.estado }}{% endif %}">
+    <div class="card-body py-3">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h6 class="mb-1">
+                    <span class="badge bg-{% if alerta.severidad == 'CRITICAL' %}danger{% elif alerta.severidad == 'WARN' %}warning text-dark{% else %}info{% endif %} me-1">
+                        {{ alerta.get_severidad_display }}
+                    </span>
+                    {{ alerta.titulo }}
+                </h6>
+                <p class="text-muted mb-1" style="font-size:.85rem">{{ alerta.descripcion }}</p>
+                <small class="text-muted">
+                    <i class="fas fa-tag me-1"></i>{{ alerta.get_categoria_display }}
+                    {% if alerta.area %} · <i class="fas fa-building me-1"></i>{{ alerta.area.nombre }}{% endif %}
+                    {% if alerta.valor_actual %} · Valor: {{ alerta.valor_actual }}{% endif %}
+                    · {{ alerta.creado_en|timesince }} atrás
+                </small>
+            </div>
+            {% if alerta.estado == 'ACTIVA' %}
+            <form method="post" action="{% url 'analytics_resolver_alerta' alerta.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-success" title="Marcar como resuelta">
+                    <i class="fas fa-check"></i>
+                </button>
+            </form>
+            {% else %}
+            <span class="badge bg-{% if alerta.estado == 'RESUELTA' %}success{% else %}secondary{% endif %}">
+                {{ alerta.get_estado_display }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="text-center text-muted py-5">
+    <i class="fas fa-check-circle fa-3x mb-3 opacity-50"></i>
+    <p>No hay alertas {{ estado_filtro|lower }}.</p>
+</div>
+{% endfor %}
+{% endblock %}

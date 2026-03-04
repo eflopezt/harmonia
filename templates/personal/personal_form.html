@@ -25,3 +25,71 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    const estadoSelect = document.getElementById('id_estado');
+    if (!estadoSelect) return;
+
+    // The motivo_cese column has class "motivo-cese-row"
+    const motivoCol = document.querySelector('.motivo-cese-row');
+    const fechaCeseCol = motivoCol
+        ? motivoCol.closest('.row')
+        : null;
+
+    function getMotivoCeseRow() {
+        // crispy wraps it in .col-md-6.motivo-cese-row inside a .row
+        return document.querySelector('.motivo-cese-row');
+    }
+
+    function getParentRow(el) {
+        return el ? el.closest('.row') : null;
+    }
+
+    function setVisibility(isCesado) {
+        const col = getMotivoCeseRow();
+        if (!col) return;
+        const row = getParentRow(col);
+
+        if (isCesado) {
+            col.style.display = '';
+            if (row) row.style.display = '';
+        } else {
+            col.style.display = 'none';
+            // Only hide the row if motivo_cese is the only child column
+            if (row && row.querySelectorAll('[class*="col-"]').length === 1) {
+                row.style.display = 'none';
+            }
+            // Clear the field value when hiding
+            const sel = document.getElementById('id_motivo_cese');
+            if (sel) sel.value = '';
+        }
+    }
+
+    // Auto-fill fecha_cese when switching to Cesado and field is empty
+    function autoFillFechaCese() {
+        const fechaCeseInput = document.getElementById('id_fecha_cese');
+        if (estadoSelect.value === 'Cesado' && fechaCeseInput && !fechaCeseInput.value) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm   = String(today.getMonth() + 1).padStart(2, '0');
+            const dd   = String(today.getDate()).padStart(2, '0');
+            fechaCeseInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+    }
+
+    function onEstadoChange() {
+        setVisibility(estadoSelect.value === 'Cesado');
+        autoFillFechaCese();
+    }
+
+    // Initial state on page load
+    setVisibility(estadoSelect.value === 'Cesado');
+
+    estadoSelect.addEventListener('change', onEstadoChange);
+})();
+</script>
+{% endblock %}

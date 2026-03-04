@@ -57,9 +57,9 @@ class SubAreaAdmin(admin.ModelAdmin):
 class PersonalAdmin(admin.ModelAdmin):
     list_display = [
         'apellidos_nombres', 'nro_doc', 'cargo', 'subarea',
-        'estado', 'fecha_alta', 'tipo_trab', 'dias_libres_corte_2025'
+        'estado', 'categoria', 'grupo_tareo', 'fecha_alta', 'tipo_trab',
     ]
-    list_filter = ['estado', 'tipo_trab', 'subarea__area', 'subarea']
+    list_filter = ['estado', 'tipo_trab', 'categoria', 'grupo_tareo', 'subarea__area', 'subarea']
     search_fields = ['apellidos_nombres', 'nro_doc', 'cargo', 'celular']
     raw_id_fields = ['usuario', 'subarea']
     fieldsets = (
@@ -67,8 +67,16 @@ class PersonalAdmin(admin.ModelAdmin):
             'fields': ('usuario', 'tipo_doc', 'nro_doc', 'apellidos_nombres', 'codigo_fotocheck')
         }),
         ('Datos Laborales', {
-            'fields': ('cargo', 'tipo_trab', 'area', 'fecha_alta', 'fecha_cese', 'estado',
-                      'regimen_laboral', 'regimen_turno')
+            'fields': ('cargo', 'tipo_trab', 'categoria', 'subarea', 'fecha_alta',
+                       'fecha_cese', 'motivo_cese', 'estado', 'asignacion_familiar')
+        }),
+        ('Pensión y Banca', {
+            'fields': ('regimen_pension', 'afp', 'cuspp', 'banco',
+                      'cuenta_ahorros', 'cuenta_cci', 'cuenta_cts')
+        }),
+        ('Tareo / Régimen', {
+            'fields': ('grupo_tareo', 'condicion', 'jornada_horas', 'regimen_laboral', 'regimen_turno',
+                      'codigo_sap', 'codigo_s10', 'partida_control')
         }),
         ('Roster', {
             'fields': ('dias_libres_corte_2025',)
@@ -77,9 +85,8 @@ class PersonalAdmin(admin.ModelAdmin):
             'fields': ('fecha_nacimiento', 'sexo', 'celular', 'correo_personal',
                       'correo_corporativo', 'direccion', 'ubigeo')
         }),
-        ('Datos Financieros', {
-            'fields': ('sueldo_base', 'bonos', 'afp', 'banco',
-                      'cuenta_ahorros', 'cuenta_cci', 'cuenta_cts')
+        ('Económicos', {
+            'fields': ('sueldo_base', 'bonos')
         }),
         ('Observaciones', {
             'fields': ('observaciones',),

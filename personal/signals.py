@@ -1,36 +1,359 @@
 """
-Signals para el módulo personal.
+Signals para el modulo personal.
+
+Responsabilidades:
+  1. Auditoria de cambios en Roster
+  2. Auto-crear UserProfile al crear User
+  3. Invalidar cache de badge cuando cambia el estado de items pendientes
+  4. Automatizacion de cese: constancia PDF, notificacion RRHH, email empleado
+  5. Notificacion de alta / reingreso a RRHH
 """
-from django.db.models.signals import pre_save, post_save
+import logging
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from .models import Roster, RosterAudit
 
+logger = logging.getLogger(__name__)
+
+
+# -- 1. Auditoria de Roster ------------------------------------------------
 
 @receiver(pre_save, sender=Roster)
 def audit_roster_changes(sender, instance, **kwargs):
-    """
-    Registra cambios en el roster antes de guardar.
-    """
-    if instance.pk:  # Solo si ya existe (actualización)
+    """Registra cambios en el roster antes de guardar."""
+    if instance.pk:
         try:
             old_instance = Roster.objects.get(pk=instance.pk)
-            
-            # Verificar cambios en campos relevantes
-            campos_a_auditar = ['codigo', 'observaciones']
-            
-            for campo in campos_a_auditar:
+            for campo in ['codigo', 'observaciones']:
                 valor_anterior = str(getattr(old_instance, campo))
                 valor_nuevo = str(getattr(instance, campo))
-                
                 if valor_anterior != valor_nuevo:
-                    # Crear registro de auditoría
                     RosterAudit.objects.create(
                         personal=instance.personal,
                         fecha=instance.fecha,
                         campo_modificado=campo,
                         valor_anterior=valor_anterior,
                         valor_nuevo=valor_nuevo,
-                        usuario=None  # Se puede obtener del request en la vista
+                        usuario=None,
                     )
         except Roster.DoesNotExist:
             pass
+
+
+# -- 2. Auto-crear UserProfile al crear User --------------------------------
+
+@receiver(post_save, sender=User)
+def crear_userprofile_automatico(sender, instance, created, **kwargs):
+    """
+    Crea UserProfile automaticamente cuando se crea un nuevo User.
+    Evita DoesNotExist en runtime para usuarios sin perfil.
+    """
+    if created:
+        try:
+            from .user_models import UserProfile
+            UserProfile.objects.get_or_create(user=instance)
+        except Exception:
+            pass
+
+
+# -- 3. Invalidar badge cuando cambia estado de aprobaciones ---------------
+
+@receiver(post_save, sender=Roster)
+def invalidar_badge_roster(sender, instance, **kwargs):
+    """Invalida el badge de pendientes al aprobar/rechazar un Roster."""
+    _invalidar_badge_superusers()
+
+
+def _invalidar_badge_superusers():
+    """Utility: borra el cache del badge de todos los superusers activos."""
+    try:
+        from django.core.cache import cache
+        pks = User.objects.filter(
+            is_superuser=True, is_active=True
+        ).values_list('pk', flat=True)
+        cache.delete_many([f'harmoni_badge_{pk}_v3' for pk in pks])
+    except Exception:
+        pass
+
+
+# -- 4 & 5. Automatizacion de cambios de estado en Personal ----------------
+
+@receiver(pre_save, sender='personal.Personal')
+def _capturar_estado_anterior(sender, instance, **kwargs):
+    """Guarda el estado anterior antes de persistir para detectar cambios."""
+    if instance.pk:
+        try:
+            instance._estado_anterior = sender.objects.get(pk=instance.pk).estado
+        except sender.DoesNotExist:
+            instance._estado_anterior = None
+    else:
+        instance._estado_anterior = None
+
+
+@receiver(post_save, sender='personal.Personal')
+def _on_personal_post_save(sender, instance, created, **kwargs):
+    """Dispatcher principal para cambios de estado de Personal."""
+    estado_anterior = getattr(instance, '_estado_anterior', None)
+    estado_actual = instance.estado
+    if created:
+        _handle_nueva_alta(instance)
+        return
+    if estado_anterior == estado_actual:
+        return
+    if estado_actual == 'Cesado' and estado_anterior != 'Cesado':
+        _handle_cese(instance)
+    elif estado_actual == 'Activo' and estado_anterior not in ('Activo', None):
+        _handle_reingreso(instance, estado_anterior)
+
+
+# -- Handlers de cese ------------------------------------------------------
+
+def _handle_cese(personal):
+    """Ejecuta las acciones automaticas al cesar a un empleado."""
+    logger.info('[Signal Cese] Procesando cese de %s (%s)', personal.apellidos_nombres, personal.nro_doc)
+    _notificar_admins_cese(personal)
+    _generar_constancia_cese(personal)
+    _email_cese_empleado(personal)
+
+
+def _notificar_admins_cese(personal):
+    """
+    Envia notificacion in-app a todos los superusers sobre el cese.
+    Usa NotificacionService con destinatario=Personal o None si no tiene registro.
+    """
+    try:
+        from comunicaciones.services import NotificacionService
+        admins = User.objects.filter(is_superuser=True, is_active=True).select_related('personal_data')
+        fecha_cese_str = personal.fecha_cese.strftime('%d/%m/%Y') if personal.fecha_cese else 'no registrada'
+        motivo_str = personal.get_motivo_cese_display() if personal.motivo_cese else 'no registrado'
+        for admin in admins:
+            personal_admin = getattr(admin, 'personal_data', None)
+            NotificacionService.enviar(
+                destinatario=personal_admin,
+                asunto=f'Cese registrado: {personal.apellidos_nombres}',
+                cuerpo=(
+                    f'<p>Se registro el cese de <strong>{personal.apellidos_nombres}</strong> (DNI: {personal.nro_doc}).</p>'
+                    f'<p>Fecha: <strong>{fecha_cese_str}</strong>. Motivo: {motivo_str}.</p>'
+                    f'<p>Verifica la documentacion de cese correspondiente.</p>'
+                    f'<p><a href="/personal/{personal.pk}/">Ver ficha del empleado</a></p>'
+                ),
+                tipo='IN_APP',
+                destinatario_email=admin.email or '',
+            )
+        logger.info('[Signal Cese] Notificaciones enviadas a %d admins', admins.count())
+    except Exception as exc:
+        logger.warning('[Signal Cese] Error notificando admins: %s', exc)
+
+
+def _generar_constancia_cese(personal):
+    """
+    Busca una PlantillaConstancia activa, genera el PDF usando el servicio
+    oficial de documentos y crea un DocumentoFirmaDigital para firma electronica.
+    Registra en ConstanciaGenerada para auditoria (sin archivo adjunto).
+    No lanza excepciones: el cese no debe romperse por un error de PDF.
+    """
+    try:
+        from documentos.models import PlantillaConstancia, ConstanciaGenerada
+        plantilla = (
+            PlantillaConstancia.objects.filter(activa=True, codigo__icontains='cese').first()
+            or PlantillaConstancia.objects.filter(activa=True, categoria='CARTA').first()
+            or PlantillaConstancia.objects.filter(activa=True, categoria='CONSTANCIA').first()
+        )
+        if not plantilla:
+            logger.info('[Signal Cese] Sin plantilla -- omitiendo PDF para %s', personal)
+            return
+        from documentos.services import generar_constancia_pdf
+        extra_ctx = {
+            'fecha_cese_texto': _fecha_texto(personal.fecha_cese) if personal.fecha_cese else None,
+            'motivo_cese': personal.get_motivo_cese_display() if personal.motivo_cese else '',
+        }
+        pdf_bytes = generar_constancia_pdf(plantilla, personal, extra_context=extra_ctx)
+        ConstanciaGenerada.objects.create(plantilla=plantilla, personal=personal, generado_por=None, origen='ADMIN')
+        logger.info('[Signal Cese] ConstanciaGenerada registrada para %s', personal)
+        _crear_firma_digital_cese(personal, pdf_bytes, plantilla)
+    except Exception as exc:
+        logger.warning('[Signal Cese] Error generando constancia: %s', exc, exc_info=True)
+
+
+def _crear_firma_digital_cese(personal, pdf_bytes, plantilla):
+    """
+    Crea un DocumentoFirmaDigital (estado PENDIENTE) con el PDF de cese.
+    El documento queda en estado PENDIENTE. El envio a ZapSign es un paso
+    posterior (manual o tarea). Vence a los 15 dias para presionar la firma.
+    """
+    try:
+        from documentos.models import DocumentoFirmaDigital
+        from django.core.files.base import ContentFile
+        from django.utils import timezone
+        from datetime import timedelta
+        hoy = timezone.now().date()
+        nombre_archivo = f'Carta_Cese_{personal.nro_doc}_{hoy.strftime("%Y%m%d")}.pdf'
+        doc = DocumentoFirmaDigital(
+            personal=personal,
+            nombre=f'Carta de Cese -- {personal.apellidos_nombres}',
+            tipo='FINIQUITO',
+            descripcion=f'Cese generado el {hoy.strftime("%d/%m/%Y")}. Plantilla: {plantilla.nombre}.',
+            vence_en=hoy + timedelta(days=15),
+        )
+        doc.archivo_pdf.save(nombre_archivo, ContentFile(pdf_bytes), save=False)
+        doc.save()
+        logger.info('[Signal Cese] DocumentoFirmaDigital pk=%d creado para %s', doc.pk, personal)
+    except Exception as exc:
+        logger.warning('[Signal Cese] Error creando DocumentoFirmaDigital: %s', exc)
+
+
+def _email_cese_empleado(personal):
+    """
+    Envia notificacion AMBOS (in-app + email) al empleado cesado si tiene correo.
+    Usa NotificacionService para consistencia con el resto del sistema.
+    """
+    try:
+        email = personal.correo_personal or personal.correo_corporativo or ''
+        if not email:
+            logger.info('[Signal Cese] %s sin correo -- omitiendo notificacion', personal)
+            return
+        empresa_nombre = _get_empresa_nombre()
+        from comunicaciones.services import NotificacionService
+        fecha_cese_str = personal.fecha_cese.strftime('%d/%m/%Y') if personal.fecha_cese else 'segun registro'
+        NotificacionService.enviar(
+            destinatario=personal,
+            asunto=f'Notificacion de cese laboral -- {empresa_nombre}',
+            cuerpo=(
+                f'<p>Estimado(a) <strong>{personal.apellidos_nombres}</strong>,</p>'
+                f'<p>Le comunicamos que su relacion laboral con <strong>{empresa_nombre}</strong> ha concluido con fecha <strong>{fecha_cese_str}</strong>.</p>'
+                f'<p>Para consultas comuniquese con el area de Recursos Humanos.</p>'
+                f'<p>Atentamente,<br><strong>{empresa_nombre}</strong><br>Area de RRHH</p>'
+            ),
+            tipo='AMBOS',
+            destinatario_email=email,
+        )
+        logger.info('[Signal Cese] Notificacion enviada a %s', email)
+    except Exception as exc:
+        logger.warning('[Signal Cese] Error enviando notificacion al empleado: %s', exc)
+
+
+# -- Handlers de alta / reingreso ------------------------------------------
+
+def _handle_nueva_alta(personal):
+    """Notifica a superusers sobre una nueva incorporacion."""
+    try:
+        from comunicaciones.services import NotificacionService
+        fecha_alta_str = personal.fecha_alta.strftime('%d/%m/%Y') if personal.fecha_alta else 'no registrada'
+        admins = User.objects.filter(is_superuser=True, is_active=True).select_related('personal_data')
+        for admin in admins:
+            personal_admin = getattr(admin, 'personal_data', None)
+            NotificacionService.enviar(
+                destinatario=personal_admin,
+                asunto=f'Nueva incorporacion: {personal.apellidos_nombres}',
+                cuerpo=(
+                    f'<p>Se registro: <strong>{personal.apellidos_nombres}</strong> (DNI: {personal.nro_doc}).</p>'
+                    f'<p>Cargo: {personal.cargo or "sin cargo"}. Alta: {fecha_alta_str}.</p>'
+                    f'<p>Recuerda iniciar el proceso de onboarding.</p>'
+                    f'<p><a href="/personal/{personal.pk}/">Ver ficha del empleado</a></p>'
+                ),
+                tipo='IN_APP',
+                destinatario_email=admin.email or '',
+            )
+        logger.info('[Signal Alta] Notificaciones enviadas para %s', personal)
+    except Exception as exc:
+        logger.warning('[Signal Alta] Error notificando admins: %s', exc)
+
+
+def _handle_reingreso(personal, estado_anterior):
+    """Notifica a superusers cuando un empleado regresa al estado Activo."""
+    try:
+        from comunicaciones.services import NotificacionService
+        admins = User.objects.filter(is_superuser=True, is_active=True).select_related('personal_data')
+        for admin in admins:
+            personal_admin = getattr(admin, 'personal_data', None)
+            NotificacionService.enviar(
+                destinatario=personal_admin,
+                asunto=f'Reingreso: {personal.apellidos_nombres}',
+                cuerpo=(
+                    f'<p><strong>{personal.apellidos_nombres}</strong> (DNI: {personal.nro_doc}) cambio de estado <em>{estado_anterior}</em> a <strong>Activo</strong>.</p>'
+                    f'<p>Verifica la documentacion de reingreso.</p>'
+                    f'<p><a href="/personal/{personal.pk}/">Ver ficha del empleado</a></p>'
+                ),
+                tipo='IN_APP',
+                destinatario_email=admin.email or '',
+            )
+        logger.info('[Signal Reingreso] Notificaciones enviadas para %s', personal)
+    except Exception as exc:
+        logger.warning('[Signal Reingreso] Error: %s', exc)
+
+
+# -- Funcion utilitaria: alertar contratos por vencer ----------------------
+
+def alertar_contratos_por_vencer():
+    """
+    Genera alertas in-app para contratos que vencen en los proximos 30 dias.
+
+    Llamar desde una tarea periodica o management command:
+        from personal.signals import alertar_contratos_por_vencer
+        alertar_contratos_por_vencer()
+
+    Returns:
+        int -- numero de contratos proximos a vencer encontrados.
+    """
+    try:
+        from datetime import date, timedelta
+        from comunicaciones.services import NotificacionService
+        from personal.models import Personal
+        hoy = date.today()
+        en_30_dias = hoy + timedelta(days=30)
+        proximos = Personal.objects.filter(
+            estado='Activo',
+            fecha_fin_contrato__isnull=False,
+            fecha_fin_contrato__gte=hoy,
+            fecha_fin_contrato__lte=en_30_dias,
+        ).order_by('fecha_fin_contrato')
+        if not proximos.exists():
+            return 0
+        total = proximos.count()
+        nombres = ', '.join(
+            f'{p.apellidos_nombres} ({p.fecha_fin_contrato.strftime("%d/%m")})'
+            for p in proximos[:5]
+        )
+        extra = f' y {total - 5} mas' if total > 5 else ''
+        plural = 's' if total != 1 else ''
+        admins = User.objects.filter(is_superuser=True, is_active=True).select_related('personal_data')
+        for admin in admins:
+            personal_admin = getattr(admin, 'personal_data', None)
+            NotificacionService.enviar(
+                destinatario=personal_admin,
+                asunto=f'{total} contrato{plural} por vencer en 30 dias',
+                cuerpo=(
+                    f'<p>Contratos proximos a vencer (30 dias):</p>'
+                    f'<p><strong>{nombres}{extra}</strong></p>'
+                    f'<p>Gestiona la renovacion o el proceso de cese segun corresponda.</p>'
+                    f'<p><a href="/personal/?filtro=contratos_por_vencer">Ver listado completo</a></p>'
+                ),
+                tipo='IN_APP',
+                destinatario_email=admin.email or '',
+            )
+        logger.info('[Contratos] Alerta enviada: %d contratos por vencer', total)
+        return total
+    except Exception as exc:
+        logger.warning('[Contratos] Error generando alertas: %s', exc)
+        return 0
+
+
+# -- Helpers privados ------------------------------------------------------
+
+def _fecha_texto(fecha):
+    """Convierte date a texto: 01 de marzo de 2026."""
+    MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    return f'{fecha.day:02d} de {MESES[fecha.month]} de {fecha.year}'
+
+
+def _get_empresa_nombre():
+    """Obtiene el nombre de empresa desde ConfiguracionSistema (asistencia.models)."""
+    try:
+        from asistencia.models import ConfiguracionSistema
+        config = ConfiguracionSistema.objects.first()
+        if config:
+            return config.empresa_nombre or 'La empresa'
+    except Exception:
+        pass
+    return 'La empresa'

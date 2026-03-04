@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ postulacion.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-user text-secondary me-2"></i>{{ postulacion.nombre_completo }}</h2>
+        <small class="text-muted">
+            <a href="{% url 'vacante_detalle' postulacion.vacante.pk %}">{{ postulacion.vacante.titulo }}</a>
+            &middot; {{ postulacion.dias_en_proceso }} dias en proceso
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        {% if postulacion.estado == 'ACTIVA' %}
+        <button class="btn btn-sm btn-outline-danger" onclick="descartar()"><i class="fas fa-times me-1"></i>Descartar</button>
+        {% endif %}
+        <a href="{% url 'vacante_detalle' postulacion.vacante.pk %}" class="btn btn-sm btn-secondary"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Info del candidato -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header py-2"><strong>Datos del Candidato</strong></div>
+            <div class="card-body" style="font-size:.85rem">
+                <div class="row mb-2">
+                    <div class="col-3"><strong>Email:</strong></div>
+                    <div class="col-9">{{ postulacion.email|default:"—" }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-3"><strong>Telefono:</strong></div>
+                    <div class="col-9">{{ postulacion.telefono|default:"—" }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-3"><strong>Experiencia:</strong></div>
+                    <div class="col-3">{{ postulacion.experiencia_anos }} anio{{ postulacion.experiencia_anos|pluralize:"s" }}</div>
+                    <div class="col-3"><strong>Educacion:</strong></div>
+                    <div class="col-3">{{ postulacion.get_educacion_display }}</div>
+                </div>
+                {% if postulacion.salario_pretendido %}
+                <div class="row mb-2">
+                    <div class="col-3"><strong>Salario Pretendido:</strong></div>
+                    <div class="col-9">S/ {{ postulacion.salario_pretendido|floatformat:0|intcomma }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-2">
+                    <div class="col-3"><strong>Fuente:</strong></div>
+                    <div class="col-9"><span class="badge bg-light text-dark border">{{ postulacion.get_fuente_display }}</span></div>
+                </div>
+                {% if postulacion.cv %}
+                <div class="row mb-2">
+                    <div class="col-3"><strong>CV:</strong></div>
+                    <div class="col-9"><a href="{{ postulacion.cv.url }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pdf me-1"></i>Descargar CV</a></div>
+                </div>
+                {% endif %}
+                {% if postulacion.notas %}
+                <hr class="my-2">
+                <p class="text-muted small mb-0" style="white-space:pre-line">{{ postulacion.notas }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado y acciones -->
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-2">
+            <div class="card-body text-center py-3">
+                {% if postulacion.etapa %}
+                <span class="badge px-3 py-2" style="background:{{ postulacion.etapa.color }};font-size:.85rem">
+                    {{ postulacion.etapa.nombre }}
+                </span>
+                {% endif %}
+                <div class="small text-muted mt-1">
+                    {% if postulacion.estado == 'ACTIVA' %}Activa
+                    {% elif postulacion.estado == 'DESCARTADA' %}<span class="text-danger">Descartada</span>
+                    {% else %}<span class="text-success">Contratada</span>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if postulacion.estado == 'ACTIVA' %}
+        <!-- Mover etapa -->
+        <div class="card shadow-sm mb-2">
+            <div class="card-body p-2">
+                <label class="form-label small fw-semibold mb-1">Mover a Etapa</label>
+                <select id="selEtapa" class="form-select form-select-sm mb-1">
+                    {% for e in etapas %}
+                    <option value="{{ e.pk }}" {% if e.pk == postulacion.etapa_id %}selected{% endif %}>{{ e.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-primary btn-sm w-100" onclick="moverEtapa()">
+                    <i class="fas fa-exchange-alt me-1"></i>Mover
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Botones rapidos -->
+        <div class="card shadow-sm">
+            <div class="card-body p-2">
+                <button class="btn btn-outline-primary btn-sm w-100 mb-1" data-bs-toggle="modal" data-bs-target="#modalNota">
+                    <i class="fas fa-sticky-note me-1"></i>Agregar Nota
+                </button>
+                <button class="btn btn-outline-info btn-sm w-100" data-bs-toggle="modal" data-bs-target="#modalEntrevista">
+                    <i class="fas fa-calendar-plus me-1"></i>Programar Entrevista
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Entrevistas -->
+{% if entrevistas %}
+<h5 class="mb-2"><i class="fas fa-calendar-alt me-1"></i>Entrevistas</h5>
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.82rem">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Fecha</th>
+                    <th>Entrevistador</th>
+                    <th>Modalidad</th>
+                    <th class="text-center">Resultado</th>
+                    <th class="text-center">Nota</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ent in entrevistas %}
+                <tr>
+                    <td><span class="fw-semibold">{{ ent.get_tipo_display }}</span></td>
+                    <td>{{ ent.fecha_hora|date:"d/m/Y H:i" }}</td>
+                    <td>{{ ent.entrevistador.get_full_name|default:ent.entrevistador.username }}</td>
+                    <td>{{ ent.get_modalidad_display }}
+                        {% if ent.enlace_virtual %}<a href="{{ ent.enlace_virtual }}" target="_blank" class="ms-1"><i class="fas fa-video"></i></a>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if ent.resultado == 'APROBADO' %}<span class="badge bg-success">Aprobado</span>
+                        {% elif ent.resultado == 'RECHAZADO' %}<span class="badge bg-danger">Rechazado</span>
+                        {% elif ent.resultado == 'REPROGRAMAR' %}<span class="badge bg-warning text-dark">Reprogramar</span>
+                        {% else %}<span class="badge bg-secondary">Pendiente</span>{% endif %}
+                    </td>
+                    <td class="text-center">{% if ent.calificacion %}{{ ent.calificacion }}/10{% else %}—{% endif %}</td>
+                    <td>
+                        {% if ent.resultado == 'PENDIENTE' %}
+                        <button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:.72rem"
+                            onclick="registrarResultado({{ ent.pk }})">Registrar</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if ent.notas_post %}
+                <tr>
+                    <td colspan="7" class="text-muted small ps-4" style="border-top:0"><i class="fas fa-comment me-1"></i>{{ ent.notas_post }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Timeline de notas -->
+<h5 class="mb-2"><i class="fas fa-stream me-1"></i>Notas y Actividad</h5>
+<div id="timelineNotas">
+{% for nota in notas %}
+    <div class="card shadow-sm mb-2">
+        <div class="card-body py-2 px-3" style="font-size:.82rem">
+            <div class="d-flex justify-content-between">
+                <span>
+                    <span class="badge bg-light text-dark border me-1">{{ nota.get_tipo_display }}</span>
+                    <strong>{{ nota.autor.get_full_name|default:nota.autor.username }}</strong>
+                </span>
+                <small class="text-muted">{{ nota.fecha|date:"d/m/Y H:i" }}</small>
+            </div>
+            <p class="mb-0 mt-1 text-muted" style="white-space:pre-line">{{ nota.texto }}</p>
+        </div>
+    </div>
+{% empty %}
+    <p class="text-muted small">Sin notas registradas.</p>
+{% endfor %}
+</div>
+
+<!-- Modal: Agregar Nota -->
+<div class="modal fade" id="modalNota" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar Nota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Tipo</label>
+                    {{ form_nota.tipo }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Texto</label>
+                    {{ form_nota.texto }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="agregarNota()"><i class="fas fa-plus me-1"></i>Agregar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Programar Entrevista -->
+<div class="modal fade" id="modalEntrevista" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programar Entrevista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Fecha y Hora *</label>
+                        {{ form_entrevista.fecha_hora }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Duracion (min)</label>
+                        {{ form_entrevista.duracion_minutos }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Tipo</label>
+                        {{ form_entrevista.tipo }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Entrevistador</label>
+                        {{ form_entrevista.entrevistador }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Modalidad</label>
+                        {{ form_entrevista.modalidad }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Ubicacion</label>
+                        {{ form_entrevista.ubicacion }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Enlace Virtual</label>
+                        {{ form_entrevista.enlace_virtual }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Notas Previas</label>
+                        {{ form_entrevista.notas_pre }}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="programarEntrevista()"><i class="fas fa-calendar-plus me-1"></i>Programar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Resultado Entrevista -->
+<div class="modal fade" id="modalResultado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registrar Resultado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="resultadoEntrevistaId">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Resultado</label>
+                    <select id="resultadoSelect" class="form-select form-select-sm">
+                        <option value="APROBADO">Aprobado</option>
+                        <option value="RECHAZADO">Rechazado</option>
+                        <option value="REPROGRAMAR">Reprogramar</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Calificacion (1-10)</label>
+                    <input type="number" id="resultadoCal" class="form-control form-control-sm" min="1" max="10">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Notas Post-Entrevista</label>
+                    <textarea id="resultadoNotas" class="form-control form-control-sm" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="guardarResultado()"><i class="fas fa-save me-1"></i>Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+const postulacionId = {{ postulacion.pk }};
+
+function moverEtapa() {
+    const etapaId = document.getElementById('selEtapa').value;
+    fetch(`/reclutamiento/postulacion/${postulacionId}/mover/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `etapa_id=${etapaId}`,
+    })
+    .then(r => r.json())
+    .then(data => { if (data.ok) location.reload(); else alert(data.error); });
+}
+
+function descartar() {
+    const motivo = prompt('Motivo de descarte (opcional):');
+    if (motivo === null) return;
+    fetch(`/reclutamiento/postulacion/${postulacionId}/descartar/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `motivo=${encodeURIComponent(motivo)}`,
+    })
+    .then(r => r.json())
+    .then(data => { if (data.ok) location.reload(); });
+}
+
+function agregarNota() {
+    const texto = document.querySelector('#modalNota textarea').value;
+    const tipo = document.querySelector('#modalNota select').value;
+    if (!texto.trim()) return;
+    fetch(`/reclutamiento/postulacion/${postulacionId}/nota/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `texto=${encodeURIComponent(texto)}&tipo=${tipo}`,
+    })
+    .then(r => r.json())
+    .then(data => { if (data.ok) location.reload(); });
+}
+
+function programarEntrevista() {
+    const form = document.querySelector('#modalEntrevista');
+    const formData = new URLSearchParams();
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.name || el.id) {
+            const name = el.name || el.id.replace('id_', '');
+            formData.append(name, el.value);
+        }
+    });
+    fetch(`/reclutamiento/postulacion/${postulacionId}/entrevista/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: formData.toString(),
+    })
+    .then(r => r.json())
+    .then(data => { if (data.ok) location.reload(); else alert(JSON.stringify(data.errors)); });
+}
+
+function registrarResultado(entrevistaId) {
+    document.getElementById('resultadoEntrevistaId').value = entrevistaId;
+    new bootstrap.Modal(document.getElementById('modalResultado')).show();
+}
+
+function guardarResultado() {
+    const entId = document.getElementById('resultadoEntrevistaId').value;
+    const resultado = document.getElementById('resultadoSelect').value;
+    const cal = document.getElementById('resultadoCal').value;
+    const notas = document.getElementById('resultadoNotas').value;
+    fetch(`/reclutamiento/entrevista/${entId}/resultado/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `resultado=${resultado}&calificacion=${cal}&notas_post=${encodeURIComponent(notas)}`,
+    })
+    .then(r => r.json())
+    .then(data => { if (data.ok) location.reload(); });
+}
+</script>
+{% endblock %}

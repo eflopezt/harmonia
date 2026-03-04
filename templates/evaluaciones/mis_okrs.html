@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis OKRs — Harmoni{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title"><i class="fas fa-bullseye me-2 text-accent"></i>{{ titulo }}</h1>
+    <p class="page-subtitle">Tus objetivos y resultados clave del año</p>
+  </div>
+  <div class="page-header-actions">
+    {% for a in anios %}
+    <a href="?anio={{ a }}" class="btn btn-sm {% if a == anio_filtro %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      {{ a }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning">
+  <i class="fas fa-exclamation-triangle me-2"></i>
+  Tu usuario no está vinculado a un empleado. Contacta a RRHH.
+</div>
+{% else %}
+
+{# Mis objetivos individuales #}
+{% if mis_objetivos %}
+<h5 class="mb-3"><i class="fas fa-user me-2 text-muted"></i>Mis Objetivos</h5>
+{% for obj in mis_objetivos %}
+<div class="dash-card mb-3">
+  <div class="d-flex justify-content-between align-items-start">
+    <div class="flex-grow-1">
+      <div class="fw-semibold fs-6">{{ obj.titulo }}</div>
+      <div class="text-muted mt-1" style="font-size:.85rem;">
+        <span class="badge bg-{{ obj.color_status }} me-1">{{ obj.get_status_display }}</span>
+        {{ obj.periodo_display }}
+        {% if obj.descripcion %} · {{ obj.descripcion|truncatechars:80 }}{% endif %}
+      </div>
+    </div>
+    <div class="ms-3 text-end" style="min-width:80px;">
+      <div class="fw-bold fs-5 {% if obj.avance_promedio >= 70 %}text-success{% elif obj.avance_promedio >= 40 %}text-warning{% else %}text-danger{% endif %}">
+        {{ obj.avance_promedio }}%
+      </div>
+      <div class="text-muted" style="font-size:.75rem;">avance</div>
+    </div>
+  </div>
+
+  {# KRs #}
+  {% if obj.resultados_clave.all %}
+  <div class="mt-3 border-top pt-3">
+    {% for kr in obj.resultados_clave.all %}
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span style="font-size:.85rem;">{{ kr.descripcion }}</span>
+        <span class="text-muted ms-2" style="font-size:.8rem;white-space:nowrap;">
+          {% if kr.unidad == 'SI_NO' %}
+            {% if kr.completado_binario %}<span class="text-success">✓ Sí</span>{% else %}<span class="text-muted">Pendiente</span>{% endif %}
+          {% else %}
+            {{ kr.valor_actual }} / {{ kr.valor_meta }} {{ kr.unidad_label }}
+          {% endif %}
+        </span>
+      </div>
+      {% if kr.unidad != 'SI_NO' %}
+      <div class="d-flex align-items-center gap-2">
+        <div class="progress flex-grow-1" style="height:6px;">
+          <div class="progress-bar bg-{{ kr.color_avance }}" style="width:{{ kr.porcentaje_avance }}%"></div>
+        </div>
+        <span class="text-muted" style="font-size:.75rem;min-width:35px;">{{ kr.porcentaje_avance }}%</span>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-muted mt-2" style="font-size:.85rem;">Sin Key Results definidos aún.</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<div class="dash-card text-center py-5 text-muted mb-3">
+  <i class="fas fa-bullseye fa-3x mb-3 opacity-25"></i>
+  <p>No tienes objetivos individuales asignados para {{ anio_filtro }}.</p>
+</div>
+{% endif %}
+
+{# KRs asignados en objetivos de otros #}
+{% if krs_asignados %}
+<h5 class="mb-3 mt-2"><i class="fas fa-key me-2 text-muted"></i>KRs donde eres responsable</h5>
+<div class="dash-card">
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Key Result</th>
+          <th>Objetivo</th>
+          <th>Meta</th>
+          <th>Actual</th>
+          <th>Avance</th>
+          <th>Límite</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for kr in krs_asignados %}
+        <tr>
+          <td>{{ kr.descripcion|truncatechars:60 }}</td>
+          <td>
+            <a href="{% url 'okr_detalle' kr.objetivo.pk %}" class="text-decoration-none text-muted">
+              {{ kr.objetivo.titulo|truncatechars:40 }}
+            </a>
+          </td>
+          <td>{{ kr.valor_meta }} {{ kr.unidad_label }}</td>
+          <td>{{ kr.valor_actual }} {{ kr.unidad_label }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:6px;min-width:60px;">
+                <div class="progress-bar bg-{{ kr.color_avance }}" style="width:{{ kr.porcentaje_avance }}%"></div>
+              </div>
+              <span style="font-size:.8rem;">{{ kr.porcentaje_avance }}%</span>
+            </div>
+          </td>
+          <td class="text-muted">{{ kr.fecha_limite|date:"d/m/Y"|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if not mis_objetivos and not krs_asignados %}
+<div class="dash-card text-center py-5 text-muted">
+  <i class="fas fa-bullseye fa-3x mb-3 opacity-25"></i>
+  <p>No tienes objetivos ni Key Results asignados para {{ anio_filtro }}.</p>
+  <p style="font-size:.85rem;">Contacta a tu jefe o a RRHH para la asignación de OKRs.</p>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

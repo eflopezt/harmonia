@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# exit on error
+# Build script for Render deployment
 set -o errexit
 
-# Force clean build
-echo "==> Starting build process"
-
-pip install --upgrade pip
+echo "=== Installing dependencies ==="
 pip install -r requirements.txt
 
-# Create logs directory
-mkdir -p logs
-
-# Collect static files
+echo "=== Collecting static files ==="
 python manage.py collectstatic --no-input
-python manage.py migrate
-python manage.py createcachetable
-python manage.py create_initial_superuser
+
+echo "=== Running migrations ==="
+python manage.py migrate --noinput
+
+echo "=== Creating cache table ==="
+python manage.py createcachetable 2>/dev/null || true
+
+echo "=== Running initial setup ==="
+python manage.py setup_harmoni --no-input 2>/dev/null || true
+
+echo "=== Build complete ==="

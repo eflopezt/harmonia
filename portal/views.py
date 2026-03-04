@@ -1,0 +1,1040 @@
+"""
+Portal de autoservicio del colaborador.
+Cada usuario ve y gestiona solo su propia información.
+"""
+import calendar
+from datetime import date
+
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.http import require_POST
+
+from asistencia.models import BancoHoras, JustificacionNoMarcaje, RegistroPapeleta, RegistroTareo, SolicitudHE
+from personal.models import Roster, Personal, Area, SubArea
+
+
+def _get_empleado(user):
+    """Retorna el Personal vinculado al usuario, o None."""
+    return getattr(user, 'personal_data', None)
+
+
+@login_required
+def portal_home(request):
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        from django.db.models import Sum, Count, Q
+
+        hoy = date.today()
+        inicio_mes = hoy.replace(day=1)
+
+        registros_mes = RegistroTareo.objects.filter(
+            personal=empleado,
+            fecha__gte=inicio_mes,
+            fecha__lte=hoy,
+        ).select_related('personal').order_by('-fecha')
+
+        banco = BancoHoras.objects.filter(
+            personal=empleado,
+        ).select_related('personal').order_by('-periodo_anio', '-periodo_mes').first()
+
+        roster_hoy = Roster.objects.filter(
+            personal=empleado,
+            fecha=hoy,
+        ).select_related('personal').first()
+
+        # ── Solicitudes pendientes del trabajador ──
+        pap_pendientes = RegistroPapeleta.objects.filter(
+            personal=empleado, estado='PENDIENTE',
+        ).count()
+        sol_pendientes = SolicitudHE.objects.filter(
+            personal=empleado, estado='PENDIENTE',
+        ).count()
+        just_pendientes = JustificacionNoMarcaje.objects.filter(
+            personal=empleado, estado='PENDIENTE',
+        ).count()
+
+        # ── Papeletas próximas (aprobadas, futuras) ──
+        papeletas_prox = RegistroPapeleta.objects.filter(
+            personal=empleado,
+            estado='APROBADA',
+            fecha_inicio__gte=hoy,
+        ).order_by('fecha_inicio')[:3]
+
+        # ── HE acumuladas este mes ──
+        he_mes = registros_mes.aggregate(
+            he25=Sum('he_25'), he35=Sum('he_35'), he100=Sum('he_100'),
+        )
+        he_total_mes = (he_mes['he25'] or 0) + (he_mes['he35'] or 0) + (he_mes['he100'] or 0)
+
+        # ── Saldo vacacional disponible ──────────────────────────
+        dias_vac_disponibles = None
+        vac_proxima = None
+        try:
+            from vacaciones.models import SaldoVacacional, SolicitudVacacion
+            from django.db.models import Sum as _Sum
+            saldo_vac = SaldoVacacional.objects.filter(
+                personal=empleado,
+                estado__in=['PENDIENTE', 'PARCIAL'],
+            ).aggregate(total=_Sum('dias_pendientes'))
+            dias_vac_disponibles = float(saldo_vac['total'] or 0)
+
+            vac_proxima = SolicitudVacacion.objects.filter(
+                personal=empleado,
+                estado='APROBADA',
+                fecha_inicio__gte=hoy,
+            ).order_by('fecha_inicio').first()
+        except Exception:
+            pass
+
+        # ── Capacitaciones próximas ────────────────────────────
+        caps_proximas = []
+        try:
+            from capacitaciones.models import AsistenciaCapacitacion
+            caps_proximas = list(
+                AsistenciaCapacitacion.objects.select_related('capacitacion')
+                .filter(
+                    personal=empleado,
+                    capacitacion__estado='PROGRAMADA',
+                    capacitacion__fecha_inicio__gte=hoy,
+                )
+                .order_by('capacitacion__fecha_inicio')[:3]
+            )
+        except Exception:
+            pass
+
+        # ── Notificaciones recientes no leídas ────────────────
+        notif_recientes = []
+        try:
+            from comunicaciones.models import Notificacion
+            notif_recientes = list(
+                Notificacion.objects.filter(
+                    destinatario=request.user,
+                    leida=False,
+                ).order_by('-creado_en')[:4]
+            )
+        except Exception:
+            pass
+
+        # ── Antigüedad ────────────────────────────────────────
+        antiguedad = None
+        if empleado.fecha_alta:
+            delta = hoy - empleado.fecha_alta
+            antiguedad = {
+                'anios': delta.days // 365,
+                'meses': (delta.days % 365) // 30,
+            }
+
+        context.update({
+            'dias_trabajados_mes': registros_mes.filter(horas_efectivas__gt=0).count(),
+            'banco_actual': banco,
+            'roster_hoy': roster_hoy,
+            'registros_recientes': registros_mes[:5],
+            'pap_pendientes': pap_pendientes,
+            'sol_pendientes': sol_pendientes,
+            'just_pendientes': just_pendientes,
+            'total_pendientes': pap_pendientes + sol_pendientes + just_pendientes,
+            'papeletas_prox': papeletas_prox,
+            'he_total_mes': he_total_mes,
+            # Nuevos
+            'dias_vac_disponibles': dias_vac_disponibles,
+            'vac_proxima': vac_proxima,
+            'caps_proximas': caps_proximas,
+            'notif_recientes': notif_recientes,
+            'antiguedad': antiguedad,
+        })
+
+    return render(request, 'portal/portal_home.html', context)
+
+
+@login_required
+def mi_perfil(request):
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        hoy = date.today()
+
+        # ── Antigüedad ────────────────────────────────────────
+        antiguedad = None
+        if empleado.fecha_alta:
+            delta = hoy - empleado.fecha_alta
+            anios = delta.days // 365
+            meses = (delta.days % 365) // 30
+            dias = (delta.days % 365) % 30
+            antiguedad = {'anios': anios, 'meses': meses, 'dias': dias}
+        context['antiguedad'] = antiguedad
+
+        # ── Últimas 3 evaluaciones recibidas ─────────────────
+        ultimas_evaluaciones = []
+        try:
+            from evaluaciones.models import Evaluacion
+            ultimas_evaluaciones = list(
+                Evaluacion.objects.filter(evaluado=empleado)
+                .select_related('ciclo')
+                .order_by('-ciclo__fecha_inicio', '-creado_en')[:3]
+            )
+        except Exception:
+            pass
+        context['ultimas_evaluaciones'] = ultimas_evaluaciones
+
+        # ── Últimas 5 capacitaciones completadas ─────────────
+        capacitaciones_completadas = []
+        try:
+            from capacitaciones.models import AsistenciaCapacitacion
+            capacitaciones_completadas = list(
+                AsistenciaCapacitacion.objects.filter(
+                    personal=empleado,
+                    estado__in=['ASISTIO', 'PARCIAL'],
+                )
+                .select_related('capacitacion', 'capacitacion__categoria')
+                .order_by('-capacitacion__fecha_inicio')[:5]
+            )
+        except Exception:
+            pass
+        context['capacitaciones_completadas'] = capacitaciones_completadas
+
+        # ── Historial de cambios salariales/cargo (últimos 5) ─
+        historial_cargos = []
+        try:
+            from salarios.models import HistorialSalarial
+            historial_cargos = list(
+                HistorialSalarial.objects.filter(personal=empleado)
+                .order_by('-fecha_efectiva')[:5]
+            )
+        except Exception:
+            pass
+        context['historial_cargos'] = historial_cargos
+
+    return render(request, 'portal/mi_perfil.html', context)
+
+
+@login_required
+def mi_asistencia(request):
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        hoy = date.today()
+        anio = int(request.GET.get('anio', hoy.year))
+        mes = int(request.GET.get('mes', hoy.month))
+
+        fecha_inicio = date(anio, mes, 1)
+        fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+
+        registros = RegistroTareo.objects.filter(
+            personal=empleado,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+        ).order_by('fecha')
+
+        total_he = sum(
+            (r.he_25 or 0) + (r.he_35 or 0) + (r.he_100 or 0)
+            for r in registros
+        )
+
+        # Años disponibles para el selector
+        primer_registro = RegistroTareo.objects.filter(
+            personal=empleado
+        ).order_by('fecha').first()
+        anio_inicio = primer_registro.fecha.year if primer_registro else hoy.year
+
+        context.update({
+            'registros': registros,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'total_he': total_he,
+            'anio_sel': anio,
+            'mes_sel': mes,
+            'anios': range(anio_inicio, hoy.year + 1),
+            'meses': [
+                (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+                (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+                (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
+            ],
+        })
+
+    return render(request, 'portal/mi_asistencia.html', context)
+
+
+@login_required
+def mi_banco_horas(request):
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        # Materialise to list so we only hit the DB once (avoids double-eval
+        # when the template iterates and sum() also iterates the queryset).
+        registros = list(BancoHoras.objects.filter(
+            personal=empleado,
+        ).order_by('-periodo_anio', '-periodo_mes'))
+
+        saldo_total = sum(r.saldo_horas or 0 for r in registros)
+
+        context.update({
+            'registros': registros,
+            'saldo_total': saldo_total,
+        })
+
+    return render(request, 'portal/mi_banco_horas.html', context)
+
+
+@login_required
+def mi_roster(request):
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        hoy = date.today()
+        anio = int(request.GET.get('anio', hoy.year))
+        mes = int(request.GET.get('mes', hoy.month))
+
+        fecha_inicio = date(anio, mes, 1)
+        fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+
+        registros = Roster.objects.filter(
+            personal=empleado,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+        ).order_by('fecha')
+
+        primer_roster = Roster.objects.filter(
+            personal=empleado,
+        ).order_by('fecha').first()
+        anio_inicio = primer_roster.fecha.year if primer_roster else hoy.year
+
+        context.update({
+            'registros': registros,
+            'anio_sel': anio,
+            'mes_sel': mes,
+            'mes_nombre': fecha_inicio.strftime('%B %Y'),
+            'hoy': hoy,
+            'anios': range(anio_inicio, hoy.year + 1),
+            'meses': [
+                (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+                (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+                (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
+            ],
+        })
+
+    return render(request, 'portal/mi_roster.html', context)
+
+
+@login_required
+def organigrama(request):
+    """Organigrama jerárquico: Área → SubÁrea → Personas."""
+    areas = Area.objects.filter(activa=True).prefetch_related(
+        'responsables',
+        'subareas',
+        'subareas__personal_asignado',
+    ).order_by('nombre')
+
+    # Personas sin subárea asignada (directas al área o sin área)
+    sin_area = Personal.objects.filter(
+        estado='Activo', subarea__isnull=True,
+    ).order_by('apellidos_nombres')
+
+    total_colaboradores = Personal.objects.filter(estado='Activo').count()
+
+    return render(request, 'portal/organigrama.html', {
+        'areas': areas,
+        'sin_area': sin_area,
+        'total_colaboradores': total_colaboradores,
+    })
+
+
+@login_required
+def directorio(request):
+    """Directorio de colaboradores con búsqueda."""
+    buscar = request.GET.get('q', '').strip()
+    area_id = request.GET.get('area', '')
+
+    qs = Personal.objects.filter(estado='Activo').select_related(
+        'subarea', 'subarea__area',
+    ).order_by('apellidos_nombres')
+
+    if buscar:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(apellidos_nombres__icontains=buscar) |
+            Q(cargo__icontains=buscar) |
+            Q(correo_corporativo__icontains=buscar) |
+            Q(nro_doc__icontains=buscar)
+        )
+
+    if area_id:
+        qs = qs.filter(subarea__area_id=area_id)
+
+    areas = Area.objects.filter(activa=True).order_by('nombre')
+
+    # Materialise to list: avoids a separate COUNT query and double evaluation.
+    personas = list(qs)
+
+    return render(request, 'portal/directorio.html', {
+        'personas': personas,
+        'buscar': buscar,
+        'area_id': area_id,
+        'areas': areas,
+        'total': len(personas),
+    })
+
+
+# ──────────────────────────────────────────────────────────────
+# Justificaciones de No-Marcaje (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mis_justificaciones(request):
+    """El trabajador ve y crea sus justificaciones de no-marcaje."""
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        hoy = date.today()
+        anio = int(request.GET.get('anio', hoy.year))
+        mes = int(request.GET.get('mes', hoy.month))
+
+        fecha_inicio = date(anio, mes, 1)
+        fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+
+        justificaciones = JustificacionNoMarcaje.objects.filter(
+            personal=empleado,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+        ).order_by('-fecha')
+
+        # Días del mes con registro para mostrar al trabajador
+        registros_mes = RegistroTareo.objects.filter(
+            personal=empleado,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+        ).values('fecha', 'codigo_dia', 'horas_efectivas')
+
+        registros_dict = {r['fecha']: r for r in registros_mes}
+
+        # Justificaciones ya enviadas (por fecha)
+        just_dict = {j.fecha: j for j in justificaciones}
+
+        primer_registro = RegistroTareo.objects.filter(
+            personal=empleado
+        ).order_by('fecha').first()
+        anio_inicio = primer_registro.fecha.year if primer_registro else hoy.year
+
+        context.update({
+            'justificaciones': justificaciones,
+            'registros_dict': registros_dict,
+            'just_dict': just_dict,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'anio_sel': anio,
+            'mes_sel': mes,
+            'anios': range(anio_inicio, hoy.year + 1),
+            'meses': [
+                (1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),
+                (5,'Mayo'),(6,'Junio'),(7,'Julio'),(8,'Agosto'),
+                (9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre'),
+            ],
+            'tipos': JustificacionNoMarcaje.TIPO_CHOICES,
+        })
+
+    return render(request, 'portal/mis_justificaciones.html', context)
+
+
+@login_required
+@require_POST
+def justificacion_crear(request):
+    """El trabajador envía una nueva justificación."""
+    empleado = _get_empleado(request.user)
+    if not empleado:
+        return JsonResponse({'ok': False, 'error': 'Sin perfil vinculado.'}, status=403)
+
+    fecha_str = request.POST.get('fecha', '')
+    tipo = request.POST.get('tipo', '')
+    motivo = request.POST.get('motivo', '').strip()
+
+    if not fecha_str or not tipo or not motivo:
+        return JsonResponse({'ok': False, 'error': 'Fecha, tipo y motivo son obligatorios.'}, status=400)
+
+    try:
+        j, created = JustificacionNoMarcaje.objects.get_or_create(
+            personal=empleado,
+            fecha=fecha_str,
+            defaults={'tipo': tipo, 'motivo': motivo, 'estado': 'PENDIENTE'},
+        )
+        if not created:
+            # Ya existe — actualizar solo si sigue PENDIENTE
+            if j.estado != 'PENDIENTE':
+                return JsonResponse(
+                    {'ok': False, 'error': f'Esta justificación ya fue {j.get_estado_display().lower()}.'},
+                    status=400
+                )
+            j.tipo = tipo
+            j.motivo = motivo
+            j.save()
+        return JsonResponse({
+            'ok': True,
+            'pk': j.pk,
+            'fecha_display': j.fecha.strftime('%d/%m/%Y'),
+            'tipo_display': j.get_tipo_display(),
+            'estado': j.estado,
+            'estado_display': j.get_estado_display(),
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def justificacion_anular(request, pk):
+    """El trabajador anula (elimina) una justificación pendiente propia."""
+    empleado = _get_empleado(request.user)
+    if not empleado:
+        return JsonResponse({'ok': False, 'error': 'Sin perfil vinculado.'}, status=403)
+    try:
+        j = JustificacionNoMarcaje.objects.get(pk=pk, personal=empleado)
+    except JustificacionNoMarcaje.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'No encontrado.'}, status=404)
+    if j.estado != 'PENDIENTE':
+        return JsonResponse({'ok': False, 'error': 'Solo se pueden anular justificaciones pendientes.'}, status=400)
+    j.delete()
+    return JsonResponse({'ok': True})
+
+
+# ──────────────────────────────────────────────────────────────
+# Solicitudes de Horas Extra (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mis_solicitudes_he(request):
+    """El trabajador ve y crea sus solicitudes de horas extra."""
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        hoy = date.today()
+        anio = int(request.GET.get('anio', hoy.year))
+        mes = int(request.GET.get('mes', hoy.month))
+
+        fecha_inicio = date(anio, mes, 1)
+        fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+
+        solicitudes = SolicitudHE.objects.filter(
+            personal=empleado,
+            fecha__gte=fecha_inicio,
+            fecha__lte=fecha_fin,
+        ).order_by('-fecha')
+
+        primer_registro = SolicitudHE.objects.filter(
+            personal=empleado,
+        ).order_by('fecha').first()
+        anio_inicio = primer_registro.fecha.year if primer_registro else hoy.year
+
+        # Verificar si el control HE está activo
+        from asistencia.models import ConfiguracionSistema
+        config = ConfiguracionSistema.objects.first()
+        he_activo = config.he_requiere_solicitud if config else False
+
+        context.update({
+            'solicitudes': solicitudes,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'anio_sel': anio,
+            'mes_sel': mes,
+            'anios': range(anio_inicio, hoy.year + 1),
+            'meses': [
+                (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+                (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+                (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
+            ],
+            'tipos': SolicitudHE.TIPO_CHOICES,
+            'he_activo': he_activo,
+        })
+
+    return render(request, 'portal/mis_solicitudes_he.html', context)
+
+
+@login_required
+@require_POST
+def solicitud_he_crear(request):
+    """El trabajador crea una solicitud de HE."""
+    empleado = _get_empleado(request.user)
+    if not empleado:
+        return JsonResponse({'ok': False, 'error': 'Sin perfil vinculado.'}, status=403)
+
+    fecha_str = request.POST.get('fecha', '')
+    horas = request.POST.get('horas_estimadas', '')
+    tipo = request.POST.get('tipo', '')
+    motivo = request.POST.get('motivo', '').strip()
+
+    if not fecha_str or not horas or not tipo or not motivo:
+        return JsonResponse({'ok': False, 'error': 'Todos los campos son obligatorios.'}, status=400)
+
+    try:
+        s, created = SolicitudHE.objects.get_or_create(
+            personal=empleado,
+            fecha=fecha_str,
+            defaults={
+                'horas_estimadas': horas,
+                'tipo': tipo,
+                'motivo': motivo,
+                'estado': 'PENDIENTE',
+            },
+        )
+        if not created:
+            if s.estado != 'PENDIENTE':
+                return JsonResponse(
+                    {'ok': False, 'error': f'Ya existe una solicitud para esa fecha ({s.get_estado_display().lower()}).'},
+                    status=400,
+                )
+            s.horas_estimadas = horas
+            s.tipo = tipo
+            s.motivo = motivo
+            s.save()
+        return JsonResponse({
+            'ok': True,
+            'pk': s.pk,
+            'fecha_display': s.fecha.strftime('%d/%m/%Y'),
+            'horas': str(s.horas_estimadas),
+            'tipo': s.tipo,
+            'tipo_display': s.get_tipo_display(),
+            'estado': s.estado,
+            'estado_display': s.get_estado_display(),
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def solicitud_he_anular(request, pk):
+    """El trabajador anula una solicitud pendiente propia."""
+    empleado = _get_empleado(request.user)
+    if not empleado:
+        return JsonResponse({'ok': False, 'error': 'Sin perfil vinculado.'}, status=403)
+    try:
+        s = SolicitudHE.objects.get(pk=pk, personal=empleado)
+    except SolicitudHE.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'No encontrado.'}, status=404)
+    if s.estado != 'PENDIENTE':
+        return JsonResponse({'ok': False, 'error': 'Solo se pueden anular solicitudes pendientes.'}, status=400)
+    s.estado = 'ANULADA'
+    s.save()
+    return JsonResponse({'ok': True})
+
+
+# ──────────────────────────────────────────────────────────────
+# Mis Papeletas (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+# Tipos que un trabajador puede solicitar desde el portal
+# (excluimos los que solo genera el sistema/admin)
+TIPOS_PORTAL = [
+    ('VACACIONES', 'Vacaciones (VAC)'),
+    ('COMPENSACION_HE', 'Compensación por Horario Extendido (CHE)'),
+    ('BAJADAS', 'Bajadas / Día Libre (DL)'),
+    ('BAJADAS_ACUMULADAS', 'Bajadas Acumuladas (DLA)'),
+    ('DESCANSO_MEDICO', 'Descanso Médico (DM)'),
+    ('LICENCIA_CON_GOCE', 'Licencia con Goce (LCG)'),
+    ('LICENCIA_SIN_GOCE', 'Licencia sin Goce (LSG)'),
+    ('LICENCIA_FALLECIMIENTO', 'Licencia por Fallecimiento (LF)'),
+    ('LICENCIA_PATERNIDAD', 'Licencia por Paternidad (LP)'),
+    ('LICENCIA_MATERNIDAD', 'Licencia por Maternidad (LM)'),
+    ('COMISION_TRABAJO', 'Comisión de Trabajo (CT)'),
+    ('CAPACITACION', 'Capacitación (CAP)'),
+    ('TRABAJO_REMOTO', 'Trabajo Remoto (TR)'),
+    ('OTRO', 'Otro'),
+]
+TIPOS_PORTAL_KEYS = {t[0] for t in TIPOS_PORTAL}
+
+
+@login_required
+def mis_papeletas(request):
+    """El trabajador ve todas sus papeletas (importadas + propias)."""
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        hoy = date.today()
+        anio = int(request.GET.get('anio', hoy.year))
+        estado_filter = request.GET.get('estado', '')
+        tipo_filter = request.GET.get('tipo', '')
+
+        qs = RegistroPapeleta.objects.filter(
+            personal=empleado,
+            fecha_inicio__year=anio,
+        )
+        if estado_filter:
+            qs = qs.filter(estado=estado_filter)
+        if tipo_filter:
+            qs = qs.filter(tipo_permiso=tipo_filter)
+
+        papeletas = qs.order_by('-fecha_inicio')
+
+        pendientes = RegistroPapeleta.objects.filter(
+            personal=empleado, estado='PENDIENTE',
+        ).count()
+
+        primera = RegistroPapeleta.objects.filter(
+            personal=empleado,
+        ).order_by('fecha_inicio').first()
+        anio_inicio = primera.fecha_inicio.year if primera else hoy.year
+
+        context.update({
+            'papeletas': papeletas,
+            'pendientes': pendientes,
+            'anio_sel': anio,
+            'anios': range(anio_inicio, hoy.year + 1),
+            'estado_sel': estado_filter,
+            'tipo_sel': tipo_filter,
+            'estados': RegistroPapeleta.ESTADO_CHOICES,
+            'tipos_todos': RegistroPapeleta.TIPO_PERMISO_CHOICES,
+            'tipos_portal': TIPOS_PORTAL,
+        })
+
+    return render(request, 'portal/mis_papeletas.html', context)
+
+
+@login_required
+@require_POST
+def papeleta_crear_portal(request):
+    """El trabajador solicita una nueva papeleta."""
+    empleado = _get_empleado(request.user)
+    if not empleado:
+        return JsonResponse({'ok': False, 'error': 'Sin perfil vinculado.'}, status=403)
+
+    tipo = request.POST.get('tipo_permiso', '')
+    fecha_inicio = request.POST.get('fecha_inicio', '')
+    fecha_fin = request.POST.get('fecha_fin', '')
+    detalle = request.POST.get('detalle', '').strip()
+
+    if not tipo or not fecha_inicio or not fecha_fin:
+        return JsonResponse({'ok': False, 'error': 'Tipo, fecha inicio y fecha fin son obligatorios.'}, status=400)
+
+    if tipo not in TIPOS_PORTAL_KEYS:
+        return JsonResponse({'ok': False, 'error': 'Tipo de papeleta no permitido desde el portal.'}, status=400)
+
+    try:
+        f_ini = date.fromisoformat(fecha_inicio)
+        f_fin = date.fromisoformat(fecha_fin)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Formato de fecha inválido.'}, status=400)
+
+    if f_fin < f_ini:
+        return JsonResponse({'ok': False, 'error': 'Fecha fin no puede ser anterior a fecha inicio.'}, status=400)
+
+    # Calcular días hábiles (lun-vie entre inicio y fin)
+    dias = 0
+    d = f_ini
+    from datetime import timedelta
+    while d <= f_fin:
+        if d.weekday() < 5:  # lun=0 ... vie=4
+            dias += 1
+        d += timedelta(days=1)
+
+    try:
+        p = RegistroPapeleta.objects.create(
+            personal=empleado,
+            dni=empleado.nro_doc,
+            nombre_archivo=empleado.apellidos_nombres,
+            tipo_permiso=tipo,
+            fecha_inicio=f_ini,
+            fecha_fin=f_fin,
+            dias_habiles=dias,
+            detalle=detalle,
+            origen='PORTAL',
+            estado='PENDIENTE',
+            creado_por=request.user,
+            area_trabajo=str(empleado.subarea.area) if empleado.subarea else '',
+            cargo=empleado.cargo or '',
+        )
+        return JsonResponse({
+            'ok': True,
+            'pk': p.pk,
+            'tipo': p.tipo_permiso,
+            'tipo_display': p.get_tipo_permiso_display(),
+            'fecha_inicio': p.fecha_inicio.strftime('%d/%m/%Y'),
+            'fecha_fin': p.fecha_fin.strftime('%d/%m/%Y'),
+            'dias_habiles': p.dias_habiles,
+            'estado': p.estado,
+            'estado_display': p.get_estado_display(),
+            'detalle': p.detalle[:80],
+            'origen': p.origen,
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def papeleta_anular_portal(request, pk):
+    """El trabajador anula una papeleta pendiente que él creó."""
+    empleado = _get_empleado(request.user)
+    if not empleado:
+        return JsonResponse({'ok': False, 'error': 'Sin perfil vinculado.'}, status=403)
+    try:
+        p = RegistroPapeleta.objects.get(pk=pk, personal=empleado, origen='PORTAL')
+    except RegistroPapeleta.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'No encontrado o no es una papeleta propia.'}, status=404)
+    if p.estado != 'PENDIENTE':
+        return JsonResponse({'ok': False, 'error': 'Solo se pueden anular papeletas pendientes.'}, status=400)
+    p.estado = 'ANULADA'
+    p.save()
+    return JsonResponse({'ok': True})
+
+
+# ──────────────────────────────────────────────────────────────
+# Mi Timeline (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mi_timeline(request):
+    """Timeline cronológica del propio empleado (vista portal)."""
+    from personal.views.timeline import _build_timeline
+    from datetime import timedelta
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        eventos = _build_timeline(empleado, limit=100)
+
+        meses = {}
+        for ev in eventos:
+            key = ev['fecha'].strftime('%Y-%m')
+            label = ev['fecha'].strftime('%B %Y').capitalize()
+            if key not in meses:
+                meses[key] = {'label': label, 'eventos': []}
+            meses[key]['eventos'].append(ev)
+
+        hoy = date.today()
+        antiguedad = ''
+        if empleado.fecha_alta:
+            delta = hoy - empleado.fecha_alta
+            anios = delta.days // 365
+            meses_rest = (delta.days % 365) // 30
+            if anios > 0:
+                antiguedad = f'{anios} año{"s" if anios > 1 else ""}'
+                if meses_rest > 0:
+                    antiguedad += f', {meses_rest} mes{"es" if meses_rest > 1 else ""}'
+            else:
+                antiguedad = f'{meses_rest} mes{"es" if meses_rest > 1 else ""}'
+
+        context.update({
+            'meses': meses,
+            'total_eventos': len(eventos),
+            'antiguedad': antiguedad,
+        })
+
+    return render(request, 'portal/mi_timeline.html', context)
+
+
+# ──────────────────────────────────────────────────────────────
+# Mis Documentos (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mis_documentos(request):
+    """El trabajador ve su legajo digital (solo lectura)."""
+    from documentos.models import DocumentoTrabajador, TipoDocumento
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        docs = DocumentoTrabajador.objects.filter(
+            personal=empleado,
+        ).exclude(estado='ANULADO').select_related(
+            'tipo', 'tipo__categoria',
+        ).order_by('tipo__categoria__orden', 'tipo__orden', '-version')
+
+        # Agrupar por categoría
+        categorias_dict = {}
+        for doc in docs:
+            cat_nombre = doc.tipo.categoria.nombre if doc.tipo.categoria else 'General'
+            cat_icono = doc.tipo.categoria.icono if doc.tipo.categoria else 'fa-folder'
+            if cat_nombre not in categorias_dict:
+                categorias_dict[cat_nombre] = {'icono': cat_icono, 'docs': []}
+            categorias_dict[cat_nombre]['docs'].append(doc)
+
+        # Documentos faltantes obligatorios
+        tipos_oblig = TipoDocumento.objects.filter(obligatorio=True, activo=True)
+        if empleado.grupo_tareo == 'STAFF':
+            tipos_oblig = tipos_oblig.filter(aplica_staff=True)
+        else:
+            tipos_oblig = tipos_oblig.filter(aplica_rco=True)
+
+        tipos_existentes = set(docs.values_list('tipo_id', flat=True))
+        faltantes = [t for t in tipos_oblig if t.pk not in tipos_existentes]
+
+        context.update({
+            'categorias_dict': categorias_dict,
+            'faltantes': faltantes,
+            'total_docs': docs.count(),
+        })
+
+    return render(request, 'portal/mis_documentos.html', context)
+
+
+# ──────────────────────────────────────────────────────────────
+# Mi Nómina (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mi_nomina(request):
+    """El trabajador ve su historial de recibos de sueldo."""
+    from nominas.models import RegistroNomina, LineaNomina
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        registros = list(
+            RegistroNomina.objects.filter(personal=empleado)
+            .select_related('periodo')
+            .order_by('-periodo__anio', '-periodo__mes')
+        )
+
+        # Líneas del período más reciente para mostrar el detalle completo
+        lineas_reciente = []
+        registro_reciente = registros[0] if registros else None
+        if registro_reciente:
+            lineas_reciente = list(
+                LineaNomina.objects.filter(registro=registro_reciente)
+                .select_related('concepto')
+                .order_by('concepto__tipo', 'concepto__orden')
+            )
+
+        lineas_ingresos = [l for l in lineas_reciente if l.concepto.tipo == 'INGRESO']
+        lineas_descuentos = [l for l in lineas_reciente if l.concepto.tipo == 'DESCUENTO']
+
+        context.update({
+            'registros': registros,
+            'registro_reciente': registro_reciente,
+            'lineas_ingresos': lineas_ingresos,
+            'lineas_descuentos': lineas_descuentos,
+        })
+
+    return render(request, 'portal/mi_nomina.html', context)
+
+
+# ──────────────────────────────────────────────────────────────
+# Mis Evaluaciones (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mis_evaluaciones(request):
+    """El trabajador ve sus evaluaciones de desempeño y PDI."""
+    from evaluaciones.models import Evaluacion, PlanDesarrollo, ResultadoConsolidado
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        evaluaciones = list(
+            Evaluacion.objects.filter(evaluado=empleado)
+            .select_related('ciclo', 'evaluador')
+            .order_by('-ciclo__fecha_inicio')
+        )
+
+        planes = list(
+            PlanDesarrollo.objects.filter(personal=empleado)
+            .select_related('ciclo')
+            .prefetch_related('acciones')
+            .order_by('-fecha_inicio')
+        )
+
+        resultados = list(
+            ResultadoConsolidado.objects.filter(personal=empleado)
+            .select_related('ciclo')
+            .order_by('-ciclo__fecha_inicio')
+        )
+
+        context.update({
+            'evaluaciones': evaluaciones,
+            'planes': planes,
+            'resultados': resultados,
+        })
+
+    return render(request, 'portal/mis_evaluaciones.html', context)
+
+
+# ──────────────────────────────────────────────────────────────
+# Mis Capacitaciones (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mis_capacitaciones(request):
+    """El trabajador ve sus capacitaciones asistidas y certificaciones."""
+    from capacitaciones.models import AsistenciaCapacitacion, CertificacionTrabajador
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        asistencias = list(
+            AsistenciaCapacitacion.objects.filter(personal=empleado)
+            .select_related('capacitacion', 'capacitacion__categoria')
+            .order_by('-capacitacion__fecha_inicio')
+        )
+
+        certificaciones = list(
+            CertificacionTrabajador.objects.filter(personal=empleado)
+            .select_related('requerimiento', 'capacitacion')
+            .order_by('-fecha_obtencion')
+        )
+
+        # KPI totals
+        total_horas = sum(
+            (a.capacitacion.horas or 0)
+            for a in asistencias
+            if a.estado in ('ASISTIO', 'PARCIAL')
+        )
+        total_aprobados = sum(1 for a in asistencias if a.aprobado)
+        total_certificados = len(certificaciones)
+
+        context.update({
+            'asistencias': asistencias,
+            'certificaciones': certificaciones,
+            'total_horas': total_horas,
+            'total_aprobados': total_aprobados,
+            'total_certificados': total_certificados,
+        })
+
+    return render(request, 'portal/mis_capacitaciones.html', context)
+
+
+# ──────────────────────────────────────────────────────────────
+# Mis Vacaciones (portal del trabajador)
+# ──────────────────────────────────────────────────────────────
+
+@login_required
+def mis_vacaciones(request):
+    """El trabajador ve su saldo vacacional e historial de solicitudes."""
+    from vacaciones.models import SaldoVacacional, SolicitudVacacion
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        saldos = list(
+            SaldoVacacional.objects.filter(personal=empleado)
+            .order_by('-periodo_fin')
+        )
+
+        solicitudes = list(
+            SolicitudVacacion.objects.filter(personal=empleado)
+            .select_related('saldo')
+            .order_by('-fecha_inicio')[:20]
+        )
+
+        total_pendientes_dias = sum(s.dias_pendientes for s in saldos)
+
+        context.update({
+            'saldos': saldos,
+            'solicitudes': solicitudes,
+            'total_pendientes_dias': total_pendientes_dias,
+        })
+
+    return render(request, 'portal/mis_vacaciones.html', context)

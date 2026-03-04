@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Mis Preferencias{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <div class="d-flex align-items-center mb-4">
+      <div>
+        <h2 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Mis Preferencias</h2>
+        <small class="text-muted">Personaliza tu experiencia en Harmoni</small>
+      </div>
+    </div>
+
+    <form method="post" id="formPreferencias">
+      {% csrf_token %}
+
+      {# ── Interfaz ── #}
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><strong><i class="fas fa-desktop me-2"></i>Interfaz</strong></div>
+        <div class="card-body">
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Tema de color</label>
+            <div class="d-flex gap-3">
+              {% for val, lbl in tema_opciones %}
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="tema" value="{{ val }}"
+                       id="tema_{{ val }}" {% if prefs.tema == val %}checked{% endif %}>
+                <label class="form-check-label" for="tema_{{ val }}">
+                  {% if val == 'AUTO' %}<i class="fas fa-circle-half-stroke me-1"></i>{% endif %}
+                  {% if val == 'LIGHT' %}<i class="fas fa-sun me-1"></i>{% endif %}
+                  {% if val == 'DARK' %}<i class="fas fa-moon me-1"></i>{% endif %}
+                  {{ lbl }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="form-text">El tema oscuro se aplicará en la próxima sesión.</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Elementos por página en tablas</label>
+            <div class="d-flex gap-3 flex-wrap">
+              {% for val, lbl in items_opciones %}
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="items_por_pagina" value="{{ val }}"
+                       id="items_{{ val }}" {% if prefs.items_por_pagina == val %}checked{% endif %}>
+                <label class="form-check-label" for="items_{{ val }}">{{ lbl }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input type="checkbox" name="sidebar_colapsado" value="1"
+                     class="form-check-input" id="id_sidebar"
+                     {% if prefs.sidebar_colapsado %}checked{% endif %}>
+              <label class="form-check-label" for="id_sidebar">
+                Sidebar colapsado por defecto
+                <div class="form-text fw-normal">El menú lateral iniciará minimizado.</div>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# ── Notificaciones ── #}
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><strong><i class="fas fa-bell me-2"></i>Notificaciones</strong></div>
+        <div class="card-body">
+
+          <div class="form-check form-switch mb-3">
+            <input type="checkbox" name="notif_email_habilitado" value="1"
+                   class="form-check-input" id="id_notif_email"
+                   {% if prefs.notif_email_habilitado %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="id_notif_email">
+              Recibir notificaciones por email
+            </label>
+          </div>
+
+          <hr class="my-2">
+          <p class="text-muted small mb-2">Tipos de alerta que quiero recibir:</p>
+
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" name="notif_contratos" value="1"
+                   class="form-check-input" id="id_notif_cont"
+                   {% if prefs.notif_contratos %}checked{% endif %}>
+            <label class="form-check-label" for="id_notif_cont">
+              <i class="fas fa-file-contract text-primary me-1"></i>
+              Vencimientos de contratos y período de prueba
+            </label>
+          </div>
+
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" name="notif_vacaciones" value="1"
+                   class="form-check-input" id="id_notif_vac"
+                   {% if prefs.notif_vacaciones %}checked{% endif %}>
+            <label class="form-check-label" for="id_notif_vac">
+              <i class="fas fa-umbrella-beach text-info me-1"></i>
+              Solicitudes de vacaciones y permisos
+            </label>
+          </div>
+
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" name="notif_documentos" value="1"
+                   class="form-check-input" id="id_notif_doc"
+                   {% if prefs.notif_documentos %}checked{% endif %}>
+            <label class="form-check-label" for="id_notif_doc">
+              <i class="fas fa-file-signature text-warning me-1"></i>
+              Documentos laborales pendientes de confirmación
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      {# ── Info cuenta ── #}
+      <div class="card shadow-sm mb-4 bg-light border-0">
+        <div class="card-body">
+          <h6 class="text-muted mb-3"><i class="fas fa-user-circle me-2"></i>Cuenta</h6>
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="text-muted small">Usuario</div>
+              <div class="fw-semibold">{{ request.user.username }}</div>
+            </div>
+            <div class="col-6">
+              <div class="text-muted small">Email</div>
+              <div class="fw-semibold">{{ request.user.email|default:"—" }}</div>
+            </div>
+            <div class="col-12 mt-2">
+              <a href="{% url 'password_change' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-key me-1"></i> Cambiar contraseña
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i> Guardar preferencias
+        </button>
+        <a href="{% url 'home' %}" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<script>
+// Guardar preferencias via AJAX cuando cambian los switches
+document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(function(el) {
+  el.addEventListener('change', function() {
+    fetch("{% url 'preferencias_api' %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+      body: JSON.stringify({ campo: this.name, valor: this.checked }),
+    });
+  });
+});
+</script>
+{% endblock %}

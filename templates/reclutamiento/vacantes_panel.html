@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Vacantes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start align-items-md-center mb-3 gap-2 flex-column flex-md-row">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-briefcase me-2" style="color:#0f766e"></i>{{ titulo }}</h2>
+        <div class="d-flex gap-2 align-items-center mt-1 flex-wrap">
+            <span class="text-muted" style="font-size:.82rem;">{{ total }} vacante{{ total|pluralize:"s" }}</span>
+            <a href="{% url 'reclutamiento_dashboard' %}" class="badge bg-light text-dark border text-decoration-none" style="font-size:.72rem;">
+                <i class="fas fa-chart-line me-1"></i>Dashboard
+            </a>
+            <a href="{% url 'pipeline_panel' %}" class="badge bg-light text-dark border text-decoration-none" style="font-size:.72rem;">
+                <i class="fas fa-columns me-1"></i>Pipeline
+            </a>
+        </div>
+    </div>
+    <a href="{% url 'vacante_crear' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Nueva Vacante
+    </a>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-3">
+    <!-- Vacantes activas -->
+    <div class="col-6 col-sm-4 col-lg">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #0f766e !important;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;background:#ccfbf1;">
+                        <i class="fas fa-briefcase" style="color:#0f766e;font-size:.8rem;"></i>
+                    </span>
+                    <span class="text-muted small">Vacantes Activas</span>
+                </div>
+                <div class="fw-bold" style="font-size:1.6rem;color:#0d2b27;line-height:1;">{{ kpi_vacantes_activas }}</div>
+                <div class="text-muted" style="font-size:.72rem;">Publicadas + En Proceso</div>
+            </div>
+        </div>
+    </div>
+    <!-- Candidatos del mes -->
+    <div class="col-6 col-sm-4 col-lg">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #0891b2 !important;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;background:#e0f2fe;">
+                        <i class="fas fa-users" style="color:#0891b2;font-size:.8rem;"></i>
+                    </span>
+                    <span class="text-muted small">Candidatos Mes</span>
+                </div>
+                <div class="fw-bold" style="font-size:1.6rem;color:#0d2b27;line-height:1;">{{ kpi_candidatos_mes }}</div>
+                <div class="text-muted" style="font-size:.72rem;">Postulaciones en el mes actual</div>
+            </div>
+        </div>
+    </div>
+    <!-- Tasa de conversion -->
+    <div class="col-6 col-sm-4 col-lg">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #16a34a !important;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;background:#dcfce7;">
+                        <i class="fas fa-percentage" style="color:#16a34a;font-size:.8rem;"></i>
+                    </span>
+                    <span class="text-muted small">Tasa Conversion</span>
+                </div>
+                <div class="fw-bold" style="font-size:1.6rem;color:#0d2b27;line-height:1;">{{ kpi_tasa_conversion }}%</div>
+                <div class="text-muted" style="font-size:.72rem;">Contratados / postulantes mes ant.</div>
+            </div>
+        </div>
+    </div>
+    <!-- Tiempo promedio cierre -->
+    <div class="col-6 col-sm-4 col-lg">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #d97706 !important;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;background:#fef3c7;">
+                        <i class="fas fa-clock" style="color:#d97706;font-size:.8rem;"></i>
+                    </span>
+                    <span class="text-muted small">Tiempo Cierre</span>
+                </div>
+                <div class="fw-bold" style="font-size:1.6rem;color:#0d2b27;line-height:1;">
+                    {% if kpi_tiempo_promedio_cierre %}{{ kpi_tiempo_promedio_cierre|floatformat:0 }}d{% else %}—{% endif %}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">Promedio dias publicacion a cierre</div>
+            </div>
+        </div>
+    </div>
+    <!-- Postulaciones activas -->
+    <div class="col-6 col-sm-4 col-lg">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #7c3aed !important;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;background:#ede9fe;">
+                        <i class="fas fa-file-alt" style="color:#7c3aed;font-size:.8rem;"></i>
+                    </span>
+                    <span class="text-muted small">Postulaciones</span>
+                </div>
+                <div class="fw-bold" style="font-size:1.6rem;color:#0d2b27;line-height:1;">{{ stats.total_postulaciones }}</div>
+                <div class="text-muted" style="font-size:.72rem;">Candidatos en pipeline activo</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if kpi_vacantes_por_area %}
+<!-- Vacantes por area -->
+<div class="card shadow-sm mb-3 border-0">
+    <div class="card-header py-2 px-3" style="background:#f0fdfa;border-bottom:1px solid #ccfbf1;">
+        <small class="fw-semibold" style="color:#0f766e;"><i class="fas fa-chart-bar me-1"></i>Vacantes activas por area</small>
+    </div>
+    <div class="card-body py-2 px-3">
+        {% with max_v=kpi_vacantes_por_area.0.total %}
+        {% for item in kpi_vacantes_por_area %}
+        <div class="d-flex align-items-center gap-2 mb-1" style="font-size:.82rem;">
+            <div class="text-truncate" style="min-width:120px;max-width:200px;" title="{{ item.area__nombre }}">{{ item.area__nombre }}</div>
+            <div class="flex-grow-1">
+                <div class="progress" style="height:8px;border-radius:4px;">
+                    <div class="progress-bar" role="progressbar"
+                         style="width:{% widthratio item.total max_v 100 %}%;background:#0f766e;"
+                         aria-valuenow="{{ item.total }}" aria-valuemax="{{ max_v }}"></div>
+                </div>
+            </div>
+            <div class="fw-semibold text-end" style="min-width:22px;color:#0d2b27;">{{ item.total }}</div>
+        </div>
+        {% endfor %}
+        {% endwith %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Stats basicas (fila secundaria) -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-primary">{{ stats.abiertas }}</div><div class="stat-label">Publicadas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-warning">{{ stats.en_proceso }}</div><div class="stat-label">En Proceso</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ stats.cubiertas }}</div><div class="stat-label">Cubiertas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-danger">{{ stats.canceladas }}</div><div class="stat-label">Canceladas</div></div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:140px">
+                    <option value="">Todos</option>
+                    <option value="BORRADOR" {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                    <option value="PUBLICADA" {% if filtro_estado == 'PUBLICADA' %}selected{% endif %}>Publicada</option>
+                    <option value="EN_PROCESO" {% if filtro_estado == 'EN_PROCESO' %}selected{% endif %}>En Proceso</option>
+                    <option value="CUBIERTA" {% if filtro_estado == 'CUBIERTA' %}selected{% endif %}>Cubierta</option>
+                    <option value="CANCELADA" {% if filtro_estado == 'CANCELADA' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Area</label>
+                <select name="area" class="form-select form-select-sm" style="width:160px">
+                    <option value="">Todas</option>
+                    {% for a in areas %}
+                    <option value="{{ a.pk }}" {% if filtro_area == a.pk|stringformat:"d" %}selected{% endif %}>{{ a.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Prioridad</label>
+                <select name="prioridad" class="form-select form-select-sm" style="width:120px">
+                    <option value="">Todas</option>
+                    <option value="BAJA" {% if filtro_prioridad == 'BAJA' %}selected{% endif %}>Baja</option>
+                    <option value="MEDIA" {% if filtro_prioridad == 'MEDIA' %}selected{% endif %}>Media</option>
+                    <option value="ALTA" {% if filtro_prioridad == 'ALTA' %}selected{% endif %}>Alta</option>
+                    <option value="URGENTE" {% if filtro_prioridad == 'URGENTE' %}selected{% endif %}>Urgente</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Titulo..." style="width:170px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if filtro_estado or filtro_area or filtro_prioridad or buscar %}
+            <a href="{% url 'vacantes_panel' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i></a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Puesto</th>
+                    <th>Area</th>
+                    <th class="text-center">Prioridad</th>
+                    <th class="text-center">Contrato</th>
+                    <th class="text-center">Postulaciones</th>
+                    <th class="text-center">Estado</th>
+                    <th>Fecha Limite</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vacantes %}
+                <tr>
+                    <td>
+                        <a href="{% url 'vacante_detalle' v.pk %}" class="text-decoration-none fw-semibold">{{ v.titulo }}</a>
+                        {% if v.publica %}<i class="fas fa-globe-americas text-info ms-1" title="Publicada en portal"></i>{% endif %}
+                    </td>
+                    <td>{{ v.area|default:"—" }}</td>
+                    <td class="text-center">
+                        {% if v.prioridad == 'URGENTE' %}
+                            <span class="badge bg-danger">Urgente</span>
+                        {% elif v.prioridad == 'ALTA' %}
+                            <span class="badge bg-warning text-dark">Alta</span>
+                        {% elif v.prioridad == 'MEDIA' %}
+                            <span class="badge bg-info text-dark">Media</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Baja</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center"><small>{{ v.get_tipo_contrato_display }}</small></td>
+                    <td class="text-center">
+                        <span class="badge bg-primary rounded-pill">{{ v.total_postulaciones }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if v.estado == 'PUBLICADA' %}
+                            <span class="badge bg-success">Publicada</span>
+                        {% elif v.estado == 'EN_PROCESO' %}
+                            <span class="badge bg-warning text-dark">En Proceso</span>
+                        {% elif v.estado == 'CUBIERTA' %}
+                            <span class="badge bg-info">Cubierta</span>
+                        {% elif v.estado == 'CANCELADA' %}
+                            <span class="badge bg-danger">Cancelada</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Borrador</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if v.fecha_limite %}
+                            <small class="{% if v.esta_vencida %}text-danger fw-bold{% endif %}">{{ v.fecha_limite|date:"d/m/Y" }}</small>
+                        {% else %}
+                            <small class="text-muted">—</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'vacante_detalle' v.pk %}" class="btn btn-sm btn-outline-primary" title="Ver"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'vacante_editar' v.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar"><i class="fas fa-edit"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay vacantes registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

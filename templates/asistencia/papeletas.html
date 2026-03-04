@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Papeletas{% endblock %}
+
+{% block extra_css %}
+<style>
+.estado-pill { font-size:.72rem; padding:3px 8px; border-radius:20px; font-weight:600; }
+.estado-PENDIENTE  { background:#fff3cd; color:#856404; }
+.estado-APROBADA   { background:#d1e7dd; color:#0f5132; }
+.estado-RECHAZADA  { background:#f8d7da; color:#842029; }
+.estado-EJECUTADA  { background:#cfe2ff; color:#084298; }
+.estado-ANULADA    { background:#e9ecef; color:#6c757d; }
+.tipo-pill { font-size:.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
+.tipo-comp { background:#fef3c7; color:#92400e; }
+.tipo-lic  { background:#dbeafe; color:#1e40af; }
+.tipo-vac  { background:#d1fae5; color:#065f46; }
+.tipo-otro { background:#e9ecef; color:#495057; }
+.origen-pill { font-size:.68rem; padding:1px 6px; border-radius:3px; }
+.origen-IMPORTACION { background:#e9ecef; color:#6c757d; }
+.origen-SISTEMA     { background:#dbeafe; color:#1e40af; }
+.origen-PORTAL      { background:#fef3c7; color:#92400e; }
+.info-banner { background:#f0fdf9; border-left:4px solid var(--secondary-color); padding:10px 14px; border-radius:0 6px 6px 0; font-size:.85rem; }
+.stat-mini { font-size:.85rem; padding:4px 12px; border-radius:6px; }
+.compensacion-fields { display:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-file-contract text-secondary me-2"></i>Papeletas</h2>
+        <small class="text-muted">Permisos, licencias, vacaciones, compensaciones — importadas y manuales</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        {% if pendientes > 0 %}
+        <span class="stat-mini bg-warning text-dark fw-semibold">
+            <i class="fas fa-clock me-1"></i>{{ pendientes }} pendiente{{ pendientes|pluralize:"s" }}
+        </span>
+        {% endif %}
+        <span class="stat-mini bg-light border text-muted">
+            <i class="fas fa-list me-1"></i>{{ total }} registro{{ total|pluralize:"s" }}
+        </span>
+        <button class="btn btn-outline-success btn-sm" onclick="exportarExcel()" title="Exportar a Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="abrirModal()">
+            <i class="fas fa-plus me-1"></i>Nueva Papeleta
+        </button>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="info-banner mb-3">
+    <i class="fas fa-info-circle text-secondary me-2"></i>
+    Las papeletas pueden ser <strong>importadas</strong> desde el sistema externo (Synkro) o <strong>creadas manualmente</strong>.
+    Las papeletas de compensación (CPF/CDT) con estado <span class="badge bg-success">Aprobada</span> modifican el cálculo de HE 100%.
+</div>
+
+<!-- KPI Strip -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#0f766e;">{{ total }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Total {{ anio_actual }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;{% if pendientes > 0 %}color:#d97706;{% else %}color:#94a3b8;{% endif %}">{{ pendientes }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Pendientes</div>
+        </div>
+    </div>
+    {% if pap_stats %}
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#16a34a;">{{ pap_stats.aprobadas_count }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Aprobadas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#dc2626;">{{ pap_stats.rechazadas_count }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Rechazadas</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="d-flex gap-2 flex-wrap mb-3 align-items-end">
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Año</label>
+        <select name="anio" class="form-select form-select-sm" style="width:90px">
+            {% for y in anios %}<option value="{{ y }}" {% if y == anio_actual %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Tipo</label>
+        <select name="tipo" class="form-select form-select-sm" style="min-width:180px">
+            <option value="">Todos</option>
+            {% for val, label in tipos %}<option value="{{ val }}" {% if val == filtro_tipo %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Estado</label>
+        <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for val, label in estados %}<option value="{{ val }}" {% if val == filtro_estado %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Origen</label>
+        <select name="origen" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for val, label in origenes %}<option value="{{ val }}" {% if val == filtro_origen %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Trabajador</label>
+        <select name="personal" class="form-select form-select-sm" style="min-width:200px">
+            <option value="">Todos</option>
+            {% for p in personal_list %}<option value="{{ p.pk }}" {% if p.pk|stringformat:'s' == filtro_personal %}selected{% endif %}>{{ p.apellidos_nombres }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<!-- Tabla -->
+<div class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Trabajador</th>
+                <th>Tipo</th>
+                <th>Fecha Inicio</th>
+                <th>Fecha Fin</th>
+                <th>Ref.</th>
+                <th>Estado</th>
+                <th>Origen</th>
+                <th>Detalle</th>
+                <th style="width:100px"></th>
+            </tr>
+        </thead>
+        <tbody id="papeletasBody">
+            {% for p in papeletas %}
+            <tr id="fila-p-{{ p.pk }}"
+                data-pk="{{ p.pk }}"
+                data-personal-id="{{ p.personal_id|default:'' }}"
+                data-tipo="{{ p.tipo_permiso }}"
+                data-finicio="{{ p.fecha_inicio|date:'Y-m-d' }}"
+                data-ffin="{{ p.fecha_fin|date:'Y-m-d' }}"
+                data-fref="{{ p.fecha_referencia|date:'Y-m-d'|default:'' }}"
+                data-estado="{{ p.estado }}"
+                data-detalle="{{ p.detalle|escapejs }}"
+                data-dias="{{ p.dias_habiles }}"
+                data-obs="{{ p.observaciones|escapejs }}"
+                data-origen="{{ p.origen }}"
+                data-importada="{{ p.es_importada|yesno:'1,0' }}">
+                <td class="fw-semibold small">{{ p.personal.apellidos_nombres|default:p.dni }}</td>
+                <td>
+                    {% if p.es_compensacion %}
+                    <span class="tipo-pill tipo-comp">{{ p.get_tipo_permiso_display }}</span>
+                    {% elif p.tipo_permiso == 'VACACIONES' %}
+                    <span class="tipo-pill tipo-vac">{{ p.get_tipo_permiso_display }}</span>
+                    {% elif 'LICENCIA' in p.tipo_permiso %}
+                    <span class="tipo-pill tipo-lic">{{ p.get_tipo_permiso_display }}</span>
+                    {% else %}
+                    <span class="tipo-pill tipo-otro">{{ p.get_tipo_permiso_display }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ p.fecha_inicio|date:"d/m/Y" }}</td>
+                <td>{{ p.fecha_fin|date:"d/m/Y" }}</td>
+                <td class="text-muted small">{{ p.fecha_referencia|date:"d/m/Y"|default:"—" }}</td>
+                <td><span class="estado-pill estado-{{ p.estado }}">{{ p.get_estado_display }}</span></td>
+                <td><span class="origen-pill origen-{{ p.origen }}">{{ p.get_origen_display }}</span></td>
+                <td class="text-muted small">{{ p.detalle|default:p.observaciones|default:"—"|truncatechars:40 }}</td>
+                <td class="text-end text-nowrap">
+                    {% if p.estado == 'PENDIENTE' %}
+                    <button class="btn btn-xs btn-outline-success py-0 px-1" onclick="aprobarPapeleta({{ p.pk }}, 'aprobar')" title="Aprobar">
+                        <i class="fas fa-check" style="font-size:.7rem"></i>
+                    </button>
+                    <button class="btn btn-xs btn-outline-warning py-0 px-1" onclick="aprobarPapeleta({{ p.pk }}, 'rechazar')" title="Rechazar">
+                        <i class="fas fa-times" style="font-size:.7rem"></i>
+                    </button>
+                    {% endif %}
+                    {% if p.origen != 'IMPORTACION' %}
+                    <button class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="editarPapeleta({{ p.pk }})" title="Editar">
+                        <i class="fas fa-pen" style="font-size:.7rem"></i>
+                    </button>
+                    <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarPapeleta({{ p.pk }})" title="Eliminar">
+                        <i class="fas fa-trash" style="font-size:.7rem"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr id="filaVaciaPapeletas">
+                <td colspan="9" class="text-center text-muted py-4">
+                    <i class="fas fa-file-contract fa-2x d-block mb-2 opacity-25"></i>
+                    Sin papeletas para los filtros seleccionados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalPapeleta" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalPapTitulo"><i class="fas fa-file-contract me-2"></i>Nueva Papeleta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="papPk" value="">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Trabajador <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="papPersonal">
+                            <option value="">— Seleccionar —</option>
+                            {% for p in personal_list %}<option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Tipo de Permiso <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="papTipo" onchange="toggleCompFields()">
+                            {% for val, label in tipos %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Estado</label>
+                        <select class="form-select form-select-sm" id="papEstado">
+                            {% for val, label in estados %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label fw-semibold">Fecha Inicio <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm" id="papFInicio">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label fw-semibold">Fecha Fin <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm" id="papFFin">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label fw-semibold">Días Hábiles</label>
+                        <input type="number" class="form-control form-control-sm" id="papDias" min="0" value="0">
+                    </div>
+                    <div class="col-6 compensacion-fields" id="compFieldsContainer">
+                        <label class="form-label fw-semibold">Fecha Referencia (Feriado/DSO trabajado)</label>
+                        <input type="date" class="form-control form-control-sm" id="papFRef">
+                        <small class="text-muted">Fecha del feriado o DSO que se trabajó</small>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Detalle / Motivo</label>
+                        <textarea class="form-control form-control-sm" id="papDetalle" rows="2"
+                                  placeholder="Motivo, acuerdo, observaciones..."></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Observaciones del revisor</label>
+                        <textarea class="form-control form-control-sm" id="papObs" rows="1"></textarea>
+                    </div>
+                </div>
+                <div id="papError" class="alert alert-danger py-2 small mt-3" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="guardarPapeleta()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+const COMP_TIPOS = ['COMPENSACION_FERIADO', 'COMP_DIA_TRABAJO', 'COMPENSACION_HE'];
+
+function toggleCompFields() {
+    const tipo = document.getElementById('papTipo').value;
+    const show = COMP_TIPOS.includes(tipo);
+    document.getElementById('compFieldsContainer').style.display = show ? '' : 'none';
+}
+
+function abrirModal(d) {
+    d = d || {};
+    document.getElementById('papPk').value        = d.pk || '';
+    document.getElementById('papPersonal').value   = d.personalId || '';
+    document.getElementById('papTipo').value       = d.tipo || 'VACACIONES';
+    document.getElementById('papEstado').value     = d.estado || 'PENDIENTE';
+    document.getElementById('papFInicio').value    = d.finicio || '';
+    document.getElementById('papFFin').value       = d.ffin || '';
+    document.getElementById('papFRef').value       = d.fref || '';
+    document.getElementById('papDias').value       = d.dias || '0';
+    document.getElementById('papDetalle').value    = d.detalle || '';
+    document.getElementById('papObs').value        = d.obs || '';
+    document.getElementById('papError').style.display = 'none';
+    document.getElementById('modalPapTitulo').innerHTML =
+        '<i class="fas fa-file-contract me-2"></i>' + (d.pk ? 'Editar Papeleta' : 'Nueva Papeleta');
+    toggleCompFields();
+    new bootstrap.Modal(document.getElementById('modalPapeleta')).show();
+}
+
+function editarPapeleta(pk) {
+    const tr = document.getElementById('fila-p-' + pk);
+    abrirModal({
+        pk:         tr.dataset.pk,
+        personalId: tr.dataset.personalId,
+        tipo:       tr.dataset.tipo,
+        estado:     tr.dataset.estado,
+        finicio:    tr.dataset.finicio,
+        ffin:       tr.dataset.ffin,
+        fref:       tr.dataset.fref,
+        dias:       tr.dataset.dias,
+        detalle:    tr.dataset.detalle,
+        obs:        tr.dataset.obs,
+    });
+}
+
+async function guardarPapeleta() {
+    const pk       = document.getElementById('papPk').value;
+    const personal = document.getElementById('papPersonal').value;
+    const tipo     = document.getElementById('papTipo').value;
+    const estado   = document.getElementById('papEstado').value;
+    const finicio  = document.getElementById('papFInicio').value;
+    const ffin     = document.getElementById('papFFin').value || finicio;
+    const fref     = document.getElementById('papFRef').value;
+    const dias     = document.getElementById('papDias').value;
+    const detalle  = document.getElementById('papDetalle').value.trim();
+    const obs      = document.getElementById('papObs').value.trim();
+    const errDiv   = document.getElementById('papError');
+
+    if (!personal || !finicio) {
+        errDiv.textContent = 'Trabajador y Fecha Inicio son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const url = pk
+        ? `/asistencia/papeletas/${pk}/editar/`
+        : '/asistencia/papeletas/crear/';
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            personal_id: personal, tipo_permiso: tipo, estado,
+            fecha_inicio: finicio, fecha_fin: ffin, fecha_referencia: fref,
+            dias_habiles: dias, detalle, observaciones: obs,
+        }),
+    });
+    const data = await resp.json();
+    if (!data.ok) { errDiv.textContent = data.error; errDiv.style.display = ''; return; }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalPapeleta')).hide();
+    location.reload();
+}
+
+async function eliminarPapeleta(pk) {
+    if (!confirm('¿Eliminar esta papeleta?')) return;
+    const resp = await fetch(`/asistencia/papeletas/${pk}/eliminar/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-p-' + pk)?.remove();
+        if (!document.querySelector('#papeletasBody tr[data-pk]')) {
+            document.getElementById('papeletasBody').innerHTML =
+                '<tr id="filaVaciaPapeletas"><td colspan="9" class="text-center text-muted py-4">Sin papeletas.</td></tr>';
+        }
+    } else { alert(data.error); }
+}
+
+function exportarExcel() {
+    const params = new URLSearchParams(window.location.search);
+    window.open('{% url "asistencia_papeletas_exportar" %}?' + params.toString(), '_blank');
+}
+
+async function aprobarPapeleta(pk, accion) {
+    const label = accion === 'aprobar' ? 'aprobar' : 'rechazar';
+    if (!confirm(`¿${label.charAt(0).toUpperCase() + label.slice(1)} esta papeleta?`)) return;
+    const resp = await fetch(`/asistencia/papeletas/${pk}/aprobar/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ accion }),
+    });
+    const data = await resp.json();
+    if (data.ok) { location.reload(); }
+    else { alert(data.error); }
+}
+</script>
+{% endblock %}

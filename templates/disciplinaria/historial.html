@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Historial Disciplinario{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-history text-secondary me-2"></i>{{ titulo }}</h2>
+    <small class="text-muted">{{ empleado.nro_doc }} — {{ empleado.grupo_tareo }}</small>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-info">{{ resumen.verbales }}</div><div class="stat-label">Verbales</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-warning">{{ resumen.escritas }}</div><div class="stat-label">Escritas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-danger">{{ resumen.suspensiones }}</div><div class="stat-label">Suspensiones</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value">{{ medidas|length }}</div><div class="stat-label">Total Registros</div></div>
+    </div>
+</div>
+
+<!-- Timeline -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Fecha Hechos</th>
+                    <th>Tipo</th>
+                    <th>Falta</th>
+                    <th class="text-center">Gravedad</th>
+                    <th class="text-center">Estado</th>
+                    <th>Resolución</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in medidas %}
+                <tr>
+                    <td>{{ m.fecha_hechos|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if m.tipo_medida == 'VERBAL' %}<span class="badge bg-info">Verbal</span>
+                        {% elif m.tipo_medida == 'ESCRITA' %}<span class="badge bg-warning text-dark">Escrita</span>
+                        {% elif m.tipo_medida == 'SUSPENSION' %}<span class="badge bg-danger">Suspensión</span>
+                        {% elif m.tipo_medida == 'DESPIDO' %}<span class="badge bg-dark">Despido</span>{% endif %}
+                    </td>
+                    <td>{{ m.tipo_falta.nombre|truncatechars:30 }}</td>
+                    <td class="text-center">
+                        {% if m.tipo_falta.gravedad == 'LEVE' %}<span class="badge bg-info">Leve</span>
+                        {% elif m.tipo_falta.gravedad == 'GRAVE' %}<span class="badge bg-warning text-dark">Grave</span>
+                        {% elif m.tipo_falta.gravedad == 'MUY_GRAVE' %}<span class="badge bg-danger">Muy Grave</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if m.estado == 'RESUELTA' %}<span class="badge bg-success">Resuelta</span>
+                        {% elif m.estado == 'BORRADOR' %}<span class="badge bg-light text-dark">Borrador</span>
+                        {% else %}<span class="badge bg-secondary">{{ m.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ m.resolucion|truncatechars:40|default:"—" }}</td>
+                    <td><a href="{% url 'medida_detalle' m.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2"><i class="fas fa-eye"></i></a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay registros disciplinarios para este trabajador.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'disciplinaria_panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+{% endblock %}

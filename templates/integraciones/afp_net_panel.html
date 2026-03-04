@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}AFP Net — Panel{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-piggy-bank me-2 text-info"></i>AFP Net — Panel de Exportación</h2>
+    <small class="text-muted">Aportes previsionales por AFP · {{ total_afp }} afiliados AFP activos</small>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <label class="text-muted small">Período:</label>
+    <input type="month" id="periodoInput" class="form-control form-control-sm"
+           style="width:160px" value="{{ periodo }}" max="{{ periodo_actual }}">
+    <a href="{% url 'integraciones_panel' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Panel Principal
+    </a>
+  </div>
+</div>
+
+{# Estadísticas globales #}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card border-0 shadow-sm" style="background:linear-gradient(135deg,#0d2b27,#134e4a); color:#fff;">
+      <div class="card-body py-3">
+        <div class="row align-items-center">
+          <div class="col-md-4">
+            <div class="fs-1 fw-bold" style="color:#5eead4;">{{ total_afp }}</div>
+            <div class="opacity-75">Total afiliados AFP activos</div>
+          </div>
+          <div class="col-md-8">
+            <div class="row g-2 mt-1">
+              {% for afp in afp_data %}
+              <div class="col-3 text-center">
+                <div class="fw-bold fs-4">{{ afp.total_empleados }}</div>
+                <div class="small opacity-75">{{ afp.nombre }}</div>
+                <div class="small" style="color:#5eead4;">
+                  S/ {{ afp.aporte_estimado|floatformat:0 }}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Cards por AFP #}
+<div class="row g-4">
+  {% for afp in afp_data %}
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header {{ afp.bg_class }} {% if afp.bg_class == 'bg-warning' %}text-dark{% else %}text-white{% endif %} d-flex align-items-center justify-content-between">
+        <span>
+          <i class="{{ afp.icon }} me-2"></i>
+          <strong>AFP {{ afp.nombre }}</strong>
+        </span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-white text-dark">{{ afp.total_empleados }} trabajadores</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        {# Info del AFP #}
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <div class="rounded p-2 text-center" style="background:#f0fdf4;">
+              <div class="fw-bold text-success">{{ afp.total_empleados }}</div>
+              <div class="small text-muted">Empleados</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="rounded p-2 text-center" style="background:#eff6ff;">
+              <div class="fw-bold text-primary">S/ {{ afp.aporte_estimado|floatformat:2 }}</div>
+              <div class="small text-muted">Aporte estimado (13%)</div>
+            </div>
+          </div>
+        </div>
+
+        {# Ultimo export #}
+        {% if afp.ultimo_export %}
+        <div class="small text-muted mb-2">
+          <i class="fas fa-clock me-1"></i>
+          Último export AFP Net: {{ afp.ultimo_export.generado_en|date:"d/m/Y H:i" }}
+          por {{ afp.ultimo_export.generado_por.username|default:"sistema" }}
+        </div>
+        {% else %}
+        <div class="small text-warning mb-2">
+          <i class="fas fa-exclamation-circle me-1"></i>Aún no se ha exportado AFP Net este período.
+        </div>
+        {% endif %}
+
+        {# Mini tabla de empleados #}
+        {% if afp.empleados %}
+        <div class="table-responsive" style="max-height:220px; overflow-y:auto;">
+          <table class="table table-xs table-sm align-middle mb-0" style="font-size:0.8rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>DNI</th>
+                <th>Trabajador</th>
+                <th class="text-end">Sueldo Base</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for emp in afp.empleados %}
+              <tr>
+                <td class="font-monospace">{{ emp.dni }}</td>
+                <td>{{ emp.apellidos_nombres }}</td>
+                <td class="text-end">
+                  {% if emp.sueldo_base %}S/ {{ emp.sueldo_base|floatformat:2 }}{% else %}—{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+              {% if afp.hay_mas %}
+              <tr>
+                <td colspan="3" class="text-center text-muted small py-2">
+                  <i class="fas fa-ellipsis-h me-1"></i>
+                  y {{ afp.total_empleados|add:"-20" }} más...
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="fas fa-users-slash fa-lg mb-1 d-block"></i>
+          Sin empleados afiliados a {{ afp.nombre }}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="card-footer d-flex gap-2">
+        <a id="link_afp_{{ afp.nombre|lower }}"
+           href="{% url 'integ_afp_net' %}?periodo={{ periodo }}&afp={{ afp.nombre }}"
+           class="btn btn-sm {{ afp.bg_class }} {% if afp.bg_class == 'bg-warning' %}text-dark{% else %}text-white{% endif %} flex-fill {% if not afp.total_empleados %}disabled{% endif %}">
+          <i class="fas fa-download me-1"></i>Exportar AFP {{ afp.nombre }}
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# Exportacion completa #}
+<div class="card shadow-sm mt-4 border-0" style="border-left:4px solid #0284c7 !important;">
+  <div class="card-body d-flex align-items-center gap-3">
+    <div style="font-size:2rem; color:#0284c7;"><i class="fas fa-layer-group"></i></div>
+    <div>
+      <h5 class="fw-bold mb-1">Exportar Todas las AFP</h5>
+      <p class="text-muted small mb-0">Genera un único archivo con todos los afiliados AFP del período.</p>
+    </div>
+    <a id="link_todas_afp" href="{% url 'integ_afp_net' %}?periodo={{ periodo }}"
+       class="btn btn-primary ms-auto">
+      <i class="fas fa-file-export me-1"></i>Exportar Todas
+    </a>
+  </div>
+</div>
+
+<script>
+document.getElementById('periodoInput').addEventListener('change', function() {
+  const p = this.value;
+  {% for afp in afp_data %}
+  document.getElementById('link_afp_{{ afp.nombre|lower }}').href =
+    `/integraciones/afp-net/?periodo=${p}&afp={{ afp.nombre }}`;
+  {% endfor %}
+  document.getElementById('link_todas_afp').href = `/integraciones/afp-net/?periodo=${p}`;
+});
+</script>
+{% endblock %}

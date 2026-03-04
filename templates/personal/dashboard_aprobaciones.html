@@ -1,446 +1,482 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard de Aprobaciones - Sistema de Gestión Personal{% endblock %}
+{% block title %}Aprobaciones — Harmoni{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1">
+    <i class="fas fa-tasks me-2 text-primary"></i>
+    Centro de Aprobaciones
+</h1>
+{% endblock %}
 
 {% block extra_css %}
 <style>
-    .stat-card {
-        border-left: 4px solid;
-        transition: transform 0.2s;
-    }
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .stat-card.pendiente {
-        border-color: #ffc107;
-    }
-    .stat-card.aprobado {
-        border-color: #28a745;
-    }
-    .stat-card.borrador {
-        border-color: #6c757d;
-    }
-    .table-aprobaciones tbody tr {
-        transition: background-color 0.2s;
-    }
-    .table-aprobaciones tbody tr:hover {
-        background-color: #f8f9fa;
-    }
-    .badge-codigo {
-        font-size: 0.9rem;
-        padding: 0.4em 0.8em;
-    }
-    .selected-row {
-        background-color: #fff3cd !important;
-    }
+/* ── KPI cards ── */
+.aprob-kpi { text-align:center; padding:16px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; }
+.aprob-kpi-num { font-size:1.8rem; font-weight:700; line-height:1.1; }
+.aprob-kpi-label { font-size:.75rem; color:#64748b; margin-top:4px; }
+
+/* ── Tabs ── */
+.tab-pills { display:flex; gap:6px; flex-wrap:wrap; }
+.tab-pill {
+    padding:6px 14px; border-radius:20px; font-size:.82rem; font-weight:600;
+    border:1px solid #e2e8f0; background:#fff; color:#475569;
+    cursor:pointer; text-decoration:none; transition:all .15s;
+    display:inline-flex; align-items:center; gap:6px;
+}
+.tab-pill:hover { background:#f1f5f9; color:#1e293b; }
+.tab-pill.active { background:#0f766e; color:#fff; border-color:#0f766e; }
+.tab-pill .badge { font-size:.68rem; padding:2px 7px; border-radius:10px; }
+.tab-pill.active .badge { background:rgba(255,255,255,.25); color:#fff; }
+
+/* ── Section cards ── */
+.aprob-section { border-radius:10px; border:1px solid #e2e8f0; background:#fff; overflow:hidden; }
+.aprob-section-header {
+    padding:12px 16px; display:flex; align-items:center; gap:10px;
+    border-bottom:1px solid #f1f5f9; background:#fafbfc;
+}
+.aprob-section-header .section-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; }
+
+/* ── Row styling ── */
+.aprob-row { transition: background .15s; }
+.aprob-row:hover { background:#f8fafc; }
+.aprob-row.highlight-ok { background:#d1e7dd !important; transition: background .3s; }
+.aprob-row.highlight-err { background:#f8d7da !important; transition: background .3s; }
+
+/* pills */
+.tipo-pill { font-size:.72rem; padding:2px 8px; border-radius:4px; font-weight:600; white-space:nowrap; }
+.tipo-comp { background:#fef3c7; color:#92400e; }
+.tipo-lic  { background:#dbeafe; color:#1e40af; }
+.tipo-vac  { background:#d1fae5; color:#065f46; }
+.tipo-otro { background:#f3f4f6; color:#374151; }
+.tipo-he   { background:#ede9fe; color:#5b21b6; }
+.tipo-just { background:#fff7ed; color:#9a3412; }
+.tipo-roster { background:#e0f2fe; color:#075985; }
+
+.estado-pill { font-size:.72rem; padding:2px 8px; border-radius:20px; font-weight:600; }
+.estado-PENDIENTE { background:#fff3cd; color:#856404; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2">
-        <i class="fas fa-tasks"></i> Dashboard de Aprobaciones
-        {% if areas_responsable %}
-            <span class="text-muted fs-6">-
-                {% for area in areas_responsable %}
-                    {{ area.nombre }}{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-            </span>
-        {% endif %}
-    </h1>
-    <div>
-        <a href="{% url 'roster_matricial' %}" class="btn btn-secondary">
-            <i class="fas fa-calendar-alt me-1"></i> Ver Roster
+
+<!-- ── KPIs ──────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="aprob-kpi">
+            <div class="aprob-kpi-num text-warning">{{ stats.total_pendientes }}</div>
+            <div class="aprob-kpi-label">Total Pendientes</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="aprob-kpi">
+            <div class="aprob-kpi-num text-success">{{ stats.aprobados_hoy }}</div>
+            <div class="aprob-kpi-label">Aprobados Hoy</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="aprob-kpi">
+            <div class="aprob-kpi-num" style="color:#0f766e">{{ stats.cnt_papeletas }}</div>
+            <div class="aprob-kpi-label">Papeletas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="aprob-kpi">
+            <div class="aprob-kpi-num" style="color:#7c3aed">{{ stats.cnt_solicitudes }}</div>
+            <div class="aprob-kpi-label">Solicitudes HE</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Filtros + Tabs ──────────────────── -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <!-- Tabs -->
+    <div class="tab-pills">
+        <a href="?tab=todos{% if buscar %}&buscar={{ buscar }}{% endif %}"
+           class="tab-pill {% if tab == 'todos' %}active{% endif %}">
+            Todos <span class="badge bg-dark">{{ stats.total_pendientes }}</span>
+        </a>
+        <a href="?tab=papeletas{% if buscar %}&buscar={{ buscar }}{% endif %}"
+           class="tab-pill {% if tab == 'papeletas' %}active{% endif %}">
+            <i class="fas fa-file-alt"></i> Papeletas <span class="badge bg-dark">{{ stats.cnt_papeletas }}</span>
+        </a>
+        <a href="?tab=solicitudes{% if buscar %}&buscar={{ buscar }}{% endif %}"
+           class="tab-pill {% if tab == 'solicitudes' %}active{% endif %}">
+            <i class="fas fa-clock"></i> HE <span class="badge bg-dark">{{ stats.cnt_solicitudes }}</span>
+        </a>
+        <a href="?tab=justificaciones{% if buscar %}&buscar={{ buscar }}{% endif %}"
+           class="tab-pill {% if tab == 'justificaciones' %}active{% endif %}">
+            <i class="fas fa-clipboard-check"></i> Justif. <span class="badge bg-dark">{{ stats.cnt_justificaciones }}</span>
+        </a>
+        <a href="?tab=roster{% if buscar %}&buscar={{ buscar }}{% endif %}"
+           class="tab-pill {% if tab == 'roster' %}active{% endif %}">
+            <i class="fas fa-calendar-alt"></i> Roster <span class="badge bg-dark">{{ stats.cnt_roster }}</span>
         </a>
     </div>
+    <!-- Buscar -->
+    <form method="get" class="d-flex gap-2" style="min-width:260px">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <input type="text" name="buscar" class="form-control form-control-sm"
+               placeholder="Buscar por nombre o DNI..." value="{{ buscar }}">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
+        {% if buscar %}
+        <a href="?tab={{ tab }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-times"></i></a>
+        {% endif %}
+    </form>
 </div>
 
-<!-- Estadísticas -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card pendiente shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-1">Pendientes</h6>
-                        <h2 class="mb-0 text-warning">{{ stats.pendientes }}</h2>
-                    </div>
-                    <div class="text-warning">
-                        <i class="fas fa-clock fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card borrador shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-1">Borradores</h6>
-                        <h2 class="mb-0 text-secondary">{{ stats.borradores }}</h2>
-                    </div>
-                    <div class="text-secondary">
-                        <i class="fas fa-edit fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card aprobado shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-1">Aprobados Hoy</h6>
-                        <h2 class="mb-0 text-success">{{ stats.aprobados_hoy }}</h2>
-                    </div>
-                    <div class="text-success">
-                        <i class="fas fa-check-circle fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card shadow-sm" style="border-color: #17a2b8;">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-1">Total Esta Semana</h6>
-                        <h2 class="mb-0 text-info">{{ stats.total_semana }}</h2>
-                    </div>
-                    <div class="text-info">
-                        <i class="fas fa-calendar-week fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% if pendientes %}
-<div class="card shadow-sm">
-    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-        <div>
-            <i class="fas fa-clipboard-list me-2"></i> 
-            <strong>Cambios Pendientes de Aprobación</strong>
-            <span class="badge bg-dark ms-2">{{ pendientes|length }}</span>
-        </div>
-        <div>
-            <button type="button" class="btn btn-sm btn-success me-1" onclick="aprobarSeleccionados()">
-                <i class="fas fa-check-double"></i> Aprobar Seleccionados
-            </button>
-            <button type="button" class="btn btn-sm btn-danger" onclick="rechazarSeleccionados()">
-                <i class="fas fa-times-circle"></i> Rechazar Seleccionados
-            </button>
-        </div>
-    </div>
-    
-    <!-- Filtros -->
-    <div class="card-body border-bottom">
-        <form method="get" class="row g-2">
-            <div class="col-md-3">
-                <input type="text" name="buscar" class="form-control form-control-sm" 
-                       placeholder="Buscar por DNI o nombre..." value="{{ buscar }}">
-            </div>
-            <div class="col-md-2">
-                <select name="subarea" class="form-select form-select-sm">
-                    <option value="">Todas las SubÁreas</option>
-                    {% for a in areas %}
-                    <option value="{{ a.id }}" {% if area_filtro == a.id|stringformat:"s" %}selected{% endif %}>
-                        {{ a.nombre }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="codigo" class="form-select form-select-sm">
-                    <option value="">Todos los códigos</option>
-                    <option value="DL" {% if codigo_filtro == 'DL' %}selected{% endif %}>DL - Día Libre</option>
-                    <option value="DLA" {% if codigo_filtro == 'DLA' %}selected{% endif %}>DLA - DL Acumulado</option>
-                    <option value="DM" {% if codigo_filtro == 'DM' %}selected{% endif %}>DM - Descanso Médico</option>
-                    <option value="V" {% if codigo_filtro == 'V' %}selected{% endif %}>V - Vacaciones</option>
-                    <option value="T" {% if codigo_filtro == 'T' %}selected{% endif %}>T - Trabajo</option>
-                    <option value="TR" {% if codigo_filtro == 'TR' %}selected{% endif %}>TR - Trabajo Remoto</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <input type="date" name="fecha_desde" class="form-control form-control-sm" 
-                       placeholder="Desde" value="{{ fecha_desde }}">
-            </div>
-            <div class="col-md-2">
-                <input type="date" name="fecha_hasta" class="form-control form-control-sm" 
-                       placeholder="Hasta" value="{{ fecha_hasta }}">
-            </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary btn-sm w-100">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-    
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-aprobaciones table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 40px;">
-                            <input type="checkbox" id="selectAll" class="form-check-input">
-                        </th>
-                        <th>Fecha</th>
-                        <th>Personal</th>
-                        <th>DNI</th>
-                        <th>SubÁrea</th>
-                        <th>Código</th>
-                        <th>Modificado por</th>
-                        <th>Actualizado</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in pendientes %}
-                    <tr id="row-{{ item.pk }}" data-roster-id="{{ item.pk }}">
-                        <td>
-                            <input type="checkbox" class="form-check-input row-checkbox" 
-                                   value="{{ item.pk }}">
-                        </td>
-                        <td>
-                            <i class="fas fa-calendar-day text-muted me-1"></i>
-                            <strong>{{ item.fecha|date:"d/m/Y" }}</strong>
-                            <br>
-                            <small class="text-muted">{{ item.fecha|date:"l" }}</small>
-                        </td>
-                        <td>
-                            <strong>{{ item.personal.apellidos_nombres }}</strong>
-                            <br>
-                            <small class="text-muted">{{ item.personal.cargo|default:"-" }}</small>
-                        </td>
-                        <td>
-                            <code>{{ item.personal.nro_doc }}</code>
-                        </td>
-                        <td>
-                            {% if item.personal.subarea %}
-                                <span class="badge bg-secondary">{{ item.personal.subarea.nombre }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge badge-codigo 
-                                {% if item.codigo == 'DL' or item.codigo == 'DLA' %}bg-primary
-                                {% elif item.codigo == 'DM' %}bg-danger
-                                {% elif item.codigo == 'V' %}bg-info
-                                {% else %}bg-success{% endif %}">
-                                {{ item.codigo }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if item.modificado_por %}
-                                <i class="fas fa-user text-muted me-1"></i>
-                                {{ item.modificado_por.get_full_name|default:item.modificado_por.username }}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <small class="text-muted">
-                                {{ item.actualizado_en|date:"d/m H:i" }}
-                            </small>
-                        </td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-success btn-sm me-1" 
-                                    onclick="aprobarCambio({{ item.pk }})"
-                                    title="Aprobar">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm" 
-                                    onclick="rechazarCambio({{ item.pk }})"
-                                    title="Rechazar">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% else %}
+{% if stats.total_pendientes == 0 and not buscar %}
 <div class="alert alert-success">
     <i class="fas fa-check-circle me-2"></i>
-    <strong>¡Todo al día!</strong> No hay cambios pendientes de aprobación.
+    <strong>Todo al día.</strong> No hay items pendientes de aprobación.
+</div>
+{% else %}
+
+<!-- ══════════ PAPELETAS ══════════ -->
+{% if papeleta_items %}
+<div class="aprob-section mb-4">
+    <div class="aprob-section-header">
+        <div class="section-icon" style="background:#d1fae5;color:#065f46"><i class="fas fa-file-alt"></i></div>
+        <strong>Papeletas Pendientes</strong>
+        <span class="badge bg-warning text-dark ms-auto">{{ stats.cnt_papeletas }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Tipo</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th class="text-center">Días</th>
+                    <th>Origen</th>
+                    <th>Detalle</th>
+                    <th>Solicitado</th>
+                    <th class="text-center" style="width:100px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in papeleta_items %}
+                <tr class="aprob-row" id="pap-{{ p.pk }}">
+                    <td class="small">
+                        <strong>{{ p.personal.apellidos_nombres|default:"—" }}</strong>
+                        <br><span class="text-muted">{{ p.personal.nro_doc|default:"" }}</span>
+                    </td>
+                    <td>
+                        <span class="tipo-pill {% if 'COMPENSACION' in p.tipo_permiso or 'BAJADAS' in p.tipo_permiso or p.tipo_permiso == 'COMP_DIA_TRABAJO' %}tipo-comp{% elif p.tipo_permiso == 'VACACIONES' %}tipo-vac{% elif 'LICENCIA' in p.tipo_permiso or p.tipo_permiso == 'DESCANSO_MEDICO' %}tipo-lic{% else %}tipo-otro{% endif %}">
+                            {{ p.get_tipo_permiso_display|truncatechars:30 }}
+                        </span>
+                    </td>
+                    <td class="small">{{ p.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td class="small">{{ p.fecha_fin|date:"d/m/Y" }}</td>
+                    <td class="text-center small fw-semibold">{{ p.dias_habiles }}</td>
+                    <td class="small text-muted">{{ p.get_origen_display }}</td>
+                    <td class="small text-muted">{{ p.detalle|truncatechars:40|default:"—" }}</td>
+                    <td class="small text-muted">{{ p.creado_en|date:"d/m H:i" }}</td>
+                    <td class="text-center">
+                        <button class="btn btn-success btn-sm py-0 px-2" onclick="aprobarPapeleta({{ p.pk }})" title="Aprobar">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm py-0 px-2" onclick="rechazarPapeleta({{ p.pk }})" title="Rechazar">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endif %}
 
+<!-- ══════════ SOLICITUDES HE ══════════ -->
+{% if solicitud_items %}
+<div class="aprob-section mb-4">
+    <div class="aprob-section-header">
+        <div class="section-icon" style="background:#ede9fe;color:#5b21b6"><i class="fas fa-clock"></i></div>
+        <strong>Solicitudes de Horas Extra</strong>
+        <span class="badge bg-warning text-dark ms-auto">{{ stats.cnt_solicitudes }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Fecha</th>
+                    <th class="text-center">Horas</th>
+                    <th>Tipo</th>
+                    <th>Motivo</th>
+                    <th>Solicitado</th>
+                    <th class="text-center" style="width:100px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in solicitud_items %}
+                <tr class="aprob-row" id="sol-{{ s.pk }}">
+                    <td class="small">
+                        <strong>{{ s.personal.apellidos_nombres|default:"—" }}</strong>
+                        <br><span class="text-muted">{{ s.personal.nro_doc|default:"" }}</span>
+                    </td>
+                    <td class="small">{{ s.fecha|date:"d/m/Y" }}</td>
+                    <td class="text-center small fw-semibold">{{ s.horas_estimadas }}h</td>
+                    <td>
+                        <span class="tipo-pill tipo-he">
+                            {% if s.tipo == 'PAGABLE' %}Pagable{% else %}Compensable{% endif %}
+                        </span>
+                    </td>
+                    <td class="small text-muted">{{ s.motivo|truncatechars:50|default:"—" }}</td>
+                    <td class="small text-muted">{{ s.creado_en|date:"d/m H:i" }}</td>
+                    <td class="text-center">
+                        <button class="btn btn-success btn-sm py-0 px-2" onclick="aprobarSolicitudHE({{ s.pk }})" title="Aprobar">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm py-0 px-2" onclick="rechazarSolicitudHE({{ s.pk }})" title="Rechazar">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ══════════ JUSTIFICACIONES ══════════ -->
+{% if justificacion_items %}
+<div class="aprob-section mb-4">
+    <div class="aprob-section-header">
+        <div class="section-icon" style="background:#fff7ed;color:#9a3412"><i class="fas fa-clipboard-check"></i></div>
+        <strong>Justificaciones de No-Marcaje</strong>
+        <span class="badge bg-warning text-dark ms-auto">{{ stats.cnt_justificaciones }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Motivo</th>
+                    <th>Solicitado</th>
+                    <th class="text-center" style="width:100px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for j in justificacion_items %}
+                <tr class="aprob-row" id="just-{{ j.pk }}">
+                    <td class="small">
+                        <strong>{{ j.personal.apellidos_nombres|default:"—" }}</strong>
+                        <br><span class="text-muted">{{ j.personal.nro_doc|default:"" }}</span>
+                    </td>
+                    <td class="small">{{ j.fecha|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="tipo-pill tipo-just">{{ j.get_tipo_display }}</span>
+                    </td>
+                    <td class="small text-muted">{{ j.motivo|truncatechars:50|default:"—" }}</td>
+                    <td class="small text-muted">{{ j.creado_en|date:"d/m H:i" }}</td>
+                    <td class="text-center">
+                        <button class="btn btn-success btn-sm py-0 px-2" onclick="aprobarJustificacion({{ j.pk }})" title="Aprobar">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm py-0 px-2" onclick="rechazarJustificacion({{ j.pk }})" title="Rechazar">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ══════════ ROSTER ══════════ -->
+{% if roster_items %}
+<div class="aprob-section mb-4">
+    <div class="aprob-section-header">
+        <div class="section-icon" style="background:#e0f2fe;color:#075985"><i class="fas fa-calendar-alt"></i></div>
+        <strong>Cambios de Roster</strong>
+        <span class="badge bg-warning text-dark ms-auto">{{ stats.cnt_roster }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th><input type="checkbox" class="form-check-input" id="selectAllRoster"></th>
+                    <th>Trabajador</th>
+                    <th>Fecha</th>
+                    <th>Código</th>
+                    <th>SubÁrea</th>
+                    <th>Modificado por</th>
+                    <th>Actualizado</th>
+                    <th class="text-center" style="width:140px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in roster_items %}
+                <tr class="aprob-row" id="roster-{{ r.pk }}">
+                    <td><input type="checkbox" class="form-check-input roster-cb" value="{{ r.pk }}"></td>
+                    <td class="small">
+                        <strong>{{ r.personal.apellidos_nombres }}</strong>
+                        <br><span class="text-muted">{{ r.personal.nro_doc }}</span>
+                    </td>
+                    <td class="small">
+                        {{ r.fecha|date:"d/m/Y" }}
+                        <br><span class="text-muted">{{ r.fecha|date:"l" }}</span>
+                    </td>
+                    <td>
+                        <span class="tipo-pill tipo-roster">{{ r.codigo }}</span>
+                    </td>
+                    <td class="small text-muted">
+                        {% if r.personal.subarea %}{{ r.personal.subarea.nombre }}{% else %}—{% endif %}
+                    </td>
+                    <td class="small text-muted">
+                        {% if r.modificado_por %}{{ r.modificado_por.get_full_name|default:r.modificado_por.username }}{% else %}—{% endif %}
+                    </td>
+                    <td class="small text-muted">{{ r.actualizado_en|date:"d/m H:i" }}</td>
+                    <td class="text-center">
+                        <button class="btn btn-success btn-sm py-0 px-2" onclick="aprobarRoster({{ r.pk }})" title="Aprobar">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm py-0 px-2" onclick="rechazarRoster({{ r.pk }})" title="Rechazar">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Lote Roster -->
+    <div class="d-flex gap-2 p-3 border-top bg-light">
+        <button class="btn btn-success btn-sm" onclick="aprobarLoteRoster()">
+            <i class="fas fa-check-double me-1"></i>Aprobar Sel.
+        </button>
+        <button class="btn btn-outline-danger btn-sm" onclick="rechazarLoteRoster()">
+            <i class="fas fa-times-circle me-1"></i>Rechazar Sel.
+        </button>
+    </div>
+</div>
+{% endif %}
+
+{% if buscar and stats.total_pendientes == 0 %}
+<div class="alert alert-info">
+    <i class="fas fa-search me-2"></i>
+    No se encontraron resultados para "<strong>{{ buscar }}</strong>".
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
 <script>
-const csrftoken = getCookie('csrftoken');
+const CSRF = '{{ csrf_token }}';
+const headers = { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' };
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+function fadeRow(id, ok) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.classList.add(ok ? 'highlight-ok' : 'highlight-err');
+    setTimeout(() => row.remove(), 600);
 }
 
-// Seleccionar todos
-document.getElementById('selectAll')?.addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(cb => {
-        cb.checked = this.checked;
-        if (this.checked) {
-            cb.closest('tr').classList.add('selected-row');
-        } else {
-            cb.closest('tr').classList.remove('selected-row');
-        }
-    });
+/* ── Papeletas ── */
+async function aprobarPapeleta(pk) {
+    if (!confirm('¿Aprobar esta papeleta?')) return;
+    const fd = new FormData();
+    fd.append('accion', 'aprobar');
+    const r = await fetch(`/asistencia/papeletas/${pk}/aprobar/`, { method:'POST', headers, body: fd });
+    if (r.ok) { fadeRow('pap-'+pk, true); } else { alert('Error al aprobar'); }
+}
+async function rechazarPapeleta(pk) {
+    if (!confirm('¿Rechazar esta papeleta?')) return;
+    const fd = new FormData();
+    fd.append('accion', 'rechazar');
+    const r = await fetch(`/asistencia/papeletas/${pk}/aprobar/`, { method:'POST', headers, body: fd });
+    if (r.ok) { fadeRow('pap-'+pk, false); } else { alert('Error al rechazar'); }
+}
+
+/* ── Solicitudes HE ── */
+async function aprobarSolicitudHE(pk) {
+    if (!confirm('¿Aprobar esta solicitud de HE?')) return;
+    const fd = new FormData();
+    fd.append('estado', 'APROBADA');
+    const r = await fetch(`/asistencia/solicitudes-he/${pk}/editar/`, { method:'POST', headers, body: fd });
+    if (r.ok) { fadeRow('sol-'+pk, true); } else { alert('Error al aprobar'); }
+}
+async function rechazarSolicitudHE(pk) {
+    if (!confirm('¿Rechazar esta solicitud de HE?')) return;
+    const fd = new FormData();
+    fd.append('estado', 'RECHAZADA');
+    const r = await fetch(`/asistencia/solicitudes-he/${pk}/editar/`, { method:'POST', headers, body: fd });
+    if (r.ok) { fadeRow('sol-'+pk, false); } else { alert('Error al rechazar'); }
+}
+
+/* ── Justificaciones ── */
+async function aprobarJustificacion(pk) {
+    if (!confirm('¿Aprobar esta justificación?')) return;
+    const fd = new FormData();
+    fd.append('accion', 'APROBADA');
+    const r = await fetch(`/asistencia/justificaciones/${pk}/revisar/`, { method:'POST', headers, body: fd });
+    if (r.ok) { fadeRow('just-'+pk, true); } else { alert('Error al aprobar'); }
+}
+async function rechazarJustificacion(pk) {
+    if (!confirm('¿Rechazar esta justificación?')) return;
+    const fd = new FormData();
+    fd.append('accion', 'RECHAZADA');
+    const r = await fetch(`/asistencia/justificaciones/${pk}/revisar/`, { method:'POST', headers, body: fd });
+    if (r.ok) { fadeRow('just-'+pk, false); } else { alert('Error al rechazar'); }
+}
+
+/* ── Roster ── */
+async function aprobarRoster(pk) {
+    if (!confirm('¿Aprobar este cambio de roster?')) return;
+    const r = await fetch(`/roster/aprobar/${pk}/`, { method:'POST', headers });
+    if (r.ok) { fadeRow('roster-'+pk, true); } else { alert('Error al aprobar'); }
+}
+async function rechazarRoster(pk) {
+    if (!confirm('¿Rechazar este cambio de roster?')) return;
+    const r = await fetch(`/roster/rechazar/${pk}/`, { method:'POST', headers });
+    if (r.ok) { fadeRow('roster-'+pk, false); } else { alert('Error al rechazar'); }
+}
+
+/* ── Lote Roster ── */
+document.getElementById('selectAllRoster')?.addEventListener('change', function() {
+    document.querySelectorAll('.roster-cb').forEach(cb => cb.checked = this.checked);
 });
 
-// Marcar fila seleccionada
-document.querySelectorAll('.row-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        if (this.checked) {
-            this.closest('tr').classList.add('selected-row');
-        } else {
-            this.closest('tr').classList.remove('selected-row');
-        }
-    });
-});
-
-function aprobarCambio(id) {
-    if (!confirm('¿Aprobar este cambio?')) return;
-    
-    fetch(`/roster/aprobar/${id}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const row = document.getElementById(`row-${id}`);
-            row.style.backgroundColor = '#d4edda';
-            setTimeout(() => {
-                row.remove();
-                location.reload();
-            }, 500);
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al aprobar el cambio');
-    });
+function getSelectedRoster() {
+    return Array.from(document.querySelectorAll('.roster-cb:checked')).map(cb => cb.value);
 }
 
-function rechazarCambio(id) {
-    if (!confirm('¿Rechazar este cambio? Se eliminará del roster.')) return;
-    
-    fetch(`/roster/rechazar/${id}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const row = document.getElementById(`row-${id}`);
-            row.style.backgroundColor = '#f8d7da';
-            setTimeout(() => {
-                row.remove();
-                location.reload();
-            }, 500);
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al rechazar el cambio');
+async function aprobarLoteRoster() {
+    const ids = getSelectedRoster();
+    if (!ids.length) { alert('Selecciona al menos un cambio'); return; }
+    if (!confirm(`¿Aprobar ${ids.length} cambio(s)?`)) return;
+    const r = await fetch('{% url "aprobar_lote" %}', {
+        method:'POST',
+        headers: { ...headers, 'Content-Type':'application/json' },
+        body: JSON.stringify({ ids })
     });
+    const data = await r.json();
+    if (data.success) { alert(data.mensaje); location.reload(); }
+    else { alert('Error: ' + data.error); }
 }
 
-function aprobarSeleccionados() {
-    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
-    if (selected.length === 0) {
-        alert('Selecciona al menos un cambio');
-        return;
-    }
-    
-    if (!confirm(`¿Aprobar ${selected.length} cambio(s) seleccionado(s)?`)) return;
-    
-    fetch('{% url "aprobar_lote" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken,
-        },
-        body: JSON.stringify({ ids: selected })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(`${data.aprobados} cambio(s) aprobado(s)`);
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al aprobar los cambios');
+async function rechazarLoteRoster() {
+    const ids = getSelectedRoster();
+    if (!ids.length) { alert('Selecciona al menos un cambio'); return; }
+    if (!confirm(`¿Rechazar ${ids.length} cambio(s)?`)) return;
+    const r = await fetch('{% url "rechazar_lote" %}', {
+        method:'POST',
+        headers: { ...headers, 'Content-Type':'application/json' },
+        body: JSON.stringify({ ids })
     });
-}
-
-function rechazarSeleccionados() {
-    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
-    if (selected.length === 0) {
-        alert('Selecciona al menos un cambio');
-        return;
-    }
-    
-    if (!confirm(`¿Rechazar ${selected.length} cambio(s) seleccionado(s)? Se eliminarán del roster.`)) return;
-    
-    fetch('{% url "rechazar_lote" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken,
-        },
-        body: JSON.stringify({ ids: selected })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(`${data.rechazados} cambio(s) rechazado(s)`);
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al rechazar los cambios');
-    });
+    const data = await r.json();
+    if (data.success) { alert(data.mensaje); location.reload(); }
+    else { alert('Error: ' + data.error); }
 }
 </script>
 {% endblock %}

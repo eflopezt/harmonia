@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9pt;
+    color: #1a1a1a;
+    line-height: 1.4;
+  }
+
+  /* ── Header ─────────────────────────────────────── */
+  .header {
+    background-color: #0d2b27;
+    color: #ffffff;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+  }
+  .header-empresa { font-size: 14pt; font-weight: bold; margin-bottom: 2px; }
+  .header-titulo { font-size: 10pt; color: #5eead4; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+  .header-periodo { font-size: 9pt; color: #a7f3d0; margin-top: 2px; }
+
+  /* ── Datos trabajador ────────────────────────────── */
+  .datos-trab {
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background-color: #f9fafb;
+  }
+  .datos-trab table { width: 100%; border-collapse: collapse; }
+  .datos-trab td { padding: 2px 6px; vertical-align: top; }
+  .datos-trab .label { font-weight: bold; color: #374151; width: 28%; font-size: 8pt; }
+  .datos-trab .value { color: #111827; font-size: 9pt; }
+
+  /* ── Columnas conceptos ──────────────────────────── */
+  .conceptos-wrap { width: 100%; margin-bottom: 10px; }
+  .conceptos-wrap table { width: 100%; border-collapse: collapse; }
+
+  .col-header {
+    background-color: #0f766e;
+    color: #fff;
+    font-weight: bold;
+    font-size: 8pt;
+    padding: 5px 8px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .col-sub-header {
+    background-color: #134e4a;
+    color: #a7f3d0;
+    font-size: 7.5pt;
+    padding: 3px 8px;
+    font-weight: bold;
+  }
+  .concepto-row { border-bottom: 1px solid #f3f4f6; }
+  .concepto-row td { padding: 3px 8px; font-size: 8.5pt; }
+  .concepto-row:nth-child(even) { background-color: #f9fafb; }
+  .concepto-nombre { text-align: left; }
+  .concepto-monto  { text-align: right; font-family: monospace; }
+
+  /* ── Totales ─────────────────────────────────────── */
+  .totales-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .totales-table td { padding: 4px 8px; font-size: 9pt; }
+  .totales-table .sub-total td {
+    background: #e0f2fe;
+    font-weight: bold;
+    border-top: 1px solid #bae6fd;
+  }
+  .totales-table .neto-row td {
+    background: #0d2b27;
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
+    padding: 8px 10px;
+    border-radius: 3px;
+  }
+  .totales-table .essalud-row td {
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 8pt;
+    border-top: 1px dashed #d1fae5;
+  }
+
+  /* ── Footer ─────────────────────────────────────── */
+  .footer-note {
+    margin-top: 12px;
+    border-top: 1px dashed #d1d5db;
+    padding-top: 6px;
+    font-size: 7.5pt;
+    color: #6b7280;
+    text-align: center;
+  }
+  .firma-box {
+    margin-top: 20px;
+    border-top: 1px solid #374151;
+    padding-top: 4px;
+    width: 200px;
+    text-align: center;
+    font-size: 8pt;
+    color: #374151;
+  }
+
+  /* Separador páginas */
+  .cut-line {
+    border-top: 1px dashed #9ca3af;
+    margin: 16px 0;
+    text-align: center;
+    font-size: 7pt;
+    color: #9ca3af;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ COPIA EMPRESA ═════════════════════════════════════════════════════ -->
+<div class="header">
+  <div class="header-empresa">{{ empresa_nombre }}</div>
+  <div class="header-titulo">Boleta de Pago</div>
+  <div class="header-periodo">
+    Período: {{ periodo.mes_nombre }} {{ periodo.anio }}
+    &nbsp;|&nbsp; Tipo: {{ periodo.get_tipo_display }}
+    {% if empresa_ruc %}&nbsp;|&nbsp; RUC: {{ empresa_ruc }}{% endif %}
+  </div>
+</div>
+
+<div class="datos-trab">
+  <table>
+    <tr>
+      <td class="label">Trabajador:</td>
+      <td class="value"><b>{{ personal.apellidos_nombres }}</b></td>
+      <td class="label">DNI:</td>
+      <td class="value">{{ personal.nro_doc }}</td>
+    </tr>
+    <tr>
+      <td class="label">Cargo:</td>
+      <td class="value">{{ personal.cargo|default:"—" }}</td>
+      <td class="label">Área:</td>
+      <td class="value">{% if personal.subarea %}{{ personal.subarea.area.nombre }}{% else %}—{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="label">Régimen:</td>
+      <td class="value">{{ personal.get_regimen_pension_display }}{% if personal.afp %} — {{ personal.afp }}{% endif %}</td>
+      <td class="label">Grupo:</td>
+      <td class="value">{{ registro.grupo|default:personal.grupo_tareo }}</td>
+    </tr>
+    <tr>
+      <td class="label">Sueldo Base:</td>
+      <td class="value">S/ {{ registro.sueldo_base }}</td>
+      <td class="label">Días Trab.:</td>
+      <td class="value">{{ registro.dias_trabajados }} / {% if registro.periodo.fecha_inicio and registro.periodo.fecha_fin %}{{ registro.periodo.fecha_fin.day }}{% else %}30{% endif %}</td>
+    </tr>
+  </table>
+</div>
+
+<div class="conceptos-wrap">
+  <table>
+    <tr>
+      <td style="width:50%; vertical-align:top; padding-right:6px;">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr><td colspan="2" class="col-header">Ingresos</td></tr>
+          {% for l in lineas_ingresos %}
+          <tr class="concepto-row">
+            <td class="concepto-nombre">{{ l.nombre }}</td>
+            <td class="concepto-monto">{{ l.monto_str }}</td>
+          </tr>
+          {% empty %}
+          <tr class="concepto-row"><td colspan="2" style="text-align:center;color:#9ca3af;font-size:8pt;">Sin ingresos registrados</td></tr>
+          {% endfor %}
+          <tr class="sub-total">
+            <td class="concepto-nombre">TOTAL INGRESOS</td>
+            <td class="concepto-monto">{{ total_ingresos_str }}</td>
+          </tr>
+        </table>
+      </td>
+      <td style="width:50%; vertical-align:top; padding-left:6px;">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr><td colspan="2" class="col-header" style="background:#b91c1c;">Descuentos</td></tr>
+          {% for l in lineas_descuentos %}
+          <tr class="concepto-row">
+            <td class="concepto-nombre">{{ l.nombre }}</td>
+            <td class="concepto-monto">{{ l.monto_str }}</td>
+          </tr>
+          {% empty %}
+          <tr class="concepto-row"><td colspan="2" style="text-align:center;color:#9ca3af;font-size:8pt;">Sin descuentos</td></tr>
+          {% endfor %}
+          <tr class="sub-total" style="background:#fee2e2;">
+            <td class="concepto-nombre">TOTAL DESCUENTOS</td>
+            <td class="concepto-monto">{{ total_descuentos_str }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<table class="totales-table">
+  <tr class="neto-row">
+    <td style="width:60%;">NETO A PAGAR</td>
+    <td style="text-align:right;">S/ {{ neto_str }}</td>
+  </tr>
+  {% if lineas_aportes %}
+  <tr class="essalud-row">
+    <td colspan="2" style="text-align:right;padding-top:4px;">
+      Aportes empleador: EsSalud S/ {{ essalud_str }}
+    </td>
+  </tr>
+  {% endif %}
+</table>
+
+<div class="footer-note">
+  Generado por Harmoni ERP &mdash;
+  {{ periodo.mes_nombre }} {{ periodo.anio }} &mdash;
+  Este documento es una constancia de pago.
+</div>
+
+</body>
+</html>

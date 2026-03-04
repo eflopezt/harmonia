@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.ia-status-badge { display: inline-flex; align-items: center; gap: .4rem; border-radius: 20px; padding: .25rem .75rem; font-size: .78rem; font-weight: 600; }
+.ia-ok   { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.ia-warn { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+.ia-off  { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+.col-chip { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px;
+            padding: .15rem .5rem; font-size: .75rem; font-family: monospace; margin: 2px; }
+.col-ai   { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
+.hist-estado { font-size: .72rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# Breadcrumb nav #}
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{% url 'asistencia_importar' %}">Importaciones</a></li>
+      <li class="breadcrumb-item active">Reporte S10</li>
+    </ol>
+  </nav>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0"><i class="fas fa-database text-info me-2"></i>{{ titulo }}</h2>
+      <small class="text-muted">Cruce de personal y horas extra con el sistema S10 de obras</small>
+    </div>
+    <a href="{% url 'asistencia_importar' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Hub Importaciones
+    </a>
+  </div>
+
+  <div class="row g-4">
+
+    {# ── Formulario principal ─────────────────────────────────────────────── #}
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header bg-info text-white fw-semibold">
+          <i class="fas fa-file-excel me-2"></i>Cargar Reporte S10
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" id="formS10">
+            {% csrf_token %}
+
+            {# Archivo #}
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Archivo Excel (.xlsx) <span class="text-danger">*</span></label>
+              <input type="file" class="form-control" name="archivo" id="archivoS10" accept=".xlsx,.xls" required>
+              <div class="form-text">Reporte de personal del sistema S10. Las cabeceras se detectan automáticamente.</div>
+            </div>
+
+            {# Período #}
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Período de Referencia <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" name="periodo_inicio" required>
+              <div class="form-text">Mes al que corresponde este reporte (usado para el cruce con nómina).</div>
+            </div>
+
+            {# Switches opciones #}
+            <div class="mb-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" name="actualizar_personal" value="1"
+                       id="chkUpd" checked>
+                <label class="form-check-label" for="chkUpd">
+                  <strong>Sincronizar con Personal</strong>
+                  <span class="text-muted d-block" style="font-size:.8rem">
+                    Actualiza código S10 y partida de control si el trabajador ya existe en Harmoni
+                  </span>
+                </label>
+              </div>
+
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="usar_ia" value="1" id="chkIA"
+                       {% if not ia_disponible %}disabled{% endif %}>
+                <label class="form-check-label {% if not ia_disponible %}text-muted{% endif %}" for="chkIA">
+                  <strong>Usar IA local para detectar columnas</strong>
+                  <span class="d-inline-block ms-2">
+                    {% if ia_disponible %}
+                      <span class="ia-status-badge ia-ok">
+                        <i class="fas fa-circle" style="font-size:.5rem"></i> Ollama conectado
+                      </span>
+                    {% elif ia_modelo %}
+                      <span class="ia-status-badge ia-warn">
+                        <i class="fas fa-exclamation-circle"></i> Ollama sin respuesta
+                      </span>
+                    {% else %}
+                      <span class="ia-status-badge ia-off">
+                        <i class="fas fa-ban"></i> IA desactivada en configuración
+                      </span>
+                    {% endif %}
+                  </span>
+                  <span class="text-muted d-block" style="font-size:.8rem">
+                    Envía los encabezados del Excel a Ollama ({{ ia_modelo|default:"sin modelo" }}) para identificar columnas no estándar
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {# Resultado anterior si lo hay #}
+            {% if resultado %}
+            <div class="alert {% if resultado.sin_match > 0 %}alert-warning{% else %}alert-success{% endif %} py-2 mb-3">
+              <div class="d-flex gap-3 flex-wrap">
+                <span><i class="fas fa-check-circle me-1"></i><strong>{{ resultado.creados }}</strong> registros importados</span>
+                {% if resultado.sin_match %}<span><i class="fas fa-user-times me-1"></i><strong>{{ resultado.sin_match }}</strong> sin match DNI</span>{% endif %}
+                {% if resultado.ia_usada %}<span><i class="fas fa-robot me-1"></i>IA detectó columnas</span>{% endif %}
+                {% if resultado.advertencias %}<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>{{ resultado.advertencias|length }} advertencias</span>{% endif %}
+              </div>
+              {% if resultado.advertencias %}
+              <details class="mt-2"><summary class="small">Ver advertencias</summary>
+                <ul class="mb-0 small mt-1">{% for a in resultado.advertencias %}<li>{{ a }}</li>{% endfor %}</ul>
+              </details>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-info text-white fw-bold" id="btnS10">
+              <i class="fas fa-cloud-upload-alt me-2"></i>Importar S10
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {# Info columnas #}
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-light fw-semibold">
+          <i class="fas fa-table me-2"></i>Columnas detectadas automáticamente
+        </div>
+        <div class="card-body small">
+          <p class="text-muted mb-2">El sistema busca estos campos con mapeo flexible (variantes de nombre):</p>
+          <div class="mb-2">
+            <span class="fw-semibold d-block mb-1">Identificación</span>
+            <span class="col-chip">DNI</span>
+            <span class="col-chip">No.</span>
+            <span class="col-chip">Nro. Doc</span>
+            <span class="col-chip">Código S10</span>
+            <span class="col-chip">Cod.</span>
+          </div>
+          <div class="mb-2">
+            <span class="fw-semibold d-block mb-1">Personal</span>
+            <span class="col-chip">Nombre</span>
+            <span class="col-chip">Apellidos y Nombres</span>
+            <span class="col-chip">Ocupación</span>
+            <span class="col-chip">Cargo</span>
+            <span class="col-chip">Partida de Control</span>
+          </div>
+          <div class="mb-2">
+            <span class="fw-semibold d-block mb-1">Beneficios & Pensión</span>
+            <span class="col-chip">Régimen Pensión</span>
+            <span class="col-chip">AFP</span>
+            <span class="col-chip">Sueldo</span>
+            <span class="col-chip">Adelanto CDT</span>
+          </div>
+          <div class="mb-2">
+            <span class="fw-semibold d-block mb-1">Horas Extra</span>
+            <span class="col-chip">HE 25%</span>
+            <span class="col-chip">HE 35%</span>
+            <span class="col-chip">HE 100%</span>
+          </div>
+          {% if ia_disponible %}
+          <div class="mt-2 p-2 rounded" style="background:#ede9fe">
+            <small>
+              <i class="fas fa-robot text-purple me-1" style="color:#7c3aed"></i>
+              <strong>IA activa:</strong> columnas no reconocidas por texto se envían a
+              <strong>{{ ia_modelo }}</strong> para detección inteligente.
+              Las columnas detectadas por IA aparecen en
+              <span class="col-chip col-ai">morado</span>.
+            </small>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Panel lateral — Historial + info ─────────────────────────────────── #}
+    <div class="col-lg-5">
+
+      {# Historial imports S10 #}
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">
+          <i class="fas fa-history me-2"></i>Últimas importaciones S10
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Período</th>
+                  <th>Registros</th>
+                  <th>Sin match</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for imp in ultimas %}
+                <tr>
+                  <td class="small">
+                    {% if imp.periodo_inicio %}{{ imp.periodo_inicio|date:"m/Y" }}{% else %}—{% endif %}
+                  </td>
+                  <td class="text-success fw-semibold">{{ imp.registros_ok|default:imp.total_registros }}</td>
+                  <td class="{% if imp.registros_sin_match > 0 %}text-warning{% else %}text-muted{% endif %}">
+                    {{ imp.registros_sin_match|default:0 }}
+                  </td>
+                  <td>
+                    {% if imp.estado == 'COMPLETADO' %}
+                      <span class="badge bg-success hist-estado">OK</span>
+                    {% elif imp.estado == 'COMPLETADO_CON_ERRORES' %}
+                      <span class="badge bg-warning text-dark hist-estado">Advertencias</span>
+                    {% elif imp.estado == 'PROCESANDO' %}
+                      <span class="badge bg-primary hist-estado">En proceso</span>
+                    {% else %}
+                      <span class="badge bg-danger hist-estado">Fallido</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ imp.creado_en|date:"d/m H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">Sin importaciones previas</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {# Tips #}
+      <div class="card shadow-sm border-info">
+        <div class="card-header text-info fw-semibold">
+          <i class="fas fa-info-circle me-2"></i>¿Para qué sirve el reporte S10?
+        </div>
+        <div class="card-body small">
+          <ul class="mb-0">
+            <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Cruza el personal activo de Harmoni con el sistema de obras S10</li>
+            <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Actualiza código S10 y partida de control (útil para exportar al S10)</li>
+            <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Verifica horas extra reportadas en S10 vs. calculadas en Harmoni</li>
+            <li class="mb-1"><i class="fas fa-check text-success me-1"></i>Sincroniza régimen de pensión (AFP/ONP) y correo corporativo</li>
+            <li><i class="fas fa-check text-success me-1"></i>Detecta trabajadores en S10 que no están en Harmoni (sin_match)</li>
+          </ul>
+          <div class="alert alert-warning py-2 mt-3 mb-0 small">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>No modifica</strong> los registros de asistencia. Solo actualiza datos de personal y crea RegistroS10 para cruce.
+          </div>
+        </div>
+      </div>
+
+      {# Atajos a otros importadores #}
+      <div class="card shadow-sm mt-3">
+        <div class="card-header fw-semibold">
+          <i class="fas fa-exchange-alt me-2"></i>Otros importadores
+        </div>
+        <div class="list-group list-group-flush">
+          <a href="{% url 'asistencia_importar_synkro' %}" class="list-group-item list-group-item-action py-2">
+            <i class="fas fa-file-excel text-success me-2"></i>
+            <strong>Synkro</strong>
+            <span class="text-muted small ms-1">— Reloj biométrico + papeletas</span>
+          </a>
+          <a href="{% url 'asistencia_importar_sunat' %}" class="list-group-item list-group-item-action py-2">
+            <i class="fas fa-landmark text-danger me-2"></i>
+            <strong>SUNAT TR5</strong>
+            <span class="text-muted small ms-1">— T-Registro SUNAT</span>
+          </a>
+          <a href="{% url 'asistencia_importar' %}" class="list-group-item list-group-item-action py-2">
+            <i class="fas fa-clock text-primary me-2"></i>
+            <strong>Reloj Excel</strong>
+            <span class="text-muted small ms-1">— Importación directa BioTime</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Spinner al enviar
+document.getElementById('formS10').addEventListener('submit', function() {
+  const btn = document.getElementById('btnS10');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando…';
+  btn.disabled = true;
+});
+// Mostrar nombre de archivo seleccionado
+document.getElementById('archivoS10').addEventListener('change', function() {
+  if (this.files.length) {
+    const label = this.nextElementSibling;
+    if (label && label.classList.contains('form-text')) {
+      label.innerHTML = '<i class="fas fa-file-excel text-success me-1"></i> ' +
+                        this.files[0].name + ' (' +
+                        (this.files[0].size / 1024).toFixed(1) + ' KB)';
+    }
+  }
+});
+</script>
+{% endblock %}

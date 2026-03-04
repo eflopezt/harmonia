@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ titulo }} — Harmoni{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title"><i class="fas fa-edit me-2 text-accent"></i>{{ titulo }}</h1>
+    <p class="page-subtitle">
+      <a href="{% url 'nominas_panel' %}" class="text-muted text-decoration-none">Nóminas</a>
+      / <a href="{% url 'nominas_periodo_detalle' reg.periodo.pk %}" class="text-muted text-decoration-none">{{ reg.periodo }}</a>
+      / Editar registro
+    </p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="dash-card mb-3 py-2">
+      <div class="fw-semibold">{{ reg.personal.apellidos_nombres }}</div>
+      <div class="text-muted" style="font-size:.85rem;">
+        {{ reg.personal.numero_documento }} —
+        {{ reg.regimen_pension }}{% if reg.afp %} {{ reg.afp }}{% endif %} —
+        Sueldo base: <strong>S/ {{ reg.sueldo_base|floatformat:2|intcomma }}</strong>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Días trabajados</label>
+            <input type="number" name="dias_trabajados" class="form-control"
+                   min="0" max="31" value="{{ reg.dias_trabajados }}">
+            <div class="form-text">30 = mes completo</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Horas extra 25%</label>
+            <input type="number" name="horas_extra_25" class="form-control"
+                   min="0" step="0.5" value="{{ reg.horas_extra_25 }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Horas extra 35%</label>
+            <input type="number" name="horas_extra_35" class="form-control"
+                   min="0" step="0.5" value="{{ reg.horas_extra_35 }}">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Horas extra 100%</label>
+            <input type="number" name="horas_extra_100" class="form-control"
+                   min="0" step="0.5" value="{{ reg.horas_extra_100 }}">
+            <div class="form-text">Domingos / feriados</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Otros ingresos</label>
+            <div class="input-group">
+              <span class="input-group-text">S/</span>
+              <input type="number" name="otros_ingresos" class="form-control"
+                     min="0" step="0.01" value="{{ reg.otros_ingresos }}">
+            </div>
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="asignacion_familiar"
+                     id="chkAsigFam" {% if reg.asignacion_familiar %}checked{% endif %}>
+              <label class="form-check-label" for="chkAsigFam">
+                Asignación familiar
+                <div class="text-muted" style="font-size:.75rem;">S/ 102.50 (10% RMV)</div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <hr>
+        <h6 class="mb-3 text-muted">Descuentos adicionales</h6>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Descuento préstamo / adelanto</label>
+            <div class="input-group">
+              <span class="input-group-text">S/</span>
+              <input type="number" name="descuento_prestamo" class="form-control"
+                     min="0" step="0.01" value="{{ reg.descuento_prestamo }}">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Otros descuentos</label>
+            <div class="input-group">
+              <span class="input-group-text">S/</span>
+              <input type="number" name="otros_descuentos" class="form-control"
+                     min="0" step="0.01" value="{{ reg.otros_descuentos }}">
+            </div>
+          </div>
+        </div>
+
+        <hr>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-calculator me-1"></i>Guardar y recalcular
+          </button>
+          <a href="{% url 'nominas_registro_detalle' reg.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

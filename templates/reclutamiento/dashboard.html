@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard de Reclutamiento{% endblock %}
+
+{% block extra_css %}
+<style>
+.kpi-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px 24px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.kpi-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #0d2b27;
+}
+.kpi-label {
+    font-size: .8rem;
+    color: #64748b;
+    margin-top: 3px;
+}
+.funnel-bar-wrap {
+    background: #f1f5f9;
+    border-radius: 6px;
+    height: 28px;
+    overflow: hidden;
+    position: relative;
+}
+.funnel-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: .75rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    transition: width .5s ease;
+}
+.funnel-row {
+    margin-bottom: 10px;
+}
+.funnel-label {
+    font-size: .8rem;
+    color: #475569;
+    min-width: 130px;
+}
+.funnel-count {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #1e293b;
+    min-width: 40px;
+    text-align: right;
+}
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: .82rem;
+}
+.activity-item:last-child { border-bottom: 0; }
+.activity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #5eead4;
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+.time-to-hire-box {
+    text-align: center;
+    padding: 20px;
+}
+.time-to-hire-number {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #0f766e;
+    line-height: 1;
+}
+.section-title {
+    font-size: .85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0">
+            <i class="fas fa-chart-line me-2" style="color:#5eead4"></i>Dashboard de Reclutamiento
+        </h2>
+        <small class="text-muted">Vista ejecutiva del estado del proceso de seleccion</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'pipeline_panel' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-columns me-1"></i>Pipeline
+        </a>
+        <a href="{% url 'vacantes_panel' %}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-briefcase me-1"></i>Vacantes
+        </a>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#f0fdf4">
+                <i class="fas fa-briefcase" style="color:#16a34a"></i>
+            </div>
+            <div>
+                <div class="kpi-value">{{ kpi_vacantes_activas }}</div>
+                <div class="kpi-label">Vacantes Activas</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#eff6ff">
+                <i class="fas fa-users" style="color:#2563eb"></i>
+            </div>
+            <div>
+                <div class="kpi-value">{{ kpi_total_candidatos }}</div>
+                <div class="kpi-label">Candidatos Activos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#fefce8">
+                <i class="fas fa-calendar-check" style="color:#ca8a04"></i>
+            </div>
+            <div>
+                <div class="kpi-value">{{ kpi_entrevistas_semana }}</div>
+                <div class="kpi-label">Entrevistas Esta Semana</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#fdf4ff">
+                <i class="fas fa-bullhorn" style="color:#9333ea"></i>
+            </div>
+            <div>
+                <div class="kpi-value">{{ kpi_ofertas_mes }}</div>
+                <div class="kpi-label">Ofertas Publicadas Este Mes</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Segunda fila: conversión + tendencia + prioridad -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="kpi-card" style="border-left:3px solid #0f766e;">
+            <div class="kpi-icon" style="background:#f0fdf4">
+                <i class="fas fa-percentage" style="color:#0f766e"></i>
+            </div>
+            <div>
+                <div class="kpi-value" style="color:#0f766e;">{{ kpi_conversion_pct }}%</div>
+                <div class="kpi-label">Tasa de Conversión</div>
+                <div style="font-size:.72rem;color:#94a3b8;">{{ total_contratados }} de {{ total_aplicaron }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="kpi-card" style="padding:14px 16px;flex-direction:column;align-items:stretch;gap:6px;">
+            <div class="section-title mb-1"><i class="fas fa-chart-line me-1"></i>Postulaciones — Últimos 6 meses</div>
+            <canvas id="tendenciaPostChart" height="55"></canvas>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <div class="kpi-card" style="padding:14px 16px;flex-direction:column;align-items:stretch;gap:6px;">
+            <div class="section-title mb-1"><i class="fas fa-layer-group me-1"></i>Vacantes por Prioridad</div>
+            <canvas id="prioridadChart" height="55"></canvas>
+        </div>
+    </div>
+</div>
+
+{# Entrevistas próximas #}
+{% if entrevistas_proximas %}
+<div class="card shadow-sm mb-4 border-0">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center"
+         style="background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;border-radius:8px 8px 0 0;">
+        <span style="font-size:.83rem;font-weight:600;">
+            <i class="fas fa-calendar-check me-2"></i>Entrevistas Próximas — 7 días
+        </span>
+        <span class="badge" style="background:rgba(255,255,255,.18);font-size:.7rem;">{{ entrevistas_proximas|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0" style="font-size:.82rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Candidato</th>
+                    <th class="d-none d-md-table-cell">Vacante</th>
+                    <th class="d-none d-lg-table-cell">Entrevistador</th>
+                    <th class="text-center">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ent in entrevistas_proximas %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ ent.fecha_hora|date:"d/m" }}</div>
+                        <small class="text-muted">{{ ent.fecha_hora|date:"H:i" }}</small>
+                    </td>
+                    <td>
+                        <a href="{% url 'postulacion_detalle' ent.postulacion.pk %}" class="text-decoration-none fw-semibold text-dark">
+                            {{ ent.postulacion.nombre_completo|truncatechars:26 }}
+                        </a>
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">{{ ent.postulacion.vacante.titulo|truncatechars:24 }}</td>
+                    <td class="d-none d-lg-table-cell text-muted">
+                        {% if ent.entrevistador %}{{ ent.entrevistador.get_full_name|default:ent.entrevistador.username|truncatechars:20 }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if ent.estado == 'CONFIRMADA' %}
+                            <span class="badge bg-success" style="font-size:.65rem;">Confirmada</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark" style="font-size:.65rem;">Programada</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+
+    <!-- Funnel + Time-to-hire -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="section-title"><i class="fas fa-filter me-1"></i>Funnel de Seleccion</p>
+
+                <!-- Total aplicaron -->
+                <div class="funnel-row d-flex align-items-center gap-2">
+                    <span class="funnel-label">Total aplicaron</span>
+                    <div class="funnel-bar-wrap flex-grow-1">
+                        <div class="funnel-bar-fill" style="width:100%;background:#64748b">
+                            {% if total_aplicaron %}{{ total_aplicaron }}{% endif %}
+                        </div>
+                    </div>
+                    <span class="funnel-count">{{ total_aplicaron }}</span>
+                </div>
+
+                <!-- Etapas del pipeline -->
+                {% if funnel %}
+                {% with max_count=funnel.0.count %}
+                {% for f in funnel %}
+                {% if f.count > 0 %}
+                <div class="funnel-row d-flex align-items-center gap-2">
+                    <span class="funnel-label" style="font-size:.78rem">{{ f.etapa|truncatechars:18 }}</span>
+                    <div class="funnel-bar-wrap flex-grow-1">
+                        {% if total_aplicaron > 0 %}
+                        {% widthratio f.count total_aplicaron 100 as pct %}
+                        {% else %}
+                        {% with pct=0 %}{% endwith %}
+                        {% endif %}
+                        <div class="funnel-bar-fill"
+                             style="width:{% if total_aplicaron > 0 %}{% widthratio f.count total_aplicaron 100 %}{% else %}0{% endif %}%;background:{{ f.color }}">
+                            {% if f.count > 0 %}{{ f.count }}{% endif %}
+                        </div>
+                    </div>
+                    <span class="funnel-count">{{ f.count }}</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% endwith %}
+                {% endif %}
+
+                <!-- Contratados -->
+                {% if total_contratados > 0 %}
+                <div class="funnel-row d-flex align-items-center gap-2">
+                    <span class="funnel-label fw-semibold" style="color:#16a34a">Contratados</span>
+                    <div class="funnel-bar-wrap flex-grow-1">
+                        <div class="funnel-bar-fill"
+                             style="width:{% if total_aplicaron > 0 %}{% widthratio total_contratados total_aplicaron 100 %}{% else %}0{% endif %}%;background:#16a34a">
+                            {{ total_contratados }}
+                        </div>
+                    </div>
+                    <span class="funnel-count" style="color:#16a34a">{{ total_contratados }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Descartados indicador -->
+                {% if total_descartados > 0 %}
+                <div class="mt-2 text-muted" style="font-size:.75rem">
+                    <i class="fas fa-times-circle me-1" style="color:#dc2626"></i>
+                    {{ total_descartados }} descartado{{ total_descartados|pluralize }}
+                </div>
+                {% endif %}
+
+                <!-- Time-to-hire -->
+                <hr class="my-3">
+                <p class="section-title mb-2"><i class="fas fa-stopwatch me-1"></i>Time-to-Hire Promedio</p>
+                {% if kpi_time_to_hire %}
+                <div class="time-to-hire-box">
+                    <div class="time-to-hire-number">{{ kpi_time_to_hire|floatformat:0 }}</div>
+                    <div class="text-muted mt-1" style="font-size:.85rem">dias promedio hasta cubrir posicion</div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3" style="font-size:.85rem">
+                    Sin vacantes cubiertas aun para calcular
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Vacantes -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <p class="section-title"><i class="fas fa-fire me-1"></i>Top Vacantes Mas Aplicadas</p>
+                {% if top_vacantes %}
+                <table class="table table-sm mb-0" style="font-size:.82rem">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Vacante</th>
+                            <th class="text-center">Postul.</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in top_vacantes %}
+                        <tr>
+                            <td class="fw-semibold" style="color:#5eead4">{{ forloop.counter }}</td>
+                            <td>
+                                <a href="{% url 'vacante_detalle' v.pk %}" class="text-decoration-none text-dark fw-semibold">
+                                    {{ v.titulo|truncatechars:28 }}
+                                </a>
+                                <div class="text-muted" style="font-size:.72rem">{{ v.area|default:"Sin area" }}</div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge" style="background:#0d2b27;color:#5eead4">{{ v.num_post }}</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'reclutamiento_scoring' v.pk %}" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:.7rem" title="Scoring">
+                                    <i class="fas fa-star-half-alt"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small mb-0">Sin postulaciones aun.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Chart.js Funnel -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="section-title mb-2"><i class="fas fa-chart-bar me-1"></i>Distribucion por Etapa</p>
+                <canvas id="funnelChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actividad reciente -->
+    <div class="col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="section-title"><i class="fas fa-clock me-1"></i>Actividad Reciente</p>
+                {% if postulaciones_recientes %}
+                <div>
+                    {% for p in postulaciones_recientes %}
+                    <div class="activity-item">
+                        <div class="activity-dot mt-1"></div>
+                        <div>
+                            <div class="fw-semibold text-dark" style="font-size:.82rem">
+                                <a href="{% url 'postulacion_detalle' p.pk %}" class="text-decoration-none text-dark">
+                                    {{ p.nombre_completo|truncatechars:24 }}
+                                </a>
+                            </div>
+                            <div class="text-muted" style="font-size:.73rem">
+                                {{ p.vacante.titulo|truncatechars:22 }}
+                            </div>
+                            <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                                {% if p.etapa %}
+                                <span class="badge" style="background:{{ p.etapa.color }};font-size:.65rem">{{ p.etapa.nombre }}</span>
+                                {% endif %}
+                                <span class="text-muted" style="font-size:.7rem">
+                                    {{ p.fecha_postulacion|date:"d/m/Y" }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small">Sin actividad reciente.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    // ── Tendencia postulaciones 6 meses ──
+    (function() {
+        const raw = {{ postulaciones_6m_json|safe }};
+        const ctx = document.getElementById('tendenciaPostChart');
+        if (!ctx || !raw.length) return;
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: raw.map(d => d.label),
+                datasets: [{
+                    data: raw.map(d => d.total),
+                    borderColor: '#0f766e',
+                    backgroundColor: 'rgba(15,118,110,.08)',
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+                    y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 }, stepSize: 1 }, beginAtZero: true },
+                },
+            }
+        });
+    })();
+
+    // ── Vacantes por prioridad ──
+    (function() {
+        const raw = {{ vacantes_prioridad_json|safe }};
+        const ctx = document.getElementById('prioridadChart');
+        if (!ctx || !raw.length) return;
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: raw.map(d => d.label),
+                datasets: [{
+                    data: raw.map(d => d.total),
+                    backgroundColor: raw.map(d => d.color),
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                plugins: {
+                    legend: { position: 'right', labels: { font: { size: 9 }, boxWidth: 10 } },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } },
+                },
+                cutout: '50%',
+            }
+        });
+    })();
+})();
+
+(function() {
+    const funnelData = {{ funnel_json|safe }};
+
+    if (!funnelData.length) return;
+
+    const labels = funnelData.map(f => f.etapa);
+    const counts = funnelData.map(f => f.count);
+    const colors = funnelData.map(f => f.color || '#94a3b8');
+
+    const ctx = document.getElementById('funnelChart');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Candidatos en etapa',
+                data: counts,
+                backgroundColor: colors,
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.parsed.x} candidato${ctx.parsed.x !== 1 ? 's' : ''}`,
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { stepSize: 1, font: { size: 11 } },
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } },
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

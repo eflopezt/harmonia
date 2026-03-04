@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Comparativa de Competencias{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Tabs modo ───────────────────────────────────────── */
+.modo-tab {
+    padding: .35rem 1rem;
+    border-radius: 8px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    transition: all .15s;
+}
+.modo-tab:hover { background: #f1f5f9; color: #374151; }
+.modo-tab.active { background: #0f766e; color: #fff; border-color: #0f766e; }
+
+/* ── Ranking de competencias ────────────────────────── */
+.comp-rank-row {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.comp-rank-row:last-child { border-bottom: none; }
+.comp-rank-name { min-width: 130px; font-size: .8rem; font-weight: 600; }
+.comp-rank-cat  { font-size: .65rem; color: #6b7280; }
+.comp-rank-bar  { flex: 1; }
+.comp-rank-track {
+    height: 10px; border-radius: 5px;
+    background: #f1f5f9; overflow: hidden;
+}
+.comp-rank-fill { height: 100%; border-radius: 5px; transition: width .5s ease; }
+.comp-rank-score {
+    min-width: 60px; text-align: right;
+    font-size: .8rem; font-weight: 700;
+}
+
+/* ── Color bars por % ────────────────────────────────── */
+.bar-excellent { background: #10b981; }  /* >= 80% */
+.bar-good      { background: #0f766e; }  /* >= 60% */
+.bar-avg       { background: #f59e0b; }  /* >= 40% */
+.bar-low       { background: #f43f5e; }  /* < 40%  */
+
+/* ── Info card ciclo ─────────────────────────────────── */
+.ciclo-info-item {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .8rem; padding: .3rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.ciclo-info-item:last-child { border-bottom: none; }
+.ciclo-info-lbl { color: #6b7280; min-width: 100px; }
+.ciclo-info-val { font-weight: 600; }
+
+/* ── Empty state ─────────────────────────────────────── */
+.empty-radar {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 280px; color: #94a3b8;
+    gap: .5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-spider me-2" style="color:#0f766e;"></i>{{ titulo }}</h2>
+        <small class="text-muted">
+            Radar chart de competencias
+            {% if ciclo_sel %} — <span class="text-primary">{{ ciclo_sel.nombre }}</span>{% endif %}
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'evaluaciones_dashboard' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Dashboard
+        </a>
+        <a href="{% url 'ninebox_grid' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-th me-1"></i>9-Box
+        </a>
+    </div>
+</div>
+
+<!-- ── Filtros ──────────────────────────────────────────────── -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex flex-wrap gap-3 align-items-end">
+            <!-- Modo -->
+            <div>
+                <label class="form-label small mb-1">Comparar por</label>
+                <div class="d-flex gap-2">
+                    <a href="?ciclo={{ ciclo_sel.pk|default:'' }}&modo=areas"
+                       class="modo-tab {% if modo == 'areas' %}active{% endif %}">
+                        <i class="fas fa-building me-1"></i>Áreas
+                    </a>
+                    <a href="?ciclo={{ ciclo_sel.pk|default:'' }}&modo=ciclos"
+                       class="modo-tab {% if modo == 'ciclos' %}active{% endif %}">
+                        <i class="fas fa-calendar-alt me-1"></i>Ciclos
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ciclo -->
+            <div>
+                <label class="form-label small mb-0">Ciclo base</label>
+                <select name="ciclo" class="form-select form-select-sm" style="width:230px;">
+                    <option value="">— Sin ciclo seleccionado —</option>
+                    {% for c in ciclos %}
+                    <option value="{{ c.pk }}"
+                        {% if ciclo_sel and ciclo_sel.pk == c.pk %}selected{% endif %}>
+                        {{ c.nombre|truncatechars:40 }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <input type="hidden" name="modo" value="{{ modo }}">
+            <button class="btn btn-sm btn-primary"><i class="fas fa-sync-alt me-1"></i>Actualizar</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- ── Columna izquierda: Radar Chart ────────────────────── -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-spider text-muted" style="font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.88rem;">
+                    Radar de Competencias —
+                    {% if modo == 'areas' %}Comparativa por Área{% else %}Evolución por Ciclo{% endif %}
+                </span>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="min-height:380px;">
+                {% if hay_datos %}
+                <canvas id="chartRadar" style="max-width:480px; max-height:480px;"></canvas>
+                {% else %}
+                <div class="empty-radar">
+                    <i class="fas fa-spider fa-3x opacity-25"></i>
+                    <div class="fw-semibold" style="font-size:.9rem;">Sin datos para mostrar</div>
+                    <small>
+                        {% if not ciclo_sel %}
+                        Selecciona un ciclo cerrado con plantilla de competencias.
+                        {% elif modo == 'areas' %}
+                        No hay evaluaciones completadas por área para este ciclo.
+                        {% else %}
+                        No hay ciclos cerrados adicionales con la misma plantilla.
+                        {% endif %}
+                    </small>
+                    {% if ciclos %}
+                    <a href="?ciclo={{ ciclos.0.pk }}&modo={{ modo }}" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="fas fa-bolt me-1"></i>Cargar último ciclo cerrado
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Columna derecha: Ranking + Info ciclo ─────────────── -->
+    <div class="col-lg-5">
+
+        <!-- Info del ciclo seleccionado -->
+        {% if ciclo_sel %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-info-circle text-muted" style="font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.87rem;">Ciclo Base</span>
+            </div>
+            <div class="card-body py-2">
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Nombre</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.nombre }}</span>
+                </div>
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Tipo</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.get_tipo_display }}</span>
+                </div>
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Período</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.fecha_inicio|date:"d/m/Y" }} — {{ ciclo_sel.fecha_fin|date:"d/m/Y" }}</span>
+                </div>
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Estado</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.get_estado_display }}</span>
+                </div>
+                {% if ciclo_sel.plantilla %}
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Plantilla</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.plantilla.nombre }}</span>
+                </div>
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Escala máx.</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.plantilla.escala_max }}</span>
+                </div>
+                {% endif %}
+                <div class="ciclo-info-item">
+                    <span class="ciclo-info-lbl">Completadas</span>
+                    <span class="ciclo-info-val">{{ ciclo_sel.completadas }} / {{ ciclo_sel.total_evaluaciones }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ranking de competencias -->
+        <div class="card shadow-sm">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-sort-amount-down text-muted" style="font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.87rem;">Ranking de Competencias</span>
+                <small class="text-muted ms-auto">Prom. global del ciclo</small>
+            </div>
+            <div class="card-body py-2">
+                {% if ranking_competencias %}
+                {% for comp in ranking_competencias %}
+                <div class="comp-rank-row">
+                    <div style="min-width:18px; text-align:center; font-size:.72rem; color:#94a3b8; font-weight:700;">{{ forloop.counter }}</div>
+                    <div style="flex:1;">
+                        <div class="d-flex justify-content-between mb-1">
+                            <div>
+                                <div class="comp-rank-name">{{ comp.nombre }}</div>
+                                <div class="comp-rank-cat">{{ comp.categoria }}</div>
+                            </div>
+                            <div class="comp-rank-score">
+                                {{ comp.promedio }} <span class="text-muted fw-normal" style="font-size:.68rem;">/ {{ comp.escala_max }}</span>
+                            </div>
+                        </div>
+                        <div class="comp-rank-track">
+                            <div class="comp-rank-fill {% if comp.porcentaje >= 80 %}bar-excellent{% elif comp.porcentaje >= 60 %}bar-good{% elif comp.porcentaje >= 40 %}bar-avg{% else %}bar-low{% endif %}"
+                                 style="width:{{ comp.porcentaje }}%"></div>
+                        </div>
+                    </div>
+                    <div style="min-width:38px; text-align:right; font-size:.72rem; color:#6b7280;">
+                        {{ comp.porcentaje }}%
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-chart-bar fa-2x mb-2 d-block opacity-25"></i>
+                    <small>Sin datos de competencias para este ciclo.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ctxRadar = document.getElementById('chartRadar');
+{% if hay_datos %}
+const radarLabels   = {{ radar_labels|safe }};
+const radarDatasets = {{ radar_datasets|safe }};
+const radarEscala   = {{ radar_escala_max }};
+
+if (ctxRadar) {
+    new Chart(ctxRadar, {
+        type: 'radar',
+        data: {
+            labels: radarLabels,
+            datasets: radarDatasets,
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 11 },
+                        padding: 14,
+                        usePointStyle: true,
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw} / ${radarEscala}`,
+                    },
+                },
+            },
+            scales: {
+                r: {
+                    min: 0,
+                    max: radarEscala,
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: radarEscala >= 10 ? 2 : 1,
+                        font: { size: 10 },
+                        backdropColor: 'transparent',
+                    },
+                    pointLabels: { font: { size: 11 } },
+                    grid: { color: 'rgba(0,0,0,.08)' },
+                    angleLines: { color: 'rgba(0,0,0,.08)' },
+                },
+            },
+        },
+    });
+}
+{% endif %}
+</script>
+{% endblock %}

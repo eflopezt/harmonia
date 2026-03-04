@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══ Timeline ══ */
+.timeline {
+    position: relative;
+    padding-left: 2.5rem;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 1.1rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e2e8f0;
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+.timeline-item:last-child { margin-bottom: 0; }
+
+/* Bullet */
+.timeline-bullet {
+    position: absolute;
+    left: -2.5rem;
+    top: .3rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .65rem;
+    font-weight: 700;
+    z-index: 1;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #e2e8f0;
+}
+.bullet-completado {
+    background: #16a34a;
+    color: #fff;
+    box-shadow: 0 0 0 2px #bbf7d0;
+}
+.bullet-pendiente {
+    background: #f1f5f9;
+    color: #64748b;
+    box-shadow: 0 0 0 2px #cbd5e1;
+}
+.bullet-en_progreso {
+    background: #0ea5e9;
+    color: #fff;
+    box-shadow: 0 0 0 2px #bae6fd;
+}
+.bullet-omitido {
+    background: #94a3b8;
+    color: #fff;
+}
+.bullet-vencido {
+    background: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 0 2px #fecaca;
+}
+
+/* Card del paso */
+.timeline-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: .85rem 1rem;
+    transition: box-shadow .15s;
+}
+.timeline-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.timeline-card.card-completado { border-left: 3px solid #16a34a; background: #f0fdf4; }
+.timeline-card.card-pendiente  { border-left: 3px solid #cbd5e1; }
+.timeline-card.card-en_progreso { border-left: 3px solid #0ea5e9; background: #f0f9ff; }
+.timeline-card.card-omitido    { border-left: 3px solid #94a3b8; background: #f8fafc; opacity: .75; }
+.timeline-card.card-vencido    { border-left: 3px solid #dc2626; background: #fff1f2; }
+
+/* Toggle button */
+.btn-toggle {
+    padding: .25rem .6rem;
+    font-size: .75rem;
+    min-width: 90px;
+    transition: all .15s;
+}
+
+/* Barra de progreso circular / lineal */
+.progreso-linea {
+    height: 10px;
+    border-radius: 5px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+.progreso-linea .fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #0f766e, #5eead4);
+    transition: width .4s ease;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Cabecera -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">
+            <i class="fas fa-tasks me-2" style="color:#0f766e;"></i>{{ titulo }}
+        </h2>
+        <small class="text-muted">
+            Plantilla: {{ proceso.plantilla.nombre }} &nbsp;|&nbsp;
+            Ingreso: {{ proceso.fecha_ingreso|date:"d/m/Y" }}
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'onboarding_detalle' pk=proceso.pk %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-table me-1"></i>Ver Checklist
+        </a>
+        <a href="{% url 'onboarding_panel' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Panel
+        </a>
+    </div>
+</div>
+
+<!-- Alerta de urgencia -->
+{% if alerta_nivel %}
+<div class="alert alert-{{ alerta_nivel }} d-flex align-items-center py-2 mb-3" style="font-size:.87rem;">
+    {% if alerta_nivel == 'danger' %}
+    <i class="fas fa-fire me-2"></i>
+    <span><strong>Proceso vencido.</strong> La fecha estimada de fin ya pasó ({{ dias_restantes|abs }} días de retraso).</span>
+    {% else %}
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <span><strong>En riesgo.</strong> Quedan solo <strong>{{ dias_restantes }} días</strong> para la fecha estimada de fin ({{ fecha_fin|date:"d/m/Y" }}).</span>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Resumen del proceso -->
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-sm-5">
+                        <div class="text-muted small mb-1">Trabajador</div>
+                        <div class="fw-semibold">{{ proceso.personal.apellidos_nombres }}</div>
+                        <div class="text-muted small">{{ proceso.personal.nro_doc }}</div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="text-muted small mb-1">Estado</div>
+                        {% if proceso.estado == 'EN_CURSO' %}
+                        <span class="badge bg-primary">En Curso</span>
+                        {% elif proceso.estado == 'COMPLETADO' %}
+                        <span class="badge bg-success">Completado</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Cancelado</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="text-muted small mb-1">Días transcurridos</div>
+                        <div class="fw-semibold">{{ proceso.dias_transcurridos }} días</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="fw-bold fs-3 text-primary" id="pct-display">{{ proceso.porcentaje_avance }}%</div>
+                <div class="text-muted small mb-2">Progreso</div>
+                <div class="progreso-linea">
+                    <div class="fill" id="pct-bar" style="width:{{ proceso.porcentaje_avance }}%;"></div>
+                </div>
+                <small class="text-muted" id="pasos-display">
+                    {{ proceso.pasos_completados }}/{{ proceso.total_pasos }} pasos completados
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if proceso.notas %}
+<div class="alert alert-info py-2 mb-3" style="font-size:.85rem;">
+    <i class="fas fa-sticky-note me-1"></i> {{ proceso.notas }}
+</div>
+{% endif %}
+
+<!-- Timeline de pasos -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background:#0d2b27; color:#fff;">
+        <span><i class="fas fa-stream me-2"></i>Timeline de Pasos</span>
+        <small class="opacity-75">Click para marcar/desmarcar completado</small>
+    </div>
+    <div class="card-body pt-3 pb-4">
+        <div class="timeline" id="timeline-pasos">
+            {% for paso in pasos %}
+            {% with estado=paso.estado vencido=paso.esta_vencido %}
+            <div class="timeline-item" id="item-{{ paso.pk }}">
+
+                <!-- Bullet -->
+                <div class="timeline-bullet
+                    {% if vencido and estado != 'COMPLETADO' %}bullet-vencido
+                    {% elif estado == 'COMPLETADO' %}bullet-completado
+                    {% elif estado == 'EN_PROGRESO' %}bullet-en_progreso
+                    {% elif estado == 'OMITIDO' %}bullet-omitido
+                    {% else %}bullet-pendiente{% endif %}">
+                    {% if estado == 'COMPLETADO' %}<i class="fas fa-check" style="font-size:.6rem;"></i>
+                    {% elif estado == 'OMITIDO' %}<i class="fas fa-forward" style="font-size:.6rem;"></i>
+                    {% else %}{{ paso.orden }}{% endif %}
+                </div>
+
+                <!-- Card -->
+                <div class="timeline-card
+                    {% if vencido and estado != 'COMPLETADO' %}card-vencido
+                    {% elif estado == 'COMPLETADO' %}card-completado
+                    {% elif estado == 'EN_PROGRESO' %}card-en_progreso
+                    {% elif estado == 'OMITIDO' %}card-omitido
+                    {% else %}card-pendiente{% endif %}"
+                    id="card-{{ paso.pk }}">
+
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold" style="font-size:.9rem;">{{ paso.titulo }}</div>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <!-- Estado badge -->
+                                <span class="badge
+                                    {% if vencido and estado != 'COMPLETADO' %}bg-danger
+                                    {% elif estado == 'COMPLETADO' %}bg-success
+                                    {% elif estado == 'EN_PROGRESO' %}bg-info
+                                    {% elif estado == 'OMITIDO' %}bg-secondary
+                                    {% else %}bg-warning text-dark{% endif %}"
+                                    id="badge-{{ paso.pk }}" style="font-size:.72rem;">
+                                    {% if vencido and estado != 'COMPLETADO' %}Vencido
+                                    {% else %}{{ paso.get_estado_display }}{% endif %}
+                                </span>
+                                {% if paso.paso_plantilla %}
+                                <span class="badge bg-light text-dark border" style="font-size:.72rem;">
+                                    {{ paso.paso_plantilla.get_tipo_display }}
+                                </span>
+                                <span class="badge bg-light text-dark border" style="font-size:.72rem;">
+                                    {{ paso.paso_plantilla.get_responsable_tipo_display }}
+                                </span>
+                                {% if not paso.paso_plantilla.obligatorio %}
+                                <span class="badge bg-warning text-dark" style="font-size:.72rem;">Opcional</span>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                            <!-- Meta info -->
+                            <div class="mt-1 text-muted" style="font-size:.78rem;">
+                                {% if paso.fecha_limite %}
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                Límite: <span class="{% if vencido and estado != 'COMPLETADO' %}text-danger fw-bold{% endif %}">
+                                    {{ paso.fecha_limite|date:"d/m/Y" }}
+                                </span>
+                                {% endif %}
+                                {% if paso.responsable %}
+                                &nbsp;&bull;&nbsp;<i class="fas fa-user me-1"></i>{{ paso.responsable.get_full_name|default:paso.responsable.username }}
+                                {% endif %}
+                                {% if paso.completado_por %}
+                                &nbsp;&bull;&nbsp;<i class="fas fa-check me-1 text-success"></i>
+                                <span id="completado-por-{{ paso.pk }}">
+                                    {{ paso.completado_por.get_full_name|default:paso.completado_por.username }}
+                                    {% if paso.fecha_completado %} · {{ paso.fecha_completado|date:"d/m/Y H:i" }}{% endif %}
+                                </span>
+                                {% else %}
+                                <span id="completado-por-{{ paso.pk }}"></span>
+                                {% endif %}
+                            </div>
+                            {% if paso.comentarios %}
+                            <div class="mt-1 text-info" style="font-size:.78rem;">
+                                <i class="fas fa-comment me-1"></i>{{ paso.comentarios }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Botón toggle -->
+                        {% if paso.estado != 'OMITIDO' %}
+                        <button class="btn btn-toggle
+                            {% if paso.estado == 'COMPLETADO' %}btn-outline-success{% else %}btn-outline-secondary{% endif %}"
+                            id="btn-{{ paso.pk }}"
+                            onclick="togglePaso({{ proceso.pk }}, {{ paso.pk }})"
+                            title="{% if paso.estado == 'COMPLETADO' %}Revertir a pendiente{% else %}Marcar completado{% endif %}">
+                            {% if paso.estado == 'COMPLETADO' %}
+                            <i class="fas fa-undo me-1"></i>Revertir
+                            {% else %}
+                            <i class="fas fa-check me-1"></i>Completar
+                            {% endif %}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+            {% empty %}
+            <p class="text-muted text-center py-3">Este proceso no tiene pasos registrados.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function togglePaso(procPk, pasoPk) {
+    const btn = document.getElementById(`btn-${pasoPk}`);
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>...';
+
+    fetch(`/onboarding/${procPk}/paso/${pasoPk}/completar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': CSRF,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) { btn.disabled = false; return; }
+
+        const nuevoEstado = data.nuevo_estado;
+        const card  = document.getElementById(`card-${pasoPk}`);
+        const badge = document.getElementById(`badge-${pasoPk}`);
+        const item  = document.getElementById(`item-${pasoPk}`);
+
+        // Actualizar bala
+        const bullet = item.querySelector('.timeline-bullet');
+        bullet.className = 'timeline-bullet ' + {
+            COMPLETADO: 'bullet-completado',
+            PENDIENTE:  'bullet-pendiente',
+            EN_PROGRESO:'bullet-en_progreso',
+            OMITIDO:    'bullet-omitido',
+        }[nuevoEstado];
+        bullet.innerHTML = nuevoEstado === 'COMPLETADO'
+            ? '<i class="fas fa-check" style="font-size:.6rem;"></i>'
+            : (nuevoEstado === 'OMITIDO' ? '<i class="fas fa-forward" style="font-size:.6rem;"></i>' : btn.dataset.orden || '');
+
+        // Actualizar card
+        card.className = 'timeline-card ' + {
+            COMPLETADO:  'card-completado',
+            PENDIENTE:   'card-pendiente',
+            EN_PROGRESO: 'card-en_progreso',
+            OMITIDO:     'card-omitido',
+        }[nuevoEstado];
+
+        // Actualizar badge
+        badge.textContent = { COMPLETADO:'Completado', PENDIENTE:'Pendiente', EN_PROGRESO:'En Progreso', OMITIDO:'Omitido' }[nuevoEstado];
+        badge.className = 'badge ' + {
+            COMPLETADO:  'bg-success',
+            PENDIENTE:   'bg-warning text-dark',
+            EN_PROGRESO: 'bg-info',
+            OMITIDO:     'bg-secondary',
+        }[nuevoEstado];
+
+        // Actualizar botón
+        if (nuevoEstado === 'COMPLETADO') {
+            btn.className = 'btn btn-toggle btn-outline-success';
+            btn.innerHTML = '<i class="fas fa-undo me-1"></i>Revertir';
+        } else {
+            btn.className = 'btn btn-toggle btn-outline-secondary';
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Completar';
+        }
+        btn.disabled = false;
+
+        // Actualizar barra de progreso global
+        document.getElementById('pct-display').textContent = data.progreso_pct + '%';
+        document.getElementById('pct-bar').style.width = data.progreso_pct + '%';
+        document.getElementById('pasos-display').textContent =
+            `${data.pasos_completados}/${data.total_pasos} pasos completados`;
+
+        // Si proceso recién completado: recargar para reflejar estado
+        if (data.progreso_pct === 100) {
+            setTimeout(() => location.reload(), 800);
+        }
+    })
+    .catch(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check me-1"></i>Completar'; });
+}
+</script>
+{% endblock %}

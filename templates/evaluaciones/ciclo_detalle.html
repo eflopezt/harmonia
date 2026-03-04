@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ ciclo.nombre }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-star-half-alt text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ ciclo.get_tipo_display }} — {{ ciclo.fecha_inicio|date:"d/m/Y" }} al {{ ciclo.fecha_fin|date:"d/m/Y" }}</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if ciclo.estado == 'BORRADOR' %}
+        <button class="btn btn-sm btn-outline-primary" onclick="generarEvals()"><i class="fas fa-users me-1"></i>Generar Evaluaciones</button>
+        <button class="btn btn-sm btn-success" onclick="abrirCiclo()"><i class="fas fa-play me-1"></i>Abrir Ciclo</button>
+        {% endif %}
+        {% if ciclo.estado in 'ABIERTO,EN_EVALUACION,CALIBRACION' %}
+        <button class="btn btn-sm btn-warning" onclick="cerrarCiclo()"><i class="fas fa-lock me-1"></i>Cerrar y Consolidar</button>
+        {% endif %}
+        {% if ciclo.estado == 'CERRADO' %}
+        <a href="{% url 'nine_box' ciclo.pk %}" class="btn btn-sm btn-primary"><i class="fas fa-th me-1"></i>9-Box Grid</a>
+        {% endif %}
+        <a href="{% url 'evaluacion_exportar_excel' ciclo.pk %}"
+           class="btn btn-sm btn-outline-success"
+           title="Exportar resultados a Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar Excel
+        </a>
+    </div>
+</div>
+
+<!-- Avance -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value">{{ ciclo.total_evaluaciones }}</div><div class="stat-label">Total Evaluaciones</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ ciclo.completadas }}</div><div class="stat-label">Completadas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ ciclo.porcentaje_avance }}%</div>
+            <div class="stat-label">Avance</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <span class="badge {% if ciclo.estado == 'CERRADO' %}bg-success{% elif ciclo.estado == 'BORRADOR' %}bg-light text-dark{% else %}bg-info{% endif %} fs-6">{{ ciclo.get_estado_display }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluaciones -->
+<div class="card shadow-sm">
+    <div class="card-header"><i class="fas fa-list me-1"></i> Evaluaciones ({{ evaluaciones|length }})</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Evaluado</th>
+                    <th>Relación</th>
+                    <th>Evaluador</th>
+                    <th class="text-center">Puntaje</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in evaluaciones %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ e.evaluado.apellidos_nombres|truncatechars:30 }}</div>
+                        <small class="text-muted">{{ e.evaluado.cargo|default:"—"|truncatechars:25 }}</small>
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ e.get_relacion_display }}</span></td>
+                    <td>{{ e.evaluador.apellidos_nombres|default:"Por asignar"|truncatechars:25 }}</td>
+                    <td class="text-center fw-semibold">
+                        {% if e.puntaje_final %}{{ e.puntaje_final|floatformat:1 }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if e.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif e.estado == 'COMPLETADA' %}<span class="badge bg-success">Completada</span>
+                        {% elif e.estado == 'CALIBRADA' %}<span class="badge bg-primary">Calibrada</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ e.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if e.estado in 'PENDIENTE,EN_PROGRESO' %}
+                        <a href="{% url 'evaluacion_completar' e.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2"><i class="fas fa-edit"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay evaluaciones. Use "Generar Evaluaciones" para crear.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generarEvals() {
+    if(!confirm('¿Generar evaluaciones para todo el personal activo?')) return;
+    fetch('{% url "ciclo_generar_evaluaciones" ciclo.pk %}', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) { alert(`${d.creadas} evaluaciones generadas.`); location.reload(); }
+        else alert(d.error);
+    });
+}
+function abrirCiclo() {
+    if(!confirm('¿Abrir este ciclo para evaluación?')) return;
+    fetch('{% url "ciclo_abrir" ciclo.pk %}', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+function cerrarCiclo() {
+    if(!confirm('¿Cerrar ciclo y consolidar resultados? Esta acción es irreversible.')) return;
+    fetch('{% url "ciclo_cerrar" ciclo.pk %}', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) { alert(`${d.consolidados} resultados consolidados.`); location.reload(); }
+        else alert(d.error);
+    });
+}
+</script>
+{% endblock %}

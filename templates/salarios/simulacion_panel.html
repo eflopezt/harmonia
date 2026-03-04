@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Simulaciones de Incremento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-calculator text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} simulación{{ total|pluralize:"es" }}</small>
+    </div>
+    <a href="{% url 'simulacion_crear' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Nueva Simulación</a>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-warning">{{ stats.borradores }}</div><div class="stat-label">Borradores</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ stats.aplicadas }}</div><div class="stat-label">Aplicadas</div></div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th class="text-center">Empleados</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in simulaciones %}
+                <tr>
+                    <td class="fw-semibold">{{ s.nombre }}</td>
+                    <td>{{ s.fecha|date:"d/m/Y" }}</td>
+                    <td><span class="badge bg-light text-dark">{{ s.get_tipo_display }}</span></td>
+                    <td class="text-center">{{ s.total_empleados }}</td>
+                    <td class="text-center">
+                        {% if s.estado == 'BORRADOR' %}<span class="badge bg-warning text-dark">Borrador</span>
+                        {% elif s.estado == 'APROBADA' %}<span class="badge bg-info">Aprobada</span>
+                        {% elif s.estado == 'APLICADA' %}<span class="badge bg-success">Aplicada</span>{% endif %}
+                    </td>
+                    <td><a href="{% url 'simulacion_detalle' s.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2"><i class="fas fa-eye"></i></a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay simulaciones.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

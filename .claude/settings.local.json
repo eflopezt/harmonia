@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe*)",
+      "Bash(python*)",
+      "Bash(pip*)",
+      "Bash(git*)",
+      "Bash(ls*)",
+      "Bash(find*)",
+      "Bash(mkdir*)",
+      "Bash(cp*)",
+      "Bash(cat*)",
+      "Bash(sleep*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

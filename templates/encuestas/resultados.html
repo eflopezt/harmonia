@@ -1,0 +1,569 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Resultados: {{ encuesta.titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── eNPS Gauge ── */
+  .enps-gauge-wrapper {
+    position: relative;
+    width: 220px;
+    height: 120px;
+    margin: 0 auto;
+  }
+  .enps-gauge-score {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    line-height: 1.1;
+  }
+  .enps-gauge-score .score-num {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0d2b27;
+  }
+  .enps-gauge-score .score-label {
+    font-size: .7rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  /* ── Pregunta card ── */
+  .pregunta-card {
+    border: 1px solid #e9ecef;
+    border-radius: .5rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    background: #fff;
+  }
+  .pregunta-card .tipo-badge {
+    font-size: .68rem;
+    padding: .15em .5em;
+  }
+  .promedio-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #e9ecef;
+    overflow: hidden;
+  }
+  .promedio-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #0f766e, #5eead4);
+    transition: width .6s ease;
+  }
+
+  /* ── Texto libre cards ── */
+  .respuesta-texto-card {
+    background: #f8f9fa;
+    border-left: 3px solid #5eead4;
+    border-radius: 0 .35rem .35rem 0;
+    padding: .55rem .85rem;
+    margin-bottom: .5rem;
+    font-size: .83rem;
+    font-style: italic;
+    color: #343a40;
+  }
+
+  /* ── Chart containers ── */
+  .chart-sm { height: 180px; }
+  .chart-md { height: 240px; }
+
+  /* ── Dimension bar ── */
+  .dim-progress {
+    height: 10px;
+    border-radius: 5px;
+    background: #e9ecef;
+    overflow: hidden;
+  }
+  .dim-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #134e4a, #5eead4);
+  }
+
+  /* ── Distribución labels ── */
+  .dist-chips .chip {
+    display: inline-block;
+    padding: .1em .55em;
+    border-radius: .75rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    font-size: .73rem;
+    margin: .15rem .1rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-0">
+      <i class="fas fa-chart-bar me-2" style="color:#0f766e;"></i>{{ titulo }}
+    </h2>
+    <small class="text-muted">
+      {{ encuesta.get_tipo_display }}
+      {% if encuesta.anonima %}<span class="badge bg-dark ms-1" style="font-size:.65rem;">Anónima</span>{% endif %}
+    </small>
+  </div>
+  <a href="{% url 'encuesta_detalle' encuesta.pk %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+{% if resultado %}
+<!-- ══ KPIs ══════════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value">{{ resultado.total_participantes }}</div>
+      <div class="stat-label">Participantes</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value text-primary">{{ resultado.tasa_participacion }}%</div>
+      <div class="stat-label">Participación</div>
+    </div>
+  </div>
+  {% if resultado.puntaje_general %}
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value text-success">{{ resultado.puntaje_general|floatformat:1 }}</div>
+      <div class="stat-label">Puntaje General</div>
+    </div>
+  </div>
+  {% endif %}
+  {% if resultado.enps_score is not None %}
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-value {% if resultado.enps_score >= 30 %}text-success{% elif resultado.enps_score >= 0 %}text-warning{% else %}text-danger{% endif %}">
+        {{ resultado.enps_score }}
+      </div>
+      <div class="stat-label">eNPS Score</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══ eNPS Gauge ════════════════════════════════════════════ -->
+{% if resultado.enps_score is not None %}
+<div class="card shadow-sm mb-3">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="fas fa-tachometer-alt" style="color:#0f766e;"></i>
+    <span class="fw-semibold">eNPS — Employee Net Promoter Score</span>
+    <span class="ms-auto badge {% if resultado.enps_score >= 30 %}bg-success{% elif resultado.enps_score >= 0 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+      {% if resultado.enps_score >= 50 %}Excelente
+      {% elif resultado.enps_score >= 30 %}Muy bueno
+      {% elif resultado.enps_score >= 10 %}Bueno
+      {% elif resultado.enps_score >= 0 %}Aceptable
+      {% elif resultado.enps_score >= -20 %}Bajo
+      {% else %}Crítico{% endif %}
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="row align-items-center">
+      <!-- Gauge -->
+      <div class="col-md-5 text-center mb-3 mb-md-0">
+        <div class="enps-gauge-wrapper">
+          <canvas id="enpsGauge" width="220" height="120"></canvas>
+          <div class="enps-gauge-score">
+            <div class="score-num" id="enpsScoreNum">{{ resultado.enps_score }}</div>
+            <div class="score-label">eNPS</div>
+          </div>
+        </div>
+        <div class="mt-1" style="font-size:.72rem;color:#6c757d;">
+          Rango: -100 &nbsp;→&nbsp; +100
+        </div>
+      </div>
+      <!-- Breakdown -->
+      <div class="col-md-7">
+        <div class="row g-3 text-center mb-3">
+          <div class="col-4">
+            <div class="rounded p-2" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+              <div class="fs-4 fw-bold text-success">{{ resultado.enps_promotores }}</div>
+              <div style="font-size:.72rem;color:#166534;font-weight:600;">PROMOTORES</div>
+              <div style="font-size:.68rem;color:#6c757d;">Respuestas 9–10</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="rounded p-2" style="background:#fefce8;border:1px solid #fde68a;">
+              <div class="fs-4 fw-bold text-warning">{{ resultado.enps_pasivos }}</div>
+              <div style="font-size:.72rem;color:#92400e;font-weight:600;">PASIVOS</div>
+              <div style="font-size:.68rem;color:#6c757d;">Respuestas 7–8</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="rounded p-2" style="background:#fef2f2;border:1px solid #fecaca;">
+              <div class="fs-4 fw-bold text-danger">{{ resultado.enps_detractores }}</div>
+              <div style="font-size:.72rem;color:#991b1b;font-weight:600;">DETRACTORES</div>
+              <div style="font-size:.68rem;color:#6c757d;">Respuestas 0–6</div>
+            </div>
+          </div>
+        </div>
+        <!-- Barra de distribución -->
+        {% with total=resultado.enps_promotores|add:resultado.enps_pasivos|add:resultado.enps_detractores %}
+        {% if total > 0 %}
+        <div class="mb-1" style="font-size:.72rem;color:#6c757d;font-weight:600;">DISTRIBUCIÓN</div>
+        <div class="d-flex rounded overflow-hidden" style="height:18px;">
+          {% if resultado.enps_promotores %}
+          <div style="width:{% widthratio resultado.enps_promotores total 100 %}%;background:#16a34a;" title="Promotores"></div>
+          {% endif %}
+          {% if resultado.enps_pasivos %}
+          <div style="width:{% widthratio resultado.enps_pasivos total 100 %}%;background:#eab308;" title="Pasivos"></div>
+          {% endif %}
+          {% if resultado.enps_detractores %}
+          <div style="width:{% widthratio resultado.enps_detractores total 100 %}%;background:#dc2626;" title="Detractores"></div>
+          {% endif %}
+        </div>
+        <div class="d-flex justify-content-between mt-1" style="font-size:.68rem;color:#6c757d;">
+          <span>{% widthratio resultado.enps_promotores total 100 %}% promotores</span>
+          <span>{% widthratio resultado.enps_detractores total 100 %}% detractores</span>
+        </div>
+        {% endif %}
+        {% endwith %}
+        <!-- Fórmula -->
+        <div class="mt-2 p-2 rounded" style="background:#f8f9fa;font-size:.72rem;color:#6c757d;">
+          <strong>Fórmula:</strong> eNPS = %Promotores − %Detractores =
+          <strong style="color:#0f766e;">{{ resultado.enps_score }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══ Puntajes por Dimensión ════════════════════════════════ -->
+{% if resultado.puntajes_dimension %}
+<div class="card shadow-sm mb-3">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="fas fa-layer-group" style="color:#0f766e;"></i>
+    <span class="fw-semibold">Puntajes por Dimensión</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-2 mb-3">
+      {% for dim, puntaje in resultado.puntajes_dimension.items %}
+      <div class="col-12 col-md-6">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="fw-semibold" style="font-size:.85rem;">{{ dim }}</span>
+          <span class="badge" style="background:#0f766e;">{{ puntaje }}/5</span>
+        </div>
+        <div class="dim-progress">
+          <div class="dim-progress-fill" style="width:{% widthratio puntaje 5 100 %}%;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="position:relative;height:200px;">
+      <canvas id="chartDimensiones"></canvas>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}{# resultado #}
+
+<!-- ══ Detalle por Pregunta ══════════════════════════════════ -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="fas fa-list" style="color:#0f766e;"></i>
+    <span class="fw-semibold">Detalle por Pregunta</span>
+    <span class="badge bg-light text-dark ms-auto">{{ detalle_preguntas|length }} pregunta{{ detalle_preguntas|length|pluralize:"s" }}</span>
+  </div>
+  <div class="card-body">
+    {% for item in detalle_preguntas %}
+    <div class="pregunta-card">
+      <!-- Cabecera pregunta -->
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="flex-grow-1 me-3">
+          <span class="fw-semibold" style="font-size:.92rem;">
+            {{ forloop.counter }}. {{ item.pregunta.texto }}
+          </span>
+          {% if item.pregunta.categoria %}
+          <span class="badge bg-light text-dark ms-1" style="font-size:.65rem;">{{ item.pregunta.categoria }}</span>
+          {% endif %}
+        </div>
+        <div class="text-end flex-shrink-0">
+          <span class="badge tipo-badge" style="background:#134e4a;color:#5eead4;">{{ item.pregunta.get_tipo_display }}</span>
+          <div class="text-muted mt-1" style="font-size:.72rem;">{{ item.total_respuestas }} resp.</div>
+        </div>
+      </div>
+
+      {% if item.pregunta.tipo == 'ESCALA_5' or item.pregunta.tipo == 'ESCALA_10' %}
+      <!-- ── Escala: promedio + barra + mini bar chart ── -->
+      {% if item.total_respuestas > 0 %}
+      <div class="row align-items-center mb-2">
+        <div class="col-auto">
+          <span class="fw-bold" style="font-size:1.5rem;color:#0f766e;">{{ item.promedio }}</span>
+          <span class="text-muted" style="font-size:.8rem;">/ {% if item.pregunta.tipo == 'ESCALA_5' %}5{% else %}10{% endif %}</span>
+        </div>
+        <div class="col">
+          <div class="promedio-bar">
+            <div class="promedio-bar-fill"
+              style="width:{% if item.pregunta.tipo == 'ESCALA_5' %}{% widthratio item.promedio 5 100 %}{% else %}{% widthratio item.promedio 10 100 %}{% endif %}%;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Mini bar chart -->
+      <div style="position:relative;height:120px;">
+        <canvas id="chart_preg_{{ item.pregunta.pk }}"></canvas>
+      </div>
+      {% else %}
+      <p class="text-muted small mb-0">Sin respuestas aún.</p>
+      {% endif %}
+
+      {% elif item.pregunta.tipo == 'OPCION' or item.pregunta.tipo == 'SI_NO' %}
+      <!-- ── Opción múltiple / Sí-No: doughnut ── -->
+      {% if item.total_respuestas > 0 %}
+      <div class="row align-items-center">
+        <div class="col-md-5">
+          <div style="position:relative;height:180px;">
+            <canvas id="chart_preg_{{ item.pregunta.pk }}"></canvas>
+          </div>
+        </div>
+        <div class="col-md-7">
+          {% for key, count in item.distribucion.items %}
+          <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.82rem;">
+            <span>{{ key }}</span>
+            <div class="d-flex align-items-center gap-2">
+              <div class="promedio-bar" style="width:100px;">
+                <div class="promedio-bar-fill" style="width:{% widthratio count item.total_respuestas 100 %}%;"></div>
+              </div>
+              <span class="fw-semibold" style="min-width:28px;text-align:right;">{{ count }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="text-muted small mb-0">Sin respuestas aún.</p>
+      {% endif %}
+
+      {% elif item.pregunta.tipo == 'TEXTO' %}
+      <!-- ── Texto libre: cards anónimas ── -->
+      {% if item.textos %}
+      <div class="mt-1">
+        {% for t in item.textos %}
+        <div class="respuesta-texto-card">"{{ t }}"</div>
+        {% endfor %}
+        {% if item.total_respuestas > item.textos|length %}
+        <p class="text-muted" style="font-size:.75rem;">... y {{ item.total_respuestas|add:-item.textos|length }} respuestas más.</p>
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="text-muted small mb-0">Sin respuestas abiertas.</p>
+      {% endif %}
+
+      {% else %}
+      <!-- fallback -->
+      {% if item.distribucion %}
+      <div class="dist-chips mt-1">
+        {% for key, count in item.distribucion.items %}
+        <span class="chip">{{ key }}: {{ count }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
+
+    </div>
+    {% empty %}
+    <p class="text-muted text-center py-3">No hay preguntas registradas.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ================================================================
+   Harmoni — Encuesta Resultados — Chart.js
+   Paleta: #0d2b27 #134e4a #0f766e #5eead4
+================================================================ */
+(function() {
+  'use strict';
+
+  const PALETTE = [
+    '#0f766e','#5eead4','#14b8a6','#0d9488','#99f6e4',
+    '#2dd4bf','#0e7490','#0891b2','#38bdf8','#7dd3fc',
+  ];
+
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = "'Inter', 'Segoe UI', sans-serif";
+    Chart.defaults.font.size   = 11;
+    Chart.defaults.color       = '#6c757d';
+  }
+
+  function getCtx(id) {
+    const el = document.getElementById(id);
+    return el ? el.getContext('2d') : null;
+  }
+
+  /* ══ eNPS Gauge ══════════════════════════════════════════════ */
+  {% if resultado and resultado.enps_score is not None %}
+  (function() {
+    const ctx = getCtx('enpsGauge');
+    if (!ctx) return;
+
+    const score      = {{ resultado.enps_score }};
+    const pct        = (score + 100) / 200;
+    const colorScore = score >= 30 ? '#16a34a' : score >= 0 ? '#eab308' : '#dc2626';
+
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [pct, 1 - pct],
+          backgroundColor: [colorScore, '#e9ecef'],
+          borderWidth: 0,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: false,
+        circumference: 180,
+        rotation: -90,
+        cutout: '72%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        animation: { duration: 900, easing: 'easeOutQuart' },
+      }
+    });
+
+    const numEl = document.getElementById('enpsScoreNum');
+    if (numEl) numEl.style.color = colorScore;
+  })();
+  {% endif %}
+
+  /* ══ Gráfico Dimensiones ════════════════════════════════════ */
+  {% if resultado and resultado.puntajes_dimension %}
+  (function() {
+    const ctx  = getCtx('chartDimensiones');
+    if (!ctx) return;
+    const data = {{ dimensiones_json|safe }};
+
+    const labels = Object.keys(data);
+    const values = Object.values(data).map(Number);
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Puntaje',
+          data: values,
+          backgroundColor: labels.map((_, i) => PALETTE[i % PALETTE.length] + 'cc'),
+          borderColor:     labels.map((_, i) => PALETTE[i % PALETTE.length]),
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+          x: { min: 0, max: 5, grid: { color: 'rgba(0,0,0,.05)' }, ticks: { stepSize: 1 } },
+          y: { grid: { display: false } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` Promedio: ${c.parsed.x}/5` } },
+        },
+        animation: { duration: 800 },
+      }
+    });
+  })();
+  {% endif %}
+
+  /* ══ Gráficos por Pregunta ═══════════════════════════════════ */
+  {% for item in detalle_preguntas %}
+  {% if item.total_respuestas > 0 and item.distribucion_json %}
+
+  /* ── Pregunta {{ item.pregunta.pk }} ({{ item.pregunta.tipo }}) ── */
+  (function() {
+    const ctx  = getCtx('chart_preg_{{ item.pregunta.pk }}');
+    if (!ctx) return;
+    const dist = {{ item.distribucion_json|safe }};
+
+    const labels = Object.keys(dist);
+    const values = Object.values(dist).map(Number);
+
+    {% if item.pregunta.tipo == 'ESCALA_5' or item.pregunta.tipo == 'ESCALA_10' %}
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Respuestas',
+          data: values,
+          backgroundColor: labels.map(l => {
+            const v = parseInt(l, 10);
+            {% if item.pregunta.tipo == 'ESCALA_5' %}
+            return v >= 4 ? '#16a34a' : v === 3 ? '#eab308' : '#dc2626';
+            {% else %}
+            return v >= 9 ? '#16a34a' : v >= 7 ? '#eab308' : '#dc2626';
+            {% endif %}
+          }),
+          borderRadius: 3,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { display: false } },
+          y: { min: 0, ticks: { precision: 0, stepSize: 1 }, grid: { color: 'rgba(0,0,0,.05)' } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.parsed.y} respuestas` } },
+        },
+        animation: { duration: 700 },
+      }
+    });
+    {% elif item.pregunta.tipo == 'OPCION' or item.pregunta.tipo == 'SI_NO' %}
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: labels.map((_, i) => PALETTE[i % PALETTE.length] + 'dd'),
+          borderColor:     labels.map((_, i) => PALETTE[i % PALETTE.length]),
+          borderWidth: 1.5,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } },
+          tooltip: {
+            callbacks: {
+              label: c => {
+                const total = c.dataset.data.reduce((a, b) => a + b, 0);
+                const pct   = total ? Math.round(c.parsed / total * 100) : 0;
+                return ` ${c.label}: ${c.parsed} (${pct}%)`;
+              }
+            }
+          }
+        },
+        animation: { duration: 800 },
+      }
+    });
+    {% endif %}
+  })();
+
+  {% endif %}{# total_respuestas > 0 and distribucion_json #}
+  {% endfor %}
+
+})(); /* end IIFE */
+</script>
+{% endblock %}

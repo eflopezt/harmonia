@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Mis Vacaciones{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-umbrella-beach me-2 text-primary"></i>Mis Vacaciones</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.vac-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #fff;
+    margin-bottom: 24px;
+}
+.dias-hero {
+    text-align: center;
+    padding: 20px;
+    background: rgba(255,255,255,.1);
+    border: 2px solid rgba(94,234,212,.5);
+    border-radius: 12px;
+    min-width: 140px;
+}
+.dias-hero-num {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: #5eead4;
+    line-height: 1;
+}
+.dias-hero-lbl {
+    font-size: .8rem;
+    opacity: .8;
+    margin-top: 4px;
+}
+
+.saldo-row {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.saldo-year {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    background: #f0fdfa;
+    border: 1px solid #99f6e4;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem; font-weight: 700; color: #0f766e;
+    flex-shrink: 0;
+}
+.saldo-bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+.saldo-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #0f766e, #14b8a6); transition: width .4s ease; }
+
+.sol-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.sol-item:last-child { border-bottom: none; }
+
+.estado-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dot-aprobada   { background: #22c55e; }
+.dot-pendiente  { background: #f59e0b; }
+.dot-rechazada  { background: #ef4444; }
+.dot-completada { background: #3b82f6; }
+.dot-default    { background: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-lg flex-shrink-0"></i>
+    <div><strong>Cuenta no vinculada.</strong> Contacta a RRHH o TI.</div>
+</div>
+{% else %}
+
+<!-- Encabezado -->
+<div class="vac-header">
+    <div class="row align-items-center g-3">
+        <div class="col">
+            <div style="font-size:.8rem;opacity:.7;margin-bottom:4px">SALDO VACACIONAL</div>
+            <h2 class="mb-0 fw-bold" style="font-size:1.15rem">{{ empleado.apellidos_nombres }}</h2>
+            <p class="mb-0 mt-1" style="font-size:.82rem;opacity:.8">{{ empleado.cargo }}{% if empleado.subarea %} · {{ empleado.subarea.area.nombre }}{% endif %}</p>
+            <div class="mt-3" style="font-size:.82rem;opacity:.8">
+                <i class="fas fa-info-circle me-1"></i>
+                Vacaciones: 30 días calendario por año de servicio (DL 713)
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="dias-hero">
+                <div class="dias-hero-num">{{ total_pendientes_dias }}</div>
+                <div class="dias-hero-lbl">días disponibles</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not saldos and not solicitudes %}
+<!-- Estado vacío -->
+<div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-umbrella-beach fa-3x mb-3" style="color:#cbd5e1"></i>
+        <h5 class="text-muted fw-semibold">Sin saldo vacacional registrado</h5>
+        <p class="text-muted small mb-0">Aún no tienes períodos vacacionales registrados.<br>Contacta al área de RRHH para más información.</p>
+    </div>
+</div>
+
+{% else %}
+
+<div class="row g-4">
+
+    <!-- Saldos por período -->
+    {% if saldos %}
+    <div class="col-md-6">
+        <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+            <i class="fas fa-wallet me-2 text-primary"></i>Saldo por Período
+        </h6>
+        <div class="d-flex flex-column gap-3">
+            {% for s in saldos %}
+            <div class="saldo-row">
+                <div class="saldo-year">
+                    {{ s.periodo_inicio.year|slice:"2:4" }}-{{ s.periodo_fin.year|slice:"2:4" }}
+                </div>
+                <div style="flex:1;min-width:0">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <div class="fw-semibold" style="font-size:.87rem;color:#1e293b">
+                            {{ s.periodo_inicio|date:"d/m/Y" }} — {{ s.periodo_fin|date:"d/m/Y" }}
+                        </div>
+                        <span class="badge
+                            {% if s.estado == 'PENDIENTE' %}bg-warning text-dark
+                            {% elif s.estado == 'PARCIAL' %}bg-info
+                            {% elif s.estado == 'GOZADO' %}bg-success
+                            {% elif s.estado == 'TRUNCO' %}bg-secondary
+                            {% else %}bg-light text-dark border{% endif %}"
+                            style="font-size:.65rem">
+                            {{ s.get_estado_display }}
+                        </span>
+                    </div>
+
+                    <!-- Barra de goce -->
+                    {% if s.dias_derecho > 0 %}
+                    <div class="saldo-bar mb-2">
+                        <div class="saldo-bar-fill" style="width:{% widthratio s.dias_gozados s.dias_derecho 100 %}%"></div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-3 flex-wrap" style="font-size:.76rem;color:#64748b">
+                        <span>Derecho: <strong class="text-dark">{{ s.dias_derecho }}d</strong></span>
+                        <span>Gozados: <strong style="color:#0f766e">{{ s.dias_gozados }}d</strong></span>
+                        {% if s.dias_vendidos > 0 %}
+                        <span>Vendidos: <strong style="color:#d97706">{{ s.dias_vendidos }}d</strong></span>
+                        {% endif %}
+                        <span>Pendientes: <strong style="color:{% if s.dias_pendientes > 0 %}#0f766e{% else %}#94a3b8{% endif %}">{{ s.dias_pendientes }}d</strong></span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Solicitudes -->
+    <div class="{% if saldos %}col-md-6{% else %}col-12{% endif %}">
+        {% if solicitudes %}
+        <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+            <i class="fas fa-history me-2 text-primary"></i>Historial de Solicitudes
+        </h6>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                {% for sol in solicitudes %}
+                <div class="sol-item px-3">
+                    <div class="estado-dot
+                        {% if sol.estado == 'APROBADA' or sol.estado == 'EN_GOCE' %}dot-aprobada
+                        {% elif sol.estado == 'PENDIENTE' %}dot-pendiente
+                        {% elif sol.estado == 'RECHAZADA' %}dot-rechazada
+                        {% elif sol.estado == 'COMPLETADA' %}dot-completada
+                        {% else %}dot-default{% endif %}">
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                            <div>
+                                <span class="fw-semibold" style="font-size:.87rem;color:#1e293b">
+                                    {{ sol.fecha_inicio|date:"d/m/Y" }}
+                                    {% if sol.fecha_inicio != sol.fecha_fin %}
+                                    → {{ sol.fecha_fin|date:"d/m/Y" }}
+                                    {% endif %}
+                                </span>
+                                <span class="ms-2" style="font-size:.78rem;color:#64748b">
+                                    {{ sol.dias_calendario }} día{{ sol.dias_calendario|pluralize:"s" }} calendario
+                                </span>
+                            </div>
+                            <span class="badge
+                                {% if sol.estado == 'APROBADA' or sol.estado == 'EN_GOCE' %}bg-success
+                                {% elif sol.estado == 'PENDIENTE' %}bg-warning text-dark
+                                {% elif sol.estado == 'RECHAZADA' %}bg-danger
+                                {% elif sol.estado == 'COMPLETADA' %}bg-primary
+                                {% elif sol.estado == 'ANULADA' %}bg-secondary
+                                {% else %}bg-light text-dark border{% endif %}"
+                                style="font-size:.65rem;flex-shrink:0">
+                                {{ sol.get_estado_display }}
+                            </span>
+                        </div>
+                        {% if sol.motivo %}
+                        <div class="text-muted mt-1" style="font-size:.75rem">{{ sol.motivo|truncatechars:80 }}</div>
+                        {% endif %}
+                        {% if sol.motivo_rechazo and sol.estado == 'RECHAZADA' %}
+                        <div style="font-size:.75rem;color:#dc2626;margin-top:2px">
+                            <i class="fas fa-times-circle me-1"></i>{{ sol.motivo_rechazo|truncatechars:80 }}
+                        </div>
+                        {% endif %}
+                        {% if sol.fecha_aprobacion %}
+                        <div class="text-muted" style="font-size:.72rem;margin-top:2px">
+                            Procesado: {{ sol.fecha_aprobacion|date:"d/m/Y" }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-calendar-times fa-2x mb-2" style="color:#cbd5e1"></i>
+                <p class="text-muted small mb-0">Sin solicitudes de vacaciones registradas</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

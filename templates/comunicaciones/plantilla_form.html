@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-file-code text-secondary me-2"></i>{{ titulo }}</h2>
+
+<div class="row">
+    <!-- Formulario -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="nombre" class="form-control"
+                               value="{{ plantilla.nombre|default:'' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">C&oacute;digo (slug)</label>
+                        <input type="text" name="codigo" class="form-control"
+                               value="{{ plantilla.codigo|default:'' }}" required
+                               pattern="[a-z0-9_-]+"
+                               title="Solo letras min&uacute;sculas, n&uacute;meros, guiones y guiones bajos">
+                        <small class="text-muted">Identificador &uacute;nico. Ej: bienvenida_onboarding</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">M&oacute;dulo</label>
+                            <select name="modulo" class="form-select">
+                                {% for val, label in modulos %}
+                                <option value="{{ val }}" {% if plantilla.modulo == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Canal de env&iacute;o</label>
+                            <select name="tipo" class="form-select">
+                                {% for val, label in tipos %}
+                                <option value="{{ val }}" {% if plantilla.tipo == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Asunto (template)</label>
+                        <input type="text" name="asunto_template" class="form-control"
+                               value="{{ plantilla.asunto_template|default:'' }}" required>
+                        <small class="text-muted">Admite variables: {{ "{{ nombre }}" }}, {{ "{{ fecha }}" }}, etc.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cuerpo (template HTML)</label>
+                        <textarea name="cuerpo_template" class="form-control" rows="8" required>{{ plantilla.cuerpo_template|default:'' }}</textarea>
+                        <small class="text-muted">HTML con variables Django. Ej: &lt;p&gt;Hola {{ "{{ nombre }}" }}&lt;/p&gt;</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Variables disponibles</label>
+                        <textarea name="variables_disponibles" class="form-control" rows="2">{{ plantilla.variables_disponibles|default:'' }}</textarea>
+                        <small class="text-muted">Documentaci&oacute;n de referencia para quien edite esta plantilla.</small>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="activa" class="form-check-input" id="activa"
+                               {% if plantilla.activa or es_nuevo %}checked{% endif %}>
+                        <label class="form-check-label" for="activa">Plantilla activa</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>{% if es_nuevo %}Crear{% else %}Guardar{% endif %}
+                        </button>
+                        <a href="{% url 'com_plantillas_panel' %}" class="btn btn-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="col-lg-5">
+        {% if not es_nuevo %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <strong><i class="fas fa-eye me-1"></i>Vista previa</strong>
+                <small class="text-muted d-block">Renderizado con datos de ejemplo</small>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-0">Asunto:</label>
+                    <div class="fw-semibold">{{ preview_asunto }}</div>
+                </div>
+                <hr>
+                <div>
+                    <label class="form-label small text-muted mb-0">Cuerpo:</label>
+                    <div class="border rounded p-2 bg-white" style="font-size:.85rem;">
+                        {{ preview_cuerpo|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow-sm">
+            <div class="card-body text-muted text-center py-4">
+                <i class="fas fa-eye fa-2x mb-2 d-block"></i>
+                La vista previa estar&aacute; disponible despu&eacute;s de guardar.
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

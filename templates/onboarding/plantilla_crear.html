@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+    <a href="{% url 'plantillas_onboarding' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="tipo" value="{{ tipo }}">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                    <input type="text" name="nombre" class="form-control" required placeholder="Ej: Onboarding General">
+                </div>
+                {% if tipo == 'onboarding' %}
+                <div class="col-md-4">
+                    <label class="form-label">Aplica a Grupo</label>
+                    <select name="aplica_grupo" class="form-select">
+                        <option value="TODOS">Todos</option>
+                        <option value="STAFF">STAFF</option>
+                        <option value="RCO">RCO</option>
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Aplica a Areas <small class="text-muted">(dejar vacio para todas)</small></label>
+                    <select name="aplica_areas" class="form-select" multiple size="4">
+                        {% for area in areas %}
+                        <option value="{{ area.pk }}">{{ area.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-12">
+                    <label class="form-label">Descripcion</label>
+                    <textarea name="descripcion" class="form-control" rows="2" placeholder="Descripcion opcional..."></textarea>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Crear Plantilla</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

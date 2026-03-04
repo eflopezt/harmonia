@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — Harmoni{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center mb-4 gap-3">
+    <div class="bg-teal-dark rounded-2 p-2">
+      <i class="fas fa-shield-alt text-accent fs-4"></i>
+    </div>
+    <div>
+      <h1 class="h4 mb-0 fw-bold">{{ titulo }}</h1>
+      <small class="text-muted">
+        Control de acceso granular por módulo.
+        Los superusuarios siempre tienen acceso total.
+      </small>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    {# ── Selector de usuario ── #}
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-dark text-white py-2">
+          <small class="fw-semibold text-uppercase letter-spacing-wide">Usuarios</small>
+        </div>
+        <div class="list-group list-group-flush" style="max-height:600px;overflow-y:auto;">
+          {% for u in usuarios %}
+          <a href="?usuario={{ u.pk }}"
+             class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2
+                    {% if usuario_sel and usuario_sel.pk == u.pk %}active{% endif %}">
+            <i class="fas fa-user-circle {% if usuario_sel and usuario_sel.pk == u.pk %}text-white{% else %}text-muted{% endif %}"></i>
+            <div>
+              <div class="fw-medium" style="font-size:.85rem;">
+                {{ u.get_full_name|default:u.username }}
+              </div>
+              <div style="font-size:.75rem;opacity:.7;">{{ u.username }}</div>
+            </div>
+          </a>
+          {% empty %}
+          <div class="list-group-item text-muted fst-italic" style="font-size:.85rem;">
+            Sin usuarios no-superusuarios activos.
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Tabla de permisos ── #}
+    <div class="col-md-9">
+      {% if usuario_sel %}
+      <form method="post" action="{% url 'permisos_modulos_guardar' usuario_sel.pk %}">
+        {% csrf_token %}
+        <div class="card border-0 shadow-sm">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+              <i class="fas fa-user-shield text-accent me-2"></i>
+              <strong>{{ usuario_sel.get_full_name|default:usuario_sel.username }}</strong>
+              {% if usuario_sel.email %}
+              <span class="text-muted ms-2" style="font-size:.8rem;">{{ usuario_sel.email }}</span>
+              {% endif %}
+            </div>
+            <button type="submit" class="btn btn-sm btn-success px-3">
+              <i class="fas fa-save me-1"></i>Guardar
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+              <thead class="table-dark">
+                <tr>
+                  <th style="width:32%">Módulo</th>
+                  <th class="text-center">Ver</th>
+                  <th class="text-center">Crear</th>
+                  <th class="text-center">Editar</th>
+                  <th class="text-center">Aprobar</th>
+                  <th class="text-center">Exportar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for codigo, nombre, pver, pcrear, peditar, paprobar, pexportar in filas %}
+                <tr>
+                  <td class="fw-medium" style="font-size:.85rem;">
+                    <i class="fas fa-th-large text-muted me-2" style="font-size:.7rem;"></i>
+                    {{ nombre }}
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" name="{{ codigo }}_ver"
+                           class="form-check-input" {% if pver %}checked{% endif %}>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" name="{{ codigo }}_crear"
+                           class="form-check-input" {% if pcrear %}checked{% endif %}>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" name="{{ codigo }}_editar"
+                           class="form-check-input" {% if peditar %}checked{% endif %}>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" name="{{ codigo }}_aprobar"
+                           class="form-check-input" {% if paprobar %}checked{% endif %}>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" name="{{ codigo }}_exportar"
+                           class="form-check-input" {% if pexportar %}checked{% endif %}>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card-footer text-end bg-light">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="fas fa-save me-1"></i>Guardar permisos
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {% else %}
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center text-muted py-5">
+          <i class="fas fa-arrow-left fa-2x mb-3 d-block"></i>
+          Selecciona un usuario de la lista para editar sus permisos.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>{# /row #}
+</div>
+{% endblock %}

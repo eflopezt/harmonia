@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Capacitaciones{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-chalkboard-teacher text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} capacitación{{ total|pluralize:"es" }}</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'capacitacion_calendario' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-calendar-alt me-1"></i>Calendario
+        </a>
+        <a href="{% url 'capacitacion_asignacion' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-users-cog me-1"></i>Asignación Masiva
+        </a>
+        <a href="{% url 'capacitacion_crear' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>Nueva Capacitación
+        </a>
+    </div>
+</div>
+
+<!-- KPIs del año -->
+<div class="card shadow-sm mb-3" style="border-left: 4px solid #0F766E;">
+    <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-center mb-2">
+            <i class="fas fa-chart-bar text-secondary me-2"></i>
+            <span class="fw-semibold text-muted" style="font-size:.85rem;">KPIs del año {{ anio_actual }}</span>
+            <div class="ms-auto d-flex gap-2">
+                <a href="{% url 'capacitacion_requerimientos' %}" class="btn btn-xs btn-outline-warning py-0 px-2" style="font-size:.75rem;">
+                    <i class="fas fa-clipboard-check me-1"></i>Requerimientos
+                </a>
+                <a href="{% url 'capacitacion_calendario' %}" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.75rem;">
+                    <i class="fas fa-calendar me-1"></i>Calendario
+                </a>
+            </div>
+        </div>
+        <div class="row g-2">
+            <div class="col-6 col-md-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:38px;height:38px;border-radius:8px;background:#E0F2FE;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-graduation-cap" style="color:#0284C7;font-size:.9rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:1.3rem;color:#0D2B27;line-height:1.1;">{{ kpis.total_anio }}</div>
+                        <div style="font-size:.72rem;color:#64748B;">Total {{ anio_actual }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:38px;height:38px;border-radius:8px;background:#F0FDFA;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-calendar-day" style="color:#0F766E;font-size:.9rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:1.3rem;color:#0D2B27;line-height:1.1;">{{ kpis.este_mes }}</div>
+                        <div style="font-size:.72rem;color:#64748B;">Este mes</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:38px;height:38px;border-radius:8px;background:#D1FAE5;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-check-circle" style="color:#059669;font-size:.9rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:1.3rem;color:#0D2B27;line-height:1.1;">{{ kpis.completadas_anio }}</div>
+                        <div style="font-size:.72rem;color:#64748B;">Completadas {{ anio_actual }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:38px;height:38px;border-radius:8px;background:#D1FAE5;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-clock" style="color:#059669;font-size:.9rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:1.3rem;color:#0D2B27;line-height:1.1;">{{ kpis.total_horas_anio }}h</div>
+                        <div style="font-size:.72rem;color:#64748B;">Horas capacitadas</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:38px;height:38px;border-radius:8px;background:#F0FDFA;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-users" style="color:#0F766E;font-size:.9rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:1.3rem;color:#0D2B27;line-height:1.1;">
+                            {{ kpis.pct_capacitados }}%
+                        </div>
+                        <div style="font-size:.72rem;color:#64748B;">
+                            Emp. capacitados
+                            <span class="text-muted">({{ kpis.num_personal_capacitado }}/{{ kpis.total_personal_activo }})</span>
+                        </div>
+                        <div class="progress mt-1" style="height:4px;width:80px;">
+                            <div class="progress-bar" style="width:{{ kpis.pct_capacitados }}%;background:#5EEAD4;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:38px;height:38px;border-radius:8px;background:#FEF9C3;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-calendar-alt" style="color:#D97706;font-size:.9rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:1.3rem;color:#0D2B27;line-height:1.1;">{{ kpis.caps_pendientes }}</div>
+                        <div style="font-size:.72rem;color:#64748B;">Programadas pend.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ KPI STRIP: Este mes ══════════════════════════════════════════════════ -->
+<div class="row g-2 mb-3">
+    <!-- Completadas este mes -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #059669 !important;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+                <div style="width:40px;height:40px;border-radius:10px;background:#D1FAE5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-check-circle" style="color:#059669;font-size:1rem;"></i>
+                </div>
+                <div>
+                    <div class="fw-bold" style="font-size:1.5rem;color:#0D2B27;line-height:1;">{{ completadas_mes }}</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;">Completadas este mes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horas impartidas este mes -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #0F766E !important;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+                <div style="width:40px;height:40px;border-radius:10px;background:#F0FDFA;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-clock" style="color:#0F766E;font-size:1rem;"></i>
+                </div>
+                <div>
+                    <div class="fw-bold" style="font-size:1.5rem;color:#0D2B27;line-height:1;">{{ horas_capacitacion_mes }}h</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;">Horas impartidas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certificados por vencer -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid {% if certificados_por_vencer > 0 %}#DC2626{% else %}#D97706{% endif %} !important;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+                <div style="width:40px;height:40px;border-radius:10px;background:{% if certificados_por_vencer > 0 %}#FEE2E2{% else %}#FEF9C3{% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-exclamation-triangle" style="color:{% if certificados_por_vencer > 0 %}#DC2626{% else %}#D97706{% endif %};font-size:1rem;"></i>
+                </div>
+                <div>
+                    <div class="fw-bold" style="font-size:1.5rem;color:{% if certificados_por_vencer > 0 %}#DC2626{% else %}#0D2B27{% endif %};line-height:1;">{{ certificados_por_vencer }}</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;">Certif. por vencer</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- En curso -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #0284C7 !important;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+                <div style="width:40px;height:40px;border-radius:10px;background:#E0F2FE;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-spinner" style="color:#0284C7;font-size:1rem;"></i>
+                </div>
+                <div>
+                    <div class="fw-bold" style="font-size:1.5rem;color:#0D2B27;line-height:1;">{{ en_curso_count }}</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;">En curso ahora</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ ANALYTICS ROW ════════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+    <!-- Chart: Capacitaciones por Categoría -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header py-2 px-3 d-flex align-items-center" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;">
+                <i class="fas fa-chart-bar me-2" style="color:#0F766E;"></i>
+                <span class="fw-semibold" style="font-size:.85rem;color:#0D2B27;">Capacitaciones por Categoría</span>
+                <span class="ms-auto badge" style="background:#F0FDFA;color:#0F766E;font-size:.7rem;">Top 6</span>
+            </div>
+            <div class="card-body p-3">
+                <div style="position:relative;height:200px;">
+                    <canvas id="chartCategorias"></canvas>
+                </div>
+                {% if not tasa_completitud_json or tasa_completitud_json == '[]' %}
+                <div class="text-center text-muted py-3" style="font-size:.83rem;">
+                    <i class="fas fa-chart-bar me-1"></i>Sin datos de categorías aún.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ranking: Top 3 EN CURSO -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header py-2 px-3 d-flex align-items-center" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;">
+                <i class="fas fa-fire me-2" style="color:#0F766E;"></i>
+                <span class="fw-semibold" style="font-size:.85rem;color:#0D2B27;">Top En Curso — Participantes</span>
+            </div>
+            <div class="card-body p-3">
+                {% if caps_en_curso %}
+                <div class="d-flex flex-column gap-3">
+                    {% for cap in caps_en_curso %}
+                    {% with pct=cap.tasa_aprobacion max_p=cap.max_participantes ins=cap.inscritos_count %}
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <div class="fw-semibold" style="font-size:.82rem;color:#0D2B27;line-height:1.3;">
+                                    <span class="me-1" style="color:#5EEAD4;font-weight:700;">#{{ forloop.counter }}</span>
+                                    {{ cap.titulo|truncatechars:38 }}
+                                </div>
+                                <div style="font-size:.72rem;color:#64748B;">
+                                    {% if cap.categoria %}{{ cap.categoria.nombre }} · {% endif %}{{ cap.get_tipo_display }}
+                                </div>
+                            </div>
+                            <div class="text-end ms-2" style="flex-shrink:0;">
+                                <div class="fw-bold" style="font-size:.95rem;color:#0F766E;">{{ ins }}</div>
+                                <div style="font-size:.68rem;color:#94A3B8;">inscritos{% if max_p %}/{{ max_p }}{% endif %}</div>
+                            </div>
+                        </div>
+                        {% if max_p and max_p > 0 %}
+                        {% widthratio ins max_p 100 as fill_pct %}
+                        <div class="progress" style="height:6px;border-radius:4px;">
+                            <div class="progress-bar" style="width:{{ fill_pct }}%;background:linear-gradient(90deg,#0F766E,#5EEAD4);"></div>
+                        </div>
+                        <div style="font-size:.68rem;color:#94A3B8;margin-top:2px;">{{ fill_pct }}% de capacidad</div>
+                        {% else %}
+                        <div class="progress" style="height:6px;border-radius:4px;">
+                            <div class="progress-bar" style="width:100%;background:#5EEAD4;opacity:.5;"></div>
+                        </div>
+                        <div style="font-size:.68rem;color:#94A3B8;margin-top:2px;">Sin límite definido</div>
+                        {% endif %}
+                    </div>
+                    {% endwith %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted py-4">
+                    <i class="fas fa-chalkboard-teacher mb-2" style="font-size:1.8rem;color:#CBD5E1;"></i>
+                    <span style="font-size:.83rem;">No hay capacitaciones en curso.</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ KPI STRIP: Metricas Clave ════════════════════════════════════════════ -->
+<div class="row g-2 mb-3">
+    <!-- Cursos Activos -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left:4px solid #0F766E !important;">
+            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
+                <div style="width:44px;height:44px;border-radius:12px;background:#F0FDFA;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-chalkboard-teacher" style="color:#0F766E;font-size:1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">{{ cursos_activos }}</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;margin-top:2px;">Cursos Activos</div>
+                    <div style="font-size:.68rem;color:#94A3B8;">Programados + En curso</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asistentes del Mes -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left:4px solid #5EEAD4 !important;">
+            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
+                <div style="width:44px;height:44px;border-radius:12px;background:#F0FDFA;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-user-check" style="color:#0F766E;font-size:1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">{{ asistentes_mes }}</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;margin-top:2px;">Asistentes Mes</div>
+                    <div style="font-size:.68rem;color:#94A3B8;">Asistidos + Parciales</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasa de Asistencia -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left:4px solid {% if tasa_asistencia >= 80 %}#059669{% elif tasa_asistencia >= 50 %}#D97706{% else %}#DC2626{% endif %} !important;">
+            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
+                <div style="width:44px;height:44px;border-radius:12px;background:{% if tasa_asistencia >= 80 %}#D1FAE5{% elif tasa_asistencia >= 50 %}#FEF9C3{% else %}#FEE2E2{% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-percent" style="color:{% if tasa_asistencia >= 80 %}#059669{% elif tasa_asistencia >= 50 %}#D97706{% else %}#DC2626{% endif %};font-size:1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">{{ tasa_asistencia }}%</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;margin-top:2px;">Tasa Asistencia</div>
+                    <div class="progress mt-1" style="height:4px;width:70px;">
+                        <div class="progress-bar" style="width:{{ tasa_asistencia }}%;background:{% if tasa_asistencia >= 80 %}#059669{% elif tasa_asistencia >= 50 %}#D97706{% else %}#DC2626{% endif %};"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certificados Emitidos -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 border-0 shadow-sm" style="border-left:4px solid #0284C7 !important;">
+            <div class="card-body py-3 px-3 d-flex align-items-center gap-3">
+                <div style="width:44px;height:44px;border-radius:12px;background:#E0F2FE;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-certificate" style="color:#0284C7;font-size:1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">{{ certificados_emitidos }}</div>
+                    <div style="font-size:.72rem;color:#64748B;font-weight:500;margin-top:2px;">Certificados Vigentes</div>
+                    <div style="font-size:.68rem;color:#94A3B8;">CertificacionTrabajador</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ CHARTS: Tipo + Tendencia 6m ═════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+    <!-- Doughnut: Participantes por tipo de capacitacion -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header py-2 px-3 d-flex align-items-center" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;">
+                <i class="fas fa-chart-pie me-2" style="color:#0F766E;"></i>
+                <span class="fw-semibold" style="font-size:.85rem;color:#0D2B27;">Participantes por Tipo</span>
+            </div>
+            <div class="card-body p-3 d-flex align-items-center justify-content-center">
+                <div style="position:relative;height:200px;width:100%;">
+                    <canvas id="chartTipos"></canvas>
+                </div>
+                {% if not participantes_por_tipo_json or participantes_por_tipo_json == '[]' %}
+                <div class="text-center text-muted" style="font-size:.83rem;">
+                    <i class="fas fa-chart-pie me-1"></i>Sin datos aun.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Line: Tendencia 6 meses -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header py-2 px-3 d-flex align-items-center" style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;">
+                <i class="fas fa-chart-line me-2" style="color:#0F766E;"></i>
+                <span class="fw-semibold" style="font-size:.85rem;color:#0D2B27;">Tendencia Ultimos 6 Meses</span>
+                <span class="ms-auto badge" style="background:#F0FDFA;color:#0F766E;font-size:.7rem;">Capacitaciones registradas</span>
+            </div>
+            <div class="card-body p-3">
+                <div style="position:relative;height:200px;">
+                    <canvas id="chartTendencia"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats del filtro actual -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-primary">{{ stats.programadas }}</div><div class="stat-label">Programadas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ stats.total_horas }}</div><div class="stat-label">Horas Completadas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-info">{{ stats.inscritos }}</div><div class="stat-label">Participaciones</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-danger">S/ {{ stats.total_costo|floatformat:0|intcomma }}</div><div class="stat-label">Inversión</div></div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:140px">
+                    <option value="">Todos</option>
+                    <option value="PROGRAMADA" {% if filtro_estado == 'PROGRAMADA' %}selected{% endif %}>Programada</option>
+                    <option value="EN_CURSO" {% if filtro_estado == 'EN_CURSO' %}selected{% endif %}>En Curso</option>
+                    <option value="COMPLETADA" {% if filtro_estado == 'COMPLETADA' %}selected{% endif %}>Completada</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:130px">
+                    <option value="">Todos</option>
+                    <option value="INTERNA" {% if filtro_tipo == 'INTERNA' %}selected{% endif %}>Interna</option>
+                    <option value="EXTERNA" {% if filtro_tipo == 'EXTERNA' %}selected{% endif %}>Externa</option>
+                    <option value="ELEARNING" {% if filtro_tipo == 'ELEARNING' %}selected{% endif %}>E-Learning</option>
+                    <option value="SSOMA" {% if filtro_tipo == 'SSOMA' %}selected{% endif %}>SSOMA</option>
+                    <option value="INDUCCION" {% if filtro_tipo == 'INDUCCION' %}selected{% endif %}>Inducción</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Año</label>
+                <input type="number" name="anio" value="{{ anio_filtro }}" class="form-control form-control-sm" style="width:90px">
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Título o instructor..." style="width:180px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if not request.user.is_superuser %}
+            <a href="{% url 'mis_capacitaciones' %}" class="btn btn-sm btn-outline-info ms-auto">
+                <i class="fas fa-user me-1"></i>Solo mis inscripciones
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Capacitación</th>
+                    <th>Tipo</th>
+                    <th>Fecha</th>
+                    <th class="text-center">Horas</th>
+                    <th class="text-center">Inscritos</th>
+                    <th class="text-center">Aprobación</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in capacitaciones %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ c.titulo|truncatechars:40 }}</div>
+                        {% if c.instructor %}<small class="text-muted">{{ c.instructor }}</small>{% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ c.get_tipo_display }}</span></td>
+                    <td style="font-size:.78rem;">{{ c.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td class="text-center">{{ c.horas }}</td>
+                    <td class="text-center">{{ c.num_inscritos }}</td>
+                    <td class="text-center">
+                        {% if c.num_inscritos %}
+                        <div class="progress" style="height:6px; width:60px; display:inline-block;">
+                            <div class="progress-bar bg-success" style="width:{{ c.tasa_aprobacion }}%"></div>
+                        </div>
+                        <span style="font-size:.7rem;">{{ c.tasa_aprobacion }}%</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if c.estado == 'COMPLETADA' %}<span class="badge bg-success">Completada</span>
+                        {% elif c.estado == 'EN_CURSO' %}<span class="badge bg-primary">En Curso</span>
+                        {% elif c.estado == 'PROGRAMADA' %}<span class="badge bg-warning text-dark">Programada</span>
+                        {% else %}<span class="badge bg-secondary">{{ c.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'capacitacion_detalle' c.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2" title="Ver detalle"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'capacitacion_estadisticas' c.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-2 ms-1" title="Estadísticas"><i class="fas fa-chart-bar"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay capacitaciones registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    // ── Chart: Doughnut — Participantes por Tipo ──────────────────────────
+    var tiposData = {{ participantes_por_tipo_json|safe }};
+    var ctxTipos = document.getElementById('chartTipos');
+    if (ctxTipos && tiposData && tiposData.length > 0) {
+        var tiposLabels = tiposData.map(function(d){ return d.label; });
+        var tiposValues = tiposData.map(function(d){ return d.value; });
+        new Chart(ctxTipos, {
+            type: 'doughnut',
+            data: {
+                labels: tiposLabels,
+                datasets: [{
+                    data: tiposValues,
+                    backgroundColor: [
+                        'rgba(15,118,110,0.85)',
+                        'rgba(94,234,212,0.80)',
+                        'rgba(13,43,39,0.70)',
+                        'rgba(2,132,199,0.75)',
+                        'rgba(217,119,6,0.75)',
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                    hoverOffset: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 11 },
+                            color: '#334155',
+                            padding: 10,
+                            boxWidth: 12,
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                var total = ctx.dataset.data.reduce(function(a, b){ return a + b; }, 0);
+                                var pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+                                return ' ' + ctx.parsed + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Chart: Line — Tendencia 6 meses ───────────────────────────────────
+    var tendData = {{ tendencia_6m_json|safe }};
+    var ctxTend = document.getElementById('chartTendencia');
+    if (ctxTend && tendData && tendData.labels && tendData.labels.length > 0) {
+        new Chart(ctxTend, {
+            type: 'line',
+            data: {
+                labels: tendData.labels,
+                datasets: [{
+                    label: 'Capacitaciones',
+                    data: tendData.data,
+                    borderColor: '#0F766E',
+                    backgroundColor: 'rgba(15,118,110,0.08)',
+                    pointBackgroundColor: '#0F766E',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2.5,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ' ' + ctx.parsed.y + ' capacitaci' + (ctx.parsed.y === 1 ? 'on' : 'ones');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            font: { size: 11 },
+                            color: '#64748B',
+                        },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#334155',
+                        },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Chart: Capacitaciones por Categoría (horizontal bar) ──────────────
+    var catData = {{ tasa_completitud_json|safe }};
+    var ctxCat = document.getElementById('chartCategorias');
+    if (ctxCat && catData && catData.length > 0) {
+        var labels = catData.map(function(d){ return d.label; });
+        var values = catData.map(function(d){ return d.value; });
+
+        new Chart(ctxCat, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Capacitaciones',
+                    data: values,
+                    backgroundColor: [
+                        'rgba(15,118,110,0.80)',
+                        'rgba(94,234,212,0.75)',
+                        'rgba(15,118,110,0.60)',
+                        'rgba(94,234,212,0.55)',
+                        'rgba(13,43,39,0.55)',
+                        'rgba(94,234,212,0.40)',
+                    ],
+                    borderColor: [
+                        '#0F766E',
+                        '#5EEAD4',
+                        '#0F766E',
+                        '#5EEAD4',
+                        '#0D2B27',
+                        '#5EEAD4',
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ' ' + ctx.parsed.x + ' capacitación' + (ctx.parsed.x !== 1 ? 'es' : '');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            font: { size: 11 },
+                            color: '#64748B',
+                        },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#334155',
+                        },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

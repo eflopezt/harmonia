@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}{{ encuesta.titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-poll text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ encuesta.get_tipo_display }} {% if encuesta.anonima %}<span class="badge bg-dark">Anónima</span>{% endif %}</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if encuesta.estado == 'BORRADOR' %}
+        <button class="btn btn-sm btn-success" onclick="activar()"><i class="fas fa-play me-1"></i>Activar</button>
+        {% endif %}
+        {% if encuesta.estado == 'ACTIVA' %}
+        <button class="btn btn-sm btn-warning" onclick="cerrar()"><i class="fas fa-lock me-1"></i>Cerrar y Calcular</button>
+        <button class="btn btn-sm btn-outline-info" onclick="enviarRecordatorio()" title="Notificar a quienes no han respondido">
+            <i class="fas fa-bell me-1"></i>Recordatorio
+        </button>
+        {% endif %}
+        {% if encuesta.estado == 'CERRADA' %}
+        <a href="{% url 'encuesta_resultados' encuesta.pk %}" class="btn btn-sm btn-primary"><i class="fas fa-chart-bar me-1"></i>Ver Resultados</a>
+        {% endif %}
+        {% if total_respuestas > 0 %}
+        <a href="{% url 'encuesta_exportar' encuesta.pk %}" class="btn btn-sm btn-outline-success" title="Exportar respuestas a Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar
+        </a>
+        {% endif %}
+        <form method="post" action="{% url 'encuesta_duplicar' encuesta.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                    onclick="return confirm('¿Duplicar esta encuesta como nuevo borrador?')"
+                    title="Duplicar encuesta">
+                <i class="fas fa-copy me-1"></i>Duplicar
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value">{{ preguntas|length }}</div><div class="stat-label">Preguntas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-primary">{{ total_respuestas }}</div><div class="stat-label">Respuestas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ encuesta.tasa_participacion }}%</div><div class="stat-label">Participación</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <span class="badge {% if encuesta.estado == 'ACTIVA' %}bg-success{% elif encuesta.estado == 'CERRADA' %}bg-secondary{% else %}bg-light text-dark{% endif %} fs-6">{{ encuesta.get_estado_display }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Preguntas -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list me-1"></i> Preguntas</span>
+        {% if encuesta.estado == 'BORRADOR' %}
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalPreg"><i class="fas fa-plus me-1"></i>Agregar</button>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead><tr><th>#</th><th>Pregunta</th><th>Tipo</th><th>Categoría</th><th></th></tr></thead>
+            <tbody>
+                {% for p in preguntas %}
+                <tr>
+                    <td>{{ p.orden }}</td>
+                    <td>{{ p.texto }}</td>
+                    <td><span class="badge bg-light text-dark">{{ p.get_tipo_display }}</span></td>
+                    <td>{{ p.categoria|default:"—" }}</td>
+                    <td>
+                        {% if encuesta.estado == 'BORRADOR' %}
+                        <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="eliminarPreg({{ p.pk }})"><i class="fas fa-trash"></i></button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay preguntas. Agregue al menos una antes de activar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Agregar Pregunta -->
+<div class="modal fade" id="modalPreg" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Agregar Pregunta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form id="formPreg">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Pregunta *</label>
+                        <textarea name="texto" class="form-control form-control-sm" rows="2" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label class="form-label">Tipo</label>
+                            <select name="tipo" class="form-select form-select-sm">
+                                <option value="ESCALA_5">Escala 1-5</option>
+                                <option value="ESCALA_10">Escala 0-10 (NPS)</option>
+                                <option value="OPCION">Opción Múltiple</option>
+                                <option value="SI_NO">Sí / No</option>
+                                <option value="TEXTO">Texto Libre</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label">Categoría</label>
+                            <input type="text" name="categoria" class="form-control form-control-sm" placeholder="Ej: Liderazgo">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Opciones (separadas por coma, solo opción múltiple)</label>
+                        <input type="text" name="opciones" class="form-control form-control-sm" placeholder="Opción 1, Opción 2, Opción 3">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('formPreg').addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch('{% url "pregunta_agregar" encuesta.pk %}', {method:'POST', body: new FormData(this)})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+});
+function eliminarPreg(pk) {
+    if(!confirm('¿Eliminar esta pregunta?')) return;
+    fetch(`/encuestas/pregunta/${pk}/eliminar/`, {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+function activar() {
+    if(!confirm('¿Activar la encuesta? Los participantes podrán responder.')) return;
+    fetch('{% url "encuesta_activar" encuesta.pk %}', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+function cerrar() {
+    if(!confirm('¿Cerrar la encuesta y calcular resultados?')) return;
+    fetch('{% url "encuesta_cerrar" encuesta.pk %}', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) { alert(`Cerrada. ${d.participantes} participantes, ${d.tasa}% participación.`); location.reload(); }
+        else alert(d.error);
+    });
+}
+function enviarRecordatorio() {
+    if(!confirm('¿Enviar recordatorio a quienes aún no han respondido?')) return;
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando...';
+    fetch('{% url "encuesta_recordatorio" encuesta.pk %}', {
+        method:'POST',
+        headers:{'X-CSRFToken':'{{ csrf_token }}'}
+    })
+    .then(r=>r.json())
+    .then(d=>{
+        if(d.ok) {
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Enviado';
+            btn.classList.replace('btn-outline-info','btn-info');
+            alert(d.msg);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-bell me-1"></i>Recordatorio';
+            alert(d.error);
+        }
+    })
+    .catch(()=>{ btn.disabled=false; btn.innerHTML='<i class="fas fa-bell me-1"></i>Recordatorio'; });
+}
+</script>
+{% endblock %}

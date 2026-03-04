@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.titulo }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'docs_laborales_panel' %}">Documentos Laborales</a></li>
+    <li class="breadcrumb-item active">{{ doc.titulo|truncatechars:50 }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="mb-1">
+      <span class="badge bg-light text-dark border me-2">{{ doc.get_tipo_display }}</span>
+      {{ doc.titulo }}
+    </h2>
+    {% if doc.descripcion %}
+    <p class="text-muted mb-0">{{ doc.descripcion }}</p>
+    {% endif %}
+    <small class="text-muted">
+      Creado por {{ doc.creado_por }} el {{ doc.creado_en|date:"d/m/Y H:i" }}
+      {% if doc.fecha_publicacion %} · Publicado {{ doc.fecha_publicacion|date:"d/m/Y H:i" }}{% endif %}
+    </small>
+  </div>
+  <div class="d-flex gap-2">
+    {% if doc.estado == 'BORRADOR' %}
+    <form method="post" action="{% url 'doc_laboral_publicar' doc.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success"
+              onclick="return confirm('¿Publicar este documento y notificar a todos los destinatarios?')">
+        <i class="fas fa-paper-plane"></i> Publicar y Distribuir
+      </button>
+    </form>
+    {% elif doc.estado == 'PUBLICADO' %}
+    <form method="post" action="{% url 'doc_laboral_archivar' doc.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-secondary"
+              onclick="return confirm('¿Archivar este documento?')">
+        <i class="fas fa-archive"></i> Archivar
+      </button>
+    </form>
+    {% endif %}
+    <span class="badge fs-6 align-self-center {% if doc.estado == 'PUBLICADO' %}bg-success{% elif doc.estado == 'BORRADOR' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+      {{ doc.get_estado_display }}
+    </span>
+  </div>
+</div>
+
+{# KPI Cards #}
+{% if doc.estado == 'PUBLICADO' %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-primary">{{ total }}</div>
+        <div class="text-muted small">Total destinatarios</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-info">{{ vistos }}</div>
+        <div class="text-muted small">Han visto</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-success">{{ confirmados }}</div>
+        <div class="text-muted small">Confirmados</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-danger">{{ pendientes }}</div>
+        <div class="text-muted small">Pendientes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-3">
+  <div class="d-flex justify-content-between mb-1">
+    <small class="fw-semibold">Tasa de confirmación</small>
+    <small>{{ tasa }}%</small>
+  </div>
+  <div class="progress" style="height:8px">
+    <div class="progress-bar bg-success" style="width:{{ tasa }}%"></div>
+  </div>
+</div>
+{% endif %}
+
+{# Documento / Contenido #}
+{% if doc.archivo %}
+<div class="alert alert-light border mb-4">
+  <i class="fas fa-paperclip me-2"></i>
+  <strong>Archivo adjunto:</strong>
+  <a href="{{ doc.archivo.url }}" target="_blank" class="ms-2">
+    <i class="fas fa-download"></i> Descargar / Ver
+  </a>
+</div>
+{% endif %}
+{% if doc.contenido_html %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header">Contenido del documento</div>
+  <div class="card-body">{{ doc.contenido_html|safe }}</div>
+</div>
+{% endif %}
+
+{# Tabla de entregas #}
+{% if entregas %}
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fas fa-users me-2"></i>Entregas ({{ total }})</strong>
+    {% if pendientes > 0 %}
+    <span class="badge bg-danger">{{ pendientes }} sin confirmar</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Trabajador</th>
+            <th>Área</th>
+            <th class="text-center">Visto</th>
+            <th class="text-center">Confirmado</th>
+            <th>Fecha confirmación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entregas %}
+          <tr class="{% if not e.confirmado %}table-warning{% endif %}">
+            <td class="ps-3">{{ e.personal.apellidos_nombres }}</td>
+            <td class="text-muted small">{{ e.personal.subarea.area.nombre|default:"—" }}</td>
+            <td class="text-center">
+              {% if e.visto %}<i class="fas fa-check text-info"></i>{% else %}<i class="fas fa-clock text-muted"></i>{% endif %}
+            </td>
+            <td class="text-center">
+              {% if e.confirmado %}<i class="fas fa-check-circle text-success"></i>{% else %}<i class="fas fa-times-circle text-danger"></i>{% endif %}
+            </td>
+            <td class="small">{{ e.fecha_confirmacion|date:"d/m/Y H:i"|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

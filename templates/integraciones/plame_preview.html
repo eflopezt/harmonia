@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Vista Previa PLAME — {{ periodo }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-eye me-2" style="color:#7c3aed;"></i>Vista Previa PLAME</h2>
+    <small class="text-muted">PDT 601 — Período {{ periodo }}</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'integraciones_panel' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Volver al Panel
+    </a>
+  </div>
+</div>
+
+{# Info del periodo #}
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-3 fw-bold" style="color:#7c3aed;">{{ total_registros }}</div>
+        <div class="text-muted small">Trabajadores</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-5 fw-bold text-success">S/ {{ total_sueldo|floatformat:2 }}</div>
+        <div class="text-muted small">Total Remuneraciones</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-5 fw-bold text-primary">S/ {{ total_afp|floatformat:2 }}</div>
+        <div class="text-muted small">Total Aportes AFP</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-5 fw-bold text-info">S/ {{ total_essalud|floatformat:2 }}</div>
+        <div class="text-muted small">Total EsSalud (9%)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if periodo_obj %}
+<div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+  <i class="fas fa-info-circle fa-lg"></i>
+  <div>
+    Datos del período de nómina <strong>{{ periodo_obj }}</strong>
+    (estado: <strong>{{ periodo_obj.get_estado_display|default:periodo_obj.estado }}</strong>).
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+  <i class="fas fa-exclamation-triangle fa-lg"></i>
+  <div>
+    No se encontró un período de nómina calculado para <strong>{{ periodo }}</strong>.
+    Los montos mostrados son <em>estimados</em> basados en sueldo base del legajo.
+  </div>
+</div>
+{% endif %}
+
+{# Tabla preview #}
+<div class="card shadow-sm mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <strong><i class="fas fa-table me-2"></i>Detalle de Trabajadores</strong>
+    {% if hay_mas %}
+    <span class="badge bg-warning text-dark">
+      Mostrando primeros 50 de {{ total_registros }} registros
+    </span>
+    {% else %}
+    <span class="badge bg-success">{{ total_registros }} registro(s)</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">#</th>
+            <th>DNI</th>
+            <th>Apellidos y Nombres</th>
+            <th class="text-end">Sueldo Base</th>
+            <th class="text-center">Régimen</th>
+            <th class="text-center">AFP</th>
+            <th class="text-end">Ap. AFP</th>
+            <th class="text-end">Ap. ONP</th>
+            <th class="text-end">EsSalud</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for reg in registros %}
+          <tr>
+            <td class="ps-3 text-muted small">{{ forloop.counter }}</td>
+            <td class="font-monospace small">{{ reg.dni }}</td>
+            <td>{{ reg.nombre }}</td>
+            <td class="text-end">S/ {{ reg.sueldo|floatformat:2 }}</td>
+            <td class="text-center">
+              {% if reg.regimen == 'AFP' %}
+              <span class="badge bg-primary">AFP</span>
+              {% elif reg.regimen == 'ONP' %}
+              <span class="badge bg-secondary">ONP</span>
+              {% else %}
+              <span class="badge bg-light text-dark border">{{ reg.regimen }}</span>
+              {% endif %}
+            </td>
+            <td class="text-center small">{{ reg.afp_nombre }}</td>
+            <td class="text-end small {% if reg.aporte_afp > 0 %}text-primary{% else %}text-muted{% endif %}">
+              {% if reg.aporte_afp > 0 %}S/ {{ reg.aporte_afp|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td class="text-end small {% if reg.aporte_onp > 0 %}text-secondary{% else %}text-muted{% endif %}">
+              {% if reg.aporte_onp > 0 %}S/ {{ reg.aporte_onp|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td class="text-end small text-info">S/ {{ reg.aporte_essalud|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">No hay trabajadores activos para este período.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% if registros %}
+        <tfoot class="table-dark fw-bold">
+          <tr>
+            <td colspan="3" class="ps-3">TOTALES</td>
+            <td class="text-end">S/ {{ total_sueldo|floatformat:2 }}</td>
+            <td></td>
+            <td></td>
+            <td class="text-end">S/ {{ total_afp|floatformat:2 }}</td>
+            <td class="text-end">S/ {{ total_onp|floatformat:2 }}</td>
+            <td class="text-end">S/ {{ total_essalud|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+  {% if hay_mas %}
+  <div class="card-footer text-center text-muted small">
+    <i class="fas fa-info-circle me-1"></i>
+    Mostrando los primeros 50 registros. El archivo exportado incluirá los {{ total_registros }} trabajadores.
+  </div>
+  {% endif %}
+</div>
+
+{# Resumen totales #}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-light"><strong>Resumen de Aportes</strong></div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr>
+            <td>Total Remuneraciones</td>
+            <td class="text-end fw-bold">S/ {{ total_sueldo|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Total Aportes AFP (10%)</td>
+            <td class="text-end text-primary">S/ {{ total_afp|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Total Aportes ONP (13%)</td>
+            <td class="text-end text-secondary">S/ {{ total_onp|floatformat:2 }}</td>
+          </tr>
+          <tr class="border-top">
+            <td>Total EsSalud (9%)</td>
+            <td class="text-end text-info">S/ {{ total_essalud|floatformat:2 }}</td>
+          </tr>
+          <tr class="table-success">
+            <td><strong>Total Costo Planilla</strong></td>
+            <td class="text-end fw-bold">S/ {{ total_planilla|floatformat:2 }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="alert alert-warning h-100 d-flex flex-column justify-content-center">
+      <div class="fw-bold mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Importante antes de exportar</div>
+      <ul class="mb-0 small">
+        <li>Verifique que todos los DNI estén correctos en el sistema.</li>
+        <li>La exportación quedará registrada en el historial de integraciones.</li>
+        <li>Los montos son estimados si no hay nómina calculada para el período.</li>
+        <li>El archivo PLAME debe importarse en el PDT 601 de SUNAT.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# Botones de acción #}
+<div class="d-flex gap-3 justify-content-center">
+  <a href="{% url 'integraciones_panel' %}" class="btn btn-outline-secondary btn-lg">
+    <i class="fas fa-times me-2"></i>Cancelar
+  </a>
+  <form method="post" action="{% url 'integ_plame_preview' %}?periodo={{ periodo }}" class="d-inline">
+    {% csrf_token %}
+    <input type="hidden" name="tab" value="confirmar">
+    <button type="submit" class="btn btn-lg text-white"
+            style="background:#7c3aed;"
+            onclick="return confirm('¿Confirmar la exportación PLAME para el período {{ periodo }}?')">
+      <i class="fas fa-file-export me-2"></i>Confirmar y Exportar PLAME
+    </button>
+  </form>
+</div>
+
+{% endblock %}

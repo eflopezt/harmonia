@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Contratos Laborales{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-file-contract me-2"></i>Contratos Laborales</h2>
+    <small class="text-muted">Seguimiento de vencimientos y períodos de prueba — D.Leg. 728</small>
+  </div>
+  <a href="{% url 'contratos_lista' %}" class="btn btn-outline-primary">
+    <i class="fas fa-list"></i> Ver lista completa
+  </a>
+</div>
+
+{# KPI Cards #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-primary">{{ total_activos }}</div>
+        <div class="text-muted small">Empleados activos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-success">{{ indefinidos }}</div>
+        <div class="text-muted small">Indefinidos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-info">{{ plazo_fijo }}</div>
+        <div class="text-muted small">Plazo fijo / Modal</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold {% if vencidos %}text-danger{% else %}text-muted{% endif %}">{{ vencidos|length }}</div>
+        <div class="text-muted small">Contratos vencidos</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Tabs #}
+<ul class="nav nav-tabs mb-4" id="contratoTabs">
+  <li class="nav-item">
+    <a class="nav-link {% if tab_activo == 'vencimientos' %}active{% endif %}"
+       href="?tab=vencimientos">
+      <i class="fas fa-calendar-times me-1"></i>Vencimientos
+      {% if vencidos %}<span class="badge bg-danger ms-1">{{ vencidos|length }}</span>{% endif %}
+      {% if vencen_30 and not vencidos %}<span class="badge bg-warning text-dark ms-1">{{ vencen_30|length }}</span>{% endif %}
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab_activo == 'prueba' %}active{% endif %}"
+       href="?tab=prueba">
+      <i class="fas fa-user-clock me-1"></i>Período de Prueba
+      {% if en_prueba %}<span class="badge bg-info ms-1">{{ en_prueba|length }}</span>{% endif %}
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab_activo == 'tipos' %}active{% endif %}"
+       href="?tab=tipos">
+      <i class="fas fa-chart-pie me-1"></i>Por Modalidad
+    </a>
+  </li>
+</ul>
+
+{# ──── Tab: Vencimientos ──── #}
+{% if tab_activo == 'vencimientos' %}
+
+  {# Contratos vencidos #}
+  {% if vencidos %}
+  <div class="card border-danger shadow-sm mb-4">
+    <div class="card-header bg-danger text-white d-flex align-items-center gap-2">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Contratos VENCIDOS ({{ vencidos|length }})</strong>
+      <span class="ms-auto">Requieren acción inmediata</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Trabajador</th>
+              <th>Área</th>
+              <th>Modalidad</th>
+              <th class="text-center">Venció</th>
+              <th class="text-center">Días vencido</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in vencidos %}
+            <tr class="table-danger">
+              <td class="ps-3 fw-semibold">{{ p.apellidos_nombres }}</td>
+              <td class="text-muted small">{{ p.subarea.area.nombre|default:"—" }}</td>
+              <td><span class="badge bg-secondary">{{ p.get_tipo_contrato_display|default:"—" }}</span></td>
+              <td class="text-center">{{ p.fecha_fin_contrato|date:"d/m/Y" }}</td>
+              <td class="text-center text-danger fw-bold">{{ hoy|timeuntil:p.fecha_fin_contrato }}</td>
+              <td class="text-center">
+                <a href="{% url 'contrato_editar' p.pk %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-edit"></i> Actualizar
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Contratos por vencer en 30 días #}
+  <div class="card shadow-sm">
+    <div class="card-header d-flex align-items-center gap-2">
+      <i class="fas fa-clock text-warning"></i>
+      <strong>Por vencer en los próximos 30 días ({{ vencen_30|length }})</strong>
+    </div>
+    {% if vencen_30 %}
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Trabajador</th>
+              <th>Área</th>
+              <th>Modalidad</th>
+              <th class="text-center">Vence</th>
+              <th class="text-center">Días restantes</th>
+              <th class="text-center">Renovación</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in vencen_30 %}
+            {% with dias=p.dias_para_vencimiento_contrato %}
+            <tr class="{% if dias <= 7 %}table-danger{% elif dias <= 15 %}table-warning{% else %}table-light{% endif %}">
+              <td class="ps-3 fw-semibold">{{ p.apellidos_nombres }}</td>
+              <td class="text-muted small">{{ p.subarea.area.nombre|default:"—" }}</td>
+              <td><span class="badge bg-info text-dark">{{ p.get_tipo_contrato_display|default:"—" }}</span></td>
+              <td class="text-center">{{ p.fecha_fin_contrato|date:"d/m/Y" }}</td>
+              <td class="text-center fw-bold {% if dias <= 7 %}text-danger{% elif dias <= 15 %}text-warning{% endif %}">
+                {{ dias }} día{{ dias|pluralize }}
+              </td>
+              <td class="text-center">
+                {% if p.renovacion_automatica %}
+                  <span class="badge bg-success"><i class="fas fa-sync"></i> Auto</span>
+                {% else %}
+                  <span class="badge bg-secondary">Manual</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <a href="{% url 'contrato_editar' p.pk %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-edit"></i> Editar
+                </a>
+              </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="card-body text-center text-muted py-4">
+      <i class="fas fa-check-circle fa-2x text-success mb-2 d-block"></i>
+      No hay contratos por vencer en los próximos 30 días.
+    </div>
+    {% endif %}
+  </div>
+
+{# ──── Tab: Período de Prueba ──── #}
+{% elif tab_activo == 'prueba' %}
+
+  <div class="card shadow-sm">
+    <div class="card-header d-flex align-items-center gap-2">
+      <i class="fas fa-user-clock text-info"></i>
+      <strong>Empleados en Período de Prueba ({{ en_prueba|length }})</strong>
+      <small class="text-muted ms-auto">Normal: 3 m · Confianza: 6 m · Dirección: 12 m (D.Leg. 728 art. 10)</small>
+    </div>
+    {% if en_prueba %}
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Trabajador</th>
+              <th>Área</th>
+              <th>Categoría</th>
+              <th class="text-center">Ingreso</th>
+              <th class="text-center">Fin prueba</th>
+              <th class="text-center">Días restantes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in en_prueba %}
+            <tr class="{% if item.alerta %}table-warning{% endif %}">
+              <td class="ps-3 fw-semibold">{{ item.personal.apellidos_nombres }}</td>
+              <td class="text-muted small">{{ item.personal.subarea.area.nombre|default:"—" }}</td>
+              <td>
+                <span class="badge
+                  {% if item.personal.categoria == 'NORMAL' %}bg-secondary
+                  {% elif item.personal.categoria == 'CONFIANZA' %}bg-warning text-dark
+                  {% else %}bg-danger
+                  {% endif %}">
+                  {{ item.personal.get_categoria_display }}
+                </span>
+              </td>
+              <td class="text-center">{{ item.personal.fecha_alta|date:"d/m/Y" }}</td>
+              <td class="text-center">{{ item.fin_prueba|date:"d/m/Y" }}</td>
+              <td class="text-center fw-bold {% if item.alerta %}text-danger{% else %}text-info{% endif %}">
+                {{ item.dias_restantes }} día{{ item.dias_restantes|pluralize }}
+                {% if item.alerta %}<i class="fas fa-exclamation-triangle ms-1"></i>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="card-body text-center text-muted py-4">
+      <i class="fas fa-user-check fa-2x text-success mb-2 d-block"></i>
+      No hay empleados en período de prueba activo.
+    </div>
+    {% endif %}
+  </div>
+
+{# ──── Tab: Por Modalidad ──── #}
+{% elif tab_activo == 'tipos' %}
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header"><strong>Distribución por Modalidad</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Modalidad</th>
+                <th class="text-center">Total</th>
+                <th>Proporción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in por_tipo %}
+              <tr>
+                <td class="ps-3">{{ item.tipo_contrato }}</td>
+                <td class="text-center fw-bold">{{ item.total }}</td>
+                <td>
+                  <div class="progress" style="height:8px">
+                    <div class="progress-bar" style="width:{% widthratio item.total total_activos 100 %}%"></div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              {% if sin_tipo %}
+              <tr class="table-light">
+                <td class="ps-3 text-muted"><em>Sin datos</em></td>
+                <td class="text-center text-muted">{{ sin_tipo }}</td>
+                <td>
+                  <div class="progress" style="height:8px">
+                    <div class="progress-bar bg-secondary" style="width:{% widthratio sin_tipo total_activos 100 %}%"></div>
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header"><strong>Gráfico de Modalidades</strong></div>
+        <div class="card-body">
+          <canvas id="chartTipos" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const data = {
+      labels: [{% for item in por_tipo %}'{{ item.tipo_contrato|title }}'{% if not forloop.last %},{% endif %}{% endfor %}{% if sin_tipo %}{% if por_tipo %},{% endif %}'Sin datos'{% endif %}],
+      datasets: [{
+        data: [{% for item in por_tipo %}{{ item.total }}{% if not forloop.last %},{% endif %}{% endfor %}{% if sin_tipo %}{% if por_tipo %},{% endif %}{{ sin_tipo }}{% endif %}],
+        backgroundColor: ['#0f766e','#14b8a6','#5eead4','#99f6e4','#ccfbf1','#f59e0b','#e11d48','#6366f1','#8b5cf6','#94a3b8'],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    };
+    new Chart(document.getElementById('chartTipos'), {
+      type: 'doughnut',
+      data: data,
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw / ctx.dataset.data.reduce((a,b)=>a+b,0)*100)}%)` } }
+        }
+      }
+    });
+  })();
+  </script>
+
+{% endif %}
+
+{% endblock %}

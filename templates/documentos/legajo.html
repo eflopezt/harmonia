@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Legajo — {{ empleado.apellidos_nombres }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.doc-card { border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; margin-bottom:8px; transition:background .15s; }
+.doc-card:hover { background:#f9fafb; }
+.doc-card .doc-icon { font-size:1.2rem; width:30px; text-align:center; }
+.doc-card .doc-info { flex:1; min-width:0; }
+.doc-card .doc-info .doc-name { font-weight:600; font-size:.85rem; }
+.doc-card .doc-info .doc-meta { font-size:.72rem; color:#6b7280; }
+.estado-VIGENTE    { color:#059669; }
+.estado-VENCIDO    { color:#dc2626; }
+.estado-POR_VENCER { color:#d97706; }
+.estado-ANULADO    { color:#6b7280; }
+.cat-header { font-size:.9rem; font-weight:700; padding:8px 0; border-bottom:2px solid #0f766e; margin-bottom:8px; color:#0f766e; }
+.faltante-item { font-size:.82rem; padding:6px 12px; background:#fff3cd; border-radius:6px; margin-bottom:4px; }
+.emp-info-card { background:#f0fdf9; border-radius:8px; padding:12px 16px; font-size:.85rem; }
+.emp-info-card dt { font-weight:600; color:#6b7280; font-size:.75rem; text-transform:uppercase; }
+.emp-info-card dd { margin-bottom:6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{% url 'documentos_panel' %}" class="text-muted text-decoration-none small">
+            <i class="fas fa-arrow-left me-1"></i>Documentos
+        </a>
+        <h2 class="mb-0 mt-1"><i class="fas fa-folder-open text-secondary me-2"></i>{{ empleado.apellidos_nombres }}</h2>
+        <small class="text-muted">{{ empleado.nro_doc }} · {{ empleado.grupo_tareo }} · {{ total_docs }} documento{{ total_docs|pluralize:"s" }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'timeline_empleado' empleado.pk %}" class="btn btn-outline-info btn-sm">
+            <i class="fas fa-stream me-1"></i>Timeline
+        </a>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalSubir()">
+            <i class="fas fa-upload me-1"></i>Subir Documento
+        </button>
+    </div>
+</div>
+
+<!-- Info del empleado -->
+<div class="emp-info-card mb-3 d-flex flex-wrap gap-4">
+    <div><dt>Área</dt><dd>{{ empleado.subarea.area.nombre|default:"—" }}</dd></div>
+    <div><dt>SubÁrea</dt><dd>{{ empleado.subarea.nombre|default:"—" }}</dd></div>
+    <div><dt>Cargo</dt><dd>{{ empleado.cargo|default:"—" }}</dd></div>
+    <div><dt>Fecha Ingreso</dt><dd>{{ empleado.fecha_ingreso|date:"d/m/Y"|default:"—" }}</dd></div>
+    <div><dt>Estado</dt><dd>{{ empleado.estado }}</dd></div>
+</div>
+
+{% if faltantes %}
+<div class="card shadow-sm mb-3 border-warning">
+    <div class="card-header py-2 bg-warning bg-opacity-10">
+        <h6 class="mb-0"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Documentos Faltantes ({{ faltantes|length }})</h6>
+    </div>
+    <div class="card-body py-2">
+        {% for t in faltantes %}
+        <div class="faltante-item d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-file-circle-exclamation me-2 text-warning"></i>{{ t.nombre }}</span>
+            <button class="btn btn-xs btn-outline-primary py-0 px-2" onclick="abrirModalSubir({{ t.pk }})" style="font-size:.75rem">
+                <i class="fas fa-upload me-1"></i>Subir
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Documentos agrupados por categoría -->
+{% for cat_nombre, cat_data in categorias_dict.items %}
+<div class="mb-3">
+    <div class="cat-header">
+        <i class="fas {{ cat_data.icono }} me-2"></i>{{ cat_nombre }}
+        <span class="badge bg-light text-dark border ms-1" style="font-size:.7rem">{{ cat_data.docs|length }}</span>
+    </div>
+    {% for doc in cat_data.docs %}
+    <div class="doc-card d-flex align-items-start gap-2" id="doc-{{ doc.pk }}">
+        <div class="doc-icon"><i class="fas {{ doc.icono_archivo }}"></i></div>
+        <div class="doc-info">
+            <div class="doc-name">{{ doc.tipo.nombre }}
+                {% if doc.version > 1 %}<span class="text-muted" style="font-size:.7rem">v{{ doc.version }}</span>{% endif %}
+            </div>
+            <div class="doc-meta">
+                {{ doc.nombre_archivo|truncatechars:40 }}
+                {% if doc.fecha_emision %} · Emitido: {{ doc.fecha_emision|date:"d/m/Y" }}{% endif %}
+                {% if doc.fecha_vencimiento %} · Vence: {{ doc.fecha_vencimiento|date:"d/m/Y" }}{% endif %}
+                {% if doc.subido_por %} · Por: {{ doc.subido_por }}{% endif %}
+            </div>
+            {% if doc.notas %}<div class="doc-meta fst-italic">{{ doc.notas|truncatechars:80 }}</div>{% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-1">
+            <span class="badge estado-{{ doc.estado }}" style="font-size:.65rem; background:transparent; border:1px solid currentColor; padding:2px 6px; border-radius:3px;">
+                {{ doc.get_estado_display }}
+            </span>
+            <a href="{{ doc.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0 px-1" title="Descargar">
+                <i class="fas fa-download" style="font-size:.7rem"></i>
+            </a>
+            <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarDoc({{ doc.pk }})" title="Anular">
+                <i class="fas fa-trash" style="font-size:.7rem"></i>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% empty %}
+{% if not faltantes %}
+<div class="text-center text-muted py-5">
+    <i class="fas fa-folder-open fa-3x d-block mb-3 opacity-25"></i>
+    <p>Este trabajador aún no tiene documentos en su legajo.</p>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalSubir()">
+        <i class="fas fa-upload me-1"></i>Subir primer documento
+    </button>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal Subir Documento -->
+<div class="modal fade" id="modalSubir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Subir Documento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formSubir" enctype="multipart/form-data">
+                    <input type="hidden" name="personal_id" value="{{ empleado.pk }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tipo de Documento <span class="text-danger">*</span></label>
+                        <select name="tipo_id" id="subirTipo" class="form-select form-select-sm">
+                            {% for t in tipos %}<option value="{{ t.pk }}">{{ t.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Archivo <span class="text-danger">*</span></label>
+                        <input type="file" name="archivo" class="form-control form-control-sm" required
+                               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
+                        <small class="text-muted">PDF, imagen, Word o Excel. Máximo 10 MB.</small>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Fecha Emisión</label>
+                            <input type="date" name="fecha_emision" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Fecha Vencimiento</label>
+                            <input type="date" name="fecha_vencimiento" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">Notas</label>
+                        <textarea name="notas" class="form-control form-control-sm" rows="2" placeholder="Notas adicionales..."></textarea>
+                    </div>
+                </form>
+                <div id="subirError" class="alert alert-danger py-2 small mt-3" style="display:none"></div>
+                <div id="subirOk" class="alert alert-success py-2 small mt-3" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="subirDocumento()" id="btnSubir">
+                    <i class="fas fa-upload me-1"></i>Subir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function abrirModalSubir(tipoId) {
+    document.getElementById('formSubir').reset();
+    document.getElementById('subirError').style.display = 'none';
+    document.getElementById('subirOk').style.display = 'none';
+    if (tipoId) document.getElementById('subirTipo').value = tipoId;
+    new bootstrap.Modal(document.getElementById('modalSubir')).show();
+}
+
+async function subirDocumento() {
+    const form = document.getElementById('formSubir');
+    const fd = new FormData(form);
+    const errDiv = document.getElementById('subirError');
+    const okDiv = document.getElementById('subirOk');
+    const btn = document.getElementById('btnSubir');
+
+    errDiv.style.display = 'none';
+    okDiv.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Subiendo...';
+
+    try {
+        const resp = await fetch('{% url "documentos_subir" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF },
+            body: fd,
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            okDiv.textContent = `Documento "${data.nombre}" subido correctamente (v${data.version}).`;
+            okDiv.style.display = '';
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            errDiv.textContent = data.error;
+            errDiv.style.display = '';
+        }
+    } catch (e) {
+        errDiv.textContent = 'Error de conexión.';
+        errDiv.style.display = '';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-upload me-1"></i>Subir';
+    }
+}
+
+async function eliminarDoc(pk) {
+    if (!confirm('¿Anular este documento? El archivo se conserva pero se marca como anulado.')) return;
+    const resp = await fetch(`/documentos/${pk}/eliminar/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('doc-' + pk)?.remove();
+    } else {
+        alert(data.error || 'Error al anular.');
+    }
+}
+</script>
+{% endblock %}

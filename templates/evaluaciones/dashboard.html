@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard de Evaluaciones{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI Cards ─────────────────────────────────────────── */
+.eval-dash-kpi {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    box-shadow: 0 1px 6px rgba(13,43,39,.08);
+    border-left: 4px solid transparent;
+    display: flex; align-items: center; gap: 1rem;
+    transition: box-shadow .18s, transform .18s;
+}
+.eval-dash-kpi:hover { box-shadow: 0 4px 18px rgba(13,43,39,.14); transform: translateY(-2px); }
+.eval-dash-kpi .kpi-icon {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; flex-shrink: 0;
+}
+.eval-dash-kpi .kpi-val { font-size: 1.85rem; font-weight: 700; line-height: 1; }
+.eval-dash-kpi .kpi-lbl { font-size: .71rem; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-top: .15rem; }
+.kpi-teal  { border-color: #0f766e; } .kpi-teal  .kpi-icon { background: #f0fdf4; color: #0f766e; }
+.kpi-amber { border-color: #f59e0b; } .kpi-amber .kpi-icon { background: #fffbeb; color: #d97706; }
+.kpi-indigo{ border-color: #6366f1; } .kpi-indigo .kpi-icon { background: #eef2ff; color: #6366f1; }
+.kpi-green { border-color: #10b981; } .kpi-green .kpi-icon { background: #ecfdf5; color: #059669; }
+.kpi-slate { border-color: #64748b; } .kpi-slate .kpi-icon { background: #f8fafc; color: #475569; }
+.kpi-rose  { border-color: #f43f5e; } .kpi-rose  .kpi-icon { background: #fff1f2; color: #e11d48; }
+
+/* ── 9-Box mini ─────────────────────────────────────────── */
+.nb-mini { display: grid; grid-template-columns: repeat(3,1fr); gap:5px; }
+.nb-cell {
+    border-radius: 8px; padding: .5rem .3rem;
+    text-align: center; font-size: .68rem; font-weight: 600;
+    min-height: 56px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px;
+    cursor: default; transition: filter .15s;
+}
+.nb-cell:hover { filter: brightness(.94); }
+.nb-cell .nbc-num  { font-size: 1.25rem; font-weight: 700; }
+.nb-cell .nbc-lbl  { font-size: .58rem; opacity: .85; }
+.nb-1 { background:#fee2e2; color:#991b1b; }
+.nb-2 { background:#fef3c7; color:#92400e; }
+.nb-3 { background:#dbeafe; color:#1e40af; }
+.nb-4 { background:#fef3c7; color:#92400e; }
+.nb-5 { background:#e0e7ff; color:#3730a3; }
+.nb-6 { background:#d1fae5; color:#065f46; }
+.nb-7 { background:#dbeafe; color:#1e40af; }
+.nb-8 { background:#d1fae5; color:#065f46; }
+.nb-9 { background:#fef9c3; color:#854d0e; border:2px solid #f59e0b; }
+
+/* ── Ciclos activos progress ───────────────────────────── */
+.ciclo-progress-row { padding: .55rem 0; border-bottom: 1px solid #f1f5f9; }
+.ciclo-progress-row:last-child { border-bottom: none; }
+
+/* ── Badge estados ──────────────────────────────────────── */
+.badge-PENDIENTE   { background:#fef3c7; color:#92400e; }
+.badge-EN_PROGRESO { background:#dbeafe; color:#1e40af; }
+.badge-COMPLETADA  { background:#d1fae5; color:#065f46; }
+.badge-CALIBRADA   { background:#e0e7ff; color:#3730a3; }
+
+.chart-card-hdr {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    color: #fff;
+    padding: .6rem 1rem;
+    border-radius: 10px 10px 0 0;
+    font-size: .8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.chart-card-hdr i { color: #5eead4; }
+.chart-card-hdr .badge-pill {
+    background: rgba(94,234,212,.18);
+    color: #5eead4;
+    border-radius: 99px;
+    padding: .15rem .55rem;
+    font-size: .68rem;
+    margin-left: auto;
+}
+.kpi-strip-accent {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 14px;
+    padding: .85rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    color: #fff;
+    transition: box-shadow .18s, transform .18s;
+    box-shadow: 0 2px 8px rgba(13,43,39,.18);
+}
+.kpi-strip-accent:hover { box-shadow: 0 5px 22px rgba(13,43,39,.28); transform: translateY(-2px); }
+.kpi-strip-accent .ksa-icon {
+    width: 44px; height: 44px;
+    background: rgba(94,234,212,.18);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; color: #5eead4; flex-shrink: 0;
+}
+.kpi-strip-accent .ksa-val { font-size: 1.75rem; font-weight: 700; line-height: 1; color: #5eead4; }
+.kpi-strip-accent .ksa-lbl { font-size: .68rem; color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .06em; margin-top: .12rem; }
+.mejora-badge { background: #fee2e2; color: #991b1b; border-radius: 99px; padding: .12rem .5rem; font-size: .67rem; font-weight: 600; }
+
+/* ── Section headers ────────────────────────────────────── */
+.section-hdr {
+    font-size: .78rem; font-weight: 700; color: #374151;
+    text-transform: uppercase; letter-spacing: .07em;
+    padding-bottom: .35rem; border-bottom: 2px solid #f0fdf4;
+    margin-bottom: .85rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-chart-bar me-2" style="color:#0f766e;"></i>{{ titulo }}</h2>
+        <small class="text-muted">Resumen ejecutivo del módulo de evaluaciones</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'ninebox_grid' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-th me-1"></i>9-Box Grid
+        </a>
+        <a href="{% url 'comparativa_competencias' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-spider me-1"></i>Comparativa
+        </a>
+        <a href="{% url 'ciclos_panel' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-list me-1"></i>Ciclos
+        </a>
+    </div>
+</div>
+
+<!-- KPI Accent Strip -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-accent">
+            <div class="ksa-icon"><i class="fas fa-layer-group"></i></div>
+            <div>
+                <div class="ksa-val">{{ stats.ciclos_activos }}</div>
+                <div class="ksa-lbl">Ciclos Activos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-accent">
+            <div class="ksa-icon"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="ksa-val">{{ stats.total_evaluaciones|intcomma }}</div>
+                <div class="ksa-lbl">Total Evaluaciones</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-accent">
+            <div class="ksa-icon"><i class="fas fa-percentage"></i></div>
+            <div>
+                <div class="ksa-val">{{ stats.tasa_completado }}%</div>
+                <div class="ksa-lbl">Tasa Completitud</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-accent">
+            <div class="ksa-icon"><i class="fas fa-star"></i></div>
+            <div>
+                {% if stats.promedio_global %}
+                <div class="ksa-val">{{ stats.promedio_global }}%</div>
+                {% else %}
+                <div class="ksa-val">&mdash;</div>
+                {% endif %}
+                <div class="ksa-lbl">Promedio Global</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Fila 1: KPIs ──────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="eval-dash-kpi kpi-teal">
+            <div class="kpi-icon"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="kpi-val">{{ stats.total_evaluaciones|intcomma }}</div>
+                <div class="kpi-lbl">Total Evaluaciones</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="eval-dash-kpi kpi-green">
+            <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div class="kpi-val" style="color:#059669;">{{ stats.completadas|intcomma }}</div>
+                <div class="kpi-lbl">Completadas</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="eval-dash-kpi kpi-amber">
+            <div class="kpi-icon"><i class="fas fa-spinner"></i></div>
+            <div>
+                <div class="kpi-val" style="color:#d97706;">{{ stats.en_progreso|intcomma }}</div>
+                <div class="kpi-lbl">En Progreso</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="eval-dash-kpi kpi-indigo">
+            <div class="kpi-icon"><i class="fas fa-percentage"></i></div>
+            <div>
+                <div class="kpi-val" style="color:#6366f1;">{{ stats.tasa_completado }}%</div>
+                <div class="kpi-lbl">Tasa Completado</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="eval-dash-kpi kpi-slate">
+            <div class="kpi-icon"><i class="fas fa-layer-group"></i></div>
+            <div>
+                <div class="kpi-val" style="color:#475569;">{{ stats.total_ciclos }}</div>
+                <div class="kpi-lbl">Ciclos Totales</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="eval-dash-kpi kpi-rose">
+            <div class="kpi-icon"><i class="fas fa-road"></i></div>
+            <div>
+                <div class="kpi-val" style="color:#e11d48;">{{ stats.total_planes }}</div>
+                <div class="kpi-lbl">PDI Activos</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Fila 2: Gráficos + 9-Box ──────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+    <!-- Tendencia semanal (línea) -->
+    <div class="col-md-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-chart-line text-muted" style="font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.87rem;">Evaluaciones completadas — últimas 5 semanas</span>
+            </div>
+            <div class="card-body">
+                <canvas id="chartTendencia" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estados (doughnut) -->
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-chart-pie text-muted" style="font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.87rem;">Estados actuales</span>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <canvas id="chartEstados" height="180" style="max-width:200px;"></canvas>
+                {% if stats.promedio_global %}
+                <div class="text-center mt-2">
+                    <div style="font-size:1.5rem; font-weight:700; color:#0f766e;">{{ stats.promedio_global }}%</div>
+                    <div style="font-size:.7rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em;">Promedio global</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 9-Box miniatura -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-th text-muted" style="font-size:.85rem;"></i>
+                    <span class="fw-semibold" style="font-size:.87rem;">Distribución 9-Box</span>
+                </div>
+                <a href="{% url 'ninebox_grid' %}" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.72rem;">Ver completo</a>
+            </div>
+            <div class="card-body pb-2">
+                {% if ninebox_dist.hay_datos %}
+                <div class="d-flex justify-content-between mb-1 px-1">
+                    <small style="font-size:.6rem; color:#94a3b8;">&#8592; Potencial Bajo</small>
+                    <small style="font-size:.6rem; color:#94a3b8;">Potencial Alto &#8594;</small>
+                </div>
+                <!-- Filas: Desempeño Alto → Bajo; Cols: Pot. Bajo → Alto -->
+                <div class="nb-mini">
+                    <div class="nb-cell nb-7"><span class="nbc-num">{{ ninebox_dist.counts.7 }}</span><span class="nbc-lbl">Alto Impacto</span></div>
+                    <div class="nb-cell nb-8"><span class="nbc-num">{{ ninebox_dist.counts.8 }}</span><span class="nbc-lbl">Alto Impacto +</span></div>
+                    <div class="nb-cell nb-9"><span class="nbc-num">{{ ninebox_dist.counts.9 }}</span><span class="nbc-lbl">Top Talent &#9733;</span></div>
+
+                    <div class="nb-cell nb-4"><span class="nbc-num">{{ ninebox_dist.counts.4 }}</span><span class="nbc-lbl">Trab. Confiable</span></div>
+                    <div class="nb-cell nb-5"><span class="nbc-num">{{ ninebox_dist.counts.5 }}</span><span class="nbc-lbl">Core</span></div>
+                    <div class="nb-cell nb-6"><span class="nbc-num">{{ ninebox_dist.counts.6 }}</span><span class="nbc-lbl">Estrella Prom.</span></div>
+
+                    <div class="nb-cell nb-1"><span class="nbc-num">{{ ninebox_dist.counts.1 }}</span><span class="nbc-lbl">Bajo Rendimiento</span></div>
+                    <div class="nb-cell nb-2"><span class="nbc-num">{{ ninebox_dist.counts.2 }}</span><span class="nbc-lbl">Dilema</span></div>
+                    <div class="nb-cell nb-3"><span class="nbc-num">{{ ninebox_dist.counts.3 }}</span><span class="nbc-lbl">Enigma</span></div>
+                </div>
+                <div class="d-flex justify-content-between mt-1 px-1">
+                    <small style="font-size:.6rem; color:#94a3b8;">&#8592; Desemp. Bajo</small>
+                    <small style="font-size:.6rem; color:#94a3b8;">Desemp. Alto &#8594;</small>
+                </div>
+                <div class="text-center mt-2">
+                    <small class="text-muted" style="font-size:.72rem;">{{ ninebox_dist.total }} persona{{ ninebox_dist.total|pluralize:"s" }} clasificada{{ ninebox_dist.total|pluralize:"s" }}</small>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-th fa-2x mb-2 d-block opacity-25"></i>
+                    <div style="font-size:.82rem;">Sin datos 9-Box aún.</div>
+                    <small>Cierra ciclos y clasifica resultados.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Analytics Row: Promedio por ciclo + Tipo + Mejora -->
+<div class="row g-3 mb-4">
+
+    <!-- Promedio puntaje por ciclo (bar chart) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100" style="border-radius:10px; overflow:hidden; border:0;">
+            <div class="chart-card-hdr">
+                <i class="fas fa-chart-bar"></i>
+                Promedio de Puntaje &mdash; &Uacute;ltimos Ciclos Cerrados
+                <span class="badge-pill">Bar</span>
+            </div>
+            <div class="card-body" style="padding:1rem;">
+                {% if promedio_scores_data != '[]' %}
+                <div style="height:220px; position:relative;">
+                    <canvas id="chartPromedios"></canvas>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-chart-bar fa-2x mb-2 d-block opacity-25"></i>
+                    <small>Sin ciclos cerrados con puntajes a&uacute;n.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribucion por tipo + Oportunidad de mejora -->
+    <div class="col-md-6">
+        <div class="row g-3 h-100">
+
+            <!-- Distribucion por tipo (doughnut) -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-sm h-100" style="border-radius:10px; overflow:hidden; border:0;">
+                    <div class="chart-card-hdr">
+                        <i class="fas fa-tag"></i>
+                        Distribuci&oacute;n por Tipo
+                        <span class="badge-pill">Ciclos</span>
+                    </div>
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center" style="padding:.75rem;">
+                        {% if por_tipo_chart_data != '[]' %}
+                        <div style="height:170px; position:relative; width:100%;">
+                            <canvas id="chartPorTipo"></canvas>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-tag fa-2x mb-1 d-block opacity-25"></i>
+                            <small>Sin ciclos registrados.</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oportunidad de mejora -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-sm h-100" style="border-radius:10px; overflow:hidden; border:0;">
+                    <div class="chart-card-hdr">
+                        <i class="fas fa-arrow-up"></i>
+                        Oportunidad de Mejora
+                        <span class="badge-pill">Bajo</span>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if mejora %}
+                        <table class="table mb-0" style="font-size:.78rem;">
+                            <tbody>
+                                {% for r in mejora %}
+                                <tr>
+                                    <td class="ps-3 align-middle" style="border-bottom:1px solid #f1f5f9;">
+                                        <div class="fw-semibold" style="line-height:1.2;">{{ r.personal.apellidos_nombres|truncatechars:22 }}</div>
+                                        <small class="text-muted">{{ r.ciclo.nombre|truncatechars:20 }}</small>
+                                    </td>
+                                    <td class="text-end pe-3 align-middle" style="border-bottom:1px solid #f1f5f9;">
+                                        <span class="mejora-badge">{{ r.puntaje_promedio|floatformat:2 }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-smile fa-2x mb-2 d-block opacity-25"></i>
+                            <small>Sin casos de bajo desempe&ntilde;o.</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Fila 3: Top performers + Ciclos activos + Recientes ──── -->
+<div class="row g-3">
+
+    <!-- Top Performers -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-trophy" style="color:#f59e0b; font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.87rem;">Top Performers</span>
+            </div>
+            <div class="card-body p-0">
+                {% if top_performers %}
+                <table class="table mb-0" style="font-size:.8rem;">
+                    <tbody>
+                        {% for r in top_performers %}
+                        <tr>
+                            <td class="ps-3">
+                                <div class="fw-semibold">{{ r.personal.apellidos_nombres|truncatechars:28 }}</div>
+                                <small class="text-muted">{{ r.ciclo.nombre|truncatechars:26 }}</small>
+                            </td>
+                            <td class="text-end pe-3 align-middle">
+                                <span class="fw-bold" style="color:#0f766e; font-size:.92rem;">
+                                    {{ r.puntaje_promedio|floatformat:2 }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-user-check fa-2x mb-2 d-block opacity-25"></i>
+                    <small>Sin resultados consolidados aún.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ciclos activos con avance -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-tasks text-muted" style="font-size:.85rem;"></i>
+                    <span class="fw-semibold" style="font-size:.87rem;">Ciclos Activos</span>
+                </div>
+                <a href="{% url 'ciclos_panel' %}" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.72rem;">Ver todos</a>
+            </div>
+            <div class="card-body">
+                {% if ciclos_activos_qs %}
+                {% for ciclo in ciclos_activos_qs %}
+                <div class="ciclo-progress-row">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold" style="font-size:.8rem;">{{ ciclo.nombre|truncatechars:30 }}</span>
+                        <small class="text-muted">{{ ciclo.porcentaje_avance }}%</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="progress flex-grow-1" style="height:5px;">
+                            <div class="progress-bar" style="width:{{ ciclo.porcentaje_avance }}%; background:#0f766e;"></div>
+                        </div>
+                        <small class="text-muted" style="font-size:.7rem; white-space:nowrap;">
+                            {{ ciclo.completadas }}/{{ ciclo.total_evaluaciones }}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-layer-group fa-2x mb-2 d-block opacity-25"></i>
+                    <small>No hay ciclos en curso.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actividad reciente -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-history text-muted" style="font-size:.85rem;"></i>
+                <span class="fw-semibold" style="font-size:.87rem;">Actividad Reciente</span>
+                <small class="text-muted ms-auto">(30 días)</small>
+            </div>
+            <div class="card-body p-0" style="max-height:320px; overflow-y:auto;">
+                {% if recientes %}
+                <table class="table mb-0" style="font-size:.78rem;">
+                    <tbody>
+                        {% for ev in recientes %}
+                        <tr>
+                            <td class="ps-3" style="vertical-align:middle;">
+                                <div class="fw-semibold">{{ ev.evaluado.apellidos_nombres|truncatechars:24 }}</div>
+                                <small class="text-muted">{{ ev.ciclo.nombre|truncatechars:22 }}</small>
+                            </td>
+                            <td class="align-middle text-center">
+                                <span class="badge badge-{{ ev.estado }}" style="font-size:.67rem;">{{ ev.get_estado_display }}</span>
+                            </td>
+                            <td class="align-middle text-end pe-3 text-muted" style="font-size:.72rem; white-space:nowrap;">
+                                {{ ev.creado_en|date:"d/m" }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+                    <small>Sin actividad en los últimos 30 días.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Paleta de colores Harmoni ─────────────────────────
+const C_TEAL   = '#0f766e';
+const C_AMBER  = '#f59e0b';
+const C_INDIGO = '#6366f1';
+const C_GREEN  = '#10b981';
+
+// ── Gráfico: Tendencia semanal ────────────────────────
+const ctxTend = document.getElementById('chartTendencia');
+if (ctxTend) {
+    new Chart(ctxTend, {
+        type: 'line',
+        data: {
+            labels: {{ semanas_labels|safe }},
+            datasets: [{
+                label: 'Completadas',
+                data: {{ semanas_data|safe }},
+                borderColor: C_TEAL,
+                backgroundColor: 'rgba(15,118,110,0.1)',
+                borderWidth: 2.5,
+                tension: .4,
+                fill: true,
+                pointBackgroundColor: C_TEAL,
+                pointRadius: 5,
+            }],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, font: { size: 11 } },
+                    grid: { color: '#f1f5f9' },
+                },
+                x: {
+                    ticks: { font: { size: 11 } },
+                    grid: { display: false },
+                },
+            },
+        },
+    });
+}
+
+// ── Gráfico: Estados (doughnut) ───────────────────────
+const ctxEstados = document.getElementById('chartEstados');
+if (ctxEstados) {
+    new Chart(ctxEstados, {
+        type: 'doughnut',
+        data: {
+            labels: {{ estados_labels|safe }},
+            datasets: [{
+                data: {{ estados_data|safe }},
+                backgroundColor: {{ estados_colors|safe }},
+                borderWidth: 0,
+            }],
+        },
+        options: {
+            responsive: true,
+            cutout: '68%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 10 }, padding: 10, usePointStyle: true },
+                },
+            },
+        },
+    });
+}
+
+// -- Chart: Promedio puntaje por ciclo (bar) -------
+var ctxPromedios = document.getElementById('chartPromedios');
+if (ctxPromedios) {
+    var promedioLabels = {{ promedio_scores_labels|safe }};
+    var promedioData   = {{ promedio_scores_data|safe }};
+    var promedioPalette = ['#0f766e','#5eead4','#6366f1','#f59e0b'];
+    new Chart(ctxPromedios, {
+        type: 'bar',
+        data: {
+            labels: promedioLabels,
+            datasets: [{
+                label: 'Puntaje Promedio',
+                data: promedioData,
+                backgroundColor: promedioData.map(function(v, i) {
+                    return promedioPalette[i % promedioPalette.length];
+                }),
+                borderRadius: 7,
+                borderSkipped: false,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ' Promedio: ' + ctx.parsed.y.toFixed(2);
+                        },
+                    },
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { font: { size: 11 } },
+                    grid: { color: '#f1f5f9' },
+                    title: { display: true, text: 'Puntaje', font: { size: 11 }, color: '#6b7280' },
+                },
+                x: {
+                    ticks: { font: { size: 10 }, maxRotation: 20 },
+                    grid: { display: false },
+                },
+            },
+        },
+    });
+}
+
+// -- Chart: Distribucion por tipo de ciclo (doughnut)
+var ctxPorTipo = document.getElementById('chartPorTipo');
+if (ctxPorTipo) {
+    new Chart(ctxPorTipo, {
+        type: 'doughnut',
+        data: {
+            labels: {{ por_tipo_chart_labels|safe }},
+            datasets: [{
+                data: {{ por_tipo_chart_data|safe }},
+                backgroundColor: {{ por_tipo_chart_colors|safe }},
+                borderWidth: 0,
+                hoverOffset: 6,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 9 }, padding: 8, usePointStyle: true, boxWidth: 8 },
+                },
+            },
+        },
+    });
+}
+</script>
+{% endblock %}

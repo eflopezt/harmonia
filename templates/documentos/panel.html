@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos{% endblock %}
+
+{% block extra_css %}
+<style>
+.doc-stat { text-align:center; padding:16px; border-radius:8px; }
+.doc-stat .num { font-size:1.8rem; font-weight:700; line-height:1; }
+.doc-stat .lbl { font-size:.78rem; color:#6b7280; margin-top:4px; }
+.alerta-row { font-size:.85rem; }
+.alerta-row .badge-vencido { background:#fee2e2; color:#991b1b; }
+.alerta-row .badge-porvencer { background:#fff3cd; color:#856404; }
+.emp-row { cursor:pointer; transition:background .15s; }
+.emp-row:hover { background:#f0fdf9; }
+.emp-docs-badge { font-size:.72rem; padding:2px 8px; border-radius:10px; }
+.reciente-item { font-size:.82rem; padding:8px 0; border-bottom:1px solid #f3f4f6; }
+.reciente-item:last-child { border:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-folder-open text-secondary me-2"></i>Legajo Digital</h2>
+        <small class="text-muted">Documentos laborales de {{ total_personal }} trabajadores activos</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'documentos_exportar_inventario' %}" class="btn btn-outline-success btn-sm" title="Exportar inventario completo a Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar Inventario
+        </a>
+        <a href="{% url 'documentos_faltantes' %}" class="btn btn-outline-warning btn-sm">
+            <i class="fas fa-exclamation-triangle me-1"></i>Faltantes
+        </a>
+        <a href="{% url 'documentos_tipos' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-cog me-1"></i>Tipos
+        </a>
+    </div>
+</div>
+
+<!-- KPIs fila 1: métricas principales -->
+<div class="row g-3 mb-2">
+    <div class="col-6 col-md-3">
+        <div class="doc-stat bg-light border">
+            <div class="num text-dark">{{ total_documentos }}</div>
+            <div class="lbl">Documentos Totales</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="doc-stat" style="background:#f0fdf9; border:1px solid #99f6e4">
+            <div class="num" style="color:#0f766e">{{ total_personal }}</div>
+            <div class="lbl">Personal Activo</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="doc-stat" style="background:#fef3c7; border:1px solid #fcd34d">
+            <div class="num text-warning">{{ por_vencer }}</div>
+            <div class="lbl">Por Vencer</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="doc-stat" style="background:#fee2e2; border:1px solid #fca5a5">
+            <div class="num text-danger">{{ vencidos }}</div>
+            <div class="lbl">Vencidos</div>
+        </div>
+    </div>
+</div>
+
+<!-- KPIs fila 2: legajo y recientes -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="doc-stat" style="background:#fdf2f8; border:1px solid #f0abfc">
+            <div class="num" style="color:#7e22ce">{{ empleados_sin_legajo }}</div>
+            <div class="lbl">Sin Documentos</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-9">
+        <div class="card border h-100" style="min-height:72px">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center mb-1">
+                    <i class="fas fa-clock text-muted me-2" style="font-size:.8rem"></i>
+                    <span class="fw-semibold" style="font-size:.78rem; color:#374151">Últimos documentos subidos</span>
+                </div>
+                {% for d in docs_recientes %}
+                <div class="d-flex justify-content-between align-items-center" style="font-size:.75rem; padding:1px 0; border-bottom:1px solid #f3f4f6">
+                    <span>
+                        <i class="fas {{ d.icono_archivo }} me-1"></i>
+                        <a href="{% url 'documentos_legajo' d.personal_id %}" class="text-decoration-none fw-semibold">{{ d.personal.apellidos_nombres|truncatechars:20 }}</a>
+                        <span class="text-muted">— {{ d.tipo.nombre|truncatechars:18 }}</span>
+                    </span>
+                    <span class="text-muted ms-2 text-nowrap">{{ d.creado_en|date:"d/m/Y" }}</span>
+                </div>
+                {% empty %}
+                <span class="text-muted" style="font-size:.75rem">Sin documentos subidos aún.</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI: Distribución por tipo de documento -->
+{% if docs_por_tipo %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-chart-bar me-2 text-muted"></i>Documentos por Tipo</h6>
+        <small class="text-muted">Top {{ docs_por_tipo|length }} tipos</small>
+    </div>
+    <div class="card-body py-2 px-3">
+        <div class="row g-2">
+        {% for item in docs_por_tipo %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="d-flex justify-content-between align-items-center" style="font-size:.78rem; padding:3px 6px; background:#f9fafb; border-radius:4px; border:1px solid #e5e7eb">
+                    <span class="text-truncate me-2" title="{{ item.tipo__nombre }}">{{ item.tipo__nombre }}</span>
+                    <span class="badge rounded-pill" style="background:#0d2b27; color:#5eead4; font-size:.7rem">{{ item.total }}</span>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <!-- Columna izquierda: Lista de personal -->
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <h6 class="mb-0"><i class="fas fa-users me-2"></i>Personal — Legajos</h6>
+                <form method="GET" class="d-flex gap-2">
+                    <input type="text" name="buscar" class="form-control form-control-sm"
+                           placeholder="Buscar por nombre o DNI..." value="{{ buscar }}" style="width:220px">
+                    <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Trabajador</th>
+                            <th class="text-center" style="width:60px">Docs</th>
+                            <th class="text-center" style="width:90px">Completitud</th>
+                            <th class="text-center" style="width:80px">Estado</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in personal_list %}
+                        <tr class="emp-row" onclick="window.location='{% url 'documentos_legajo' p.pk %}'">
+                            <td>
+                                <div class="fw-semibold small">{{ p.apellidos_nombres }}</div>
+                                <small class="text-muted">{{ p.nro_doc }} · {{ p.grupo_tareo }}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="emp-docs-badge bg-light border">{{ p.num_docs }}</span>
+                            </td>
+                            <td class="text-center" style="min-width:90px">
+                                {% with pct=p.pct_completo %}
+                                <div class="d-flex align-items-center gap-1" title="{{ pct }}% de obligatorios cubiertos">
+                                    <div class="progress flex-grow-1" style="height:6px; border-radius:3px">
+                                        <div class="progress-bar {% if pct == 100 %}bg-success{% elif pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                             style="width:{{ pct }}%"></div>
+                                    </div>
+                                    <span style="font-size:.65rem; color:#6b7280; min-width:26px">{{ pct }}%</span>
+                                </div>
+                                {% endwith %}
+                            </td>
+                            <td class="text-center">
+                                {% if p.tiene_vencido %}
+                                <span class="badge bg-danger" style="font-size:.65rem">Vencido</span>
+                                {% elif p.tiene_por_vencer %}
+                                <span class="badge bg-warning text-dark" style="font-size:.65rem">Por Vencer</span>
+                                {% elif p.num_docs > 0 %}
+                                <span class="badge bg-success" style="font-size:.65rem">OK</span>
+                                {% else %}
+                                <span class="badge bg-secondary" style="font-size:.65rem">Sin docs</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'documentos_legajo' p.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-1" title="Ver legajo">
+                                    <i class="fas fa-folder-open" style="font-size:.7rem"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-search fa-2x d-block mb-2 opacity-25"></i>
+                                No se encontraron trabajadores.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna derecha: Alertas + Recientes -->
+    <div class="col-12 col-lg-5">
+        <!-- Alertas de vencimiento -->
+        {% if alertas %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0"><i class="fas fa-bell text-warning me-2"></i>Alertas de Vencimiento</h6>
+            </div>
+            <div class="card-body p-2">
+                {% for a in alertas %}
+                <div class="alerta-row d-flex justify-content-between align-items-center px-2 py-1">
+                    <div>
+                        <a href="{% url 'documentos_legajo' a.personal_id %}" class="text-decoration-none">
+                            <strong>{{ a.personal.apellidos_nombres|truncatechars:25 }}</strong>
+                        </a>
+                        <span class="text-muted">— {{ a.tipo.nombre }}</span>
+                    </div>
+                    <div>
+                        {% if a.estado == 'VENCIDO' %}
+                        <span class="badge badge-vencido">Vencido {{ a.fecha_vencimiento|date:"d/m/Y" }}</span>
+                        {% else %}
+                        <span class="badge badge-porvencer">Vence {{ a.fecha_vencimiento|date:"d/m/Y" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Documentos recientes -->
+        <div class="card shadow-sm">
+            <div class="card-header py-2">
+                <h6 class="mb-0"><i class="fas fa-clock text-muted me-2"></i>Subidos Recientemente</h6>
+            </div>
+            <div class="card-body">
+                {% for d in recientes %}
+                <div class="reciente-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas {{ d.icono_archivo }} me-1"></i>
+                        <a href="{% url 'documentos_legajo' d.personal_id %}" class="text-decoration-none">
+                            {{ d.personal.apellidos_nombres|truncatechars:22 }}
+                        </a>
+                        <span class="text-muted">— {{ d.tipo.nombre }}</span>
+                    </div>
+                    <small class="text-muted">{{ d.creado_en|date:"d/m" }}</small>
+                </div>
+                {% empty %}
+                <p class="text-center text-muted mb-0 py-3">
+                    <i class="fas fa-inbox fa-2x d-block mb-2 opacity-25"></i>
+                    Sin documentos subidos aún.
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

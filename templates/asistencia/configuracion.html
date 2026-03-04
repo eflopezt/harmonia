@@ -1,0 +1,1264 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuraci&oacute;n del Sistema{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-cog me-2 text-primary"></i>Configuraci&oacute;n del Sistema</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.cfg-tab-nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.cfg-tab-btn {
+    padding: 8px 18px;
+    border: none;
+    background: none;
+    font-size: .85rem;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: color .15s, border-color .15s;
+    border-radius: 6px 6px 0 0;
+}
+.cfg-tab-btn:hover { color: #0f766e; background: rgba(15,118,110,.05); }
+.cfg-tab-btn.active { color: #0f766e; border-bottom-color: #0f766e; }
+.cfg-tab-pane { display: none; }
+.cfg-tab-pane.active { display: block; }
+.cfg-section-title {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #94a3b8;
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.cfg-field label {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+    display: block;
+}
+.cfg-field .help-text {
+    font-size: .74rem;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+.cfg-switch-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.cfg-switch-row .form-check-input { margin-top: 2px; flex-shrink: 0; }
+.preview-ciclo {
+    border-radius: 10px;
+    border: 1.5px solid rgba(15,118,110,.25);
+    background: linear-gradient(90deg, rgba(15,118,110,.06) 0%, rgba(15,118,110,.02) 100%);
+    padding: 14px 18px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+.preview-ciclo-item { flex: 1; min-width: 200px; }
+.preview-ciclo-item .label { font-size: .72rem; font-weight: 700; text-transform: uppercase; color: #0f766e; letter-spacing: .05em; }
+.preview-ciclo-item .valor { font-size: 1.1rem; font-weight: 700; color: #0f4c42; margin: 2px 0; }
+.preview-ciclo-item .sub { font-size: .74rem; color: #64748b; }
+/* Modo card */
+.modo-card {
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+}
+.modo-card:hover { border-color: #0f766e40; }
+.modo-card.active { border-color: #0f766e; background: rgba(15,118,110,.04); }
+.modo-card .modo-title { font-size: .9rem; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.modo-card .modo-desc { font-size: .78rem; color: #64748b; line-height: 1.4; }
+.modo-card .modo-icon { font-size: 1.6rem; color: #0f766e; margin-bottom: 8px; }
+/* Module toggle */
+.mod-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    transition: background .15s, border-color .15s;
+}
+.mod-toggle:hover { background: #f8fafc; }
+.mod-toggle.enabled { border-color: #0f766e60; background: rgba(15,118,110,.03); }
+.mod-toggle .mod-info { flex: 1; }
+.mod-toggle .mod-name { font-size: .88rem; font-weight: 600; color: #1e293b; }
+.mod-toggle .mod-desc { font-size: .76rem; color: #94a3b8; margin-top: 2px; }
+.mod-toggle .mod-icon { font-size: 1.4rem; color: #0f766e; width: 36px; text-align: center; }
+.mod-toggle .form-check-input:checked { background-color: #0f766e; border-color: #0f766e; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Preview ciclos activos -->
+<div class="preview-ciclo">
+    <div class="preview-ciclo-item">
+        <div class="label"><i class="fas fa-clock me-1"></i>Ciclo HE &mdash; mes actual</div>
+        <div class="valor">{{ preview_ciclo_he }}</div>
+        <div class="sub">Del d&iacute;a {{ config.dia_corte_planilla|add:1 }} del mes anterior al d&iacute;a {{ config.dia_corte_planilla }}</div>
+    </div>
+    <div class="preview-ciclo-item">
+        <div class="label"><i class="fas fa-calendar-alt me-1"></i>Ciclo Asistencia &mdash; mes actual</div>
+        <div class="valor">{{ preview_asistencia }}</div>
+        <div class="sub">Del 1 al &uacute;ltimo d&iacute;a del mes</div>
+    </div>
+    <div class="preview-ciclo-item" style="flex:0;min-width:auto">
+        <div class="label">&Uacute;ltima actualizaci&oacute;n</div>
+        <div class="valor" style="font-size:.9rem">{{ config.actualizado_en|date:"d/m/Y H:i" }}</div>
+        <div class="sub">{% if config.actualizado_por %}por {{ config.actualizado_por }}{% endif %}</div>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" novalidate>
+{% csrf_token %}
+
+<!-- Tabs nav -->
+<nav class="cfg-tab-nav">
+    <button type="button" class="cfg-tab-btn active" data-tab="general">
+        <i class="fas fa-sliders-h"></i>General
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="modulos">
+        <i class="fas fa-puzzle-piece"></i>M&oacute;dulos
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="asistencia">
+        <i class="fas fa-fingerprint"></i>Asistencia
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="importacion">
+        <i class="fas fa-file-import"></i>Importaci&oacute;n
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="exportacion">
+        <i class="fas fa-file-export"></i>Exportaci&oacute;n
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="ia">
+        <i class="fas fa-robot"></i>IA
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="email">
+        <i class="fas fa-envelope"></i>Notificaciones
+    </button>
+    <button type="button" class="cfg-tab-btn" data-tab="identidad">
+        <i class="fas fa-palette"></i>Identidad Visual
+    </button>
+</nav>
+
+<!-- ════════════════ TAB: GENERAL ════════════════ -->
+<div class="cfg-tab-pane active" id="tab-general">
+    <!-- Empresa -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Datos de la organizaci&oacute;n</div>
+            <div class="row g-3">
+                <div class="col-md-6 cfg-field">
+                    <label>Nombre de la Empresa</label>
+                    <input type="text" class="form-control" name="empresa_nombre"
+                           value="{{ config.empresa_nombre }}" placeholder="Ej: Constructora ABC S.A.C.">
+                </div>
+                <div class="col-md-3 cfg-field">
+                    <label>RUC</label>
+                    <input type="text" class="form-control" name="ruc"
+                           value="{{ config.ruc }}" maxlength="11" placeholder="20XXXXXXXXX">
+                    <div class="help-text">11 d&iacute;gitos, sin espacios</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modo del sistema -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">&iquest;C&oacute;mo usar&aacute;s Harmoni?</div>
+            <p class="text-muted small mb-3">
+                Define el alcance funcional del sistema. Puedes cambiar esto despu&eacute;s.
+            </p>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="modo-card d-block {% if config.modo_sistema == 'ASISTENCIA' %}active{% endif %}" onclick="setModo('ASISTENCIA')">
+                        <div class="modo-icon"><i class="fas fa-fingerprint"></i></div>
+                        <div class="modo-title">Solo Asistencia</div>
+                        <div class="modo-desc">Control de reloj, tareo, horas extra, faltas. La n&oacute;mina se procesa en un sistema externo (S10, SAP, Excel).</div>
+                    </label>
+                </div>
+                <div class="col-md-4">
+                    <label class="modo-card d-block {% if config.modo_sistema == 'ASISTENCIA_NOMINA' %}active{% endif %}" onclick="setModo('ASISTENCIA_NOMINA')">
+                        <div class="modo-icon"><i class="fas fa-calculator"></i></div>
+                        <div class="modo-title">Asistencia + N&oacute;mina</div>
+                        <div class="modo-desc">Todo lo anterior + liquidaci&oacute;n de n&oacute;mina integrada en Harmoni. AFP, ONP, IR 5ta, gratificaciones, CTS.</div>
+                    </label>
+                </div>
+                <div class="col-md-4">
+                    <label class="modo-card d-block {% if config.modo_sistema == 'ERP_COMPLETO' %}active{% endif %}" onclick="setModo('ERP_COMPLETO')">
+                        <div class="modo-icon"><i class="fas fa-infinity"></i></div>
+                        <div class="modo-title">ERP Completo</div>
+                        <div class="modo-desc">RRHH integral: n&oacute;mina, reclutamiento, evaluaciones, capacitaciones, encuestas, onboarding.</div>
+                    </label>
+                </div>
+            </div>
+            <input type="hidden" name="modo_sistema" id="inpModoSistema" value="{{ config.modo_sistema }}">
+        </div>
+    </div>
+
+    <!-- Programa de n&oacute;mina destino -->
+    <div class="dash-card" id="panelProgramaNomina">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Programa de n&oacute;mina / Destino de exportaci&oacute;n</div>
+            <p class="text-muted small mb-3">
+                &iquest;En qu&eacute; sistema se procesa tu n&oacute;mina? Esto determina el formato de los reportes de exportaci&oacute;n.
+            </p>
+            <div class="row g-3">
+                <div class="col-md-4 cfg-field">
+                    <label>Programa de N&oacute;mina</label>
+                    <select class="form-select" name="programa_nomina" id="selProgramaNomina" onchange="toggleProgramaOtro()">
+                        {% for val, label in config.PROGRAMA_NOMINA_CHOICES %}
+                        <option value="{{ val }}" {% if config.programa_nomina == val %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 cfg-field" id="panelProgramaOtro" style="display:none">
+                    <label>Nombre del Programa</label>
+                    <input type="text" class="form-control" name="programa_nomina_nombre"
+                           value="{{ config.programa_nomina_nombre }}" placeholder="Ej: Exactus, Contasis, Starsoft">
+                    <div class="help-text">Ingresa el nombre del sistema externo</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ TAB: M&Oacute;DULOS ════════════════ -->
+<div class="cfg-tab-pane" id="tab-modulos">
+    <div class="dash-card">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">M&oacute;dulos Activos</div>
+            <p class="text-muted small mb-3">
+                Activa solo los m&oacute;dulos que necesitas. Los m&oacute;dulos desactivados se ocultan del men&uacute; lateral
+                y no consumen recursos. Puedes activarlos en cualquier momento.
+            </p>
+            <div class="row g-3">
+                <!-- Asistencia y Personal siempre activos -->
+                <div class="col-md-6">
+                    <div class="mod-toggle enabled" style="opacity:.7">
+                        <div class="mod-icon"><i class="fas fa-fingerprint"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Asistencia y Tareo</div>
+                            <div class="mod-desc">Control de reloj, HE, faltas, papeletas, banco de horas</div>
+                        </div>
+                        <span class="badge bg-success" style="font-size:.7rem">Siempre activo</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle enabled" style="opacity:.7">
+                        <div class="mod-icon"><i class="fas fa-users"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Personal y Directorio</div>
+                            <div class="mod-desc">Ficha de empleados, &aacute;reas, subareas, organigrama</div>
+                        </div>
+                        <span class="badge bg-success" style="font-size:.7rem">Siempre activo</span>
+                    </div>
+                </div>
+
+                <!-- Toggleables -->
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_documentos %}enabled{% endif %}" onclick="toggleMod(this, 'mod_documentos')">
+                        <div class="mod-icon"><i class="fas fa-folder-open"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Legajo Digital y Constancias</div>
+                            <div class="mod-desc">Documentos del empleado, constancias PDF, vencimientos</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_documentos"
+                                   value="1" {% if config.mod_documentos %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_prestamos %}enabled{% endif %}" onclick="toggleMod(this, 'mod_prestamos')">
+                        <div class="mod-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Pr&eacute;stamos y Adelantos</div>
+                            <div class="mod-desc">Pr&eacute;stamos al personal, adelantos de sueldo/gratificaci&oacute;n, cuotas</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_prestamos"
+                                   value="1" {% if config.mod_prestamos %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_viaticos %}enabled{% endif %}" onclick="toggleMod(this, 'mod_viaticos')">
+                        <div class="mod-icon"><i class="fas fa-plane-departure"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Vi&aacute;ticos y CDT</div>
+                            <div class="mod-desc">Adelantos de vi&aacute;ticos, rendiciones, tarjeta alimentos, bonos</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_viaticos"
+                                   value="1" {% if config.mod_viaticos %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_evaluaciones %}enabled{% endif %}" onclick="toggleMod(this, 'mod_evaluaciones')">
+                        <div class="mod-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Evaluaciones de Desempe&ntilde;o</div>
+                            <div class="mod-desc">360&deg;, OKR, 9-Box, plan de desarrollo individual</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_evaluaciones"
+                                   value="1" {% if config.mod_evaluaciones %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_capacitaciones %}enabled{% endif %}" onclick="toggleMod(this, 'mod_capacitaciones')">
+                        <div class="mod-icon"><i class="fas fa-graduation-cap"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Capacitaciones / LMS</div>
+                            <div class="mod-desc">Tracking, certificaciones, SSOMA, plan anual</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_capacitaciones"
+                                   value="1" {% if config.mod_capacitaciones %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_reclutamiento %}enabled{% endif %}" onclick="toggleMod(this, 'mod_reclutamiento')">
+                        <div class="mod-icon"><i class="fas fa-user-plus"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Reclutamiento y Selecci&oacute;n</div>
+                            <div class="mod-desc">Pipeline kanban, careers page, CV parsing con IA</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_reclutamiento"
+                                   value="1" {% if config.mod_reclutamiento %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mod-toggle {% if config.mod_encuestas %}enabled{% endif %}" onclick="toggleMod(this, 'mod_encuestas')">
+                        <div class="mod-icon"><i class="fas fa-poll"></i></div>
+                        <div class="mod-info">
+                            <div class="mod-name">Encuestas y Clima Laboral</div>
+                            <div class="mod-desc">eNPS, encuestas de pulso, an&oacute;nimas</div>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="mod_encuestas"
+                                   value="1" {% if config.mod_encuestas %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ TAB: ASISTENCIA ════════════════ -->
+<div class="cfg-tab-pane" id="tab-asistencia">
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Ciclo de planilla y HE</div>
+            <div class="row g-3">
+                <div class="col-md-3 cfg-field">
+                    <label>D&iacute;a de Corte de Planilla</label>
+                    <div class="input-group">
+                        <span class="input-group-text">D&iacute;a</span>
+                        <input type="number" class="form-control" name="dia_corte_planilla"
+                               value="{{ config.dia_corte_planilla }}" min="1" max="28">
+                    </div>
+                    <div class="help-text">HE ciclo: del d&iacute;a (corte+1) mes anterior al d&iacute;a corte mes actual</div>
+                </div>
+                <div class="col-md-3 cfg-field">
+                    <label>Jornada Local (h/d&iacute;a)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" name="jornada_local_horas"
+                               value="{{ config.jornada_local_horas }}" step="0.5" min="4" max="12">
+                        <span class="input-group-text">h</span>
+                    </div>
+                    <div class="help-text">Personal LOCAL. Ej: 8.5</div>
+                </div>
+                <div class="col-md-3 cfg-field">
+                    <label>Jornada For&aacute;neo (h/d&iacute;a)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" name="jornada_foraneo_horas"
+                               value="{{ config.jornada_foraneo_horas }}" step="0.5" min="4" max="14">
+                        <span class="input-group-text">h</span>
+                    </div>
+                    <div class="help-text">Personal FOR&Aacute;NEO. Ej: 11.0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Regularizaci&oacute;n de fin de mes</div>
+            <div class="cfg-switch-row">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="regularizacion_activa"
+                           value="1" {% if config.regularizacion_activa %}checked{% endif %}>
+                </div>
+                <div>
+                    <div style="font-size:.85rem;font-weight:600">Activar Regularizaci&oacute;n de Fin de Mes</div>
+                    <div class="help-text" style="margin-top:2px">
+                        Los descuentos (faltas, LSG) entre el d&iacute;a {{ config.dia_corte_planilla|add:1 }} y fin de mes
+                        se difieren al siguiente mes. Seg&uacute;n D.Leg. 728.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="dash-card">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Control de Horas Extra (DL 728 + DS 007-2002-TR)</div>
+            <div class="cfg-switch-row mb-3">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="he_requiere_solicitud"
+                           value="1" {% if config.he_requiere_solicitud %}checked{% endif %}>
+                </div>
+                <div>
+                    <div style="font-size:.85rem;font-weight:600">Requiere solicitud previa aprobada para HE</div>
+                    <div class="help-text" style="margin-top:2px">
+                        Solo registra HE si existe Solicitud HE aprobada.
+                        Sin solicitud, el exceso se ignora.
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4 cfg-field">
+                    <label>Tipo de HE por defecto</label>
+                    <select class="form-select" name="he_tipo_default">
+                        {% for val, label in config.HE_TIPO_CHOICES %}
+                        <option value="{{ val }}" {% if config.he_tipo_default == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ TAB: IMPORTACI&Oacute;N ════════════════ -->
+<div class="cfg-tab-pane" id="tab-importacion">
+    <div class="dash-card">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Synkro &mdash; nombres de hojas en el Excel</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 cfg-field">
+                    <label>Nombre Hoja Reloj</label>
+                    <input type="text" class="form-control" name="synkro_hoja_reloj"
+                           value="{{ config.synkro_hoja_reloj }}">
+                </div>
+                <div class="col-md-3 cfg-field">
+                    <label>Nombre Hoja Papeletas</label>
+                    <input type="text" class="form-control" name="synkro_hoja_papeletas"
+                           value="{{ config.synkro_hoja_papeletas }}">
+                </div>
+            </div>
+            <div class="cfg-section-title">&Iacute;ndices de columnas en hoja Reloj (0-based)</div>
+            <div class="row g-3">
+                <div class="col-md-2 cfg-field">
+                    <label>Col. DNI</label>
+                    <input type="number" class="form-control" name="reloj_col_dni"
+                           value="{{ config.reloj_col_dni }}" min="0">
+                </div>
+                <div class="col-md-2 cfg-field">
+                    <label>Col. Nombre</label>
+                    <input type="number" class="form-control" name="reloj_col_nombre"
+                           value="{{ config.reloj_col_nombre }}" min="0">
+                </div>
+                <div class="col-md-2 cfg-field">
+                    <label>Col. Condici&oacute;n</label>
+                    <input type="number" class="form-control" name="reloj_col_condicion"
+                           value="{{ config.reloj_col_condicion }}" min="0">
+                </div>
+                <div class="col-md-2 cfg-field">
+                    <label>Col. Tipo Trab.</label>
+                    <input type="number" class="form-control" name="reloj_col_tipo_trab"
+                           value="{{ config.reloj_col_tipo_trab }}" min="0">
+                </div>
+                <div class="col-md-2 cfg-field">
+                    <label>Col. &Aacute;rea</label>
+                    <input type="number" class="form-control" name="reloj_col_area"
+                           value="{{ config.reloj_col_area }}" min="0">
+                </div>
+                <div class="col-md-3 cfg-field">
+                    <label>Primera Col. D&iacute;as</label>
+                    <input type="number" class="form-control" name="reloj_col_inicio_dias"
+                           value="{{ config.reloj_col_inicio_dias }}" min="0">
+                    <div class="help-text">&Iacute;ndice de la 1&ordf; columna con fechas del mes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ TAB: EXPORTACI&Oacute;N ════════════════ -->
+<div class="cfg-tab-pane" id="tab-exportacion">
+    <!-- Opciones generales de exportaci&oacute;n -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Opciones de exportaci&oacute;n para n&oacute;mina</div>
+            <p class="text-muted small mb-3">
+                Configura qu&eacute; datos incluir en los reportes de exportaci&oacute;n.
+                Estos reportes alimentan tu programa de n&oacute;mina (<strong id="lblProgramaNomina">{{ config.get_programa_nomina_display }}</strong>).
+            </p>
+            <div class="row g-3">
+                <div class="col-md-3 cfg-field">
+                    <label>Formato por defecto</label>
+                    <select class="form-select" name="export_formato">
+                        {% for val, label in config.EXPORT_FORMATO_CHOICES %}
+                        <option value="{{ val }}" {% if config.export_formato == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <div class="cfg-switch-row">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="export_incluir_faltas"
+                                   value="1" {% if config.export_incluir_faltas %}checked{% endif %}>
+                        </div>
+                        <div>
+                            <div style="font-size:.85rem;font-weight:600">Incluir Faltas y Descuentos</div>
+                            <div class="help-text">D&iacute;as de falta, tardanza, LSG para descuento en n&oacute;mina</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="cfg-switch-row">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="export_incluir_banco_horas"
+                                   value="1" {% if config.export_incluir_banco_horas %}checked{% endif %}>
+                        </div>
+                        <div>
+                            <div style="font-size:.85rem;font-weight:600">Incluir Banco de Horas</div>
+                            <div class="help-text">Resumen de horas compensables en el reporte</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="cfg-switch-row">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="export_incluir_sueldo"
+                                   value="1" {% if config.export_incluir_sueldo %}checked{% endif %}>
+                        </div>
+                        <div>
+                            <div style="font-size:.85rem;font-weight:600">Incluir Sueldo Base</div>
+                            <div class="help-text">A&ntilde;ade columna de sueldo base del empleado</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="cfg-switch-row">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="export_separar_staff_rco"
+                                   value="1" {% if config.export_separar_staff_rco %}checked{% endif %}>
+                        </div>
+                        <div>
+                            <div style="font-size:.85rem;font-weight:600">Separar STAFF / RCO</div>
+                            <div class="help-text">Genera archivos separados por tipo de trabajador</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- S10 espec&iacute;fico -->
+    <div class="dash-card" id="panelS10">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Conceptos S10 &mdash; Mapeo de Horas Extra</div>
+            <p class="text-muted small mb-3">
+                Nombres exactos de los conceptos en tu sistema S10 para la carga de HE.
+            </p>
+            <div class="row g-3">
+                <div class="col-md-4 cfg-field">
+                    <label>
+                        <span class="badge me-1" style="background:#0f766e;font-size:.65rem">25%</span>
+                        Concepto HE 25%
+                    </label>
+                    <input type="text" class="form-control" name="s10_nombre_concepto_he25"
+                           value="{{ config.s10_nombre_concepto_he25 }}">
+                    <div class="help-text">Primeras 2h de sobretiempo en d&iacute;a ordinario</div>
+                </div>
+                <div class="col-md-4 cfg-field">
+                    <label>
+                        <span class="badge me-1" style="background:#0ea5e9;font-size:.65rem">35%</span>
+                        Concepto HE 35%
+                    </label>
+                    <input type="text" class="form-control" name="s10_nombre_concepto_he35"
+                           value="{{ config.s10_nombre_concepto_he35 }}">
+                    <div class="help-text">3ra hora en adelante en d&iacute;a ordinario</div>
+                </div>
+                <div class="col-md-4 cfg-field">
+                    <label>
+                        <span class="badge me-1" style="background:#dc2626;font-size:.65rem">100%</span>
+                        Concepto HE 100%
+                    </label>
+                    <input type="text" class="form-control" name="s10_nombre_concepto_he100"
+                           value="{{ config.s10_nombre_concepto_he100 }}">
+                    <div class="help-text">Feriados + domingos/DSO (D.Leg. 713)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ TAB: IA ════════════════ -->
+<div class="cfg-tab-pane" id="tab-ia">
+
+    <!-- Configuración de conexión -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">
+                <i class="fas fa-robot me-2 text-primary"></i>Ollama &mdash; IA local en tu servidor
+            </div>
+            <div class="alert mb-4" style="background:rgba(15,118,110,.07);border:1px solid rgba(15,118,110,.2);border-radius:8px;padding:12px 16px;font-size:.82rem;color:#0f4c42;">
+                <i class="fas fa-shield-alt me-2"></i>
+                <strong>100% privado</strong> &mdash; Ollama corre en tu servidor. Los datos de tus empleados nunca salen de tu infraestructura.
+                <span class="text-muted ms-2">
+                    Instalar: <code>winget install Ollama.Ollama</code> (Windows) &middot;
+                    <code>curl -fsSL https://ollama.com/install.sh | sh</code> (Linux/Mac)
+                    &middot; Descargar modelo: <code>ollama pull llama3.2</code>
+                </span>
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3 cfg-field">
+                    <label>Estado</label>
+                    <select class="form-select" name="ia_provider" id="selProvider" onchange="actualizarPanelIA()">
+                        {% for val, label in config.IA_PROVIDER_CHOICES %}
+                        <option value="{{ val }}" {% if config.ia_provider == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 cfg-field" id="panelEndpoint">
+                    <label>Endpoint Ollama</label>
+                    <input type="text" class="form-control" name="ia_endpoint" id="iaEndpoint"
+                           value="{{ config.ia_endpoint }}" placeholder="http://localhost:11434">
+                </div>
+                <div class="col-md-3 cfg-field" id="panelModelo">
+                    <label>Modelo activo</label>
+                    <input type="text" class="form-control" name="ia_modelo" id="iaModelo"
+                           value="{{ config.ia_modelo }}" placeholder="llama3.2">
+                    <div class="help-text mt-1"><code>llama3.2</code> &middot; <code>mistral</code> &middot; <code>qwen2.5</code></div>
+                </div>
+                <div class="col-md-2 cfg-field" id="panelTestBtn">
+                    <button type="button" class="btn btn-outline-primary w-100"
+                            id="btnTestOllama" onclick="testOllamaConnection()">
+                        <i class="fas fa-plug me-1" id="btnTestIcon"></i><span id="btnTestLabel">Probar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel de estado (oculto hasta hacer test) -->
+            <div id="iaStatusArea" style="display:none; margin-top:14px;">
+                <div id="iaStatusCard" style="border-radius:8px; padding:12px 16px; font-size:.83rem; border:1px solid;">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span id="iaStatusIcon" style="font-size:1rem;"></span>
+                        <strong id="iaStatusTitle" style="font-size:.85rem;"></strong>
+                        <code class="ms-auto" style="font-size:.72rem; color:#64748b;" id="iaStatusEndpoint"></code>
+                    </div>
+                    <!-- Modelos disponibles (click para seleccionar) -->
+                    <div id="iaModelosArea" style="display:none; margin-top:8px;">
+                        <div style="font-size:.73rem; color:#475569; margin-bottom:5px;">
+                            <i class="fas fa-cubes me-1"></i>Modelos instalados &mdash; clic para usar:
+                        </div>
+                        <div id="iaModelosList" class="d-flex flex-wrap gap-1"></div>
+                    </div>
+                    <!-- Modelo no encontrado -->
+                    <div id="iaModeloWarning" style="display:none; margin-top:6px; font-size:.78rem; color:#b45309;">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        El modelo <strong id="iaModeloWarningNombre"></strong> no está instalado.
+                        Ejecuta: <code id="iaModeloPullCmd"></code>
+                    </div>
+                    <!-- Error -->
+                    <div id="iaErrorArea" style="display:none; font-size:.8rem; color:#dc2626; margin-top:4px;">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        <span id="iaErrorMsg"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Funciones habilitadas (solo visible cuando OLLAMA activo) -->
+    <div class="dash-card mb-3" id="panelActivacion" style="display:none">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Funciones habilitadas</div>
+
+            <div class="cfg-switch-row">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="ia_mapeo_activo"
+                           id="iaMapeoActivo" value="1" {% if config.ia_mapeo_activo %}checked{% endif %}>
+                </div>
+                <div>
+                    <div style="font-size:.85rem;font-weight:600">
+                        <i class="fas fa-table me-1 text-primary"></i>
+                        Detecci&oacute;n autom&aacute;tica de columnas al importar
+                    </div>
+                    <div class="help-text" style="margin-top:2px">
+                        Cuando el archivo tiene encabezados no estándar, Ollama los analiza y sugiere el mapeo.
+                        Funciona con importaciones S10, Synkro y planillas personalizadas.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tips de modelos -->
+    <div class="dash-card" id="panelTipsModelos" style="display:none">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Guía de modelos</div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.8rem;background:#f8fafc;">
+                        <div class="fw-semibold mb-1"><i class="fas fa-microchip me-1 text-success"></i>CPU &mdash; ultraligeros</div>
+                        <code>ollama pull qwen2.5:0.5b</code> (395 MB)<br>
+                        <code>ollama pull llama3.2:1b</code> (1.3 GB)<br>
+                        <span class="text-muted">Rápidos, suficientes para mapeo de columnas.</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.8rem;background:#f8fafc;">
+                        <div class="fw-semibold mb-1"><i class="fas fa-balance-scale me-1 text-warning"></i>CPU/GPU &mdash; equilibrado</div>
+                        <code>ollama pull llama3.2</code> (2 GB)<br>
+                        <code>ollama pull mistral</code> (4.1 GB)<br>
+                        <span class="text-muted">Buen balance calidad/velocidad.</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.8rem;background:#f8fafc;">
+                        <div class="fw-semibold mb-1"><i class="fas fa-image me-1 text-primary"></i>Multimodal (PDFs)</div>
+                        <code>ollama pull llava</code> (4.5 GB)<br>
+                        <code>ollama pull llava:13b</code> (8 GB)<br>
+                        <span class="text-muted">Requiere GPU. Para PDF Splitter IA.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ════════════════ TAB: EMAIL ════════════════ -->
+<div class="cfg-tab-pane" id="tab-email">
+    <div class="dash-card">
+        <div class="dash-card-body">
+            <div class="cfg-section-title">Notificaciones por email</div>
+            <div class="cfg-switch-row mb-4">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="email_habilitado"
+                           value="1" {% if config.email_habilitado %}checked{% endif %}>
+                </div>
+                <div>
+                    <div style="font-size:.85rem;font-weight:600">Habilitar Notificaciones por Email</div>
+                    <div class="help-text">Env&iacute;a res&uacute;menes semanales de asistencia</div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-5 cfg-field">
+                    <label>Email Remitente</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-at"></i></span>
+                        <input type="email" class="form-control" name="email_desde"
+                               value="{{ config.email_desde }}" placeholder="tareo@empresa.com">
+                    </div>
+                </div>
+                <div class="col-md-3 cfg-field">
+                    <label>D&iacute;a de Env&iacute;o Semanal</label>
+                    <select class="form-select" name="email_dia_envio">
+                        {% for val, nombre in dias_semana %}
+                        <option value="{{ val }}" {% if config.email_dia_envio == val %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-8 cfg-field">
+                    <label>Asunto del Email Semanal</label>
+                    <input type="text" class="form-control" name="email_asunto_semanal"
+                           value="{{ config.email_asunto_semanal }}">
+                    <div class="help-text">Variables: <code>{empresa}</code>, <code>{semana}</code>, <code>{empleado}</code></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ TAB: IDENTIDAD VISUAL ════════════════ -->
+<div class="cfg-tab-pane" id="tab-identidad">
+
+    <!-- Logo -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title"><i class="fas fa-image me-1"></i>Logo de la Empresa</div>
+            <div class="row g-3 align-items-start">
+                <div class="col-md-4">
+                    <div id="logo-preview-wrap" style="border:2px dashed #e2e8f0; border-radius:10px; padding:16px; text-align:center; background:#f8fafc; min-height:100px; display:flex; align-items:center; justify-content:center;">
+                        {% if config.logo %}
+                            <img id="logo-preview-img" src="{{ config.logo.url }}" style="max-width:200px; max-height:90px; object-fit:contain;" />
+                        {% else %}
+                            <span id="logo-placeholder" class="text-muted" style="font-size:.8rem;"><i class="fas fa-image fa-2x mb-2 d-block opacity-25"></i>Sin logo</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="cfg-field mb-3">
+                        <label>Subir logo</label>
+                        <input type="file" class="form-control" name="logo" id="id_logo" accept="image/png,image/jpeg,image/svg+xml">
+                        <div class="help-text">PNG con fondo transparente recomendado. M&aacute;x. 2MB. Ideal: 300&times;100 px.</div>
+                    </div>
+                    {% if config.logo %}
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="logo_eliminar" id="id_logo_eliminar" value="1">
+                        <label class="form-check-label text-danger" for="id_logo_eliminar" style="font-size:.82rem;">
+                            <i class="fas fa-trash-alt me-1"></i>Eliminar logo actual al guardar
+                        </label>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos de contacto -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title"><i class="fas fa-address-card me-1"></i>Datos de Contacto (aparecen en documentos)</div>
+            <div class="row g-3">
+                <div class="col-md-12 cfg-field">
+                    <label>Direcci&oacute;n</label>
+                    <input type="text" class="form-control" name="empresa_direccion"
+                           value="{{ config.empresa_direccion }}"
+                           placeholder="Av. Los Ingenieros 123, Miraflores, Lima">
+                    <div class="help-text">Direcci&oacute;n completa de la empresa. Se muestra en el membrete de constancias.</div>
+                </div>
+                <div class="col-md-4 cfg-field">
+                    <label>Tel&eacute;fono / Anexo</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                        <input type="text" class="form-control" name="empresa_telefono"
+                               value="{{ config.empresa_telefono }}"
+                               placeholder="(01) 234-5678">
+                    </div>
+                </div>
+                <div class="col-md-4 cfg-field">
+                    <label>Email Corporativo</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-at"></i></span>
+                        <input type="email" class="form-control" name="empresa_email"
+                               value="{{ config.empresa_email }}"
+                               placeholder="contacto@empresa.com.pe">
+                    </div>
+                </div>
+                <div class="col-md-4 cfg-field">
+                    <label>Sitio web</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-globe"></i></span>
+                        <input type="text" class="form-control" name="empresa_web"
+                               value="{{ config.empresa_web }}"
+                               placeholder="www.empresa.com.pe">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Membrete -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title"><i class="fas fa-scroll me-1"></i>Membrete en Documentos PDF</div>
+
+            <div class="cfg-switch-row mb-4">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" name="membrete_mostrar"
+                           id="id_membrete_mostrar" value="1"
+                           {% if config.membrete_mostrar %}checked{% endif %}>
+                </div>
+                <div>
+                    <div style="font-size:.85rem;font-weight:600">Agregar membrete autom&aacute;ticamente</div>
+                    <div class="help-text">Inserta el logo, nombre de empresa y datos de contacto en la parte superior de todas las constancias y certificados generados.</div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-3 cfg-field">
+                    <label>Color del membrete</label>
+                    <div class="input-group">
+                        <input type="color" class="form-control form-control-color" name="membrete_color"
+                               id="id_membrete_color" value="{{ config.membrete_color|default:'#0f766e' }}"
+                               style="max-width:52px; cursor:pointer;">
+                        <input type="text" class="form-control font-monospace" id="id_membrete_color_text"
+                               value="{{ config.membrete_color|default:'#0f766e' }}" maxlength="7"
+                               style="font-size:.85rem;">
+                    </div>
+                    <div class="help-text">Color principal del encabezado y l&iacute;neas</div>
+                </div>
+                <div class="col-md-9">
+                    <!-- Preview del membrete -->
+                    <label style="font-size:.82rem; font-weight:600; color:#374151; margin-bottom:6px; display:block;">Vista previa del membrete</label>
+                    <div id="membrete-preview" style="border:1px solid #e2e8f0; border-radius:8px; padding:14px; background:#fff;">
+                        <table style="width:100%; border-bottom:2.5px solid {{ config.membrete_color|default:'#0f766e' }}; padding-bottom:8px;" id="prev-table">
+                        <tr>
+                            {% if config.logo %}
+                            <td id="prev-logo-cell" style="width:90px; vertical-align:middle; padding-right:12px;">
+                                <img src="{{ config.logo.url }}" style="max-width:80px; max-height:45px;">
+                            </td>
+                            {% else %}
+                            <td id="prev-logo-cell" style="display:none;"></td>
+                            {% endif %}
+                            <td style="vertical-align:middle;">
+                                <div id="prev-nombre" style="font-size:13pt; font-weight:bold; color:{{ config.membrete_color|default:'#0f766e' }};">{{ config.empresa_nombre|default:"Nombre de la Empresa" }}</div>
+                                {% if config.ruc %}<div style="font-size:8pt; color:#888;">RUC: {{ config.ruc }}</div>{% endif %}
+                                <div id="prev-contacto" style="font-size:8pt; color:#666;">
+                                    {% if config.empresa_direccion %}{{ config.empresa_direccion }}{% endif %}
+                                    {% if config.empresa_telefono %} &nbsp;|&nbsp; Tel: {{ config.empresa_telefono }}{% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        </table>
+                        <div style="font-size:.7rem; color:#cbd5e1; text-align:center; margin-top:8px;">
+                            [Contenido del documento]
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firma -->
+    <div class="dash-card mb-3">
+        <div class="dash-card-body">
+            <div class="cfg-section-title"><i class="fas fa-signature me-1"></i>Firma Autorizada</div>
+            <p class="text-muted small mb-3">
+                Si se completan estos campos, Harmoni agrega autom&aacute;ticamente el bloque de firma al final de cada constancia generada.
+            </p>
+            <div class="row g-3 align-items-start">
+                <div class="col-md-4">
+                    <div style="border:2px dashed #e2e8f0; border-radius:10px; padding:16px; text-align:center; background:#f8fafc; min-height:80px; display:flex; align-items:center; justify-content:center;">
+                        {% if config.firma_imagen %}
+                            <img id="firma-preview-img" src="{{ config.firma_imagen.url }}" style="max-width:160px; max-height:70px; object-fit:contain;" />
+                        {% else %}
+                            <span class="text-muted" style="font-size:.8rem;"><i class="fas fa-pen-nib fa-2x mb-2 d-block opacity-25"></i>Sin firma</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="row g-2">
+                        <div class="col-12 cfg-field">
+                            <label>Imagen de firma</label>
+                            <input type="file" class="form-control" name="firma_imagen" id="id_firma_imagen" accept="image/png,image/jpeg">
+                            <div class="help-text">PNG con fondo transparente recomendado. M&aacute;x. 1MB. Ideal: 200&times;80 px.</div>
+                        </div>
+                        {% if config.firma_imagen %}
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="firma_imagen_eliminar" id="id_firma_imagen_eliminar" value="1">
+                                <label class="form-check-label text-danger" for="id_firma_imagen_eliminar" style="font-size:.82rem;">
+                                    <i class="fas fa-trash-alt me-1"></i>Eliminar firma actual al guardar
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-6 cfg-field">
+                            <label>Nombre del Firmante</label>
+                            <input type="text" class="form-control" name="firma_nombre"
+                                   value="{{ config.firma_nombre }}" placeholder="Juan P&eacute;rez Garc&iacute;a">
+                        </div>
+                        <div class="col-md-6 cfg-field">
+                            <label>Cargo del Firmante</label>
+                            <input type="text" class="form-control" name="firma_cargo"
+                                   value="{{ config.firma_cargo }}" placeholder="Jefe de Recursos Humanos">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Guardar -->
+<div class="mt-4 d-flex gap-2 align-items-center">
+    <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save me-2"></i>Guardar Configuraci&oacute;n
+    </button>
+    <a href="{% url 'asistencia_parametros' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-sliders-h me-2"></i>Homologaciones y Feriados
+    </a>
+    <span class="text-muted small ms-2">
+        <i class="fas fa-clock me-1"></i>{{ config.actualizado_en|date:"d/m/Y H:i" }}
+    </span>
+</div>
+
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Tab navigation
+document.querySelectorAll('.cfg-tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const tab = this.dataset.tab;
+        document.querySelectorAll('.cfg-tab-pane').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.cfg-tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        this.classList.add('active');
+    });
+});
+
+// Modo sistema cards
+function setModo(modo) {
+    document.getElementById('inpModoSistema').value = modo;
+    document.querySelectorAll('.modo-card').forEach(c => c.classList.remove('active'));
+    event.currentTarget.closest('.modo-card') ?
+        event.currentTarget.closest('.modo-card').classList.add('active') :
+        event.currentTarget.classList.add('active');
+    // Show/hide programa nomina based on mode
+    const panel = document.getElementById('panelProgramaNomina');
+    panel.style.display = (modo === 'ASISTENCIA') ? '' : (modo === 'ASISTENCIA_NOMINA' ? 'none' : 'none');
+}
+
+// Module toggles
+function toggleMod(el, name) {
+    const cb = el.querySelector('input[type=checkbox]');
+    cb.checked = !cb.checked;
+    el.classList.toggle('enabled', cb.checked);
+}
+
+// Programa otro
+function toggleProgramaOtro() {
+    const val = document.getElementById('selProgramaNomina').value;
+    document.getElementById('panelProgramaOtro').style.display = (val === 'OTRO') ? '' : 'none';
+    // Show/hide S10 section based on program
+    const s10 = document.getElementById('panelS10');
+    if (s10) s10.style.display = (val === 'S10') ? '' : 'none';
+}
+
+// ── IA / Ollama ─────────────────────────────────────────────────────────────
+
+function actualizarPanelIA() {
+    const esOllama = document.getElementById('selProvider').value === 'OLLAMA';
+    ['panelModelo','panelEndpoint','panelTestBtn','panelActivacion','panelTipsModelos'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = esOllama ? '' : 'none';
+    });
+    if (!esOllama) {
+        document.getElementById('iaStatusArea').style.display = 'none';
+    }
+}
+
+function testOllamaConnection() {
+    const endpoint = document.getElementById('iaEndpoint').value.trim() || 'http://localhost:11434';
+    const modelo   = document.getElementById('iaModelo').value.trim()   || 'llama3.2';
+    const btn      = document.getElementById('btnTestOllama');
+    const icon     = document.getElementById('btnTestIcon');
+    const label    = document.getElementById('btnTestLabel');
+
+    // Estado: cargando
+    btn.disabled = true;
+    icon.className  = 'fas fa-spinner fa-spin me-1';
+    label.textContent = 'Probando...';
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const formData  = new FormData();
+    formData.append('endpoint', endpoint);
+    formData.append('modelo', modelo);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+
+    fetch('{% url "asistencia_ia_test" %}', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+        const statusArea = document.getElementById('iaStatusArea');
+        const statusCard = document.getElementById('iaStatusCard');
+        const statusIcon = document.getElementById('iaStatusIcon');
+        const statusTitle = document.getElementById('iaStatusTitle');
+        const statusEp    = document.getElementById('iaStatusEndpoint');
+        const modelosArea = document.getElementById('iaModelosArea');
+        const modelosList = document.getElementById('iaModelosList');
+        const modeloWarn  = document.getElementById('iaModeloWarning');
+        const errorArea   = document.getElementById('iaErrorArea');
+        const errorMsg    = document.getElementById('iaErrorMsg');
+
+        statusArea.style.display = '';
+        statusEp.textContent = endpoint;
+
+        if (data.ok) {
+            // Éxito
+            statusCard.style.cssText = 'border-radius:8px;padding:12px 16px;font-size:.83rem;border:1px solid #86efac;background:#f0fdf4;';
+            statusIcon.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+            statusTitle.textContent = 'Conectado a Ollama';
+            errorArea.style.display = 'none';
+
+            // Lista de modelos
+            if (data.modelos && data.modelos.length > 0) {
+                modelosArea.style.display = '';
+                modelosList.innerHTML = '';
+                data.modelos.forEach(m => {
+                    const chip = document.createElement('span');
+                    chip.style.cssText = 'background:#e0f2fe;color:#0369a1;border-radius:4px;padding:2px 8px;font-size:.72rem;cursor:pointer;border:1px solid #bae6fd;';
+                    chip.textContent = m;
+                    chip.title = 'Clic para usar este modelo';
+                    chip.onclick = () => {
+                        document.getElementById('iaModelo').value = m.split(':')[0];
+                        // Reset todos los chips
+                        modelosList.querySelectorAll('span').forEach(c => c.style.background = '#e0f2fe');
+                        chip.style.background = '#0284c7';
+                        chip.style.color = '#fff';
+                    };
+                    // Resaltar si es el modelo activo
+                    if (data.modelo_activo && m.toLowerCase().startsWith(modelo.split(':')[0].toLowerCase())) {
+                        chip.style.background = '#0284c7';
+                        chip.style.color = '#fff';
+                    }
+                    modelosList.appendChild(chip);
+                });
+            } else {
+                modelosArea.style.display = '';
+                modelosList.innerHTML = '<span style="color:#64748b;font-size:.78rem;">Sin modelos instalados aún. Ejecuta <code>ollama pull llama3.2</code></span>';
+            }
+
+            // Advertencia si el modelo no está instalado
+            if (!data.modelo_activo) {
+                modeloWarn.style.display = '';
+                document.getElementById('iaModeloWarningNombre').textContent = modelo;
+                document.getElementById('iaModeloPullCmd').textContent = `ollama pull ${modelo.split(':')[0]}`;
+            } else {
+                modeloWarn.style.display = 'none';
+            }
+
+        } else {
+            // Error
+            statusCard.style.cssText = 'border-radius:8px;padding:12px 16px;font-size:.83rem;border:1px solid #fca5a5;background:#fff1f2;';
+            statusIcon.innerHTML = '<i class="fas fa-times-circle text-danger"></i>';
+            statusTitle.textContent = 'Sin conexión';
+            modelosArea.style.display = 'none';
+            modeloWarn.style.display = 'none';
+            errorArea.style.display = '';
+            errorMsg.textContent = data.error || 'Error desconocido.';
+        }
+    })
+    .catch(err => {
+        document.getElementById('iaStatusArea').style.display = '';
+        document.getElementById('iaStatusCard').style.cssText = 'border-radius:8px;padding:12px 16px;font-size:.83rem;border:1px solid #fca5a5;background:#fff1f2;';
+        document.getElementById('iaStatusIcon').innerHTML = '<i class="fas fa-times-circle text-danger"></i>';
+        document.getElementById('iaStatusTitle').textContent = 'Error de red';
+        document.getElementById('iaErrorArea').style.display = '';
+        document.getElementById('iaErrorMsg').textContent = err.toString();
+        document.getElementById('iaModelosArea').style.display = 'none';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        icon.className  = 'fas fa-plug me-1';
+        label.textContent = 'Probar';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarPanelIA();
+    toggleProgramaOtro();
+    // Set initial modo visibility
+    const modo = document.getElementById('inpModoSistema').value;
+    if (modo !== 'ASISTENCIA') {
+        document.getElementById('panelProgramaNomina').style.display = 'none';
+    }
+
+    // ── Identidad Visual — preview interactivo ───────────────────────────────
+    // Color picker <-> text input sync
+    const colorPicker = document.getElementById('id_membrete_color');
+    const colorText   = document.getElementById('id_membrete_color_text');
+    const prevTable   = document.getElementById('prev-table');
+    const prevNombre  = document.getElementById('prev-nombre');
+
+    function applyColor(c) {
+        if (prevTable)  prevTable.style.borderBottomColor = c;
+        if (prevNombre) prevNombre.style.color = c;
+        if (colorText && document.activeElement !== colorText) colorText.value = c;
+        if (colorPicker && document.activeElement !== colorPicker) colorPicker.value = c;
+    }
+
+    if (colorPicker) colorPicker.addEventListener('input', function() { applyColor(this.value); });
+    if (colorText) colorText.addEventListener('input', function() {
+        if (/^#[0-9a-fA-F]{6}$/.test(this.value)) applyColor(this.value);
+    });
+
+    // Logo preview
+    const logoInput = document.getElementById('id_logo');
+    if (logoInput) {
+        logoInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Update main preview
+                const wrap = document.getElementById('logo-preview-wrap');
+                if (wrap) {
+                    wrap.innerHTML = '<img id="logo-preview-img" src="' + e.target.result + '" style="max-width:200px; max-height:90px; object-fit:contain;" />';
+                }
+                // Update membrete preview cell
+                const cell = document.getElementById('prev-logo-cell');
+                if (cell) {
+                    cell.style.display = '';
+                    cell.style.width = '90px';
+                    cell.style.verticalAlign = 'middle';
+                    cell.style.paddingRight = '12px';
+                    cell.innerHTML = '<img src="' + e.target.result + '" style="max-width:80px; max-height:45px;">';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Firma preview
+    const firmaInput = document.getElementById('id_firma_imagen');
+    if (firmaInput) {
+        firmaInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('firma-preview-img');
+                if (img) {
+                    img.src = e.target.result;
+                } else {
+                    // Replace placeholder
+                    const wrap = firmaInput.closest('.row').parentElement.querySelector('[style*="dashed"]');
+                    if (wrap) wrap.innerHTML = '<img id="firma-preview-img" src="' + e.target.result + '" style="max-width:160px; max-height:70px; object-fit:contain;" />';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+});
+</script>
+{% endblock %}

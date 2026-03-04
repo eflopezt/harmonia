@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Configuracion de Flujos{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Flow diagram boxes ──────────────────────────── */
+.flow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding: 0.75rem 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.flow-box {
+  flex-shrink: 0;
+  min-width: 130px;
+  max-width: 160px;
+  background: #f0fdf9;
+  border: 2px solid #0f766e;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  text-align: center;
+  position: relative;
+  transition: box-shadow 0.2s;
+}
+
+.flow-box:hover { box-shadow: 0 0 0 3px rgba(15,118,110,0.25); }
+
+.flow-box .flow-order {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f766e;
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.flow-box .flow-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #134e4a;
+  margin-top: 0.4rem;
+  margin-bottom: 0.2rem;
+  line-height: 1.2;
+}
+
+.flow-box .flow-meta {
+  font-size: 0.68rem;
+  color: #6b7280;
+  line-height: 1.3;
+}
+
+.flow-box .flow-time {
+  font-size: 0.68rem;
+  margin-top: 0.3rem;
+  background: #134e4a;
+  color: #5eead4;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  display: inline-block;
+}
+
+/* Arrow between boxes */
+.flow-arrow {
+  flex-shrink: 0;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  font-size: 1.1rem;
+}
+
+/* Final step styling */
+.flow-box.final {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+.flow-box.final .flow-order { background: #16a34a; }
+.flow-box.final .flow-name { color: #15803d; }
+.flow-box.final .flow-time { background: #15803d; color: #bbf7d0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <!-- ── Header ──────────────────────────────────────── -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold">
+      <i class="fas fa-code-branch me-2 text-teal"></i>Flujos de Trabajo
+    </h1>
+    <a href="{% url 'workflow_crear' %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i>Nuevo flujo
+    </a>
+  </div>
+
+  <!-- ── Summary chips ───────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-auto">
+      <div class="card border-0 bg-teal text-white px-3 py-2 d-flex flex-row align-items-center gap-2">
+        <i class="fas fa-code-branch fa-lg"></i>
+        <div>
+          <div class="fw-bold fs-5">{{ flujos.count }}</div>
+          <div class="small opacity-75">Flujos totales</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-auto">
+      <div class="card border-0 bg-success text-white px-3 py-2 d-flex flex-row align-items-center gap-2">
+        <i class="fas fa-check-circle fa-lg"></i>
+        <div>
+          <div class="fw-bold fs-5">{{ flujos|length }}</div>
+          <div class="small opacity-75">Activos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Flujos ───────────────────────────────────────── -->
+  <div class="row g-4">
+    {% for flujo in flujos %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <!-- Card header -->
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas {{ flujo.icono }} text-teal"></i>
+            <span class="fw-bold">{{ flujo.nombre }}</span>
+            <span class="badge {% if flujo.activo %}bg-success{% else %}bg-secondary{% endif %}">
+              {% if flujo.activo %}Activo{% else %}Inactivo{% endif %}
+            </span>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <span class="text-muted small">
+              Modelo: <strong>{{ flujo.content_type }}</strong>
+              &bull; Trigger: <code>{{ flujo.campo_trigger }} = "{{ flujo.valor_trigger }}"</code>
+            </span>
+            <form method="post" action="{% url 'flujo_toggle' flujo.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm {% if flujo.activo %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                <i class="fas {% if flujo.activo %}fa-pause{% else %}fa-play{% endif %} me-1"></i>
+                {% if flujo.activo %}Desactivar{% else %}Activar{% endif %}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Visual flow diagram -->
+        <div class="card-body pb-2">
+          {% if flujo.etapas.all %}
+          <div class="flow-diagram">
+            {% for etapa in flujo.etapas.all %}
+            {% if not forloop.first %}
+            <div class="flow-arrow"><i class="fas fa-chevron-right"></i></div>
+            {% endif %}
+            <div class="flow-box {% if forloop.last %}final{% endif %}">
+              <div class="flow-order">{{ etapa.orden }}</div>
+              <div class="flow-name">{{ etapa.nombre }}</div>
+              <div class="flow-meta">
+                <i class="fas fa-user-shield me-1"></i>{{ etapa.get_tipo_aprobador_display }}
+              </div>
+              {% if etapa.tiempo_limite_horas %}
+              <div class="flow-time">
+                <i class="fas fa-clock me-1"></i>{{ etapa.tiempo_limite_horas }}h
+              </div>
+              {% endif %}
+              <div class="flow-meta mt-1">
+                {{ etapa.get_accion_vencimiento_display }}
+              </div>
+            </div>
+            {% empty %}
+            <p class="text-muted small mb-0">Sin etapas configuradas.</p>
+            {% endfor %}
+            <!-- Final "Completado" node -->
+            <div class="flow-arrow"><i class="fas fa-chevron-right"></i></div>
+            <div class="flow-box final">
+              <div class="flow-order"><i class="fas fa-flag-checkered" style="font-size:0.65rem"></i></div>
+              <div class="flow-name">Completado</div>
+              <div class="flow-meta">Resultado final</div>
+            </div>
+          </div>
+          {% else %}
+          <div class="text-muted small py-2">
+            <i class="fas fa-info-circle me-1"></i>Sin etapas configuradas.
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Card footer: actions -->
+        <div class="card-footer bg-transparent d-flex gap-2">
+          <a href="{% url 'workflow_etapa_crear' flujo.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-plus me-1"></i>Agregar etapa
+          </a>
+          <span class="text-muted small d-flex align-items-center ms-2">
+            {{ flujo.total_etapas }} etapa{% if flujo.total_etapas != 1 %}s{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="alert alert-info d-flex align-items-center gap-2">
+        <i class="fas fa-info-circle"></i>
+        No hay flujos configurados.
+        <a href="{% url 'workflow_crear' %}">Crear el primero</a>.
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

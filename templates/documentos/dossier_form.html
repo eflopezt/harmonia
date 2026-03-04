@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} — Harmoni{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'dossier_list' %}">Dossiers</a></li>
+      <li class="breadcrumb-item active">{{ titulo }}</li>
+    </ol>
+  </nav>
+  <h1 class="page-title"><i class="fas fa-archive me-2 text-primary"></i>{{ titulo }}</h1>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <form method="post">
+      {% csrf_token %}
+      <div class="card mb-4">
+        <div class="card-header fw-semibold">Información del Dossier</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" required
+                   placeholder="Ej: Dossier RRHH — Proyecto Expansión Norte Q1-2026">
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Proyecto / Obra</label>
+              <input type="text" name="proyecto" class="form-control"
+                     placeholder="Código o nombre del proyecto">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cliente</label>
+              <input type="text" name="cliente" class="form-control"
+                     placeholder="Razón social del cliente">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header fw-semibold">Plantilla de Documentos</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Plantilla base</label>
+            <select name="plantilla" class="form-select">
+              <option value="">— Sin plantilla (armar ad-hoc) —</option>
+              {% for p in plantillas %}
+              <option value="{{ p.pk }}">{{ p.nombre }} ({{ p.get_tipo_display }}) — {{ p.total_items }} docs</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              La plantilla define qué documentos se requieren y en qué orden.
+              Puedes agregar ítems manualmente después.
+            </div>
+          </div>
+          {% if not plantillas %}
+          <div class="alert alert-info py-2 mb-0">
+            <i class="fas fa-info-circle me-1"></i>
+            No hay plantillas activas.
+            <a href="{% url 'plantilla_dossier_crear' %}">Crear una plantilla</a> para agilizar el proceso.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header fw-semibold">Fechas y Observaciones</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Fecha de Inicio</label>
+              <input type="date" name="fecha_inicio" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha de Entrega Prevista</label>
+              <input type="date" name="fecha_entrega_prevista" class="form-control">
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Observaciones</label>
+            <textarea name="observaciones" class="form-control" rows="3"
+                      placeholder="Instrucciones especiales, requerimientos del cliente..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 justify-content-end">
+        <a href="{% url 'dossier_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i> Crear Dossier
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Comunicado{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-bullhorn text-secondary me-2"></i>{{ titulo }}</h2>
+
+<div class="card shadow-sm" style="max-width:800px;">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label">T&iacute;tulo</label>
+                <input type="text" name="titulo" class="form-control" required maxlength="200">
+            </div>
+
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label">Tipo</label>
+                    <select name="tipo" class="form-select">
+                        {% for val, label in tipos %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 mb-3">
+                    <label class="form-label">Programar env&iacute;o</label>
+                    <input type="datetime-local" name="programado_para" class="form-control">
+                    <small class="text-muted">Dejar vac&iacute;o para enviar manualmente.</small>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Cuerpo del comunicado</label>
+                <textarea name="cuerpo" class="form-control" rows="6" required
+                          placeholder="Escriba el contenido del comunicado. Puede usar HTML."></textarea>
+            </div>
+
+            <!-- Destinatarios -->
+            <fieldset class="border rounded p-3 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Destinatarios</legend>
+
+                <div class="mb-3">
+                    <label class="form-label">Tipo de destinatarios</label>
+                    <div class="d-flex gap-3">
+                        {% for val, label in dest_tipos %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="destinatarios_tipo"
+                                   value="{{ val }}" id="dt_{{ val }}"
+                                   {% if val == 'TODOS' %}checked{% endif %}
+                                   onchange="toggleDestinatarios('{{ val }}')">
+                            <label class="form-check-label" for="dt_{{ val }}">{{ label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Selector de &aacute;reas -->
+                <div id="dest_area" class="mb-3" style="display:none">
+                    <label class="form-label">&Aacute;reas</label>
+                    <select name="areas" class="form-select" multiple size="5">
+                        {% for a in areas %}
+                        <option value="{{ a.pk }}">{{ a.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Ctrl+click para seleccionar m&uacute;ltiples.</small>
+                </div>
+
+                <!-- Selector de grupo -->
+                <div id="dest_grupo" class="mb-3" style="display:none">
+                    <label class="form-label">Grupo</label>
+                    <select name="grupo" class="form-select">
+                        <option value="">Seleccionar...</option>
+                        {% for val, label in grupos %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Selector individual -->
+                <div id="dest_individual" class="mb-3" style="display:none">
+                    <label class="form-label">Personal</label>
+                    <select name="personal_individual" class="form-select" multiple size="8">
+                        {% for p in personal %}
+                        <option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Ctrl+click para seleccionar m&uacute;ltiples.</small>
+                </div>
+            </fieldset>
+
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label">Adjunto (opcional)</label>
+                    <input type="file" name="adjunto" class="form-control">
+                </div>
+                <div class="col-6 mb-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input type="checkbox" name="requiere_confirmacion" class="form-check-input" id="req_conf">
+                        <label class="form-check-label" for="req_conf">
+                            Requiere confirmaci&oacute;n de lectura
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Crear Comunicado
+                </button>
+                <a href="{% url 'com_comunicados_panel' %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleDestinatarios(tipo) {
+    document.getElementById('dest_area').style.display = tipo === 'AREA' ? '' : 'none';
+    document.getElementById('dest_grupo').style.display = tipo === 'GRUPO' ? '' : 'none';
+    document.getElementById('dest_individual').style.display = tipo === 'INDIVIDUAL' ? '' : 'none';
+}
+</script>
+{% endblock %}

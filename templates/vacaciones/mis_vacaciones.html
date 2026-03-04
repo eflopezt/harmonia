@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis Vacaciones{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-umbrella-beach text-secondary me-2"></i>{{ titulo }}</h2>
+
+{% if not empleado %}
+<div class="alert alert-info">No tienes un perfil de empleado vinculado a tu usuario.</div>
+{% else %}
+
+<!-- Saldos vacacionales -->
+<h5 class="mb-2"><i class="fas fa-wallet me-1"></i>Mis Saldos Vacacionales</h5>
+<div class="row g-3 mb-4">
+    {% for s in saldos %}
+    <div class="col-12 col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">Período {{ s.periodo_inicio|date:"Y" }}/{{ s.periodo_fin|date:"Y" }}</h6>
+                        <small class="text-muted">{{ s.periodo_inicio|date:"d/m/Y" }} — {{ s.periodo_fin|date:"d/m/Y" }}</small>
+                    </div>
+                    {% if s.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                    {% elif s.estado == 'PARCIAL' %}<span class="badge bg-info">Parcial</span>
+                    {% elif s.estado == 'GOZADO' %}<span class="badge bg-success">Gozado</span>
+                    {% else %}<span class="badge bg-secondary">{{ s.get_estado_display }}</span>{% endif %}
+                </div>
+                <div class="row mt-3 text-center">
+                    <div class="col-3"><div class="fw-bold text-primary">{{ s.dias_derecho }}</div><small class="text-muted">Derecho</small></div>
+                    <div class="col-3"><div class="fw-bold text-success">{{ s.dias_gozados }}</div><small class="text-muted">Gozados</small></div>
+                    <div class="col-3"><div class="fw-bold text-info">{{ s.dias_vendidos }}</div><small class="text-muted">Vendidos</small></div>
+                    <div class="col-3"><div class="fw-bold text-danger">{{ s.dias_pendientes }}</div><small class="text-muted">Pendientes</small></div>
+                </div>
+                <div class="progress mt-2" style="height:6px;">
+                    <div class="progress-bar bg-success" style="width:{% widthratio s.dias_gozados s.dias_derecho 100 %}%"></div>
+                    <div class="progress-bar bg-info" style="width:{% widthratio s.dias_vendidos s.dias_derecho 100 %}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><div class="alert alert-secondary">No hay saldos vacacionales registrados aún.</div></div>
+    {% endfor %}
+</div>
+
+<!-- Solicitudes -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0"><i class="fas fa-list me-1"></i>Mis Solicitudes</h5>
+    <a href="{% url 'vacacion_solicitar' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Solicitar</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Desde</th>
+                    <th>Hasta</th>
+                    <th class="text-center">Días</th>
+                    <th class="text-center">Estado</th>
+                    <th>Observación</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in solicitudes %}
+                <tr>
+                    <td>{{ s.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ s.fecha_fin|date:"d/m/Y" }}</td>
+                    <td class="text-center fw-semibold">{{ s.dias_calendario }}</td>
+                    <td class="text-center">
+                        {% if s.estado == 'APROBADA' %}<span class="badge bg-success">Aprobada</span>
+                        {% elif s.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif s.estado == 'RECHAZADA' %}<span class="badge bg-danger">Rechazada</span>
+                        {% elif s.estado == 'EN_GOCE' %}<span class="badge bg-info">En Goce</span>
+                        {% elif s.estado == 'COMPLETADA' %}<span class="badge bg-secondary">Completada</span>
+                        {% else %}<span class="badge bg-secondary">{{ s.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if s.estado == 'RECHAZADA' and s.motivo_rechazo %}
+                        <span class="text-danger small">
+                            <i class="fas fa-exclamation-triangle me-1"></i>{{ s.motivo_rechazo }}
+                        </span>
+                        {% elif s.estado == 'RECHAZADA' %}
+                        <span class="text-muted small fst-italic">Rechazada sin motivo especificado</span>
+                        {% elif s.motivo %}
+                        <small class="text-muted">{{ s.motivo|truncatechars:50 }}</small>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.puede_anular %}
+                        <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="anular('vacacion',{{ s.pk }})" title="Anular"><i class="fas fa-ban"></i></button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No tienes solicitudes de vacaciones.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function anular(tipo, pk) {
+    if(!confirm('¿Anular esta solicitud?')) return;
+    fetch(`/vacaciones/anular/${tipo}/${pk}/`, {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Viático #{{ a.pk }}{% endblock %}
+
+{% block content %}
+
+<!-- Header con gradiente teal -->
+<div class="card shadow-sm mb-3" style="background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;border:0">
+    <div class="card-body py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="fas fa-route me-2" style="color:#5eead4"></i>
+                    {{ a.personal.apellidos_nombres }}
+                </h5>
+                <small style="opacity:.8">{{ a.personal.nro_doc }} · {{ a.personal.cargo|default:"Sin cargo" }} · {{ a.ubicacion|default:"Sin ubicación" }}</small>
+            </div>
+            <div class="text-end">
+                {% if a.estado == 'BORRADOR' %}<span class="badge bg-secondary fs-6">Borrador</span>
+                {% elif a.estado == 'APROBADO' %}<span class="badge bg-info fs-6">Aprobado</span>
+                {% elif a.estado == 'ENTREGADO' %}<span class="badge bg-primary fs-6">Entregado</span>
+                {% elif a.estado == 'EN_RENDICION' %}<span class="badge bg-warning text-dark fs-6">En Rendición</span>
+                {% elif a.estado == 'CONCILIADO' %}<span class="badge bg-success fs-6">Conciliado</span>
+                {% elif a.estado == 'CANCELADO' %}<span class="badge bg-dark fs-6">Cancelado</span>
+                {% endif %}
+                <div class="mt-1" style="font-size:.75rem;opacity:.7">Período: {{ a.periodo|date:"F Y" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Columna principal -->
+    <div class="col-lg-8">
+
+        <!-- Info de asignación -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white py-2">
+                <strong><i class="fas fa-info-circle text-primary me-2"></i>Datos de la Asignación</strong>
+            </div>
+            <div class="card-body">
+                <div class="row g-2" style="font-size:.85rem;">
+                    <div class="col-6 col-md-3">
+                        <span class="text-muted d-block">Monto Asignado</span>
+                        <span class="fw-bold fs-5 text-primary">S/ {{ a.monto_asignado|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <span class="text-muted d-block">Adicional</span>
+                        <span class="fw-semibold">S/ {{ a.monto_adicional|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <span class="text-muted d-block">Total Asignado</span>
+                        <span class="fw-bold text-success">S/ {{ a.monto_total|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <span class="text-muted d-block">Días en Campo</span>
+                        <span class="fw-semibold">{{ a.dias_campo }} días</span>
+                    </div>
+                    <div class="col-6 col-md-3 mt-2">
+                        <span class="text-muted d-block">Monto Rendido</span>
+                        <span class="fw-bold {% if a.monto_rendido > a.monto_total %}text-danger{% else %}text-info{% endif %}">
+                            S/ {{ a.monto_rendido|floatformat:2|intcomma }}
+                        </span>
+                    </div>
+                    <div class="col-6 col-md-3 mt-2">
+                        <span class="text-muted d-block">Fecha Entrega</span>
+                        <span class="fw-semibold">{{ a.fecha_entrega|date:"d/m/Y"|default:"—" }}</span>
+                    </div>
+                    <div class="col-6 col-md-3 mt-2">
+                        <span class="text-muted d-block">Creado por</span>
+                        <span class="fw-semibold">{{ a.creado_por|default:"—" }}</span>
+                    </div>
+                    <div class="col-6 col-md-3 mt-2">
+                        <span class="text-muted d-block">Conciliación</span>
+                        <span class="fw-semibold">{{ a.fecha_conciliacion|date:"d/m/Y"|default:"Pendiente" }}</span>
+                    </div>
+                </div>
+                {% if a.observaciones %}
+                <div class="mt-2 p-2 bg-light rounded small">
+                    <i class="fas fa-sticky-note text-muted me-1"></i>{{ a.observaciones }}
+                </div>
+                {% endif %}
+
+                <!-- Indicador de conciliación CDT -->
+                {% if a.estado != 'BORRADOR' and a.estado != 'CANCELADO' %}
+                <div class="mt-3 pt-3 border-top">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <span class="text-muted small fw-semibold"><i class="fas fa-balance-scale me-1"></i>Diferencia sueldo vs viáticos</span>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Barra comparativa -->
+                            {% if a.monto_total > 0 %}
+                            {% with pct_rendido=a.monto_rendido|floatformat:0 %}
+                            <div style="width:160px;">
+                                <div class="d-flex justify-content-between mb-1" style="font-size:.72rem; color:#6b7280;">
+                                    <span>Asignado</span><span>Rendido</span>
+                                </div>
+                                <div class="progress" style="height:8px; background:#e2e8f0;">
+                                    {% if a.monto_rendido <= a.monto_total %}
+                                    <div class="progress-bar bg-info" style="width:{% widthratio a.monto_rendido a.monto_total 100 %}%"
+                                         title="Rendido: S/ {{ a.monto_rendido|floatformat:2 }}"></div>
+                                    {% else %}
+                                    <div class="progress-bar bg-danger" style="width:100%"
+                                         title="Excede asignado en S/ {{ a.saldo|floatformat:2 }}"></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endwith %}
+                            {% endif %}
+                            <!-- Badge de estado conciliación -->
+                            {% if a.monto_rendido == 0 and a.estado != 'CONCILIADO' %}
+                            <span class="badge bg-secondary px-3 py-2" style="font-size:.8rem;">
+                                <i class="fas fa-clock me-1"></i>Sin rendición
+                            </span>
+                            {% elif a.saldo == 0 %}
+                            <span class="badge bg-success px-3 py-2" style="font-size:.8rem;">
+                                <i class="fas fa-check-circle me-1"></i>Cuadrado
+                            </span>
+                            {% elif a.saldo > 0 %}
+                            {# saldo positivo = rendido > asignado → empresa debe reembolsar #}
+                            <span class="badge bg-warning text-dark px-3 py-2" style="font-size:.8rem;">
+                                <i class="fas fa-arrow-up me-1"></i>Reembolsar S/ {{ a.saldo|floatformat:2|intcomma }}
+                            </span>
+                            {% else %}
+                            {# saldo negativo = sobra dinero → trabajador devuelve #}
+                            {% with diff=a.saldo %}
+                            {% if diff >= -50 %}
+                            <span class="badge bg-success px-3 py-2" style="font-size:.8rem;">
+                                <i class="fas fa-check-circle me-1"></i>Bien conciliado
+                            </span>
+                            {% else %}
+                            <span class="badge bg-danger px-3 py-2" style="font-size:.8rem;">
+                                <i class="fas fa-arrow-down me-1"></i>Devolver S/ {{ diff|floatformat:2|intcomma|slice:"1:" }}
+                            </span>
+                            {% endif %}
+                            {% endwith %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if a.monto_rendido > 0 %}
+                    <div class="row g-2 mt-1" style="font-size:.78rem;">
+                        <div class="col-4 text-center">
+                            <div class="p-2 rounded" style="background:#f0f9ff; border:1px solid #bae6fd;">
+                                <div class="text-muted mb-0">Total Asignado</div>
+                                <div class="fw-bold text-info">S/ {{ a.monto_total|floatformat:2|intcomma }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="p-2 rounded" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+                                <div class="text-muted mb-0">Total Rendido</div>
+                                <div class="fw-bold text-success">S/ {{ a.monto_rendido|floatformat:2|intcomma }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4 text-center">
+                            {% if a.saldo == 0 %}
+                            <div class="p-2 rounded" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+                                <div class="text-muted mb-0">Diferencia</div>
+                                <div class="fw-bold text-success">S/ 0.00</div>
+                            </div>
+                            {% elif a.saldo > 0 %}
+                            <div class="p-2 rounded" style="background:#fffbeb; border:1px solid #fde68a;">
+                                <div class="text-muted mb-0">Diferencia</div>
+                                <div class="fw-bold text-warning">+S/ {{ a.saldo|floatformat:2|intcomma }}</div>
+                            </div>
+                            {% else %}
+                            <div class="p-2 rounded" style="background:#fef2f2; border:1px solid #fecaca;">
+                                <div class="text-muted mb-0">Diferencia</div>
+                                <div class="fw-bold text-danger">S/ {{ a.saldo|floatformat:2|intcomma }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Gastos rendidos -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <strong><i class="fas fa-receipt text-warning me-2"></i>Gastos Rendidos</strong>
+                {% if a.estado in 'ENTREGADO,EN_RENDICION' %}
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalGasto">
+                    <i class="fas fa-plus me-1"></i>Agregar Gasto
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if gastos %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Concepto</th>
+                                <th>Descripción</th>
+                                <th>Comprobante</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaGastos">
+                            {% for g in gastos %}
+                            <tr>
+                                <td>{{ g.fecha_gasto|date:"d/m/Y" }}</td>
+                                <td>{{ g.concepto.nombre }}</td>
+                                <td><small>{{ g.descripcion|default:"—" }}</small></td>
+                                <td>
+                                    <small>{{ g.get_tipo_comprobante_display }}</small>
+                                    {% if g.numero_comprobante %}<br><small class="text-muted">{{ g.numero_comprobante }}</small>{% endif %}
+                                </td>
+                                <td class="text-end fw-semibold">S/ {{ g.monto|floatformat:2|intcomma }}</td>
+                                <td class="text-center">
+                                    {% if g.estado == 'APROBADO' %}
+                                      <span class="badge bg-success gasto-estado" data-id="{{ g.pk }}" style="font-size:.7rem">Aprobado</span>
+                                    {% elif g.estado == 'PENDIENTE' %}
+                                      <span class="badge bg-warning text-dark gasto-estado" data-id="{{ g.pk }}" style="font-size:.7rem">Pendiente</span>
+                                    {% elif g.estado == 'RECHAZADO' %}
+                                      <span class="badge bg-danger gasto-estado" data-id="{{ g.pk }}" style="font-size:.7rem">Rechazado</span>
+                                      {% if g.motivo_rechazo %}<br><small class="text-muted" style="font-size:.65rem">{{ g.motivo_rechazo|truncatechars:30 }}</small>{% endif %}
+                                    {% else %}
+                                      <span class="badge bg-secondary gasto-estado" data-id="{{ g.pk }}" style="font-size:.7rem">Observado</span>
+                                      {% if g.motivo_rechazo %}<br><small class="text-muted" style="font-size:.65rem">{{ g.motivo_rechazo|truncatechars:30 }}</small>{% endif %}
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if a.estado != 'CONCILIADO' %}
+                                    <div class="btn-group btn-group-sm">
+                                      {% if g.estado != 'APROBADO' %}
+                                      <button class="btn btn-outline-success btn-xs" onclick="revisarGasto({{ g.pk }},'APROBADO')" title="Aprobar"><i class="fas fa-check"></i></button>
+                                      {% endif %}
+                                      {% if g.estado != 'RECHAZADO' %}
+                                      <button class="btn btn-outline-danger btn-xs" onclick="pedirMotivo({{ g.pk }},'RECHAZADO')" title="Rechazar"><i class="fas fa-times"></i></button>
+                                      {% endif %}
+                                      {% if g.estado == 'PENDIENTE' %}
+                                      <button class="btn btn-outline-secondary btn-xs" onclick="pedirMotivo({{ g.pk }},'OBSERVADO')" title="Observar"><i class="fas fa-eye"></i></button>
+                                      <button class="btn btn-outline-danger btn-xs" onclick="eliminarGasto({{ g.pk }})" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                      {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="4" class="text-end fw-bold">Total Rendido (aprobado):</td>
+                                <td class="text-end fw-bold" id="totalRendido">S/ {{ a.monto_rendido|floatformat:2|intcomma }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-receipt text-muted mb-2" style="font-size:2rem;opacity:.3"></i>
+                    <p class="text-muted small mb-0">No hay gastos registrados aún</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Resumen por concepto -->
+        {% if resumen_conceptos %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white py-2">
+                <strong><i class="fas fa-chart-pie text-info me-2"></i>Resumen por Concepto</strong>
+            </div>
+            <div class="card-body">
+                {% for concepto, total in resumen_conceptos.items %}
+                <div class="d-flex justify-content-between align-items-center py-1" style="font-size:.85rem; border-bottom:1px solid #f1f5f9;">
+                    <span>{{ concepto }}</span>
+                    <span class="fw-semibold">S/ {{ total|floatformat:2|intcomma }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Columna lateral -->
+    <div class="col-lg-4">
+
+        <!-- Acciones -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white py-2"><strong>Acciones</strong></div>
+            <div class="card-body d-grid gap-2">
+                {% if a.estado == 'APROBADO' %}
+                <form method="post" action="{% url 'viatico_entregar' a.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-primary w-100"><i class="fas fa-hand-holding-usd me-2"></i>Marcar Entregado</button>
+                </form>
+                {% endif %}
+
+                {% if a.estado == 'ENTREGADO' or a.estado == 'EN_RENDICION' %}
+                <form method="post" action="{% url 'viatico_conciliar' a.pk %}" onsubmit="return confirm('¿Conciliar esta asignación? Se calculará el saldo final.')">
+                    {% csrf_token %}
+                    <button class="btn btn-success w-100"><i class="fas fa-balance-scale me-2"></i>Conciliar</button>
+                </form>
+                {% endif %}
+
+                <a href="{% url 'personal_detail' a.personal_id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-user me-2"></i>Ver Empleado
+                </a>
+                {% if a.estado != 'CONCILIADO' and a.estado != 'CANCELADO' %}
+                <form method="post" action="{% url 'viatico_anular' a.pk %}"
+                      onsubmit="return confirm('¿Anular esta asignación de viáticos? No se puede deshacer.')">
+                    {% csrf_token %}
+                    <button class="btn btn-outline-danger w-100">
+                        <i class="fas fa-ban me-2"></i>Anular Asignación
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{% url 'viaticos_panel' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver al Panel
+                </a>
+            </div>
+        </div>
+
+        <!-- Resumen de conciliación -->
+        {% if a.estado == 'CONCILIADO' %}
+        <div class="card shadow-sm mb-3 border-success">
+            <div class="card-header bg-success text-white py-2">
+                <strong><i class="fas fa-balance-scale me-2"></i>Conciliación</strong>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;">
+                    <span class="text-muted">Total Asignado:</span>
+                    <span class="fw-semibold">S/ {{ a.monto_total|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;">
+                    <span class="text-muted">Total Rendido:</span>
+                    <span class="fw-semibold">S/ {{ a.monto_rendido|floatformat:2|intcomma }}</span>
+                </div>
+                <hr class="my-2">
+                {% if a.monto_devuelto > 0 %}
+                <div class="d-flex justify-content-between" style="font-size:.85rem;">
+                    <span class="text-muted">Trabajador devuelve:</span>
+                    <span class="fw-bold text-success">S/ {{ a.monto_devuelto|floatformat:2|intcomma }}</span>
+                </div>
+                {% elif a.monto_reembolso > 0 %}
+                <div class="d-flex justify-content-between" style="font-size:.85rem;">
+                    <span class="text-muted">Empresa reembolsa:</span>
+                    <span class="fw-bold text-danger">S/ {{ a.monto_reembolso|floatformat:2|intcomma }}</span>
+                </div>
+                {% else %}
+                <div class="text-center small text-success fw-bold">
+                    <i class="fas fa-check-circle me-1"></i>Cuadrado — Sin diferencia
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal agregar gasto -->
+<div class="modal fade" id="modalGasto" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Agregar Gasto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Concepto *</label>
+                        <select id="gastoConcepto" class="form-select" required>
+                            <option value="">Seleccionar…</option>
+                            {% for c in conceptos %}
+                            <option value="{{ c.pk }}">{{ c.nombre }}{% if c.tope_diario %} (tope: S/ {{ c.tope_diario }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Fecha *</label>
+                        <input type="date" id="gastoFecha" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Monto (S/) *</label>
+                        <input type="number" id="gastoMonto" class="form-control" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Descripción</label>
+                        <input type="text" id="gastoDescripcion" class="form-control" placeholder="Detalle del gasto…">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tipo Comprobante</label>
+                        <select id="gastoTipoComp" class="form-select">
+                            <option value="BOLETA">Boleta de Venta</option>
+                            <option value="FACTURA">Factura</option>
+                            <option value="RECIBO">Recibo por Honorarios</option>
+                            <option value="TICKET">Ticket / Voucher</option>
+                            <option value="DECLARACION">Declaración Jurada</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">N° Comprobante</label>
+                        <input type="text" id="gastoNumComp" class="form-control" placeholder="Ej: 001-00123">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" id="btnAgregarGasto">
+                    <i class="fas fa-plus me-1"></i>Agregar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+// ── Agregar gasto ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAgregar = document.getElementById('btnAgregarGasto');
+    if (!btnAgregar) return;
+
+    btnAgregar.addEventListener('click', function() {
+        const concepto  = document.getElementById('gastoConcepto').value;
+        const fecha     = document.getElementById('gastoFecha').value;
+        const monto     = document.getElementById('gastoMonto').value;
+        const desc      = document.getElementById('gastoDescripcion').value;
+        const tipoComp  = document.getElementById('gastoTipoComp').value;
+        const numComp   = document.getElementById('gastoNumComp').value;
+
+        if (!concepto || !fecha || !monto) { alert('Complete los campos obligatorios'); return; }
+
+        const fd = new FormData();
+        fd.append('concepto_id', concepto);
+        fd.append('fecha_gasto', fecha);
+        fd.append('monto', monto);
+        fd.append('descripcion', desc);
+        fd.append('tipo_comprobante', tipoComp);
+        fd.append('numero_comprobante', numComp);
+
+        fetch('{% url "gasto_agregar" a.pk %}', {
+            method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd
+        })
+        .then(r => r.json())
+        .then(d => { if (d.ok) window.location.reload(); else alert('Error: ' + (d.error || '?')); })
+        .catch(() => alert('Error de conexión'));
+    });
+});
+
+// ── Revisar gasto (aprobar / rechazar / observar) ─────────────────────────
+function revisarGasto(gastoId, accion, motivo) {
+    const fd = new FormData();
+    fd.append('accion', accion);
+    fd.append('motivo', motivo || '');
+    fetch('/viaticos/gasto/' + gastoId + '/revisar/', {
+        method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) {
+            window.location.reload();
+        } else {
+            alert(d.error || 'Error al revisar gasto');
+        }
+    })
+    .catch(() => alert('Error de conexión'));
+}
+
+function pedirMotivo(gastoId, accion) {
+    const verbo = accion === 'RECHAZADO' ? 'rechazar' : 'observar';
+    const motivo = prompt('Ingrese el motivo para ' + verbo + ' este gasto:');
+    if (motivo === null) return;     // canceló
+    if (!motivo.trim()) { alert('El motivo es obligatorio.'); return; }
+    revisarGasto(gastoId, accion, motivo);
+}
+
+function eliminarGasto(gastoId) {
+    if (!confirm('¿Eliminar este gasto pendiente?')) return;
+    fetch('/viaticos/gasto/' + gastoId + '/eliminar/', {
+        method: 'POST', headers: {'X-CSRFToken': CSRF}
+    })
+    .then(r => r.json())
+    .then(d => { if (d.ok) window.location.reload(); else alert(d.error || 'Error'); })
+    .catch(() => alert('Error de conexión'));
+}
+</script>
+{% endblock %}

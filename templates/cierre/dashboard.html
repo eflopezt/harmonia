@@ -1,0 +1,583 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard — Cierre de Nómina{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1">
+    <i class="fas fa-lock me-2 text-primary"></i>
+    Cierre de Nómina
+    <span class="text-muted fw-normal" style="font-size:.7em">/ Dashboard</span>
+</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Tarjetas de estado ─────────────────────────────────── */
+.cierre-stat {
+    text-align: center;
+    padding: 16px 12px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    transition: box-shadow .15s;
+}
+.cierre-stat:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.cierre-stat .stat-val {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #0f172a;
+}
+.cierre-stat .stat-lbl {
+    font-size: .72rem;
+    color: #64748b;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* ── Calendario de ciclo ────────────────────────────────── */
+.ciclo-track {
+    position: relative;
+    height: 36px;
+    border-radius: 18px;
+    background: #f1f5f9;
+    overflow: visible;
+    border: 1px solid #e2e8f0;
+}
+.ciclo-fill {
+    height: 100%;
+    border-radius: 18px;
+    background: linear-gradient(90deg, #0f766e 0%, #5eead4 100%);
+    transition: width .5s ease;
+    position: relative;
+}
+.ciclo-marker {
+    position: absolute;
+    top: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #0f766e;
+    box-shadow: 0 2px 6px rgba(15,118,110,.4);
+    z-index: 5;
+}
+.ciclo-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: .72rem;
+    color: #64748b;
+    margin-top: 4px;
+}
+.ciclo-hoy-label {
+    position: absolute;
+    top: -22px;
+    transform: translateX(-50%);
+    font-size: .68rem;
+    font-weight: 600;
+    color: #0f766e;
+    white-space: nowrap;
+}
+
+/* ── Checklist ──────────────────────────────────────────── */
+.chk-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    margin-bottom: 8px;
+    font-size: .88rem;
+    transition: border-color .15s;
+}
+.chk-item.chk-ok    { border-color: #bbf7d0; background: #f0fdf4; }
+.chk-item.chk-fail  { border-color: #fecaca; background: #fff5f5; }
+.chk-item.chk-warn  { border-color: #fde68a; background: #fefce8; }
+.chk-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+.chk-title { font-weight: 600; color: #0f172a; }
+.chk-detail { font-size: .78rem; color: #64748b; margin-top: 1px; }
+
+.puede-cerrar-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: .88rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.puede-cerrar-banner.ok   { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.puede-cerrar-banner.fail { background: #fff5f5; color: #991b1b; border: 1px solid #fecaca; }
+
+/* ── Historial ──────────────────────────────────────────── */
+.hist-row td { vertical-align: middle; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── KPI Strip ─────────────────────────────────────────── -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.5rem;font-weight:800;color:#0f766e;">{{ total_cerrados }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Cierres Completos</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.5rem;font-weight:800;color:#0f766e;">{{ periodos_anio }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Períodos {{ anio_actual }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.5rem;font-weight:800;{% if dias_para_corte <= 3 %}color:#dc2626;{% elif dias_para_corte <= 7 %}color:#d97706;{% else %}color:#0f766e;{% endif %}">
+                {{ dias_para_corte }}d
+            </div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Para Cierre Ciclo</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            {% if ultimo_cierre %}
+            <div style="font-size:1rem;font-weight:700;color:#0f766e;">{{ ultimo_cierre.mes_nombre }} {{ ultimo_cierre.anio }}</div>
+            {% else %}
+            <div style="font-size:1.5rem;font-weight:800;color:#94a3b8;">—</div>
+            {% endif %}
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Último Cierre</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Fila superior: estado actual + acciones rápidas ──── -->
+<div class="row g-3 mb-4">
+
+    <!-- Estado del período actual -->
+    <div class="col-12 col-lg-8">
+        <div class="dash-card h-100">
+            <div class="dash-card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="fas fa-calendar-check me-2 text-primary"></i>
+                    Período actual — <strong>{{ periodo_mes_nombre }} {{ periodo_anio }}</strong>
+                </span>
+                {% if periodo_actual %}
+                <span class="badge
+                    {% if periodo_actual.estado == 'CERRADO' %}bg-success
+                    {% elif periodo_actual.estado == 'EN_CIERRE' %}bg-warning text-dark
+                    {% elif periodo_actual.estado == 'REABIERTO' %}bg-warning text-dark
+                    {% else %}bg-secondary{% endif %}
+                    ">
+                    <i class="fas fa-{% if periodo_actual.estado == 'CERRADO' %}lock{% elif periodo_actual.estado == 'EN_CIERRE' %}spinner fa-spin{% else %}folder-open{% endif %} me-1"></i>
+                    {{ periodo_actual.get_estado_display }}
+                </span>
+                {% else %}
+                <span class="badge bg-secondary"><i class="fas fa-circle me-1"></i>Sin iniciar</span>
+                {% endif %}
+            </div>
+            <div class="dash-card-body">
+
+                {% if periodo_actual %}
+                <!-- Barra de avance del wizard -->
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="progress flex-grow-1" style="height:10px;border-radius:5px">
+                        <div class="progress-bar bg-success" style="width:{{ periodo_actual.porcentaje_avance }}%"></div>
+                    </div>
+                    <span class="text-muted small fw-medium" style="min-width:90px">
+                        {{ periodo_actual.pasos_completados }}/{{ periodo_actual.total_pasos }} pasos
+                    </span>
+                    <span class="fw-bold text-success">{{ periodo_actual.porcentaje_avance }}%</span>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-3">No hay período de cierre iniciado para {{ periodo_mes_nombre }} {{ periodo_anio }}.</p>
+                {% endif %}
+
+                <!-- Calendario del ciclo de planilla -->
+                <div class="mb-1" style="font-size:.78rem;color:#64748b;font-weight:600;letter-spacing:.04em;text-transform:uppercase">
+                    Ciclo de planilla
+                </div>
+                <div class="ciclo-track mb-1" style="margin-top: 26px">
+                    <div class="ciclo-fill" style="width:{{ pct_ciclo }}%">
+                        <div class="ciclo-marker" style="left:100%">
+                            <span class="ciclo-hoy-label">Hoy</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ciclo-label">
+                    <span><i class="fas fa-play-circle me-1 text-success"></i>{{ ciclo_inicio|date:"d M" }}</span>
+                    <span class="text-primary fw-medium">{{ pct_ciclo }}% del ciclo</span>
+                    <span><i class="fas fa-flag-checkered me-1 text-danger"></i>{{ ciclo_fin|date:"d M Y" }}</span>
+                </div>
+                <div class="mt-2 text-muted" style="font-size:.72rem">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Ciclo: día {{ dia_corte|add:"1" }} → día {{ dia_corte }} del mes siguiente. Hoy: {{ hoy|date:"d/m/Y" }}.
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="col-12 col-lg-4">
+        <div class="dash-card h-100">
+            <div class="dash-card-header">
+                <span><i class="fas fa-bolt me-2 text-warning"></i>Acciones rápidas</span>
+            </div>
+            <div class="dash-card-body d-flex flex-column gap-2">
+
+                {% if periodo_actual %}
+                    <a href="{% url 'cierre_wizard' pk=periodo_actual.pk %}"
+                       class="btn btn-primary w-100">
+                        <i class="fas fa-tasks me-2"></i>
+                        {% if periodo_actual.esta_cerrado %}Ver wizard cerrado{% else %}Continuar wizard{% endif %}
+                    </a>
+                    {% if periodo_actual.pk %}
+                    <button class="btn btn-outline-secondary w-100"
+                            onclick="abrirChecklist({{ periodo_actual.pk }})">
+                        <i class="fas fa-clipboard-check me-2"></i>Ver checklist pre-cierre
+                    </button>
+                    <a href="{% url 'cierre_rezagos' pk=periodo_actual.pk %}"
+                       class="btn btn-outline-info w-100">
+                        <i class="fas fa-file-invoice me-2"></i>Rezagos post-cierre
+                    </a>
+                    {% endif %}
+                {% else %}
+                    <form method="post" action="{% url 'cierre_crear' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="mes" value="{{ periodo_mes }}">
+                        <input type="hidden" name="anio" value="{{ periodo_anio }}">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-play me-2"></i>Iniciar cierre {{ periodo_mes_nombre }} {{ periodo_anio }}
+                        </button>
+                    </form>
+                {% endif %}
+
+                <hr class="my-1">
+
+                <a href="{% url 'cierre_lista' %}" class="btn btn-outline-secondary w-100 btn-sm">
+                    <i class="fas fa-list me-2"></i>Lista de todos los períodos
+                </a>
+                <a href="{% url 'cierre_crear' %}" class="btn btn-outline-primary w-100 btn-sm"
+                   onclick="this.href='#'; document.getElementById('modalCrear').style.display='block'; return false;">
+                    <i class="fas fa-plus me-2"></i>Nuevo período manual
+                </a>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Checklist Pre-Cierre (panel AJAX) ─────────────────── -->
+<div id="panelChecklist" class="dash-card mb-4" style="display:none">
+    <div class="dash-card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-clipboard-check me-2 text-primary"></i>Checklist pre-cierre</span>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                onclick="document.getElementById('panelChecklist').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="dash-card-body" id="checklistBody">
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-spinner fa-spin me-2"></i>Cargando checklist...
+        </div>
+    </div>
+</div>
+
+<!-- ── Historial de cierres ──────────────────────────────── -->
+<div class="dash-card">
+    <div class="dash-card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-history me-2 text-primary"></i>Historial de cierres</span>
+        <span class="text-muted small">{{ periodos|length }} período(s)</span>
+    </div>
+    <div class="dash-card-body p-0">
+        {% if periodos %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width:160px">Período</th>
+                        <th class="text-center" style="width:130px">Estado</th>
+                        <th class="text-center" style="width:160px">Avance</th>
+                        <th style="width:150px">Cerrado el</th>
+                        <th class="text-center pe-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in periodos %}
+                    <tr class="hist-row">
+                        <td class="ps-3 fw-medium">{{ p.mes_nombre }} {{ p.anio }}</td>
+                        <td class="text-center">
+                            {% if p.estado == 'CERRADO' %}
+                                <span class="badge bg-success" style="font-size:.72rem">
+                                    <i class="fas fa-lock me-1"></i>Cerrado
+                                </span>
+                            {% elif p.estado == 'EN_CIERRE' %}
+                                <span class="badge bg-warning text-dark" style="font-size:.72rem">
+                                    <i class="fas fa-spinner fa-spin me-1"></i>En cierre
+                                </span>
+                            {% elif p.estado == 'REABIERTO' %}
+                                <span class="badge bg-warning text-dark" style="font-size:.72rem">
+                                    <i class="fas fa-lock-open me-1"></i>Reabierto
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary" style="font-size:.72rem">
+                                    <i class="fas fa-folder-open me-1"></i>Abierto
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if p.total_pasos %}
+                            <div class="d-flex align-items-center gap-2 justify-content-center">
+                                <div class="progress" style="width:70px;height:6px;border-radius:3px">
+                                    <div class="progress-bar bg-success" style="width:{{ p.porcentaje_avance }}%"></div>
+                                </div>
+                                <small class="text-muted fw-medium">{{ p.pasos_completados }}/{{ p.total_pasos }}</small>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">
+                            {% if p.cerrado_en %}
+                                <i class="fas fa-calendar-check me-1 text-success"></i>
+                                {{ p.cerrado_en|date:"d/m/Y H:i" }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-center pe-3">
+                            <div class="d-flex gap-1 justify-content-center">
+                                <a href="{% url 'cierre_wizard' pk=p.pk %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="{% if p.esta_cerrado %}Ver wizard{% else %}Continuar wizard{% endif %}">
+                                    <i class="fas fa-{% if p.esta_cerrado %}eye{% else %}play{% endif %} me-1"></i>
+                                    {% if p.esta_cerrado %}Ver{% else %}Continuar{% endif %}
+                                </a>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        title="Ver checklist"
+                                        onclick="abrirChecklist({{ p.pk }})">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </button>
+                                {% if p.esta_cerrado %}
+                                <a href="{% url 'cierre_rezagos' pk=p.pk %}"
+                                   class="btn btn-sm btn-outline-info"
+                                   title="Rezagos post-cierre">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+            Sin períodos de cierre registrados
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Modal: Crear período manual ──────────────────────── -->
+<div id="modalCrear" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">
+                    <i class="fas fa-plus-circle me-2 text-primary"></i>Nuevo período de cierre
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'cierre_crear' %}" id="formCrearPeriodo">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium">Mes</label>
+                        <select name="mes" class="form-select form-select-sm">
+                            <option value="1">Enero</option><option value="2">Febrero</option>
+                            <option value="3">Marzo</option><option value="4">Abril</option>
+                            <option value="5">Mayo</option><option value="6">Junio</option>
+                            <option value="7">Julio</option><option value="8">Agosto</option>
+                            <option value="9">Septiembre</option><option value="10">Octubre</option>
+                            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium">Año</label>
+                        <select name="anio" class="form-select form-select-sm">
+                            <option value="2024" {% if anio_actual == 2024 %}selected{% endif %}>2024</option>
+                            <option value="2025" {% if anio_actual == 2025 %}selected{% endif %}>2025</option>
+                            <option value="2026" {% if anio_actual == 2026 %}selected{% endif %}>2026</option>
+                            <option value="2027" {% if anio_actual == 2027 %}selected{% endif %}>2027</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="formCrearPeriodo" class="btn btn-primary btn-sm">
+                    <i class="fas fa-play me-1"></i>Iniciar wizard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Checklist AJAX ─────────────────────────────────────── */
+async function abrirChecklist(pk) {
+    const panel = document.getElementById('panelChecklist');
+    const body  = document.getElementById('checklistBody');
+    panel.style.display = '';
+
+    // Scroll suave al panel
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    body.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Cargando checklist...</div>';
+
+    try {
+        const resp = await fetch(`/cierre/${pk}/checklist/`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const d = await resp.json();
+        renderChecklist(d, pk);
+    } catch (e) {
+        body.innerHTML = `<div class="alert alert-danger small"><i class="fas fa-times-circle me-2"></i>Error al cargar checklist: ${e.message}</div>`;
+    }
+}
+
+function renderChecklist(d, pk) {
+    const body = document.getElementById('checklistBody');
+
+    // Banner puede cerrar / tiene issues
+    const bannerClass = d.puede_cerrar ? 'ok' : 'fail';
+    const bannerIcon  = d.puede_cerrar ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+    const bannerText  = d.puede_cerrar
+        ? 'Puede cerrar — todos los controles pasaron correctamente'
+        : 'Tiene issues — revisar los puntos marcados en rojo antes de cerrar';
+
+    let html = `
+        <div class="puede-cerrar-banner ${bannerClass}">
+            <i class="${bannerIcon}"></i>
+            <span>${bannerText}</span>
+        </div>
+        <div class="text-muted mb-3" style="font-size:.78rem">
+            <i class="fas fa-calendar-alt me-1"></i>
+            Período: ${d.periodo} — Rango: ${d.rango}
+        </div>`;
+
+    (d.items || []).forEach(item => {
+        const cls   = item.ok ? 'chk-ok' : 'chk-fail';
+        const icon  = item.ok
+            ? '<i class="fas fa-check-circle text-success chk-icon"></i>'
+            : '<i class="fas fa-times-circle text-danger chk-icon"></i>';
+        html += `
+            <div class="chk-item ${cls}">
+                ${icon}
+                <div>
+                    <div class="chk-title">${item.check}</div>
+                    <div class="chk-detail">${item.detalle}</div>
+                </div>
+            </div>`;
+    });
+
+    if (d.puede_cerrar && pk) {
+        html += `
+            <div class="mt-3">
+                <a href="/cierre/${pk}/" class="btn btn-success btn-sm">
+                    <i class="fas fa-play me-1"></i>Ir al wizard de cierre
+                </a>
+                <button class="btn btn-outline-secondary btn-sm ms-2"
+                        onclick="validarCierre(${pk})">
+                    <i class="fas fa-shield-alt me-1"></i>Validar nómina
+                </button>
+            </div>`;
+    }
+
+    body.innerHTML = html;
+}
+
+/* ── Validar cierre AJAX ────────────────────────────────── */
+async function validarCierre(pk) {
+    const body = document.getElementById('checklistBody');
+    const spinner = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Validando nómina...</div>';
+    body.innerHTML += spinner;
+
+    try {
+        const resp = await fetch(`/cierre/${pk}/validar/`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const d = await resp.json();
+        renderValidacion(d, pk, body);
+    } catch (e) {
+        body.innerHTML = `<div class="alert alert-danger small"><i class="fas fa-times-circle me-2"></i>Error: ${e.message}</div>`;
+    }
+}
+
+function renderValidacion(d, pk, body) {
+    const r = d.resumen || {};
+    let html = `
+        <div class="puede-cerrar-banner ${d.puede_cerrar ? 'ok' : 'fail'}">
+            <i class="fas fa-${d.puede_cerrar ? 'check-circle' : 'exclamation-triangle'}"></i>
+            <span>${d.puede_cerrar ? 'Validación OK — puede proceder al cierre' : 'Errores encontrados — no se puede cerrar'}</span>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="cierre-stat">
+                    <div class="stat-val">${r.activos || 0}</div>
+                    <div class="stat-lbl">Activos RRHH</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="cierre-stat">
+                    <div class="stat-val ${r.en_nomina ? '' : 'text-muted'}">${r.en_nomina || 0}</div>
+                    <div class="stat-lbl">En nómina</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="cierre-stat">
+                    <div class="stat-val ${r.neto_negativo > 0 ? 'text-danger' : 'text-success'}">${r.neto_negativo || 0}</div>
+                    <div class="stat-lbl">Neto negativo</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="cierre-stat">
+                    <div class="stat-val ${r.sin_sueldo_activos > 0 ? 'text-warning' : 'text-muted'}">${r.sin_sueldo_activos || 0}</div>
+                    <div class="stat-lbl">Sin sueldo</div>
+                </div>
+            </div>
+        </div>`;
+
+    if ((d.errores || []).length > 0) {
+        html += '<div class="fw-medium text-danger mb-2" style="font-size:.82rem">Errores críticos:</div>';
+        d.errores.forEach(e => {
+            html += `<div class="chk-item chk-fail mb-2"><i class="fas fa-times-circle text-danger chk-icon"></i><div><div class="chk-detail">${e}</div></div></div>`;
+        });
+    }
+
+    if ((d.advertencias || []).length > 0) {
+        html += '<div class="fw-medium text-warning mb-2 mt-2" style="font-size:.82rem">Advertencias:</div>';
+        d.advertencias.forEach(w => {
+            html += `<div class="chk-item chk-warn mb-2"><i class="fas fa-exclamation-triangle text-warning chk-icon"></i><div><div class="chk-detail">${w}</div></div></div>`;
+        });
+    }
+
+    if (d.puede_cerrar) {
+        html += `
+            <div class="mt-3">
+                <a href="/cierre/${pk}/" class="btn btn-success btn-sm">
+                    <i class="fas fa-lock me-1"></i>Proceder al wizard de cierre
+                </a>
+            </div>`;
+    }
+
+    body.innerHTML = html;
+}
+</script>
+{% endblock %}

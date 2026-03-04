@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ vacante.titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.kanban-wrapper {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    min-height: 300px;
+}
+.kanban-col {
+    min-width: 220px;
+    max-width: 260px;
+    flex: 0 0 auto;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+.kanban-col-header {
+    padding: 8px 12px;
+    border-radius: 8px 8px 0 0;
+    font-size: .8rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+}
+.kanban-col-body {
+    padding: 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.kanban-card {
+    background: #fff;
+    border-radius: 6px;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    font-size: .8rem;
+    transition: box-shadow .15s;
+}
+.kanban-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.kanban-card .card-name {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+.kanban-card .card-meta {
+    color: #64748b;
+    font-size: .72rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-briefcase text-secondary me-2"></i>{{ vacante.titulo }}</h2>
+        <small class="text-muted">
+            {{ vacante.area|default:"Sin area" }} &middot;
+            {{ vacante.get_tipo_contrato_display }} &middot;
+            {{ vacante.get_prioridad_display }}
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reclutamiento_exportar_candidatos' vacante.pk %}"
+           class="btn btn-sm btn-outline-success"
+           title="Exportar candidatos a Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar Excel
+        </a>
+        <a href="{% url 'vacante_editar' vacante.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit me-1"></i>Editar</a>
+        <a href="{% url 'vacantes_panel' %}" class="btn btn-sm btn-secondary"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+    </div>
+</div>
+
+<!-- Info de la vacante -->
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row mb-2" style="font-size:.85rem">
+                    <div class="col-3"><strong>Estado:</strong></div>
+                    <div class="col-9">
+                        {% if vacante.estado == 'PUBLICADA' %}<span class="badge bg-success">Publicada</span>
+                        {% elif vacante.estado == 'EN_PROCESO' %}<span class="badge bg-warning text-dark">En Proceso</span>
+                        {% elif vacante.estado == 'CUBIERTA' %}<span class="badge bg-info">Cubierta</span>
+                        {% elif vacante.estado == 'CANCELADA' %}<span class="badge bg-danger">Cancelada</span>
+                        {% else %}<span class="badge bg-secondary">Borrador</span>{% endif %}
+                        {% if vacante.publica %}<span class="badge bg-info ms-1"><i class="fas fa-globe-americas"></i> Portal</span>{% endif %}
+                    </div>
+                </div>
+                <div class="row mb-2" style="font-size:.85rem">
+                    <div class="col-3"><strong>Educacion:</strong></div>
+                    <div class="col-3">{{ vacante.get_educacion_minima_display }}</div>
+                    <div class="col-3"><strong>Experiencia:</strong></div>
+                    <div class="col-3">{{ vacante.experiencia_minima }} anio{{ vacante.experiencia_minima|pluralize:"s" }}</div>
+                </div>
+                {% if vacante.salario_min or vacante.salario_max %}
+                <div class="row mb-2" style="font-size:.85rem">
+                    <div class="col-3"><strong>Rango Salarial:</strong></div>
+                    <div class="col-9">
+                        {{ vacante.moneda }}
+                        {% if vacante.salario_min %}{{ vacante.salario_min|floatformat:0|intcomma }}{% endif %}
+                        {% if vacante.salario_min and vacante.salario_max %} - {% endif %}
+                        {% if vacante.salario_max %}{{ vacante.salario_max|floatformat:0|intcomma }}{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="row mb-2" style="font-size:.85rem">
+                    <div class="col-3"><strong>Publicacion:</strong></div>
+                    <div class="col-3">{{ vacante.fecha_publicacion|date:"d/m/Y"|default:"—" }}</div>
+                    <div class="col-3"><strong>Limite:</strong></div>
+                    <div class="col-3">
+                        {% if vacante.fecha_limite %}
+                            <span class="{% if vacante.esta_vencida %}text-danger fw-bold{% endif %}">{{ vacante.fecha_limite|date:"d/m/Y" }}</span>
+                        {% else %}—{% endif %}
+                    </div>
+                </div>
+                {% if vacante.responsable %}
+                <div class="row mb-2" style="font-size:.85rem">
+                    <div class="col-3"><strong>Responsable:</strong></div>
+                    <div class="col-9">{{ vacante.responsable.get_full_name|default:vacante.responsable.username }}</div>
+                </div>
+                {% endif %}
+                {% if vacante.descripcion %}
+                <hr class="my-2">
+                <p class="mb-1 small"><strong>Descripcion:</strong></p>
+                <p class="text-muted small mb-0" style="white-space:pre-line">{{ vacante.descripcion }}</p>
+                {% endif %}
+                {% if vacante.requisitos %}
+                <p class="mb-1 small mt-2"><strong>Requisitos:</strong></p>
+                <p class="text-muted small mb-0" style="white-space:pre-line">{{ vacante.requisitos }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card text-center">
+            <div class="stat-value text-primary">{{ total_activas }}</div>
+            <div class="stat-label">Postulaciones Activas</div>
+        </div>
+        <div class="stat-card text-center mt-2">
+            <div class="stat-value text-secondary">{{ vacante.total_postulaciones }}</div>
+            <div class="stat-label">Total Postulaciones</div>
+        </div>
+        <!-- Agregar postulacion -->
+        <div class="card shadow-sm mt-2">
+            <div class="card-body p-2">
+                <button class="btn btn-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#modalPostulacion">
+                    <i class="fas fa-user-plus me-1"></i>Agregar Postulante
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pipeline Kanban -->
+<h5 class="mb-2"><i class="fas fa-columns me-1"></i>Pipeline de Seleccion</h5>
+
+<div class="kanban-wrapper">
+    {% for col in pipeline %}
+    <div class="kanban-col">
+        <div class="kanban-col-header" style="background:{{ col.etapa.color }}">
+            <span>{{ col.etapa.nombre }}</span>
+            <span class="badge bg-white text-dark">{{ col.count }}</span>
+        </div>
+        <div class="kanban-col-body">
+            {% for p in col.postulaciones %}
+            <div class="kanban-card">
+                <div class="card-name">
+                    <a href="{% url 'postulacion_detalle' p.pk %}" class="text-decoration-none text-dark">{{ p.nombre_completo }}</a>
+                </div>
+                <div class="card-meta d-flex align-items-center gap-1 flex-wrap">
+                    <span class="badge bg-light text-dark border">{{ p.get_fuente_display }}</span>
+                    {% if p.dias_en_etapa > 14 %}
+                        <span class="badge" style="background:#dc2626;color:#fff;" title="Lleva {{ p.dias_en_etapa }} dias en esta etapa">
+                            {{ p.dias_en_etapa }}d — Urgente
+                        </span>
+                    {% elif p.dias_en_etapa > 7 %}
+                        <span class="badge" style="background:#f97316;color:#fff;" title="Lleva {{ p.dias_en_etapa }} dias en esta etapa">
+                            {{ p.dias_en_etapa }}d
+                        </span>
+                    {% else %}
+                        <span class="text-muted" style="font-size:.7rem;">{{ p.dias_en_etapa }}d</span>
+                    {% endif %}
+                </div>
+                <div class="mt-1">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-1 dropdown-toggle" style="font-size:.7rem" data-bs-toggle="dropdown">
+                            Mover a...
+                        </button>
+                        <ul class="dropdown-menu" style="font-size:.8rem">
+                            {% for e in etapas %}
+                            {% if e.pk != col.etapa.pk %}
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="moverEtapa({{ p.pk }}, {{ e.pk }});return false">
+                                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ e.color }};margin-right:6px"></span>{{ e.nombre }}
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted small py-3">Sin candidatos</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if descartadas %}
+<h6 class="mt-3 text-muted"><i class="fas fa-times-circle me-1"></i>Descartados ({{ descartadas.count }})</h6>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0" style="font-size:.82rem">
+            <tbody>
+                {% for d in descartadas %}
+                <tr>
+                    <td><a href="{% url 'postulacion_detalle' d.pk %}">{{ d.nombre_completo }}</a></td>
+                    <td>{{ d.get_fuente_display }}</td>
+                    <td>{{ d.fecha_postulacion|date:"d/m/Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Agregar Postulante -->
+<div class="modal fade" id="modalPostulacion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'postulacion_crear' vacante.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar Postulante</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Nombre Completo *</label>
+                            {{ form_postulacion.nombre_completo }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Email</label>
+                            {{ form_postulacion.email }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Telefono</label>
+                            {{ form_postulacion.telefono }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Experiencia (anios)</label>
+                            {{ form_postulacion.experiencia_anos }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Educacion</label>
+                            {{ form_postulacion.educacion }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Salario Pretendido</label>
+                            {{ form_postulacion.salario_pretendido }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Fuente</label>
+                            {{ form_postulacion.fuente }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">CV</label>
+                            {{ form_postulacion.cv }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Notas</label>
+                            {{ form_postulacion.notas }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function moverEtapa(postulacionId, etapaId) {
+    fetch(`/reclutamiento/postulacion/${postulacionId}/mover/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `etapa_id=${etapaId}`,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error al mover');
+        }
+    })
+    .catch(() => alert('Error de conexion'));
+}
+</script>
+{% endblock %}

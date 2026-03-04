@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% block title %}Reportes RRHH{% endblock %}
+
+{% block extra_css %}
+<style>
+  .reporte-card {
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(13, 43, 39, .10);
+    transition: box-shadow .2s;
+  }
+  .reporte-card:hover {
+    box-shadow: 0 6px 24px rgba(13, 43, 39, .18);
+  }
+  .reporte-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+  .reporte-icon-green  { background: #d1fae5; color: #065f46; }
+  .reporte-icon-blue   { background: #dbeafe; color: #1e40af; }
+  .reporte-icon-amber  { background: #fef3c7; color: #92400e; }
+  .reporte-card .card-header {
+    background: transparent;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.1rem 1.25rem .75rem;
+  }
+  .reporte-card .card-footer {
+    background: #f8fffe;
+    border-top: 1px solid #e5e7eb;
+    border-radius: 0 0 12px 12px;
+    padding: .75rem 1.25rem;
+  }
+  .filter-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .25rem;
+  }
+  .btn-download {
+    background: #0f766e;
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    padding: .5rem 1.25rem;
+    border-radius: 8px;
+    transition: background .2s;
+  }
+  .btn-download:hover {
+    background: #0d2b27;
+    color: #5eead4;
+  }
+  .btn-download i { margin-right: .4rem; }
+  .page-title-bar {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 12px;
+    color: #fff;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.75rem;
+  }
+  .page-title-bar h2 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+  .page-title-bar p  { margin: .3rem 0 0; opacity: .75; font-size: .9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Page Header ───────────────────────────────────────────────── #}
+<div class="page-title-bar d-flex align-items-center gap-3">
+  <div style="font-size:2rem;">
+    <i class="fas fa-chart-bar"></i>
+  </div>
+  <div>
+    <h2>Reportes RRHH</h2>
+    <p>Descarga reportes Excel de plantilla, asistencia y horas extras.</p>
+  </div>
+</div>
+
+{# ── Cards Grid ────────────────────────────────────────────────── #}
+<div class="row g-4">
+
+  {# ────────── CARD 1: Plantilla de Personal ────────── #}
+  <div class="col-12 col-lg-4">
+    <div class="card reporte-card h-100">
+      <div class="card-header">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="reporte-icon reporte-icon-green">
+            <i class="fas fa-users"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold" style="color:#065f46;">Plantilla de Personal</h5>
+            <small class="text-muted">2 hojas: Detalle + Resumen</small>
+          </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:.875rem;">
+          Reporte completo de la planilla con datos laborales, contractuales
+          y remunerativos. Incluye antigüedad y masa salarial.
+        </p>
+      </div>
+
+      <form method="get" action="{% url 'reporte_plantilla' %}" class="card-body d-flex flex-column gap-3">
+        <input type="hidden" name="format" value="excel">
+
+        <div>
+          <div class="filter-label">Estado</div>
+          <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            <option value="Activo" selected>Activo</option>
+            <option value="Inactivo">Inactivo</option>
+            <option value="Cesado">Cesado</option>
+            <option value="Suspendido">Suspendido</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="filter-label">Área</div>
+          <select name="area" class="form-select form-select-sm">
+            <option value="">Todas las áreas</option>
+            {% for area in areas %}
+            <option value="{{ area.pk }}">{{ area.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <div class="filter-label">Grupo Tareo</div>
+          <select name="grupo_tareo" class="form-select form-select-sm">
+            <option value="">Todos (STAFF + RCO)</option>
+            <option value="STAFF">STAFF</option>
+            <option value="RCO">RCO</option>
+            <option value="OTRO">OTRO</option>
+          </select>
+        </div>
+
+        <div class="card-footer px-0 pb-0 mt-auto" style="background:transparent;border:0;">
+          <button type="submit" class="btn btn-download w-100">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ────────── CARD 2: Asistencia Mensual ────────── #}
+  <div class="col-12 col-lg-4">
+    <div class="card reporte-card h-100">
+      <div class="card-header">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="reporte-icon reporte-icon-blue">
+            <i class="fas fa-calendar-check"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold" style="color:#1e40af;">Asistencia Mensual</h5>
+            <small class="text-muted">2 hojas: Resumen + Faltas</small>
+          </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:.875rem;">
+          Reporte de asistencia, faltas y horas extras por empleado del mes
+          seleccionado. Incluye porcentaje de asistencia y detalle de faltas.
+        </p>
+      </div>
+
+      <form method="get" action="{% url 'reporte_asistencia' %}" class="card-body d-flex flex-column gap-3">
+        <input type="hidden" name="format" value="excel">
+
+        <div class="row g-2">
+          <div class="col-7">
+            <div class="filter-label">Mes</div>
+            <select name="mes" class="form-select form-select-sm">
+              {% for num, nombre in meses %}
+              <option value="{{ num }}" {% if num == mes_actual %}selected{% endif %}>{{ nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-5">
+            <div class="filter-label">Año</div>
+            <select name="anio" class="form-select form-select-sm">
+              {% for anio in anios %}
+              <option value="{{ anio }}" {% if anio == anio_actual %}selected{% endif %}>{{ anio }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="card-footer px-0 pb-0 mt-auto" style="background:transparent;border:0;">
+          <button type="submit" class="btn btn-download w-100">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ────────── CARD 3: HE Detallado ────────── #}
+  <div class="col-12 col-lg-4">
+    <div class="card reporte-card h-100">
+      <div class="card-header">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="reporte-icon reporte-icon-amber">
+            <i class="fas fa-hourglass-half"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold" style="color:#92400e;">HE Detallado</h5>
+            <small class="text-muted">2 hojas: Por Empleado + Por Día</small>
+          </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:.875rem;">
+          Detalle de horas extras con cálculo de costo por empleado y por día.
+          Considera sueldo base y multiplicadores legales (25%, 35%, 100%).
+        </p>
+      </div>
+
+      <form method="get" action="{% url 'reporte_he' %}" class="card-body d-flex flex-column gap-3">
+        <input type="hidden" name="format" value="excel">
+
+        <div class="row g-2">
+          <div class="col-7">
+            <div class="filter-label">Mes</div>
+            <select name="mes" class="form-select form-select-sm">
+              {% for num, nombre in meses %}
+              <option value="{{ num }}" {% if num == mes_actual %}selected{% endif %}>{{ nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-5">
+            <div class="filter-label">Año</div>
+            <select name="anio" class="form-select form-select-sm">
+              {% for anio in anios %}
+              <option value="{{ anio }}" {% if anio == anio_actual %}selected{% endif %}>{{ anio }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <div class="filter-label">Grupo</div>
+          <select name="grupo" class="form-select form-select-sm">
+            <option value="">Todos (STAFF + RCO)</option>
+            <option value="STAFF">Solo STAFF</option>
+            <option value="RCO">Solo RCO</option>
+          </select>
+        </div>
+
+        <div class="card-footer px-0 pb-0 mt-auto" style="background:transparent;border:0;">
+          <button type="submit" class="btn btn-download w-100">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ────────── CARD 4: Vacaciones y Permisos ────────── #}
+  <div class="col-12 col-lg-4">
+    <div class="card reporte-card h-100">
+      <div class="card-header">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="reporte-icon" style="background:#fef9c3;color:#a16207;">
+            <i class="fas fa-umbrella-beach"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold" style="color:#a16207;">Vacaciones y Permisos</h5>
+            <small class="text-muted">2 hojas: Vacaciones + Permisos</small>
+          </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:.875rem;">
+          Solicitudes de vacaciones y permisos del mes seleccionado con estado
+          y días por colaborador.
+        </p>
+      </div>
+      <form method="get" action="{% url 'reporte_vacaciones' %}" class="card-body d-flex flex-column gap-3">
+        <input type="hidden" name="format" value="excel">
+        <div class="row g-2">
+          <div class="col-7">
+            <div class="filter-label">Mes</div>
+            <select name="mes" class="form-select form-select-sm">
+              {% for num, nombre in meses %}
+              <option value="{{ num }}" {% if num == mes_actual %}selected{% endif %}>{{ nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-5">
+            <div class="filter-label">Año</div>
+            <select name="anio" class="form-select form-select-sm">
+              {% for anio in anios %}
+              <option value="{{ anio }}" {% if anio == anio_actual %}selected{% endif %}>{{ anio }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="card-footer px-0 pb-0 mt-auto" style="background:transparent;border:0;">
+          <button type="submit" class="btn btn-download w-100">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ────────── CARD 5: Contratos por Vencer ────────── #}
+  <div class="col-12 col-lg-4">
+    <div class="card reporte-card h-100">
+      <div class="card-header">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="reporte-icon" style="background:#fee2e2;color:#b91c1c;">
+            <i class="fas fa-file-contract"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold" style="color:#b91c1c;">Contratos por Vencer</h5>
+            <small class="text-muted">1 hoja — color por urgencia</small>
+          </div>
+        </div>
+        <p class="text-muted mb-0" style="font-size:.875rem;">
+          Contratos del personal activo próximos a vencer. Rojo ≤15 días,
+          amarillo ≤30 días.
+        </p>
+      </div>
+      <form method="get" action="{% url 'reporte_contratos' %}" class="card-body d-flex flex-column gap-3">
+        <input type="hidden" name="format" value="excel">
+        <div>
+          <div class="filter-label">Horizonte</div>
+          <select name="dias" class="form-select form-select-sm">
+            <option value="30">Próximos 30 días</option>
+            <option value="60" selected>Próximos 60 días</option>
+            <option value="90">Próximos 90 días</option>
+            <option value="180">Próximos 6 meses</option>
+          </select>
+        </div>
+        <div class="card-footer px-0 pb-0 mt-auto" style="background:transparent;border:0;">
+          <button type="submit" class="btn btn-download w-100">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>{# /row #}
+
+{# ── Nota informativa ──────────────────────────────────────────── #}
+<div class="alert d-flex align-items-start gap-2 mt-4"
+     style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;">
+  <i class="fas fa-info-circle mt-1" style="color:#0f766e;"></i>
+  <div style="font-size:.85rem;color:#134e4a;">
+    <strong>Notas:</strong>
+    Los reportes Excel incluyen formato corporativo Harmoni con encabezados, colores alternos
+    y ancho de columnas automático. Los costos de HE se calculan sobre el sueldo base registrado
+    en el sistema usando la fórmula: <code>valor_hora = sueldo_base / 30 / 8</code>.
+    Los multiplicadores aplicados son 1.25 (HE 25%), 1.35 (HE 35%) y 2.00 (HE 100% — feriado laborado).
+  </div>
+</div>
+
+{% endblock %}

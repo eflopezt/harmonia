@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Asignación de Viáticos{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-plus-circle text-primary me-2"></i>Nueva Asignación de Viáticos</h2>
+        <small class="text-muted">Asignar viáticos mensuales a un trabajador</small>
+    </div>
+    <a href="{% url 'viaticos_panel' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Volver
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post" id="formViatico">
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        <!-- Trabajador -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Trabajador <span class="text-danger">*</span></label>
+                            <select name="personal_id" class="form-select" required id="selectPersonal">
+                                <option value="">Seleccionar trabajador…</option>
+                                {% for p in personal_list %}
+                                <option value="{{ p.pk }}" data-grupo="{{ p.grupo_tareo }}">
+                                    {{ p.apellidos_nombres }} — {{ p.nro_doc }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Período -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Período <span class="text-danger">*</span></label>
+                            <input type="month" name="periodo" class="form-control" required>
+                        </div>
+
+                        <!-- Monto -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Monto Asignado (S/) <span class="text-danger">*</span></label>
+                            <input type="number" name="monto" class="form-control" step="0.01" min="1" required placeholder="0.00">
+                        </div>
+
+                        <!-- Días en campo -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Días en Campo</label>
+                            <input type="number" name="dias_campo" class="form-control" min="0" max="31" value="0">
+                        </div>
+
+                        <!-- Ubicación -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Ubicación / Proyecto</label>
+                            <input type="text" name="ubicacion" class="form-control" placeholder="Ej: Mina Antamina, Lima, etc.">
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="2" placeholder="Notas adicionales…"></textarea>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'viaticos_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-1"></i>Registrar Asignación
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info lateral -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-info">
+            <div class="card-body">
+                <h6 class="text-info mb-3"><i class="fas fa-info-circle me-2"></i>Información</h6>
+                <ul class="small text-muted mb-0" style="line-height:1.8">
+                    <li>Los viáticos (CDT) son <strong>no afectos a renta</strong> de 5ta categoría</li>
+                    <li>Se asignan por mes al personal foráneo</li>
+                    <li>El trabajador debe rendir los gastos con comprobantes</li>
+                    <li>La conciliación determina si hay excesos o devoluciones</li>
+                    <li>Art. 37° inc. r) LIR — gastos de viaje deducibles</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

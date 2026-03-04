@@ -1,0 +1,102 @@
+{% comment %}
+Harmoni AI — Chat Widget v2 (incluir en base.html)
+Se muestra solo si Ollama o fallback están disponibles.
+{% endcomment %}
+
+<div id="harmoniAiChat" style="display:none;">
+    <!-- FAB Button -->
+    <button id="aiChatFab" class="ai-chat-fab" title="Harmoni AI (Ctrl+Shift+H)">
+        <i class="fas fa-robot"></i>
+        <span class="ai-fab-pulse"></span>
+    </button>
+
+    <!-- Chat Panel -->
+    <div id="aiChatPanel" class="ai-chat-panel">
+        <!-- Header -->
+        <div class="ai-chat-header">
+            <div class="ai-chat-header-info">
+                <div class="ai-chat-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div>
+                    <div class="ai-chat-title">Harmoni AI</div>
+                    <div class="ai-chat-subtitle">
+                        <span class="ai-status-dot ai-status-online"></span> Asistente de RRHH
+                    </div>
+                </div>
+            </div>
+            <div class="ai-chat-actions">
+                <button id="aiToggleQuickActions" title="Mostrar sugerencias"><i class="fas fa-lightbulb"></i></button>
+                <button id="aiExportChat" title="Exportar conversación"><i class="fas fa-download"></i></button>
+                <button id="aiChatClear" title="Limpiar chat"><i class="fas fa-trash-alt"></i></button>
+                <button id="aiChatMaximize" title="Maximizar"><i class="fas fa-expand"></i></button>
+                <button id="aiChatClose" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="ai-chat-messages" id="aiChatMessages">
+            <div class="ai-msg ai-msg-assistant">
+                <div class="ai-msg-content">
+                    &#128075; Hola, soy <strong>Harmoni AI</strong>, tu asistente de RRHH.
+                    Puedo ayudarte con consultas del sistema, datos de personal,
+                    y pol&iacute;ticas laborales.
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="ai-chat-quick-actions" id="aiQuickActions">
+            <button data-prompt="Dame un resumen general">
+                <i class="fas fa-tachometer-alt"></i> Resumen
+            </button>
+            <button data-prompt="Cuantos empleados activos hay?">
+                <i class="fas fa-users"></i> Empleados
+            </button>
+            <button data-prompt="Dame un resumen de asistencia de hoy">
+                <i class="fas fa-fingerprint"></i> Asistencia
+            </button>
+            <button data-prompt="Hay aprobaciones pendientes?">
+                <i class="fas fa-tasks"></i> Pendientes
+            </button>
+            <button data-prompt="Que contratos vencen pronto?">
+                <i class="fas fa-file-contract"></i> Contratos
+            </button>
+            <button data-prompt="Como van las vacaciones del personal?">
+                <i class="fas fa-umbrella-beach"></i> Vacaciones
+            </button>
+            <button data-prompt="Hay capacitaciones en curso o programadas?">
+                <i class="fas fa-graduation-cap"></i> Capacitaciones
+            </button>
+            <button data-prompt="Como van las evaluaciones de desempeno?">
+                <i class="fas fa-chart-line"></i> Evaluaciones
+            </button>
+            <button data-prompt="Muestrame un grafico del personal por area">
+                <i class="fas fa-chart-pie"></i> Por &Aacute;rea
+            </button>
+            <button data-prompt="Muestrame un grafico del personal por genero">
+                <i class="fas fa-venus-mars"></i> G&eacute;nero
+            </button>
+            <button data-prompt="Muestrame un grafico de distribucion por edad">
+                <i class="fas fa-chart-bar"></i> Por Edad
+            </button>
+            <button data-prompt="Dashboard de gerencia">
+                <i class="fas fa-columns"></i> Dashboard
+            </button>
+            <button data-prompt="Exportar reporte ejecutivo en Excel">
+                <i class="fas fa-file-excel"></i> Reporte Excel
+            </button>
+            <button data-prompt="Que puedes hacer?">
+                <i class="fas fa-question-circle"></i> Ayuda
+            </button>
+        </div>
+
+        <!-- Input -->
+        <div class="ai-chat-input-area">
+            <textarea id="aiChatInput" placeholder="Escribe tu consulta..." rows="1" maxlength="1000"></textarea>
+            <button id="aiChatSend" title="Enviar">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>

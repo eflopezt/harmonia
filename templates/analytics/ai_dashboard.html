@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+{% load static humanize %}
+
+{% block title %}Dashboard Ejecutivo IA{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1">
+    <i class="fas fa-brain me-2" style="color:#0f766e"></i>Dashboard Ejecutivo IA
+</h1>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header ejecutivo -->
+<div class="exec-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1 fw-bold">
+                <i class="fas fa-brain me-2" style="color:#5eead4"></i>
+                Dashboard Ejecutivo con IA
+            </h4>
+            <p class="mb-0 opacity-75" style="font-size:.82rem;">
+                An&aacute;lisis inteligente de indicadores de RRHH &middot; {% now "d/m/Y" %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'analytics_dashboard' %}" class="btn btn-sm" style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);">
+                <i class="fas fa-chart-bar me-1"></i>Analytics Cl&aacute;sico
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Strip -->
+<div class="kpi-row mb-3" style="grid-template-columns:repeat(6,1fr);">
+    <div class="kpi-card">
+        <div><div class="kpi-val" style="color:#0f766e">{{ total_empleados }}</div><div class="kpi-lbl">Total Empleados</div></div>
+        <div class="kpi-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-users"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div><div class="kpi-val" style="color:#0891b2">{{ empleados_staff }}</div><div class="kpi-lbl">STAFF</div></div>
+        <div class="kpi-icon" style="background:rgba(8,145,178,.1);color:#0891b2"><i class="fas fa-user-tie"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div><div class="kpi-val" style="color:#d97706">{{ empleados_rco }}</div><div class="kpi-lbl">RCO</div></div>
+        <div class="kpi-icon" style="background:rgba(217,119,6,.1);color:#d97706"><i class="fas fa-hard-hat"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div><div class="kpi-val text-success">{{ altas_mes }}</div><div class="kpi-lbl">Altas este mes</div></div>
+        <div class="kpi-icon" style="background:rgba(16,185,129,.1);color:#10b981"><i class="fas fa-user-plus"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div><div class="kpi-val text-danger">{{ bajas_mes }}</div><div class="kpi-lbl">Bajas este mes</div></div>
+        <div class="kpi-icon" style="background:rgba(239,68,68,.1);color:#ef4444"><i class="fas fa-user-minus"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div><div class="kpi-val" style="color:#7c3aed">{% widthratio empleados_staff total_empleados 100 %}%</div><div class="kpi-lbl">% STAFF</div></div>
+        <div class="kpi-icon" style="background:rgba(124,58,237,.1);color:#7c3aed"><i class="fas fa-percentage"></i></div>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="exec-grid">
+
+    <!-- Headcount Trend -->
+    <div class="exec-card">
+        <div class="exec-chart-section">
+            <h6><i class="fas fa-chart-line me-1 text-primary"></i>Evoluci&oacute;n Headcount</h6>
+            <div style="position:relative;height:220px;"><canvas id="chartHeadcount"></canvas></div>
+        </div>
+        <div class="exec-ai-commentary" id="aiHeadcount">
+            <div class="exec-ai-badge"><i class="fas fa-robot"></i> An&aacute;lisis IA</div>
+            <div class="ai-text text-muted" style="font-size:.8rem;">Cargando an&aacute;lisis...</div>
+        </div>
+    </div>
+
+    <!-- Rotación -->
+    <div class="exec-card">
+        <div class="exec-chart-section">
+            <h6><i class="fas fa-exchange-alt me-1 text-warning"></i>Rotaci&oacute;n Mensual (%)</h6>
+            <div style="position:relative;height:220px;"><canvas id="chartRotacion"></canvas></div>
+        </div>
+        <div class="exec-ai-commentary" id="aiRotacion">
+            <div class="exec-ai-badge"><i class="fas fa-robot"></i> An&aacute;lisis IA</div>
+            <div class="ai-text text-muted" style="font-size:.8rem;">Cargando an&aacute;lisis...</div>
+        </div>
+    </div>
+
+    <!-- Distribución por Área -->
+    <div class="exec-card">
+        <div class="exec-chart-section">
+            <h6><i class="fas fa-building me-1" style="color:#7c3aed"></i>Distribuci&oacute;n por &Aacute;rea</h6>
+            <div style="position:relative;height:220px;"><canvas id="chartAreas"></canvas></div>
+        </div>
+        <div class="exec-ai-commentary" id="aiAreas">
+            <div class="exec-ai-badge"><i class="fas fa-robot"></i> An&aacute;lisis IA</div>
+            <div class="ai-text text-muted" style="font-size:.8rem;">Cargando an&aacute;lisis...</div>
+        </div>
+    </div>
+
+    <!-- Antigüedad -->
+    <div class="exec-card">
+        <div class="exec-chart-section">
+            <h6><i class="fas fa-hourglass-half me-1 text-info"></i>Antig&uuml;edad del Personal</h6>
+            <div style="position:relative;height:220px;"><canvas id="chartAntiguedad"></canvas></div>
+        </div>
+        <div class="exec-ai-commentary" id="aiAntiguedad">
+            <div class="exec-ai-badge"><i class="fas fa-robot"></i> An&aacute;lisis IA</div>
+            <div class="ai-text text-muted" style="font-size:.8rem;">Cargando an&aacute;lisis...</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Ask AI Section -->
+<div class="exec-ask-area">
+    <h6 class="mb-3">
+        <i class="fas fa-comment-dots me-2" style="color:#5eead4"></i>
+        Pregunta a Harmoni AI sobre tus datos
+    </h6>
+    <div class="d-flex gap-2">
+        <input type="text" id="execAskInput" class="exec-ask-input"
+               placeholder="Ej: Cual es el area con mas horas extra? Que tendencia muestra la rotacion?">
+        <button id="execAskBtn" class="btn" style="background:linear-gradient(135deg,#0f766e,#134e4a);color:#5eead4;white-space:nowrap;">
+            <i class="fas fa-paper-plane me-1"></i>Preguntar
+        </button>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+        <button class="exec-ask-chip" data-q="Cual area tiene mayor ausentismo?">Ausentismo por area</button>
+        <button class="exec-ask-chip" data-q="Que recomiendas para reducir la rotacion?">Reducir rotacion</button>
+        <button class="exec-ask-chip" data-q="Cual es la tendencia de horas extra este anio?">Tendencia HE</button>
+        <button class="exec-ask-chip" data-q="Dame un resumen ejecutivo del estado actual de RRHH">Resumen ejecutivo</button>
+    </div>
+    <div id="execAskAnswer" class="exec-ask-answer" style="display:none;">
+        <div class="exec-ai-badge"><i class="fas fa-robot"></i> Respuesta IA</div>
+        <div id="execAskText" class="text" style="font-size:.86rem;color:#334155;line-height:1.6;"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    'use strict';
+
+    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        || document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+    const tealPalette = [
+        'rgba(15,118,110,.8)', 'rgba(8,145,178,.8)', 'rgba(217,119,6,.8)',
+        'rgba(124,58,237,.8)', 'rgba(16,185,129,.8)', 'rgba(239,68,68,.8)',
+        'rgba(99,102,241,.8)', 'rgba(234,88,12,.8)', 'rgba(13,148,136,.8)',
+        'rgba(244,63,94,.8)', 'rgba(59,130,246,.8)', 'rgba(168,85,247,.8)',
+    ];
+
+    const chartOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } }
+        }
+    };
+
+    // ── Charts ──
+
+    // 1. Headcount
+    const labels = {{ trend_labels|safe }};
+    new Chart(document.getElementById('chartHeadcount'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Headcount',
+                data: {{ trend_headcount|safe }},
+                borderColor: '#0f766e',
+                backgroundColor: 'rgba(15,118,110,.08)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointBackgroundColor: '#0f766e',
+            }]
+        },
+        options: chartOpts
+    });
+
+    // 2. Rotación
+    new Chart(document.getElementById('chartRotacion'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Rotación %',
+                data: {{ trend_rotacion|safe }},
+                backgroundColor: 'rgba(245,158,11,.6)',
+                borderColor: '#f59e0b',
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {...chartOpts, scales: {...chartOpts.scales, y: {...chartOpts.scales.y, beginAtZero: true}}}
+    });
+
+    // 3. Distribución por Área (doughnut)
+    new Chart(document.getElementById('chartAreas'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ areas_labels|safe }},
+            datasets: [{
+                data: {{ areas_values|safe }},
+                backgroundColor: tealPalette,
+                borderWidth: 2,
+                borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } }
+            }
+        }
+    });
+
+    // 4. Antigüedad (bar horizontal)
+    new Chart(document.getElementById('chartAntiguedad'), {
+        type: 'bar',
+        data: {
+            labels: {{ antiguedad_labels|safe }},
+            datasets: [{
+                label: 'Empleados',
+                data: {{ antiguedad_values|safe }},
+                backgroundColor: ['rgba(20,184,166,.7)', 'rgba(15,118,110,.7)', 'rgba(8,145,178,.7)', 'rgba(124,58,237,.7)'],
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            ...chartOpts,
+            indexAxis: 'y',
+            scales: {
+                x: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } }, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // ── AI Commentary for each chart ──
+    async function analyzeChart(chartType, data, targetId) {
+        const el = document.querySelector('#' + targetId + ' .ai-text');
+        if (!el) return;
+
+        try {
+            const resp = await fetch('/asistencia/ia/analizar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ chart: chartType, data: data }),
+            });
+
+            if (!resp.ok) {
+                el.textContent = 'Análisis no disponible.';
+                el.classList.remove('text-muted');
+                return;
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let text = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                for (const line of chunk.split('\n')) {
+                    if (line.startsWith('data: ')) {
+                        const token = line.slice(6);
+                        if (token === '[DONE]') continue;
+                        text += token;
+                        el.innerHTML = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    }
+                }
+            }
+            el.classList.remove('text-muted');
+        } catch (e) {
+            el.textContent = 'Análisis IA no disponible.';
+        }
+    }
+
+    // Check IA status first, then analyze
+    fetch('/asistencia/ia/status/').then(r => r.json()).then(st => {
+        if (!st.available) {
+            document.querySelectorAll('.exec-ai-commentary .ai-text').forEach(el => {
+                el.textContent = 'IA no disponible. Configura Ollama en Configuración.';
+            });
+            return;
+        }
+
+        analyzeChart('headcount', {
+            labels: {{ trend_labels|safe }},
+            values: {{ trend_headcount|safe }}
+        }, 'aiHeadcount');
+
+        analyzeChart('rotacion', {
+            labels: {{ trend_labels|safe }},
+            values: {{ trend_rotacion|safe }}
+        }, 'aiRotacion');
+
+        analyzeChart('areas', {
+            labels: {{ areas_labels|safe }},
+            values: {{ areas_values|safe }}
+        }, 'aiAreas');
+
+        analyzeChart('areas', {
+            labels: {{ antiguedad_labels|safe }},
+            values: {{ antiguedad_values|safe }},
+            tipo: 'antiguedad'
+        }, 'aiAntiguedad');
+    }).catch(() => {});
+
+    // ── Ask AI ──
+    const askInput = document.getElementById('execAskInput');
+    const askBtn = document.getElementById('execAskBtn');
+    const askAnswer = document.getElementById('execAskAnswer');
+    const askText = document.getElementById('execAskText');
+
+    async function askAI(question) {
+        if (!question.trim()) return;
+        askAnswer.style.display = 'block';
+        askText.innerHTML = '<span class="text-muted">Pensando...</span>';
+
+        try {
+            const resp = await fetch('/asistencia/ia/preguntar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ question: question }),
+            });
+
+            if (!resp.ok) {
+                askText.textContent = 'No se pudo generar respuesta.';
+                return;
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let text = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                for (const line of chunk.split('\n')) {
+                    if (line.startsWith('data: ')) {
+                        const token = line.slice(6);
+                        if (token === '[DONE]') continue;
+                        text += token;
+                        askText.innerHTML = text
+                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n/g, '<br>');
+                    }
+                }
+            }
+        } catch (e) {
+            askText.textContent = 'Error de conexión con IA.';
+        }
+    }
+
+    askBtn.addEventListener('click', () => { askAI(askInput.value); askInput.value = ''; });
+    askInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); askAI(askInput.value); askInput.value = ''; }
+    });
+
+    document.querySelectorAll('.exec-ask-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const q = chip.dataset.q;
+            askInput.value = q;
+            askAI(q);
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis Capacitaciones{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-chalkboard-teacher text-secondary me-2"></i>{{ titulo }}</h2>
+
+{% if not empleado %}
+<div class="alert alert-info">No tienes un perfil de empleado vinculado a tu usuario.</div>
+{% else %}
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-primary">{{ stats.total_capacitaciones }}</div><div class="stat-label">Capacitaciones</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-success">{{ stats.total_horas }}</div><div class="stat-label">Horas Totales</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-info">{{ stats.aprobadas }}</div><div class="stat-label">Aprobadas</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-warning">{{ stats.certificaciones_vigentes }}</div><div class="stat-label">Certificaciones</div></div>
+    </div>
+</div>
+
+<!-- Capacitaciones -->
+<h5 class="mb-2"><i class="fas fa-list me-1"></i>Historial de Capacitaciones</h5>
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Capacitación</th>
+                    <th>Tipo</th>
+                    <th>Fecha</th>
+                    <th class="text-center">Horas</th>
+                    <th class="text-center">Asistencia</th>
+                    <th class="text-center">Aprobado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in asistencias %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ a.capacitacion.titulo|truncatechars:40 }}</div>
+                        {% if a.capacitacion.instructor %}<small class="text-muted">{{ a.capacitacion.instructor }}</small>{% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ a.capacitacion.get_tipo_display }}</span></td>
+                    <td style="font-size:.78rem;">{{ a.capacitacion.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td class="text-center">{{ a.capacitacion.horas }}</td>
+                    <td class="text-center">
+                        {% if a.estado == 'ASISTIO' %}<span class="badge bg-success">Asistió</span>
+                        {% elif a.estado == 'NO_ASISTIO' %}<span class="badge bg-danger">No Asistió</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ a.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if a.aprobado %}<i class="fas fa-check-circle text-success"></i>{% else %}<i class="fas fa-minus-circle text-muted"></i>{% endif %}
+                        {% if a.nota %}<br><small>Nota: {{ a.nota }}</small>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No tienes capacitaciones registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Certificaciones -->
+{% if certificaciones %}
+<h5 class="mb-2"><i class="fas fa-certificate me-1"></i>Mis Certificaciones</h5>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr><th>Certificación</th><th>Obtenida</th><th>Vence</th><th class="text-center">Estado</th></tr>
+            </thead>
+            <tbody>
+                {% for c in certificaciones %}
+                <tr>
+                    <td class="fw-semibold">{{ c.requerimiento.nombre }}</td>
+                    <td>{{ c.fecha_obtencion|date:"d/m/Y" }}</td>
+                    <td>{{ c.fecha_vencimiento|date:"d/m/Y"|default:"—" }}</td>
+                    <td class="text-center">
+                        {% if c.estado == 'VIGENTE' %}<span class="badge bg-success">Vigente</span>
+                        {% elif c.estado == 'POR_VENCER' %}<span class="badge bg-warning text-dark">Por Vencer</span>
+                        {% elif c.estado == 'VENCIDA' %}<span class="badge bg-danger">Vencida</span>
+                        {% else %}<span class="badge bg-secondary">{{ c.get_estado_display }}</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

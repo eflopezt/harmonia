@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+{% load humanize harmoni_tags %}
+
+{% block title %}Gráfico Visual de Bandas Salariales{% endblock %}
+
+{% block extra_css %}
+<style>
+.graf-header {
+    background: #0d2b27;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.graf-header h2 { margin: 0; font-size: 1.3rem; }
+.graf-header small { color: #5eead4; font-size: .82rem; }
+
+.leyenda-dot {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+.leyenda-barra {
+    display: inline-block;
+    width: 24px; height: 12px;
+    border-radius: 3px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+/* Tabla resumen bajo el gráfico */
+.tabla-resumen th {
+    background: #0d2b27;
+    color: #fff;
+    font-size: .78rem;
+    white-space: nowrap;
+}
+.tabla-resumen td { font-size: .82rem; vertical-align: middle; }
+
+/* stat cards */
+.stat-mini {
+    background: #f0fdf4;
+    border-left: 3px solid #0f766e;
+    border-radius: 6px;
+    padding: .5rem .85rem;
+}
+.stat-mini .val { font-size: 1.4rem; font-weight: 700; color: #0d2b27; }
+.stat-mini .lbl { font-size: .72rem; color: #6b7280; text-transform: uppercase; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="graf-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h2><i class="fas fa-chart-bar me-2" style="color:#5eead4;"></i>{{ titulo }}</h2>
+        <small>{{ total_bandas }} banda{{ total_bandas|pluralize:",s" }} activa{{ total_bandas|pluralize:",s" }} · {{ total_empleados_graficados }} punto{{ total_empleados_graficados|pluralize:",s" }} de empleados</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'bandas_panel' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-layer-group me-1"></i>Panel Bandas
+        </a>
+        <a href="{% url 'simulacion_comparativa' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-scale-balanced me-1"></i>Simulador
+        </a>
+        <a href="{% url 'equidad_salarial' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-balance-scale me-1"></i>Equidad
+        </a>
+    </div>
+</div>
+
+<!-- Stats rápidas -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-mini">
+            <div class="val">{{ total_bandas }}</div>
+            <div class="lbl">Bandas activas</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-mini">
+            <div class="val">{{ total_empleados_graficados }}</div>
+            <div class="lbl">Empleados graficados</div>
+        </div>
+    </div>
+</div>
+
+<!-- Leyenda -->
+<div class="d-flex gap-4 mb-3 flex-wrap" style="font-size:.82rem;">
+    <div>
+        <span class="leyenda-barra" style="background:rgba(94,234,212,0.25);border:1px solid #5eead4;"></span>
+        Rango de banda (mín–máx)
+    </div>
+    <div>
+        <span class="leyenda-dot" style="background:#0f766e;"></span>
+        Punto medio (midpoint)
+    </div>
+    <div>
+        <span class="leyenda-dot" style="background:#0ea5e9;"></span>
+        Empleado dentro de banda
+    </div>
+    <div>
+        <span class="leyenda-dot" style="background:#ef4444;"></span>
+        Empleado bajo banda
+    </div>
+    <div>
+        <span class="leyenda-dot" style="background:#f97316;"></span>
+        Empleado sobre banda
+    </div>
+</div>
+
+<!-- Contenedor del gráfico -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body" style="position:relative;">
+        {% if bandas %}
+        <canvas id="chartBandas" style="width:100%;"></canvas>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-chart-bar fa-3x mb-3 d-block"></i>
+            No hay bandas salariales activas para graficar.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tabla resumen de bandas -->
+{% if bandas %}
+<div class="card shadow-sm">
+    <div class="card-header py-2" style="background:#0d2b27;">
+        <span class="text-white fw-semibold">
+            <i class="fas fa-table me-1" style="color:#5eead4;"></i>
+            Resumen de Bandas
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 tabla-resumen">
+                <thead>
+                    <tr>
+                        <th class="ps-3">Cargo / Nivel</th>
+                        <th class="text-end">Mínimo</th>
+                        <th class="text-end">Midpoint</th>
+                        <th class="text-end">Máximo</th>
+                        <th class="text-center">Amplitud %</th>
+                        <th class="text-center">Ver empleados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for banda in bandas %}
+                    <tr>
+                        <td class="ps-3">
+                            <div class="fw-semibold">{{ banda.cargo }}</div>
+                            <small class="text-muted">{{ banda.get_nivel_display }}</small>
+                        </td>
+                        <td class="text-end">S/ {{ banda.minimo|floatformat:2|intcomma }}</td>
+                        <td class="text-end fw-bold" style="color:#0f766e;">S/ {{ banda.medio|floatformat:2|intcomma }}</td>
+                        <td class="text-end" style="color:#1e40af;font-weight:600;">S/ {{ banda.maximo|floatformat:2|intcomma }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark">{{ banda.amplitud }}%</span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'personal_list' %}?cargo={{ banda.cargo|urlencode }}"
+                               class="btn btn-xs btn-outline-primary py-0 px-2"
+                               title="Ver empleados con este cargo">
+                                <i class="fas fa-users fa-xs me-1"></i>Ver empleados
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    const labels       = {{ chart_labels_json|safe }};
+    const chartMin     = {{ chart_min_json|safe }};
+    const chartRange   = {{ chart_range_json|safe }};
+    const chartRef     = {{ chart_ref_json|safe }};
+    const empPuntos    = {{ empleados_puntos_json|safe }};
+
+    if (!labels || labels.length === 0) return;
+
+    // ── Datasets ──────────────────────────────────────────────
+
+    // 1. Barra transparente desde 0 hasta minimo (para offset del rango)
+    const dsOffset = {
+        label: 'Offset',
+        data: chartMin,
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderColor: 'rgba(0,0,0,0)',
+        borderWidth: 0,
+        barPercentage: 0.5,
+        categoryPercentage: 0.7,
+        stack: 'banda',
+        skipNull: true,
+    };
+
+    // 2. Barra del rango (maximo - minimo)
+    const dsRango = {
+        label: 'Rango de banda',
+        data: chartRange,
+        backgroundColor: 'rgba(94,234,212,0.25)',
+        borderColor: '#5eead4',
+        borderWidth: 1,
+        barPercentage: 0.5,
+        categoryPercentage: 0.7,
+        stack: 'banda',
+    };
+
+    // 3. Punto del midpoint
+    const dsMid = {
+        type: 'scatter',
+        label: 'Midpoint',
+        data: labels.map(function (l, i) { return { x: chartRef[i], y: l }; }),
+        backgroundColor: '#0f766e',
+        borderColor: '#fff',
+        borderWidth: 2,
+        pointRadius: 7,
+        pointHoverRadius: 9,
+        stack: undefined,
+    };
+
+    // 4. Puntos de empleados, separados por estado
+    const empWithin = [];
+    const empBelow  = [];
+    const empAbove  = [];
+
+    empPuntos.forEach(function (p) {
+        const point = { x: p.x, y: labels[p.y], nombre: p.nombre };
+        if (p.estado === 'within') empWithin.push(point);
+        else if (p.estado === 'below') empBelow.push(point);
+        else empAbove.push(point);
+    });
+
+    const dsWithin = {
+        type: 'scatter',
+        label: 'Empleado en banda',
+        data: empWithin,
+        backgroundColor: 'rgba(14,165,233,0.75)',
+        borderColor: '#fff',
+        borderWidth: 1,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+    };
+    const dsBelow = {
+        type: 'scatter',
+        label: 'Empleado bajo banda',
+        data: empBelow,
+        backgroundColor: 'rgba(239,68,68,0.85)',
+        borderColor: '#fff',
+        borderWidth: 1,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+    };
+    const dsAbove = {
+        type: 'scatter',
+        label: 'Empleado sobre banda',
+        data: empAbove,
+        backgroundColor: 'rgba(249,115,22,0.85)',
+        borderColor: '#fff',
+        borderWidth: 1,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+    };
+
+    // ── Calcular rango X ──────────────────────────────────────
+    const allX = chartMin.concat(
+        chartMin.map(function (m, i) { return m + chartRange[i]; }),
+        empPuntos.map(function (p) { return p.x; })
+    ).filter(function (v) { return v !== null && v !== undefined; });
+    const xMin = Math.max(0, Math.min.apply(null, allX) * 0.9);
+    const xMax = Math.max.apply(null, allX) * 1.05;
+
+    // ── Render ────────────────────────────────────────────────
+    const ctx = document.getElementById('chartBandas');
+    if (!ctx) return;
+
+    // Altura dinámica basada en número de bandas
+    const alturaBase = Math.max(400, labels.length * 52);
+    ctx.style.height = alturaBase + 'px';
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [dsOffset, dsRango, dsMid, dsWithin, dsBelow, dsAbove],
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'nearest', intersect: true },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        filter: function (item) {
+                            return item.text !== 'Offset';
+                        },
+                        boxWidth: 14,
+                        font: { size: 12 },
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            if (ctx.dataset.label === 'Offset') return null;
+                            if (ctx.dataset.label === 'Rango de banda') {
+                                const idx = ctx.dataIndex;
+                                const mn = chartMin[idx];
+                                const mx = mn + chartRange[idx];
+                                return ' Rango: S/ ' + mn.toLocaleString() + ' – S/ ' + mx.toLocaleString();
+                            }
+                            if (ctx.dataset.label === 'Midpoint') {
+                                return ' Midpoint: S/ ' + ctx.parsed.x.toLocaleString();
+                            }
+                            // Empleados scatter
+                            const d = ctx.raw;
+                            const nombre = d.nombre || '';
+                            return ' ' + nombre + ': S/ ' + d.x.toLocaleString();
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    min: xMin,
+                    max: xMax,
+                    ticks: {
+                        callback: function (val) {
+                            return 'S/ ' + val.toLocaleString();
+                        },
+                        font: { size: 11 },
+                    },
+                    grid: { color: 'rgba(0,0,0,0.06)' },
+                    title: { display: true, text: 'Monto (S/)', font: { size: 12 } },
+                    stacked: true,
+                },
+                y: {
+                    stacked: true,
+                    ticks: { font: { size: 11 } },
+                    grid: { color: 'rgba(0,0,0,0.06)' },
+                },
+            },
+        },
+    });
+}());
+</script>
+{% endblock %}

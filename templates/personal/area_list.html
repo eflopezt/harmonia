@@ -4,85 +4,218 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-building"></i> Áreas</h2>
-    <div>
-        <a href="{% url 'area_export' %}" class="btn btn-success me-2">
-            <i class="fas fa-file-excel"></i> Exportar
-        </a>
-        {% if user.is_superuser %}
-        <a href="{% url 'area_import' %}" class="btn btn-info me-2">
-            <i class="fas fa-file-import"></i> Importar
-        </a>
-        <a href="{% url 'area_create' %}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nueva Área
-        </a>
-        {% endif %}
-    </div>
+  <div>
+    <h2 class="mb-0"><i class="fas fa-building me-2"></i>Áreas / Gerencias</h2>
+    <small class="text-muted">{{ total_count }} área{{ total_count|pluralize }} registrada{{ total_count|pluralize }}</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'area_export' %}" class="btn btn-outline-success btn-sm">
+      <i class="fas fa-file-excel me-1"></i>Exportar
+    </a>
+    {% if user.is_superuser %}
+    <a href="{% url 'area_import' %}" class="btn btn-outline-info btn-sm">
+      <i class="fas fa-file-import me-1"></i>Importar
+    </a>
+    <a href="{% url 'area_create' %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i>Nueva Área
+    </a>
+    {% endif %}
+  </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-body">
-        <form method="get" class="mb-3">
-            <div class="row">
-                <div class="col-md-6">
-                    <input type="text" name="buscar" class="form-control" placeholder="Buscar área..." value="{{ buscar }}">
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-secondary w-100">
-                        <i class="fas fa-search"></i> Buscar
-                    </button>
-                </div>
-            </div>
-        </form>
-
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Responsables</th>
-                        <th>Total SubÁreas</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for area in areas %}
-                    <tr>
-                        <td><strong>{{ area.nombre }}</strong></td>
-                        <td>
-                            {% for responsable in area.responsables.all %}
-                                {{ responsable }}{% if not forloop.last %}, {% endif %}
-                            {% empty %}
-                                -
-                            {% endfor %}
-                        </td>
-                        <td><span class="badge bg-info">{{ area.total_subareas }}</span></td>
-                        <td>
-                            {% if area.activa %}
-                                <span class="badge bg-success">Activa</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Inactiva</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if user.is_superuser %}
-                            <a href="{% url 'area_update' area.pk %}" class="btn btn-sm btn-warning">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            {% else %}
-                            <span class="text-muted">Solo lectura</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted">No hay áreas registradas</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{# Filtros #}
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input type="text" name="buscar" class="form-control" placeholder="Nombre, código o responsable..." value="{{ buscar }}">
         </div>
+      </div>
+      <div class="col-md-3">
+        <select name="activas" class="form-select form-select-sm">
+          <option value="1" {% if solo_activas == '1' %}selected{% endif %}>Solo activas</option>
+          <option value="0" {% if solo_activas == '0' %}selected{% endif %}>Todas (incl. inactivas)</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-secondary btn-sm w-100">Buscar</button>
+      </div>
+      {% if buscar or solo_activas == '0' %}
+      <div class="col-md-2">
+        <a href="{% url 'area_list' %}" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="fas fa-times me-1"></i>Limpiar
+        </a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{# Tabla enriquecida #}
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:5%">Cód.</th>
+            <th style="width:22%">Área / Gerencia</th>
+            <th style="width:18%">Jefe de Área</th>
+            <th style="width:18%">Responsables</th>
+            <th class="text-center" style="width:8%">SubÁreas</th>
+            <th class="text-center" style="width:15%">Headcount</th>
+            <th class="text-center" style="width:8%">Estado</th>
+            <th class="text-center" style="width:6%">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for area in areas %}
+          <tr class="{% if not area.activa %}table-secondary text-muted{% endif %}">
+            {# Código #}
+            <td class="ps-3">
+              {% if area.codigo %}
+              <code class="text-primary small">{{ area.codigo }}</code>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            {# Nombre #}
+            <td>
+              <a href="{% url 'area_detail' area.pk %}" class="fw-semibold text-decoration-none">
+                <i class="fas fa-building me-1 text-primary opacity-75"></i>{{ area.nombre }}
+              </a>
+              {% if area.descripcion %}
+              <div class="text-muted small text-truncate" style="max-width:200px" title="{{ area.descripcion }}">
+                {{ area.descripcion }}
+              </div>
+              {% endif %}
+            </td>
+            {# Jefe de área #}
+            <td>
+              {% if area.jefe_area %}
+              <a href="{% url 'personal_detail' area.jefe_area.pk %}" class="text-decoration-none small">
+                <i class="fas fa-user-tie me-1 text-muted"></i>
+                {{ area.jefe_area.apellidos_nombres }}
+              </a>
+              {% else %}
+              <span class="text-muted small">Sin asignar</span>
+              {% endif %}
+            </td>
+            {# Responsables adicionales #}
+            <td>
+              {% for r in area.responsables.all %}
+              <span class="badge bg-light text-dark border me-1 mb-1" style="font-size:.7rem">
+                {{ r.apellidos_nombres|truncatechars:25 }}
+              </span>
+              {% empty %}
+              <span class="text-muted small">—</span>
+              {% endfor %}
+            </td>
+            {# SubÁreas #}
+            <td class="text-center">
+              <span class="badge bg-info text-dark">{{ area.total_subareas }}</span>
+            </td>
+            {# Headcount con mini-breakdown STAFF/RCO #}
+            <td class="text-center">
+              {% if area.total_personal > 0 %}
+              <div class="fw-bold">{{ area.total_personal }}</div>
+              <div class="d-flex justify-content-center gap-1 mt-1">
+                {% if area.total_staff > 0 %}
+                <span class="badge bg-primary" style="font-size:.65rem" title="STAFF">S {{ area.total_staff }}</span>
+                {% endif %}
+                {% if area.total_rco > 0 %}
+                <span class="badge bg-warning text-dark" style="font-size:.65rem" title="RCO">R {{ area.total_rco }}</span>
+                {% endif %}
+              </div>
+              {% else %}
+              <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            {# Estado #}
+            <td class="text-center">
+              {% if area.activa %}
+              <span class="badge bg-success">Activa</span>
+              {% else %}
+              <span class="badge bg-secondary">Inactiva</span>
+              {% endif %}
+            </td>
+            {# Acciones #}
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{% url 'area_detail' area.pk %}" class="btn btn-outline-primary" title="Ver detalle">
+                  <i class="fas fa-eye"></i>
+                </a>
+                {% if user.is_superuser %}
+                <a href="{% url 'area_update' area.pk %}" class="btn btn-outline-warning" title="Editar">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{% url 'area_toggle' area.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-secondary"
+                          title="{% if area.activa %}Desactivar{% else %}Activar{% endif %}"
+                          onclick="return confirm('¿{% if area.activa %}Desactivar{% else %}Activar{% endif %} el área {{ area.nombre }}?')">
+                    <i class="fas fa-power-off"></i>
+                  </button>
+                </form>
+                {% if area.total_personal == 0 %}
+                <form method="post" action="{% url 'area_delete' area.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger" title="Eliminar"
+                          onclick="return confirm('¿Eliminar definitivamente el área {{ area.nombre }}?')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+                {% endif %}
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <i class="fas fa-building fa-2x mb-2 d-block opacity-25"></i>
+              No hay áreas registradas
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
+
+  {# Paginación #}
+  {% if areas.has_other_pages %}
+  <div class="card-footer">
+    <nav>
+      <ul class="pagination justify-content-center mb-0">
+        {% if areas.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ areas.previous_page_number }}&buscar={{ buscar }}&activas={{ solo_activas }}">
+            <i class="fas fa-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+        {% for num in areas.paginator.page_range %}
+          {% if areas.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num > areas.number|add:'-3' and num < areas.number|add:'3' %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&buscar={{ buscar }}&activas={{ solo_activas }}">{{ num }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+        {% if areas.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ areas.next_page_number }}&buscar={{ buscar }}&activas={{ solo_activas }}">
+            <i class="fas fa-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

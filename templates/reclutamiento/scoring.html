@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Scoring — {{ vacante.titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.score-bar-wrap {
+    background: #e2e8f0;
+    border-radius: 4px;
+    height: 10px;
+    overflow: hidden;
+    min-width: 80px;
+}
+.score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .4s ease;
+}
+.score-badge {
+    display: inline-block;
+    min-width: 44px;
+    text-align: center;
+    font-weight: 700;
+    font-size: .85rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    color: #fff;
+}
+.criteria-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 3px;
+}
+.criteria-ok   { background: #16a34a; }
+.criteria-no   { background: #cbd5e1; }
+.rank-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #0d2b27;
+    color: #5eead4;
+    font-size: .75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.rank-1 { background: #f59e0b; color: #fff; }
+.rank-2 { background: #94a3b8; color: #fff; }
+.rank-3 { background: #a16207; color: #fff; }
+.table th { white-space: nowrap; }
+.criteria-icons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">
+            <i class="fas fa-star-half-alt me-2" style="color:#5eead4"></i>Scoring de Candidatos
+        </h2>
+        <small class="text-muted">
+            <a href="{% url 'vacante_detalle' vacante.pk %}" class="text-decoration-none">{{ vacante.titulo }}</a>
+            &middot; {{ vacante.area|default:"Sin area" }}
+            &middot; {{ total }} candidato{{ total|pluralize }}
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reclutamiento_exportar_candidatos' vacante.pk %}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{% url 'vacante_detalle' vacante.pk %}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+</div>
+
+<!-- Leyenda de criterios -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-3 align-items-center" style="font-size:.8rem">
+            <strong class="text-muted me-1">Criterios:</strong>
+            <span><span class="criteria-dot criteria-ok"></span>Experiencia <strong>+30</strong></span>
+            <span><span class="criteria-dot criteria-ok"></span>Educacion <strong>+25</strong></span>
+            <span><span class="criteria-dot criteria-ok"></span>Salario en rango <strong>+20</strong></span>
+            <span><span class="criteria-dot criteria-ok"></span>Notas/Info adicional <strong>+10</strong></span>
+            <span><span class="criteria-dot criteria-ok"></span>Entrevista cal. &ge;8 <strong>+15</strong>, &ge;6 <strong>+8</strong></span>
+            <span class="ms-auto">
+                <span class="score-badge me-1" style="background:#16a34a">70+</span>Alto &nbsp;
+                <span class="score-badge me-1" style="background:#f59e0b">50+</span>Medio &nbsp;
+                <span class="score-badge" style="background:#dc2626">&lt;50</span>Bajo
+            </span>
+        </div>
+    </div>
+</div>
+
+{% if resultados %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.83rem">
+            <thead style="background:#0d2b27; color:#fff;">
+                <tr>
+                    <th class="ps-3" style="width:36px">#</th>
+                    <th>Candidato</th>
+                    <th style="width:160px">Score</th>
+                    <th class="text-center" style="width:110px">Criterios</th>
+                    <th class="text-center">Experiencia</th>
+                    <th class="text-center">Educacion</th>
+                    <th class="text-center">Pretension</th>
+                    <th class="text-center">Entrevista</th>
+                    <th style="width:180px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resultados %}
+                {% with p=r.postulacion d=r.detalle %}
+                <tr>
+                    <!-- Rank -->
+                    <td class="ps-3 py-2 align-middle">
+                        <span class="rank-number {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% endif %}">
+                            {{ forloop.counter }}
+                        </span>
+                    </td>
+
+                    <!-- Candidato -->
+                    <td class="py-2 align-middle">
+                        <div class="fw-semibold">
+                            <a href="{% url 'postulacion_detalle' p.pk %}" class="text-decoration-none text-dark">
+                                {{ p.nombre_completo }}
+                            </a>
+                        </div>
+                        <div class="text-muted" style="font-size:.75rem">
+                            {% if p.email %}<i class="fas fa-envelope me-1"></i>{{ p.email }}{% endif %}
+                            {% if p.etapa %}
+                            &nbsp;<span class="badge" style="background:{{ p.etapa.color }};font-size:.68rem">{{ p.etapa.nombre }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- Score + barra -->
+                    <td class="py-2 align-middle">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="score-badge" style="background:{{ r.color }}">{{ r.score }}</span>
+                            <div class="score-bar-wrap flex-grow-1">
+                                <div class="score-bar-fill" style="width:{{ r.score }}%;background:{{ r.color }}"></div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Criterios visuales -->
+                    <td class="py-2 align-middle text-center">
+                        <div class="criteria-icons justify-content-center">
+                            <span title="Experiencia ({{ d.experiencia }}pts)" class="criteria-dot {% if d.experiencia > 0 %}criteria-ok{% else %}criteria-no{% endif %}"></span>
+                            <span title="Educacion ({{ d.educacion }}pts)" class="criteria-dot {% if d.educacion > 0 %}criteria-ok{% else %}criteria-no{% endif %}"></span>
+                            <span title="Salario en rango ({{ d.salario }}pts)" class="criteria-dot {% if d.salario > 0 %}criteria-ok{% else %}criteria-no{% endif %}"></span>
+                            <span title="Notas/Info ({{ d.carta }}pts)" class="criteria-dot {% if d.carta > 0 %}criteria-ok{% else %}criteria-no{% endif %}"></span>
+                            <span title="Entrevista ({{ d.entrevista }}pts)" class="criteria-dot {% if d.entrevista > 0 %}criteria-ok{% else %}criteria-no{% endif %}"></span>
+                        </div>
+                    </td>
+
+                    <!-- Experiencia -->
+                    <td class="py-2 align-middle text-center">
+                        <span {% if d.experiencia > 0 %}class="text-success fw-semibold"{% else %}class="text-muted"{% endif %}>
+                            {{ p.experiencia_anos }}a
+                        </span>
+                        <span class="text-muted" style="font-size:.72rem">/ {{ vacante.experiencia_minima }}a req.</span>
+                    </td>
+
+                    <!-- Educacion -->
+                    <td class="py-2 align-middle text-center">
+                        <span {% if d.educacion > 0 %}class="text-success"{% else %}class="text-danger"{% endif %}
+                              style="font-size:.75rem">
+                            {{ p.get_educacion_display }}
+                        </span>
+                    </td>
+
+                    <!-- Pretension salarial -->
+                    <td class="py-2 align-middle text-center">
+                        {% if p.salario_pretendido %}
+                            <span {% if d.salario > 0 %}class="text-success fw-semibold"{% else %}class="text-danger"{% endif %}>
+                                S/ {{ p.salario_pretendido|floatformat:0|intcomma }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Entrevista -->
+                    <td class="py-2 align-middle text-center">
+                        {% with entrevistas=p.entrevistas.all %}
+                        {% if entrevistas %}
+                            {% for ent in entrevistas %}
+                            {% if ent.calificacion %}
+                                <span class="badge {% if ent.calificacion >= 8 %}bg-success{% elif ent.calificacion >= 6 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                    {{ ent.calificacion }}/10
+                                </span>
+                            {% endif %}
+                            {% endfor %}
+                            {% if not p.entrevistas.filter %}
+                                <span class="text-muted">Sin nota</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted" style="font-size:.75rem">Sin entrevista</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+
+                    <!-- Acciones -->
+                    <td class="py-2 align-middle">
+                        <div class="d-flex gap-1 flex-wrap">
+                            <a href="{% url 'entrevista_agendar' p.pk %}"
+                               class="btn btn-outline-info btn-sm py-0 px-2"
+                               style="font-size:.72rem" title="Programar entrevista">
+                                <i class="fas fa-calendar-plus"></i>
+                            </a>
+                            {% if p.estado == 'ACTIVA' %}
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary btn-sm py-0 px-2 dropdown-toggle"
+                                        style="font-size:.72rem"
+                                        data-bs-toggle="dropdown"
+                                        title="Avanzar etapa">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" style="font-size:.8rem">
+                                    {% for e in etapas %}
+                                    {% if e.pk != p.etapa_id %}
+                                    <li>
+                                        <a class="dropdown-item" href="#"
+                                           onclick="moverEtapaScoring({{ p.pk }}, '{{ e.pk }}', '{{ e.nombre|escapejs }}'); return false;">
+                                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ e.color }};margin-right:6px"></span>
+                                            {{ e.nombre }}
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            <a href="{% url 'postulacion_detalle' p.pk %}"
+                               class="btn btn-outline-secondary btn-sm py-0 px-2"
+                               style="font-size:.72rem" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="fas fa-users fa-3x mb-3 d-block" style="color:#cbd5e1"></i>
+    <p>No hay candidatos registrados para esta vacante.</p>
+    <a href="{% url 'vacante_detalle' vacante.pk %}" class="btn btn-sm btn-primary">
+        <i class="fas fa-user-plus me-1"></i>Agregar Candidatos
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfTokenScoring = '{{ csrf_token }}';
+
+function moverEtapaScoring(postId, etapaId, etapaNombre) {
+    if (!confirm(`Mover candidato a "${etapaNombre}"?`)) return;
+
+    fetch(`/reclutamiento/postulaciones/${postId}/mover/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfTokenScoring,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `nueva_etapa=${etapaId}`,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error al mover candidato');
+        }
+    })
+    .catch(() => alert('Error de conexion'));
+}
+</script>
+{% endblock %}

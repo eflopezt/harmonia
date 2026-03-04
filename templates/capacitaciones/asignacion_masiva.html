@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Asignación Masiva{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-users-cog text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Inscribir grupos de empleados a una capacitación</small>
+    </div>
+    <a href="{% url 'capacitaciones_panel' %}" class="btn btn-sm btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver al Panel
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Formulario -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm" style="border-left: 4px solid #5EEAD4;">
+            <div class="card-header py-2 px-3" style="background:#F0FFFE;">
+                <span class="fw-semibold" style="color:#0D2B27;"><i class="fas fa-clipboard-list me-1"></i>Configurar Asignación</span>
+            </div>
+            <div class="card-body">
+                <form method="post" id="formAsignacion">
+                    {% csrf_token %}
+
+                    <!-- Capacitación -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Capacitación <span class="text-danger">*</span></label>
+                        <select name="capacitacion" id="selCapacitacion" class="form-select" required onchange="actualizarPreview()">
+                            <option value="">Seleccionar capacitación...</option>
+                            {% for c in capacitaciones %}
+                            <option value="{{ c.pk }}">{{ c.titulo }} — {{ c.fecha_inicio|date:"d/m/Y" }} ({{ c.get_estado_display }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Tipo de filtro -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Asignar a</label>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3">
+                                <div class="form-check border rounded p-2 h-100" style="cursor:pointer;">
+                                    <input class="form-check-input" type="radio" name="filtro_tipo" id="ft_todos" value="todos" checked onchange="toggleFiltroValor()">
+                                    <label class="form-check-label d-block" for="ft_todos" style="cursor:pointer;">
+                                        <i class="fas fa-users text-primary d-block mb-1"></i>
+                                        <strong style="font-size:.85rem;">Todos los activos</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check border rounded p-2 h-100" style="cursor:pointer;">
+                                    <input class="form-check-input" type="radio" name="filtro_tipo" id="ft_area" value="area" onchange="toggleFiltroValor()">
+                                    <label class="form-check-label d-block" for="ft_area" style="cursor:pointer;">
+                                        <i class="fas fa-building text-success d-block mb-1"></i>
+                                        <strong style="font-size:.85rem;">Por Área</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check border rounded p-2 h-100" style="cursor:pointer;">
+                                    <input class="form-check-input" type="radio" name="filtro_tipo" id="ft_grupo" value="grupo" onchange="toggleFiltroValor()">
+                                    <label class="form-check-label d-block" for="ft_grupo" style="cursor:pointer;">
+                                        <i class="fas fa-layer-group text-warning d-block mb-1"></i>
+                                        <strong style="font-size:.85rem;">Por Grupo</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check border rounded p-2 h-100" style="cursor:pointer;">
+                                    <input class="form-check-input" type="radio" name="filtro_tipo" id="ft_cargo" value="cargo" onchange="toggleFiltroValor()">
+                                    <label class="form-check-label d-block" for="ft_cargo" style="cursor:pointer;">
+                                        <i class="fas fa-id-badge text-info d-block mb-1"></i>
+                                        <strong style="font-size:.85rem;">Por Cargo</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Valor del filtro (condicional) -->
+                    <div class="mb-3" id="wrapFiltroValor" style="display:none;">
+                        <label class="form-label fw-semibold" id="labelFiltroValor">Valor del filtro</label>
+                        <!-- Para area -->
+                        <select name="filtro_valor" id="selArea" class="form-select" style="display:none;" onchange="actualizarPreview()">
+                            <option value="">Seleccionar área...</option>
+                            {% for a in areas %}
+                            <option value="{{ a.pk }}">{{ a.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <!-- Para grupo -->
+                        <select name="filtro_valor" id="selGrupo" class="form-select" style="display:none;" onchange="actualizarPreview()">
+                            <option value="">Seleccionar grupo...</option>
+                            <option value="STAFF">STAFF</option>
+                            <option value="RCO">RCO</option>
+                        </select>
+                        <!-- Para cargo -->
+                        <input type="text" name="filtro_valor" id="inpCargo" class="form-control" placeholder="Ej: Ingeniero, Supervisor..." style="display:none;" oninput="actualizarPreviewDebounce()">
+                    </div>
+
+                    <!-- Preview count -->
+                    <div id="previewPanel" class="alert alert-light border mb-3" style="display:none;">
+                        <div class="d-flex align-items-center gap-3">
+                            <div id="previewSpinner" style="display:none;">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            </div>
+                            <div id="previewTexto" class="flex-grow-1">
+                                <span class="fw-semibold text-primary" id="previewNuevos">—</span> empleados serán inscritos
+                                <span class="text-muted ms-2" id="previewYa"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="btnConfirmar">
+                            <i class="fas fa-user-plus me-1"></i>Confirmar Asignación
+                        </button>
+                        <a href="{% url 'capacitaciones_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar info -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2 px-3" style="background:#F0FFFE;">
+                <span class="fw-semibold" style="color:#0D2B27;"><i class="fas fa-info-circle me-1"></i>Cómo funciona</span>
+            </div>
+            <div class="card-body" style="font-size:.88rem;">
+                <ul class="mb-0 ps-3">
+                    <li class="mb-1">Selecciona la capacitación destino.</li>
+                    <li class="mb-1">Elige el grupo: todos los activos, por área, por grupo de tareo o por cargo.</li>
+                    <li class="mb-1">El sistema usa <strong>get_or_create</strong>: no duplica inscripciones existentes.</li>
+                    <li class="mb-1">Los empleados quedarán en estado <strong>Inscrito</strong>.</li>
+                    <li>Podrás actualizar asistencia y notas individualmente desde el detalle.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header py-2 px-3" style="background:#F0FFFE;">
+                <span class="fw-semibold" style="color:#0D2B27;"><i class="fas fa-calendar-check me-1"></i>Próximas Capacitaciones</span>
+            </div>
+            <div class="list-group list-group-flush" style="font-size:.83rem;">
+                {% for c in capacitaciones|slice:":6" %}
+                <div class="list-group-item d-flex justify-content-between align-items-start py-2">
+                    <div>
+                        <div class="fw-semibold">{{ c.titulo|truncatechars:35 }}</div>
+                        <small class="text-muted">{{ c.fecha_inicio|date:"d/m/Y" }} — {{ c.get_tipo_display }}</small>
+                    </div>
+                    <span class="badge bg-light text-dark ms-2">{{ c.num_inscritos }}</span>
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted text-center py-3">Sin capacitaciones disponibles.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let previewDebounceTimer = null;
+
+function toggleFiltroValor() {
+    const tipo = document.querySelector('input[name="filtro_tipo"]:checked').value;
+    const wrap = document.getElementById('wrapFiltroValor');
+    const selArea = document.getElementById('selArea');
+    const selGrupo = document.getElementById('selGrupo');
+    const inpCargo = document.getElementById('inpCargo');
+    const label = document.getElementById('labelFiltroValor');
+
+    selArea.style.display = 'none';
+    selGrupo.style.display = 'none';
+    inpCargo.style.display = 'none';
+    // Disable all to avoid sending multiple filtro_valor params
+    selArea.disabled = true;
+    selGrupo.disabled = true;
+    inpCargo.disabled = true;
+
+    if (tipo === 'todos') {
+        wrap.style.display = 'none';
+    } else {
+        wrap.style.display = 'block';
+        if (tipo === 'area') {
+            label.textContent = 'Área';
+            selArea.style.display = 'block';
+            selArea.disabled = false;
+        } else if (tipo === 'grupo') {
+            label.textContent = 'Grupo de Tareo';
+            selGrupo.style.display = 'block';
+            selGrupo.disabled = false;
+        } else if (tipo === 'cargo') {
+            label.textContent = 'Cargo (búsqueda parcial)';
+            inpCargo.style.display = 'block';
+            inpCargo.disabled = false;
+        }
+    }
+    actualizarPreview();
+}
+
+function getFiltroValor() {
+    const tipo = document.querySelector('input[name="filtro_tipo"]:checked').value;
+    if (tipo === 'area') return document.getElementById('selArea').value;
+    if (tipo === 'grupo') return document.getElementById('selGrupo').value;
+    if (tipo === 'cargo') return document.getElementById('inpCargo').value;
+    return '';
+}
+
+function actualizarPreview() {
+    const capId = document.getElementById('selCapacitacion').value;
+    const tipo = document.querySelector('input[name="filtro_tipo"]:checked').value;
+    const valor = getFiltroValor();
+
+    const panel = document.getElementById('previewPanel');
+    panel.style.display = 'block';
+
+    const params = new URLSearchParams({
+        preview: '1',
+        capacitacion: capId,
+        filtro_tipo: tipo,
+        filtro_valor: valor,
+    });
+
+    document.getElementById('previewSpinner').style.display = 'inline-block';
+
+    fetch(`?${params}`)
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('previewNuevos').textContent = d.nuevos;
+            const yaEl = document.getElementById('previewYa');
+            if (d.ya_inscritos > 0) {
+                yaEl.textContent = `(${d.ya_inscritos} ya inscritos, se omitirán)`;
+            } else {
+                yaEl.textContent = '';
+            }
+            document.getElementById('previewSpinner').style.display = 'none';
+        })
+        .catch(() => {
+            document.getElementById('previewSpinner').style.display = 'none';
+        });
+}
+
+function actualizarPreviewDebounce() {
+    clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = setTimeout(actualizarPreview, 500);
+}
+
+// Init state
+toggleFiltroValor();
+</script>
+{% endblock %}

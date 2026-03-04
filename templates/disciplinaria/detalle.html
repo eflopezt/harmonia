@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ medida.get_tipo_medida_display }} — {{ medida.personal.apellidos_nombres }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Timeline disciplinario ── */
+.disc-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+.disc-timeline::before {
+    content: '';
+    position: absolute;
+    left: .6rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+.disc-timeline-item {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+.disc-timeline-item:last-child {
+    margin-bottom: 0;
+}
+.disc-timeline-dot {
+    position: absolute;
+    left: -1.65rem;
+    top: .2rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+    background: #adb5bd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.disc-timeline-dot.done     { background: #198754; box-shadow: 0 0 0 2px #198754; }
+.disc-timeline-dot.active   { background: #ffc107; box-shadow: 0 0 0 2px #ffc107; }
+.disc-timeline-dot.danger   { background: #dc3545; box-shadow: 0 0 0 2px #dc3545; }
+.disc-timeline-dot.pending  { background: #e9ecef; box-shadow: 0 0 0 2px #ced4da; }
+.disc-timeline-label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #495057;
+    line-height: 1.3;
+}
+.disc-timeline-sub {
+    font-size: .75rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-gavel text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ medida.tipo_falta.nombre }} — {{ medida.fecha_hechos|date:"d/m/Y" }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'disciplinaria_exportar' %}" class="btn btn-sm btn-outline-success" title="Exportar reporte Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar
+        </a>
+        <a href="{% url 'disciplinaria_panel' %}" class="btn btn-sm btn-secondary">Volver</a>
+    </div>
+</div>
+
+{% if medida.escalamiento_requerido %}
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle me-1"></i>
+    <strong>Alerta de escalamiento:</strong> Este trabajador tiene 3+ amonestaciones escritas en los últimos 12 meses.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <!-- Info principal -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between">
+                <span>Información de la Medida</span>
+                {% if medida.estado == 'BORRADOR' %}<span class="badge bg-light text-dark">Borrador</span>
+                {% elif medida.estado == 'NOTIFICADA' %}<span class="badge bg-primary">Notificada</span>
+                {% elif medida.estado == 'EN_DESCARGO' %}<span class="badge bg-warning text-dark">En Descargo</span>
+                {% elif medida.estado == 'DESCARGO_RECIBIDO' %}<span class="badge bg-info text-dark">Descargo Recibido</span>
+                {% elif medida.estado == 'RESUELTA' %}<span class="badge bg-success">Resuelta</span>
+                {% elif medida.estado == 'ANULADA' %}<span class="badge bg-secondary">Anulada</span>
+                {% else %}<span class="badge bg-secondary">{{ medida.get_estado_display }}</span>{% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Trabajador:</strong></div>
+                    <div class="col-8">{{ medida.personal.apellidos_nombres }} ({{ medida.personal.nro_doc }})</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Tipo Medida:</strong></div>
+                    <div class="col-8">
+                        {% if medida.tipo_medida == 'VERBAL' %}<span class="badge bg-info me-1">Verbal</span>
+                        {% elif medida.tipo_medida == 'ESCRITA' %}<span class="badge bg-warning text-dark me-1">Escrita</span>
+                        {% elif medida.tipo_medida == 'SUSPENSION' %}<span class="badge bg-danger me-1">Suspensión</span>
+                        {% elif medida.tipo_medida == 'DESPIDO' %}<span class="badge bg-dark me-1">Despido</span>{% endif %}
+                        {{ medida.get_tipo_medida_display }}
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Tipo Falta:</strong></div>
+                    <div class="col-8">
+                        {{ medida.tipo_falta.nombre }}
+                        {% if medida.tipo_falta.gravedad == 'LEVE' %}<span class="badge bg-warning text-dark ms-1">Leve</span>
+                        {% elif medida.tipo_falta.gravedad == 'GRAVE' %}<span class="badge bg-danger ms-1">Grave</span>
+                        {% elif medida.tipo_falta.gravedad == 'MUY_GRAVE' %}<span class="badge bg-dark ms-1">Muy Grave</span>{% endif %}
+                    </div>
+                </div>
+                {% if medida.tipo_falta.base_legal %}
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Base Legal:</strong></div>
+                    <div class="col-8 text-muted">{{ medida.tipo_falta.base_legal }}</div>
+                </div>
+                {% endif %}
+                {% if medida.dias_suspension %}
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Días Suspensión:</strong></div>
+                    <div class="col-8">{{ medida.dias_suspension }} día{{ medida.dias_suspension|pluralize }}</div>
+                </div>
+                {% endif %}
+                {% if medida.fecha_cese %}
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Fecha Cese:</strong></div>
+                    <div class="col-8 text-danger fw-semibold">{{ medida.fecha_cese|date:"d/m/Y" }}</div>
+                </div>
+                {% endif %}
+                <hr>
+                <h6 class="text-secondary"><i class="fas fa-file-alt me-1"></i>Descripción de los Hechos</h6>
+                <p class="mb-0" style="white-space: pre-line;">{{ medida.descripcion_hechos }}</p>
+                {% if medida.testigos %}
+                <hr><h6 class="text-secondary"><i class="fas fa-users me-1"></i>Testigos</h6>
+                <p class="mb-0">{{ medida.testigos }}</p>
+                {% endif %}
+                {% if medida.resolucion %}
+                <hr><h6 class="text-secondary"><i class="fas fa-stamp me-1"></i>Resolución</h6>
+                <p class="mb-0" style="white-space: pre-line;">{{ medida.resolucion }}</p>
+                {% if medida.resuelto_por %}
+                <small class="text-muted">Resuelto por {{ medida.resuelto_por.get_full_name|default:medida.resuelto_por.username }}{% if medida.fecha_resolucion %} el {{ medida.fecha_resolucion|date:"d/m/Y" }}{% endif %}</small>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Documentos -->
+        {% if medida.evidencias or medida.documento_preaviso or medida.documento_resolucion %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header"><i class="fas fa-paperclip me-1"></i>Documentos Adjuntos</div>
+            <div class="card-body">
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if medida.evidencias %}
+                    <a href="{{ medida.evidencias.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-file me-1"></i>Evidencias
+                    </a>
+                    {% endif %}
+                    {% if medida.documento_preaviso %}
+                    <a href="{{ medida.documento_preaviso.url }}" target="_blank" class="btn btn-sm btn-outline-warning">
+                        <i class="fas fa-envelope me-1"></i>Carta Preaviso
+                    </a>
+                    {% endif %}
+                    {% if medida.documento_resolucion %}
+                    <a href="{{ medida.documento_resolucion.url }}" target="_blank" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-stamp me-1"></i>Resolución
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Panel lateral -->
+    <div class="col-md-4">
+
+        <!-- ── TIMELINE DEL PROCESO ── -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header">
+                <i class="fas fa-stream me-1"></i>Timeline del Proceso
+                <span class="float-end">
+                    {% if medida.estado == 'BORRADOR' %}<span class="badge bg-light text-dark">Borrador</span>
+                    {% elif medida.estado == 'NOTIFICADA' %}<span class="badge bg-primary">Notificada</span>
+                    {% elif medida.estado == 'EN_DESCARGO' %}<span class="badge bg-warning text-dark">En Proceso</span>
+                    {% elif medida.estado == 'DESCARGO_RECIBIDO' %}<span class="badge bg-info text-dark">En Proceso</span>
+                    {% elif medida.estado == 'RESUELTA' %}<span class="badge bg-success">Resuelta</span>
+                    {% elif medida.estado == 'ANULADA' %}<span class="badge bg-secondary">Archivado</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="disc-timeline">
+
+                    <!-- Paso 1: Hechos registrados -->
+                    <div class="disc-timeline-item">
+                        <div class="disc-timeline-dot done"></div>
+                        <div class="disc-timeline-label">
+                            <i class="fas fa-pencil-alt me-1 text-success"></i>Hechos Registrados
+                        </div>
+                        <div class="disc-timeline-sub">{{ medida.fecha_hechos|date:"d/m/Y" }}</div>
+                        <div class="disc-timeline-sub">Tipo: {{ medida.get_tipo_medida_display }}</div>
+                    </div>
+
+                    <!-- Paso 2: Carta de Preaviso -->
+                    <div class="disc-timeline-item">
+                        {% if medida.fecha_carta_preaviso %}
+                        <div class="disc-timeline-dot done"></div>
+                        <div class="disc-timeline-label">
+                            <i class="fas fa-envelope me-1 text-success"></i>Carta Preaviso Emitida
+                        </div>
+                        <div class="disc-timeline-sub">{{ medida.fecha_carta_preaviso|date:"d/m/Y" }}</div>
+                        <div class="disc-timeline-sub">Art. 31 DS 003-97-TR — Imputación de cargos</div>
+                        {% else %}
+                        <div class="disc-timeline-dot {% if medida.estado == 'BORRADOR' %}active{% else %}pending{% endif %}"></div>
+                        <div class="disc-timeline-label text-muted">
+                            <i class="fas fa-envelope me-1"></i>Carta Preaviso
+                        </div>
+                        <div class="disc-timeline-sub">
+                            {% if medida.estado == 'BORRADOR' %}Pendiente de notificación{% else %}No aplica{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Paso 3: Plazo de Descargo -->
+                    <div class="disc-timeline-item">
+                        {% if medida.fecha_limite_descargo %}
+                        <div class="disc-timeline-dot {% if medida.dias_para_descargo == 0 and medida.estado == 'EN_DESCARGO' %}danger{% elif medida.estado in 'EN_DESCARGO,NOTIFICADA' %}active{% else %}done{% endif %}"></div>
+                        <div class="disc-timeline-label">
+                            {% if medida.estado == 'EN_DESCARGO' %}
+                            <i class="fas fa-hourglass-half me-1 text-warning"></i>Plazo Descargo — En Curso
+                            {% else %}
+                            <i class="fas fa-hourglass-end me-1 text-success"></i>Plazo Descargo — Cerrado
+                            {% endif %}
+                        </div>
+                        <div class="disc-timeline-sub">Límite: {{ medida.fecha_limite_descargo|date:"d/m/Y" }}</div>
+                        <div class="disc-timeline-sub">
+                            6 días hábiles (Art. 31 DS 003-97-TR)
+                            {% if medida.estado == 'EN_DESCARGO' %}
+                            — {% if medida.dias_para_descargo > 0 %}<span class="text-warning fw-semibold">{{ medida.dias_para_descargo }}d restantes</span>{% else %}<span class="text-danger fw-semibold">VENCIDO</span>{% endif %}
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="disc-timeline-dot pending"></div>
+                        <div class="disc-timeline-label text-muted">
+                            <i class="fas fa-hourglass-half me-1"></i>Plazo Descargo
+                        </div>
+                        <div class="disc-timeline-sub">Se calcula al notificar (6 días hábiles)</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Paso 4: Recepción del Descargo -->
+                    <div class="disc-timeline-item">
+                        {% with primer_descargo=descargos|first %}
+                        {% if primer_descargo %}
+                        <div class="disc-timeline-dot done"></div>
+                        <div class="disc-timeline-label">
+                            <i class="fas fa-comment-dots me-1 text-success"></i>Descargo Recibido
+                        </div>
+                        <div class="disc-timeline-sub">{{ primer_descargo.fecha_presentacion|date:"d/m/Y" }}</div>
+                        <div class="disc-timeline-sub">
+                            {% if primer_descargo.presentado_a_tiempo %}
+                            <span class="text-success">Presentado a tiempo</span>
+                            {% else %}
+                            <span class="text-danger">Presentado fuera de plazo</span>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="disc-timeline-dot {% if medida.estado in 'EN_DESCARGO,NOTIFICADA' %}active{% else %}pending{% endif %}"></div>
+                        <div class="disc-timeline-label text-muted">
+                            <i class="fas fa-comment-dots me-1"></i>Descargo del Trabajador
+                        </div>
+                        <div class="disc-timeline-sub">
+                            {% if medida.estado in 'EN_DESCARGO,NOTIFICADA' %}Esperando descargo{% else %}Sin descargo{% endif %}
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+
+                    <!-- Paso 5: Resolución -->
+                    <div class="disc-timeline-item">
+                        {% if medida.fecha_resolucion %}
+                        <div class="disc-timeline-dot {% if medida.estado == 'ANULADA' %}pending{% else %}done{% endif %}"></div>
+                        <div class="disc-timeline-label">
+                            <i class="fas fa-stamp me-1 {% if medida.estado == 'ANULADA' %}text-secondary{% else %}text-success{% endif %}"></i>
+                            {% if medida.estado == 'ANULADA' %}Anulado{% else %}Resolución Emitida{% endif %}
+                        </div>
+                        <div class="disc-timeline-sub">{{ medida.fecha_resolucion|date:"d/m/Y" }}</div>
+                        {% if medida.resuelto_por %}
+                        <div class="disc-timeline-sub">Por: {{ medida.resuelto_por.get_full_name|default:medida.resuelto_por.username }}</div>
+                        {% endif %}
+                        {% else %}
+                        <div class="disc-timeline-dot {% if medida.estado == 'DESCARGO_RECIBIDO' %}active{% else %}pending{% endif %}"></div>
+                        <div class="disc-timeline-label text-muted">
+                            <i class="fas fa-stamp me-1"></i>Resolución Final
+                        </div>
+                        <div class="disc-timeline-sub">Art. 32 DS 003-97-TR — Resolución escrita</div>
+                        {% endif %}
+                    </div>
+
+                </div><!-- /disc-timeline -->
+            </div>
+        </div>
+
+        <!-- Plazo vigente (solo si en descargo) -->
+        {% if medida.fecha_limite_descargo and medida.estado == 'EN_DESCARGO' %}
+        <div class="card shadow-sm mb-3 border-{% if medida.dias_para_descargo > 2 %}warning{% elif medida.dias_para_descargo > 0 %}danger{% else %}danger{% endif %}">
+            <div class="card-body text-center">
+                <h6 class="text-secondary">Plazo de Descargo</h6>
+                <div class="fs-2 fw-bold {% if medida.dias_para_descargo > 0 %}text-warning{% else %}text-danger{% endif %}">
+                    {% if medida.dias_para_descargo > 0 %}{{ medida.dias_para_descargo }} día{{ medida.dias_para_descargo|pluralize }}{% else %}VENCIDO{% endif %}
+                </div>
+                <small class="text-muted">Límite: {{ medida.fecha_limite_descargo|date:"d/m/Y" }}</small>
+                {% if medida.dias_para_descargo == 0 %}
+                <div class="mt-1"><span class="badge bg-danger">El plazo ha vencido</span></div>
+                {% elif medida.dias_para_descargo == 1 %}
+                <div class="mt-1"><span class="badge bg-danger">Vence mañana — URGENTE</span></div>
+                {% elif medida.dias_para_descargo <= 2 %}
+                <div class="mt-1"><span class="badge bg-warning text-dark">Próximo a vencer</span></div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Acciones -->
+        {% if medida.estado == 'BORRADOR' %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h6><i class="fas fa-paper-plane me-1"></i>Notificar al Trabajador</h6>
+                <form method="post" action="{% url 'medida_notificar' medida.pk %}" enctype="multipart/form-data" id="formNotificar">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label small">Fecha Preaviso</label>
+                        <input type="date" name="fecha_preaviso" class="form-control form-control-sm">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Carta (PDF)</label>
+                        <input type="file" name="documento_preaviso" class="form-control form-control-sm">
+                    </div>
+                    <button type="button" class="btn btn-sm btn-warning w-100" onclick="notificarMedida()">
+                        <i class="fas fa-paper-plane me-1"></i>Notificar y Calcular Plazo
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if medida.estado == 'EN_DESCARGO' or medida.estado == 'NOTIFICADA' or medida.estado == 'DESCARGO_RECIBIDO' %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h6><i class="fas fa-check-circle me-1"></i>Resolver Medida</h6>
+                <form method="post" action="{% url 'medida_resolver' medida.pk %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label small">Resolución <span class="text-danger">*</span></label>
+                        <textarea name="resolucion" class="form-control form-control-sm" rows="3" required
+                                  placeholder="Decisión final motivada (Art. 32 DS 003-97-TR)"></textarea>
+                    </div>
+                    {% if medida.tipo_medida == 'SUSPENSION' %}
+                    <div class="mb-2">
+                        <label class="form-label small">Días Suspensión</label>
+                        <input type="number" name="dias_suspension" class="form-control form-control-sm" min="1">
+                    </div>
+                    {% endif %}
+                    {% if medida.tipo_medida == 'DESPIDO' %}
+                    <div class="mb-2">
+                        <label class="form-label small">Fecha Cese <span class="text-danger">*</span></label>
+                        <input type="date" name="fecha_cese" class="form-control form-control-sm">
+                    </div>
+                    {% endif %}
+                    <div class="mb-2">
+                        <label class="form-label small">Documento Resolución (PDF)</label>
+                        <input type="file" name="documento_resolucion" class="form-control form-control-sm">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-success w-100">
+                        <i class="fas fa-check me-1"></i>Emitir Resolución
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Registrado por -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="text-muted" style="font-size:.78rem;">
+                    <i class="fas fa-user-edit me-1"></i>
+                    Registrado por <strong>{{ medida.registrado_por.get_full_name|default:medida.registrado_por.username|default:"Sistema" }}</strong><br>
+                    {{ medida.creado_en|date:"d/m/Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── DESCARGOS ── -->
+<h5 class="mb-2"><i class="fas fa-comment-dots me-1"></i>Descargos del Trabajador</h5>
+
+{% if medida.estado == 'EN_DESCARGO' or medida.estado == 'NOTIFICADA' %}
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h6>Registrar Descargo</h6>
+        <form id="formDescargo">
+            {% csrf_token %}
+            <div class="mb-2">
+                <textarea name="texto" class="form-control" rows="4"
+                          placeholder="Texto del descargo presentado por el trabajador..." required></textarea>
+            </div>
+            <div class="row">
+                <div class="col-6 mb-2">
+                    <label class="form-label small">Fecha Presentación</label>
+                    <input type="date" name="fecha_presentacion" class="form-control form-control-sm">
+                </div>
+                <div class="col-6 mb-2">
+                    <label class="form-label small">Adjuntos</label>
+                    <input type="file" name="adjuntos" class="form-control form-control-sm">
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" onclick="registrarDescargo()">
+                <i class="fas fa-save me-1"></i>Registrar Descargo
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% for d in descargos %}
+<div class="card shadow-sm mb-2">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <small class="text-muted"><i class="fas fa-calendar-alt me-1"></i>{{ d.fecha_presentacion|date:"d/m/Y" }}</small>
+        <div class="d-flex gap-2 align-items-center">
+            {% if d.presentado_a_tiempo %}<span class="badge bg-success">A tiempo</span>
+            {% else %}<span class="badge bg-danger">Fuera de plazo</span>{% endif %}
+            <span class="badge bg-{% if d.estado == 'ACEPTADO' %}success{% elif d.estado == 'RECHAZADO' %}danger{% elif d.estado == 'EN_REVISION' %}warning text-dark{% else %}secondary{% endif %}">
+                {{ d.get_estado_display }}
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        <p class="mb-2" style="white-space: pre-line;">{{ d.texto }}</p>
+        {% if d.archivos_adjuntos %}
+        <a href="{{ d.archivos_adjuntos.url }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0 px-2">
+            <i class="fas fa-paperclip me-1"></i>Adjunto
+        </a>
+        {% endif %}
+        {% if d.evaluacion %}
+        <div class="mt-2 p-2 bg-light rounded">
+            <strong class="text-secondary">Evaluación HR/Legal:</strong><br>{{ d.evaluacion }}
+            {% if d.revisado_por %}<br><small class="text-muted">— {{ d.revisado_por.get_full_name|default:d.revisado_por.username }}{% if d.fecha_revision %}, {{ d.fecha_revision|date:"d/m/Y" }}{% endif %}</small>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="alert alert-light text-muted">
+    <i class="fas fa-info-circle me-1"></i>No hay descargos registrados para esta medida.
+</div>
+{% endfor %}
+
+<!-- ── HISTORIAL PREVIO ── -->
+{% if historial %}
+<h5 class="mt-4 mb-2"><i class="fas fa-history me-1"></i>Historial Previo del Trabajador</h5>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0" style="font-size:.8rem;">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Falta</th>
+                    <th>Fecha</th>
+                    <th>Resultado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in historial %}
+                <tr>
+                    <td>
+                        {% if h.tipo_medida == 'VERBAL' %}<span class="badge bg-info">Verbal</span>
+                        {% elif h.tipo_medida == 'ESCRITA' %}<span class="badge bg-warning text-dark">Escrita</span>
+                        {% elif h.tipo_medida == 'SUSPENSION' %}<span class="badge bg-danger">Suspensión</span>
+                        {% elif h.tipo_medida == 'DESPIDO' %}<span class="badge bg-dark">Despido</span>{% endif %}
+                    </td>
+                    <td>{{ h.tipo_falta.nombre|truncatechars:20 }}</td>
+                    <td>{{ h.fecha_hechos|date:"d/m/Y" }}</td>
+                    <td>{{ h.resolucion|truncatechars:40 }}</td>
+                    <td><a href="{% url 'medida_detalle' h.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-1"><i class="fas fa-eye"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function registrarDescargo() {
+    const form = document.getElementById('formDescargo');
+    const fd = new FormData(form);
+    fetch("{% url 'descargo_registrar' medida.pk %}", {method: 'POST', body: fd})
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) location.reload();
+            else alert(d.error || 'Error al registrar el descargo.');
+        })
+        .catch(() => alert('Error de conexión.'));
+}
+
+function notificarMedida() {
+    const form = document.getElementById('formNotificar');
+    const fd = new FormData(form);
+    fetch("{% url 'medida_notificar' medida.pk %}", {method: 'POST', body: fd})
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                if (d.fecha_limite) {
+                    alert('Notificado. Fecha límite de descargo: ' + d.fecha_limite);
+                }
+                location.reload();
+            } else {
+                alert(d.error || 'Error al notificar.');
+            }
+        })
+        .catch(() => alert('Error de conexión.'));
+}
+</script>
+{% endblock %}

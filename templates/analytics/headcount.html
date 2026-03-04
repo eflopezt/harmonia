@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Headcount Detallado — Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI row ── */
+.hc-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.hc-kpi {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-top: 3px solid transparent;
+}
+.hc-kpi .kpi-label { font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem; }
+.hc-kpi .kpi-value { font-size:1.7rem;font-weight:700;line-height:1.1; }
+.hc-kpi .kpi-sub   { font-size:.73rem;color:#9ca3af;margin-top:.2rem; }
+
+/* ── Área bars ── */
+.area-bar { display:flex;align-items:center;margin-bottom:.45rem; }
+.area-bar .label { width:160px;font-size:.82rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.area-bar .bar-wrap { flex:1;display:flex;height:24px;border-radius:4px;overflow:hidden;background:#f3f4f6; }
+.area-bar .bar-staff { background:#0f766e; }
+.area-bar .bar-rco   { background:#5eead4; }
+.area-bar .count { width:44px;text-align:right;font-size:.82rem;font-weight:600;color:#374151; }
+
+/* ── Chart containers ── */
+.chart-container {
+    background:#fff;border-radius:.75rem;
+    padding:1.25rem 1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ── Rotation badge ── */
+.rot-badge {
+    font-size:.78rem;font-weight:600;
+    padding:.25rem .75rem;border-radius:999px;
+    display:inline-block;
+}
+.rot-ok   { background:#dcfce7;color:#16a34a; }
+.rot-warn { background:#fef3c7;color:#b45309; }
+.rot-high { background:#fee2e2;color:#dc2626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0 fw-bold"><i class="fas fa-users me-2" style="color:#0f766e"></i>Headcount Detallado</h2>
+        <p class="text-muted mb-0" style="font-size:.82rem">Análisis de fuerza laboral activa — tendencia, distribución y rotación</p>
+    </div>
+    <a href="{% url 'analytics_dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Dashboard
+    </a>
+</div>
+
+<!-- KPI Cards -->
+<div class="hc-kpi-grid">
+    <div class="hc-kpi" style="border-top-color:#0f766e">
+        <div class="kpi-label">Total Activos</div>
+        <div class="kpi-value" style="color:#0f766e">{{ total }}</div>
+        <div class="kpi-sub">Empleados al día de hoy</div>
+    </div>
+    <div class="hc-kpi" style="border-top-color:#5eead4">
+        <div class="kpi-label">Rotación 12 meses</div>
+        <div class="kpi-value">
+            <span class="rot-badge {% if tasa_rotacion_anual >= 15 %}rot-high{% elif tasa_rotacion_anual >= 8 %}rot-warn{% else %}rot-ok{% endif %}">
+                {{ tasa_rotacion_anual }}%
+            </span>
+        </div>
+        <div class="kpi-sub">{{ total_altas_12 }} altas · {{ total_bajas_12 }} bajas</div>
+    </div>
+    <div class="hc-kpi" style="border-top-color:#3b82f6">
+        <div class="kpi-label">Masculino</div>
+        <div class="kpi-value" style="color:#3b82f6">{{ genero_m }}</div>
+        <div class="kpi-sub">
+            {% if total %}{% widthratio genero_m total 100 %}% del total{% endif %}
+        </div>
+    </div>
+    <div class="hc-kpi" style="border-top-color:#a855f7">
+        <div class="kpi-label">Femenino</div>
+        <div class="kpi-value" style="color:#a855f7">{{ genero_f }}</div>
+        <div class="kpi-sub">
+            {% if total %}{% widthratio genero_f total 100 %}% del total{% endif %}
+        </div>
+    </div>
+    <div class="hc-kpi" style="border-top-color:#f59e0b">
+        <div class="kpi-label">Antigüedad &lt; 1 año</div>
+        <div class="kpi-value" style="color:#f59e0b">{{ antiguedad.menos_1 }}</div>
+        <div class="kpi-sub">Ingresos recientes</div>
+    </div>
+    <div class="hc-kpi" style="border-top-color:#10b981">
+        <div class="kpi-label">Antigüedad &gt; 5 años</div>
+        <div class="kpi-value" style="color:#10b981">{{ antiguedad.mas_5 }}</div>
+        <div class="kpi-sub">Personal fidelizado</div>
+    </div>
+</div>
+
+<!-- Row 1: Tendencia mensual + Altas/Bajas -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-chart-line me-1 text-muted"></i>Tendencia Headcount — Últimos 12 meses
+            </h6>
+            <canvas id="chartTrend" height="240"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-exchange-alt me-1 text-muted"></i>Altas y Bajas Mensuales
+            </h6>
+            <canvas id="chartAltasBajas" height="240"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: Antigüedad + Género + Pirámide de edad -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-clock me-1 text-muted"></i>Distribución por Antigüedad
+            </h6>
+            <canvas id="chartAntiguedad" height="200"></canvas>
+            <table class="table table-sm mt-2 mb-0" style="font-size:.82rem">
+                <thead><tr>
+                    <th style="font-size:.7rem;color:#6b7280">Rango</th>
+                    <th class="text-end" style="font-size:.7rem;color:#6b7280">Cant.</th>
+                    <th class="text-end" style="font-size:.7rem;color:#6b7280">%</th>
+                </tr></thead>
+                <tbody>
+                    <tr>
+                        <td>&lt; 1 año</td>
+                        <td class="text-end fw-bold">{{ antiguedad.menos_1 }}</td>
+                        <td class="text-end text-muted">{% if total %}{% widthratio antiguedad.menos_1 total 100 %}%{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>1 – 3 años</td>
+                        <td class="text-end fw-bold">{{ antiguedad.1_3 }}</td>
+                        <td class="text-end text-muted">{% if total %}{% widthratio antiguedad.1_3 total 100 %}%{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>3 – 5 años</td>
+                        <td class="text-end fw-bold">{{ antiguedad.3_5 }}</td>
+                        <td class="text-end text-muted">{% if total %}{% widthratio antiguedad.3_5 total 100 %}%{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>&gt; 5 años</td>
+                        <td class="text-end fw-bold">{{ antiguedad.mas_5 }}</td>
+                        <td class="text-end text-muted">{% if total %}{% widthratio antiguedad.mas_5 total 100 %}%{% endif %}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-venus-mars me-1 text-muted"></i>Distribución por Género
+            </h6>
+            <canvas id="chartGenero" height="200"></canvas>
+            <div class="d-flex justify-content-around mt-3" style="font-size:.82rem">
+                <div class="text-center">
+                    <div style="font-size:1.4rem;font-weight:700;color:#3b82f6">{{ genero_m }}</div>
+                    <div class="text-muted"><i class="fas fa-mars me-1"></i>Masculino</div>
+                </div>
+                <div class="text-center">
+                    <div style="font-size:1.4rem;font-weight:700;color:#a855f7">{{ genero_f }}</div>
+                    <div class="text-muted"><i class="fas fa-venus me-1"></i>Femenino</div>
+                </div>
+                {% if genero_nd > 0 %}
+                <div class="text-center">
+                    <div style="font-size:1.4rem;font-weight:700;color:#9ca3af">{{ genero_nd }}</div>
+                    <div class="text-muted">N/D</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        {% if tiene_edad %}
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-chart-bar me-1 text-muted"></i>Pirámide de Edad
+            </h6>
+            <canvas id="chartPiramide" height="240"></canvas>
+        </div>
+        {% else %}
+        <div class="chart-container h-100 d-flex flex-column align-items-center justify-content-center text-center">
+            <i class="fas fa-birthday-cake fa-2x mb-3 opacity-25" style="color:#0f766e"></i>
+            <p class="text-muted mb-0" style="font-size:.83rem">
+                Pirámide de edad no disponible.<br>
+                <small>Registre fechas de nacimiento en el perfil de empleados.</small>
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Barras por Área -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-building me-2 text-muted"></i>Headcount por Área
+        </h6>
+        <div class="d-flex mt-1" style="font-size:.73rem">
+            <span class="me-3">
+                <span style="display:inline-block;width:10px;height:10px;background:#0f766e;border-radius:2px;margin-right:.3rem"></span>STAFF
+            </span>
+            <span>
+                <span style="display:inline-block;width:10px;height:10px;background:#5eead4;border-radius:2px;margin-right:.3rem"></span>RCO
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% for a in area_data %}
+        <div class="area-bar">
+            <div class="label" title="{{ a.nombre }}">{{ a.nombre }}</div>
+            <div class="bar-wrap">
+                {% if a.staff %}
+                <div class="bar-staff" style="width:{% widthratio a.staff total 100 %}%" title="STAFF: {{ a.staff }}"></div>
+                {% endif %}
+                {% if a.rco %}
+                <div class="bar-rco" style="width:{% widthratio a.rco total 100 %}%" title="RCO: {{ a.rco }}"></div>
+                {% endif %}
+            </div>
+            <div class="count">{{ a.total }}</div>
+        </div>
+        {% empty %}
+        <p class="text-muted text-center py-3 mb-0">Sin áreas activas con personal asignado.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const TEAL       = '#0f766e';
+    const TEAL_LIGHT = '#5eead4';
+    const defaultFont = { family: "'Inter','Segoe UI',sans-serif", size: 11 };
+    Chart.defaults.font = defaultFont;
+    Chart.defaults.color = '#6b7280';
+
+    // ── Tendencia Headcount (12 meses) ──
+    const monthLabels = {{ monthly_labels|safe }};
+    const monthHC     = {{ monthly_hc|safe }};
+    const monthStaff  = {{ monthly_staff|safe }};
+    const monthRco    = {{ monthly_rco|safe }};
+
+    if (monthLabels.length) {
+        new Chart(document.getElementById('chartTrend'), {
+            type: 'line',
+            data: {
+                labels: monthLabels,
+                datasets: [
+                    {
+                        label: 'Total',
+                        data: monthHC,
+                        borderColor: TEAL,
+                        backgroundColor: TEAL_LIGHT + '22',
+                        fill: true,
+                        tension: .35,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: TEAL,
+                        borderWidth: 2,
+                    },
+                    {
+                        label: 'STAFF',
+                        data: monthStaff,
+                        borderColor: '#0f766e',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 3],
+                        tension: .35,
+                        pointRadius: 2,
+                        pointHoverRadius: 4,
+                        pointBackgroundColor: '#0f766e',
+                        borderWidth: 1.5,
+                    },
+                    {
+                        label: 'RCO',
+                        data: monthRco,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 3],
+                        tension: .35,
+                        pointRadius: 2,
+                        pointHoverRadius: 4,
+                        pointBackgroundColor: '#3b82f6',
+                        borderWidth: 1.5,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 10 }, boxWidth: 10, padding: 8 }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Altas y Bajas (bar grouped) ──
+    const altasList  = {{ altas_list|safe }};
+    const bajasList  = {{ bajas_list|safe }};
+    if (monthLabels.length) {
+        new Chart(document.getElementById('chartAltasBajas'), {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [
+                    {
+                        label: 'Altas',
+                        data: altasList,
+                        backgroundColor: '#10b98166',
+                        borderColor: '#10b981',
+                        borderWidth: 1.5,
+                        borderRadius: 3,
+                    },
+                    {
+                        label: 'Bajas',
+                        data: bajasList,
+                        backgroundColor: '#ef444466',
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5,
+                        borderRadius: 3,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 10 }, boxWidth: 10, padding: 8 }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { font: { size: 9 } } }
+                }
+            }
+        });
+    }
+
+    // ── Antigüedad (doughnut) ──
+    const antData = {{ antiguedad_json|safe }};
+    new Chart(document.getElementById('chartAntiguedad'), {
+        type: 'doughnut',
+        data: {
+            labels: ['< 1 año', '1-3 años', '3-5 años', '> 5 años'],
+            datasets: [{
+                data: [antData.menos_1, antData['1_3'], antData['3_5'], antData.mas_5],
+                backgroundColor: ['#5eead4cc', '#0f766ecc', '#f59e0bcc', '#3b82f6cc'],
+                borderColor:     ['#5eead4',   '#0f766e',   '#f59e0b',   '#3b82f6'],
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '58%',
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // ── Género (doughnut) ──
+    const genM  = {{ genero_m }};
+    const genF  = {{ genero_f }};
+    const genND = {{ genero_nd }};
+    new Chart(document.getElementById('chartGenero'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Masculino', 'Femenino', 'N/D'],
+            datasets: [{
+                data: [genM, genF, genND > 0 ? genND : null],
+                backgroundColor: ['#3b82f6cc', '#a855f7cc', '#d1d5dbcc'],
+                borderColor:     ['#3b82f6',   '#a855f7',   '#d1d5db'],
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '58%',
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // ── Pirámide de Edad (horizontal bar, M vs F) ──
+    {% if tiene_edad %}
+    const piramideLabels = {{ piramide_labels|safe }};
+    const piramideM      = {{ piramide_m|safe }};
+    const piramideF      = {{ piramide_f|safe }};
+    new Chart(document.getElementById('chartPiramide'), {
+        type: 'bar',
+        data: {
+            labels: piramideLabels,
+            datasets: [
+                {
+                    label: 'Masculino',
+                    data: piramideM.map(v => -v),
+                    backgroundColor: '#3b82f6cc',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1.5,
+                    borderRadius: 3,
+                },
+                {
+                    label: 'Femenino',
+                    data: piramideF,
+                    backgroundColor: '#a855f7cc',
+                    borderColor: '#a855f7',
+                    borderWidth: 1.5,
+                    borderRadius: 3,
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            scales: {
+                x: {
+                    stacked: false,
+                    grid: { color: '#f3f4f6' },
+                    ticks: {
+                        font: { size: 10 },
+                        callback: v => Math.abs(v)
+                    }
+                },
+                y: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 } } }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 10 }, boxWidth: 10, padding: 8 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${Math.abs(ctx.parsed.x)}`
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+})();
+</script>
+{% endblock %}

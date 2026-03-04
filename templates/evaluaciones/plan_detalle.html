@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}PDI: {{ plan.personal.apellidos_nombres }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-route text-secondary me-2"></i>{{ titulo }}</h2>
+    <small class="text-muted">{{ plan.fecha_inicio|date:"d/m/Y" }} — {{ plan.fecha_fin|date:"d/m/Y" }}</small>
+</div>
+
+<!-- Info del plan -->
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5>{{ plan.titulo }}</h5>
+                <p>{{ plan.objetivo }}</p>
+                <div class="d-flex gap-3">
+                    <span class="badge {% if plan.estado == 'ACTIVO' %}bg-success{% elif plan.estado == 'COMPLETADO' %}bg-info{% else %}bg-light text-dark{% endif %} fs-6">{{ plan.get_estado_display }}</span>
+                    <span class="text-muted">Avance: <strong>{{ plan.porcentaje_avance }}%</strong></span>
+                </div>
+                <div class="progress mt-2" style="height:8px;">
+                    <div class="progress-bar bg-success" style="width:{{ plan.porcentaje_avance }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-card"><div class="stat-value">{{ acciones|length }}</div><div class="stat-label">Acciones</div></div>
+    </div>
+</div>
+
+<!-- Acciones -->
+<div class="card shadow-sm">
+    <div class="card-header"><i class="fas fa-list-check me-1"></i> Acciones de Desarrollo</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th style="width:30px;"></th>
+                    <th>Acción</th>
+                    <th>Tipo</th>
+                    <th>Fecha Límite</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in acciones %}
+                <tr class="{% if a.completada %}text-decoration-line-through text-muted{% endif %}">
+                    <td class="text-center">
+                        <input type="checkbox" {% if a.completada %}checked{% endif %} onchange="toggleAccion({{ a.pk }})" class="form-check-input">
+                    </td>
+                    <td>{{ a.descripcion }}</td>
+                    <td><span class="badge bg-light text-dark">{{ a.get_tipo_display }}</span></td>
+                    <td>{{ a.fecha_limite|date:"d/m/Y" }}</td>
+                    <td>{% if a.fecha_completada %}<small class="text-success">{{ a.fecha_completada|date:"d/m/Y" }}</small>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay acciones definidas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'planes_panel' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAccion(pk) {
+    fetch(`/evaluaciones/acciones/${pk}/completar/`, {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); });
+}
+</script>
+{% endblock %}

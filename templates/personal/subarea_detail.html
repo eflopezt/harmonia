@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ subarea.nombre }} — SubÁrea{% endblock %}
+
+{% block content %}
+{# Breadcrumb #}
+<nav aria-label="breadcrumb" class="mb-2">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'area_list' %}">Áreas</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'area_detail' subarea.area.pk %}">{{ subarea.area.nombre }}</a></li>
+    <li class="breadcrumb-item active">{{ subarea.nombre }}</li>
+  </ol>
+</nav>
+
+{# Header #}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="mb-1 d-flex align-items-center gap-2">
+      <i class="fas fa-sitemap text-primary"></i>
+      {{ subarea.nombre }}
+      {% if not subarea.activa %}
+      <span class="badge bg-secondary fs-6">Inactiva</span>
+      {% endif %}
+    </h2>
+    <div class="text-muted small">
+      Área: <a href="{% url 'area_detail' subarea.area.pk %}" class="text-decoration-none fw-semibold">
+        {{ subarea.area.nombre }}
+        {% if subarea.area.codigo %}<code>[{{ subarea.area.codigo }}]</code>{% endif %}
+      </a>
+    </div>
+    {% if subarea.descripcion %}
+    <p class="text-muted mt-1 mb-0">{{ subarea.descripcion }}</p>
+    {% endif %}
+  </div>
+  {% if puede_editar %}
+  <div class="d-flex gap-2">
+    <a href="{% url 'subarea_update' subarea.pk %}" class="btn btn-sm btn-warning">
+      <i class="fas fa-edit me-1"></i>Editar
+    </a>
+    <form method="post" action="{% url 'subarea_toggle' subarea.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm {% if subarea.activa %}btn-outline-secondary{% else %}btn-outline-success{% endif %}"
+              onclick="return confirm('¿{% if subarea.activa %}Desactivar{% else %}Activar{% endif %} la subárea {{ subarea.nombre }}?')">
+        <i class="fas fa-power-off me-1"></i>{% if subarea.activa %}Desactivar{% else %}Activar{% endif %}
+      </button>
+    </form>
+    {% if total_personal == 0 %}
+    <form method="post" action="{% url 'subarea_delete' subarea.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-danger"
+              onclick="return confirm('¿Eliminar la subárea {{ subarea.nombre }}?')">
+        <i class="fas fa-trash"></i>
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{# KPI Cards #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-0 shadow-sm h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-primary">{{ total_personal }}</div>
+        <div class="text-muted small">Total Personal</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-0 shadow-sm h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-info">{{ total_staff }}</div>
+        <div class="text-muted small">STAFF</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-0 shadow-sm h-100">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-warning">{{ total_rco }}</div>
+        <div class="text-muted small">RCO</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center border-0 shadow-sm h-100 {% if proximos_vencimientos > 0 %}border-warning{% endif %}">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold {% if proximos_vencimientos > 0 %}text-warning{% else %}text-muted{% endif %}">
+          {{ proximos_vencimientos }}
+        </div>
+        <div class="text-muted small">Contr. Vencen ≤30d</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Stats row #}
+{% if total_personal > 0 %}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header py-2"><strong><i class="fas fa-piggy-bank me-2"></i>Régimen Pensionario</strong></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-around text-center">
+          <div>
+            <div class="fs-3 fw-bold text-info">{{ reg_afp }}</div>
+            <div class="text-muted small">AFP</div>
+          </div>
+          <div>
+            <div class="fs-3 fw-bold text-primary">{{ reg_onp }}</div>
+            <div class="text-muted small">ONP</div>
+          </div>
+          <div>
+            <div class="fs-3 fw-bold text-secondary">{{ total_personal|add:"-"|add:reg_afp|add:"-"|add:reg_onp }}</div>
+            <div class="text-muted small">Sin Pensión</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header py-2"><strong><i class="fas fa-sitemap me-2"></i>Otras SubÁreas del Área</strong></div>
+      <div class="card-body p-0">
+        {% if otras_subareas %}
+        <div class="list-group list-group-flush">
+          {% for osa in otras_subareas|slice:":6" %}
+          <a href="{% url 'subarea_detail' osa.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 small">
+            <span>{{ osa.nombre }}
+              {% if not osa.activa %}<span class="badge bg-secondary ms-1">Inactiva</span>{% endif %}
+            </span>
+            <span class="badge bg-primary">{{ osa.total_personal }}</span>
+          </a>
+          {% endfor %}
+          {% if otras_subareas.count > 6 %}
+          <a href="{% url 'area_detail' subarea.area.pk %}" class="list-group-item list-group-item-action text-center text-muted small py-2">
+            Ver todas las subáreas…
+          </a>
+          {% endif %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-3 mb-0 small">No hay otras subáreas en este área</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Personal #}
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fas fa-users me-2"></i>Personal ({{ total_personal }})</strong>
+    {% if puede_editar %}
+    <a href="{% url 'personal_create' %}?subarea={{ subarea.pk }}" class="btn btn-sm btn-outline-primary">
+      <i class="fas fa-user-plus me-1"></i>Agregar empleado
+    </a>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 table-sm">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Empleado</th>
+            <th>Cargo</th>
+            <th class="text-center">Grupo</th>
+            <th class="text-center">Categoría</th>
+            <th class="text-center">Contrato</th>
+            <th class="text-center">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for emp in empleados %}
+          <tr {% if emp.dias_para_vencimiento_contrato is not None and emp.dias_para_vencimiento_contrato <= 0 %}class="table-danger"
+              {% elif emp.dias_para_vencimiento_contrato is not None and emp.dias_para_vencimiento_contrato <= 30 %}class="table-warning"{% endif %}>
+            <td class="ps-3">
+              <a href="{% url 'personal_detail' emp.pk %}" class="text-decoration-none fw-medium">
+                {{ emp.apellidos_nombres }}
+              </a>
+            </td>
+            <td class="small">{{ emp.cargo|default:"—" }}</td>
+            <td class="text-center">
+              {% if emp.grupo_tareo == 'STAFF' %}
+              <span class="badge bg-info text-dark">STAFF</span>
+              {% elif emp.grupo_tareo == 'RCO' %}
+              <span class="badge bg-warning text-dark">RCO</span>
+              {% else %}
+              <span class="badge bg-secondary">{{ emp.grupo_tareo|default:"—" }}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if emp.categoria == 'NORMAL' %}
+              <span class="badge bg-light text-dark border">Normal</span>
+              {% elif emp.categoria == 'CONFIANZA' %}
+              <span class="badge bg-warning text-dark">Confianza</span>
+              {% elif emp.categoria == 'DIRECCION' %}
+              <span class="badge bg-danger">Dirección</span>
+              {% endif %}
+            </td>
+            <td class="text-center small">
+              {% if emp.tipo_contrato %}
+              <span title="{{ emp.get_tipo_contrato_display }}">{{ emp.get_tipo_contrato_display|truncatechars:15 }}</span>
+              {% if emp.fecha_fin_contrato %}
+              <div class="text-muted" style="font-size:.7rem">
+                Vence: {{ emp.fecha_fin_contrato|date:"d/m/Y" }}
+              </div>
+              {% endif %}
+              {% else %}
+              <span class="text-muted">Sin contrato</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{% url 'personal_detail' emp.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="fas fa-users fa-2x mb-2 d-block opacity-25"></i>
+              Sin personal activo en esta subárea
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

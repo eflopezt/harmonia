@@ -28,14 +28,40 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
+    'rest_framework_simplejwt',
+    'drf_spectacular',
     'django_filters',
     'corsheaders',
     'crispy_forms',
     'crispy_bootstrap5',
     
+    # Humanize (formato de números)
+    'django.contrib.humanize',
+
     # Local apps
+    'core.apps.CoreConfig',
     'personal.apps.PersonalConfig',
-    'tareo.apps.TareoConfig',
+    'asistencia.apps.AsistenciaConfig',
+    'portal.apps.PortalConfig',
+    'cierre.apps.CierreConfig',
+    'documentos.apps.DocumentosConfig',
+    'prestamos.apps.PrestamosConfig',
+    'viaticos.apps.ViaticosConfig',
+    'vacaciones.apps.VacacionesConfig',
+    'capacitaciones.apps.CapacitacionesConfig',
+    'disciplinaria.apps.DisciplinariaConfig',
+    'salarios.apps.SalariosConfig',
+    'evaluaciones.apps.EvaluacionesConfig',
+    'encuestas.apps.EncuestasConfig',
+    'calendario.apps.CalendarioConfig',
+    'onboarding.apps.OnboardingConfig',
+    'reclutamiento.apps.ReclutamientoConfig',
+    'comunicaciones.apps.ComunicacionesConfig',
+    'analytics.apps.AnalyticsConfig',
+    'integraciones.apps.IntegracionesConfig',
+    'nominas.apps.NominasConfig',
+    'empresas.apps.EmpresasConfig',
+    'workflows.apps.WorkflowsConfig',
 ]
 
 MIDDLEWARE = [
@@ -48,6 +74,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'empresas.middleware.EmpresaMiddleware',
+    'core.middleware.AuditMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -63,6 +91,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'personal.context_processors.harmoni_context',
             ],
         },
     },
@@ -107,6 +136,7 @@ LOGOUT_REDIRECT_URL = 'login'
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -119,6 +149,39 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# DRF Spectacular (OpenAPI / Swagger)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Harmoni ERP API',
+    'DESCRIPTION': 'API REST para Harmoni — Sistema de Gestión de RRHH',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {'name': 'Personal', 'description': 'Empleados, áreas, subareas, roster'},
+        {'name': 'Asistencia', 'description': 'Tareos, banco de horas, configuración'},
+        {'name': 'Vacaciones', 'description': 'Saldos, solicitudes, permisos'},
+        {'name': 'Préstamos', 'description': 'Tipos, préstamos, cuotas'},
+        {'name': 'Documentos', 'description': 'Legajo digital, boletas de pago'},
+        {'name': 'Capacitaciones', 'description': 'LMS, requerimientos, certificaciones'},
+        {'name': 'Evaluaciones', 'description': 'Ciclos 360°, competencias'},
+        {'name': 'Encuestas', 'description': 'Clima laboral, eNPS'},
+        {'name': 'Salarios', 'description': 'Bandas, historial, simulaciones'},
+        {'name': 'Reclutamiento', 'description': 'Vacantes, pipeline, postulaciones'},
+        {'name': 'Comunicaciones', 'description': 'Notificaciones, comunicados masivos'},
+    ],
+}
+
+# SimpleJWT
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 
@@ -152,3 +215,36 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos
+
+# Celery Beat — Tareas periódicas
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # ── Asistencia ──────────────────────────────────────────────
+    'resumen-semanal-asistencia': {
+        'task': 'asistencia.tasks.enviar_resumen_semanal_asistencia',
+        'schedule': crontab(hour=8, minute=0, day_of_week='1'),  # Lunes 08:00
+    },
+
+    # ── Workflows ───────────────────────────────────────────────
+    'verificar-vencimientos-workflows': {
+        'task': 'workflows.verificar_vencimientos',
+        'schedule': crontab(minute=0),  # Cada hora en punto
+    },
+    'notificar-pendientes-workflows': {
+        'task': 'workflows.notificar_pendientes',
+        'schedule': crontab(hour=8, minute=0, day_of_week='1-5'),  # Lun-Vie 08:00
+    },
+
+    # ── Personal ────────────────────────────────────────────────
+    'alertar-contratos-por-vencer': {
+        'task': 'personal.tasks.alertar_contratos_por_vencer',
+        'schedule': crontab(hour=7, minute=30),  # Diario 07:30
+    },
+
+    # ── Analytics ───────────────────────────────────────────────
+    'snapshot-kpi-mensual': {
+        'task': 'analytics.tasks.generar_snapshot_kpi',
+        'schedule': crontab(hour=1, minute=0, day_of_month='1'),  # Día 1 de cada mes 01:00
+    },
+}

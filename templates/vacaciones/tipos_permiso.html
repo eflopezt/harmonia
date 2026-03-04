@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Permiso{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-cog text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ tipos|length }} tipo{{ tipos|length|pluralize:"s" }} registrado{{ tipos|length|pluralize:"s" }}</small>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTipo"><i class="fas fa-plus me-1"></i>Nuevo Tipo</button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Código</th>
+                    <th class="text-center">Días Máx.</th>
+                    <th class="text-center">Pagado</th>
+                    <th class="text-center">Req. Sustento</th>
+                    <th class="text-center">Desc. Vacac.</th>
+                    <th>Base Legal</th>
+                    <th class="text-center">Activo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tipos %}
+                <tr>
+                    <td class="fw-semibold">{{ t.nombre }}</td>
+                    <td><code>{{ t.codigo }}</code></td>
+                    <td class="text-center">{{ t.dias_max|default:"—" }}</td>
+                    <td class="text-center">
+                        {% if t.pagado %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if t.requiere_sustento %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if t.descuenta_vacaciones %}<i class="fas fa-check text-warning"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ t.base_legal|truncatechars:40 }}</td>
+                    <td class="text-center">
+                        {% if t.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay tipos de permiso configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Crear Tipo -->
+<div class="modal fade" id="modalTipo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Tipo de Permiso</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formTipo">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" name="nombre" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Código *</label>
+                        <input type="text" name="codigo" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Descripción</label>
+                        <textarea name="descripcion" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label class="form-label">Días Máx.</label>
+                            <input type="number" name="dias_max" class="form-control form-control-sm" min="0" value="0">
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label">Base Legal</label>
+                            <input type="text" name="base_legal" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="pagado" class="form-check-input" id="chkPagado">
+                            <label class="form-check-label" for="chkPagado">Pagado</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="requiere_sustento" class="form-check-input" id="chkSustento">
+                            <label class="form-check-label" for="chkSustento">Req. Sustento</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="descuenta_vacaciones" class="form-check-input" id="chkDescVac">
+                            <label class="form-check-label" for="chkDescVac">Desc. Vacaciones</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('formTipo').addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch('{% url "tipo_permiso_crear" %}', {method:'POST', body: new FormData(this)})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) location.reload();
+        else alert(d.error);
+    });
+});
+</script>
+{% endblock %}

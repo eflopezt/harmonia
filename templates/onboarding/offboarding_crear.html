@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-user-minus text-secondary me-2"></i>{{ titulo }}</h2>
+    <a href="{% url 'offboarding_panel' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Trabajador <span class="text-danger">*</span></label>
+                    <select name="personal_id" class="form-select" required>
+                        <option value="">-- Seleccionar --</option>
+                        {% for p in personal_list %}
+                        <option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Plantilla <span class="text-danger">*</span></label>
+                    <select name="plantilla_id" class="form-select" required>
+                        <option value="">-- Seleccionar --</option>
+                        {% for pl in plantillas %}
+                        <option value="{{ pl.pk }}">{{ pl.nombre }} ({{ pl.total_pasos }} pasos)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha de Cese <span class="text-danger">*</span></label>
+                    <input type="date" name="fecha_cese" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Motivo de Cese <span class="text-danger">*</span></label>
+                    <select name="motivo_cese" class="form-select" required>
+                        <option value="">-- Seleccionar --</option>
+                        <option value="RENUNCIA">Renuncia Voluntaria</option>
+                        <option value="DESPIDO">Despido</option>
+                        <option value="MUTUO_ACUERDO">Mutuo Acuerdo</option>
+                        <option value="FIN_CONTRATO">Fin de Contrato</option>
+                        <option value="JUBILACION">Jubilacion</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notas</label>
+                    <textarea name="notas" class="form-control" rows="2" placeholder="Notas adicionales..."></textarea>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-play me-1"></i>Iniciar Offboarding</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

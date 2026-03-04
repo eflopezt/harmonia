@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Generar: {{ plantilla.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.emp-row { cursor:pointer; transition:background .15s; }
+.emp-row:hover { background:#f0fdf9 !important; }
+.emp-row.selected { background:#ccfbf1 !important; border-left:3px solid #0f766e; }
+.preview-box { border:1px solid #e5e7eb; border-radius:8px; padding:16px; min-height:300px; background:#fff; font-size:.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{% url 'constancias_panel' %}" class="text-muted text-decoration-none small">
+            <i class="fas fa-arrow-left me-1"></i>Constancias
+        </a>
+        <h2 class="mb-0 mt-1"><i class="fas fa-file-signature text-primary me-2"></i>{{ plantilla.nombre }}</h2>
+        <small class="text-muted">{{ plantilla.get_categoria_display }} — Seleccione un trabajador</small>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger py-2 small">
+    <i class="fas fa-exclamation-triangle me-1"></i>{{ error }}
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <!-- Columna izquierda: selector de empleado -->
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header py-2 bg-light">
+                <form method="GET" class="d-flex gap-2">
+                    <input type="text" name="buscar" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Buscar empleado...">
+                    <button class="btn btn-sm btn-outline-primary"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+            <div class="card-body p-0" style="max-height:500px; overflow-y:auto;">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        {% for emp in personal_list %}
+                        <tr class="emp-row" data-id="{{ emp.pk }}" onclick="seleccionarEmpleado({{ emp.pk }}, '{{ emp.apellidos_nombres|escapejs }}')">
+                            <td class="small ps-3">
+                                <div class="fw-semibold">{{ emp.apellidos_nombres }}</div>
+                                <div class="text-muted" style="font-size:.72rem">{{ emp.nro_doc }} &middot; {{ emp.cargo|default:"—" }} &middot; {{ emp.grupo_tareo }}</div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td class="text-center text-muted py-3 small">No se encontraron empleados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna derecha: preview + acciones -->
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold small" id="selectedName">
+                    <i class="fas fa-user-circle me-1 text-muted"></i>Seleccione un trabajador
+                </span>
+                <div class="d-flex gap-2" id="actionBtns" style="display:none !important">
+                    <a href="#" id="btnView" target="_blank" class="btn btn-sm btn-outline-primary" style="display:none">
+                        <i class="fas fa-eye me-1"></i>Ver PDF
+                    </a>
+                    <a href="#" id="btnDownload" class="btn btn-sm btn-primary" style="display:none">
+                        <i class="fas fa-download me-1"></i>Descargar PDF
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="preview-box" id="previewBox">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-file-alt fa-3x d-block mb-3 opacity-25"></i>
+                        <p>Seleccione un empleado de la lista para previsualizar la constancia.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+const PLANTILLA_ID = {{ plantilla.pk }};
+let selectedId = null;
+
+function seleccionarEmpleado(id, nombre) {
+    selectedId = id;
+
+    // Highlight row
+    document.querySelectorAll('.emp-row').forEach(r => r.classList.remove('selected'));
+    document.querySelector(`.emp-row[data-id="${id}"]`)?.classList.add('selected');
+
+    // Update header
+    document.getElementById('selectedName').innerHTML = `<i class="fas fa-user-circle me-1 text-primary"></i>${nombre}`;
+
+    // Show action buttons
+    const btnView = document.getElementById('btnView');
+    const btnDownload = document.getElementById('btnDownload');
+    btnView.href = `{% url 'constancia_generar' plantilla.pk %}?personal_id=${id}`;
+    btnView.style.display = '';
+    btnDownload.href = `{% url 'constancia_generar' plantilla.pk %}?personal_id=${id}&download=1`;
+    btnDownload.style.display = '';
+
+    // Load preview
+    const box = document.getElementById('previewBox');
+    box.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i></div>';
+
+    fetch(`{% url 'constancia_preview' plantilla.pk %}?personal_id=${id}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                box.innerHTML = data.html;
+            } else {
+                box.innerHTML = `<div class="alert alert-danger small">${data.error}</div>`;
+            }
+        })
+        .catch(() => {
+            box.innerHTML = '<div class="alert alert-danger small">Error al cargar preview.</div>';
+        });
+}
+</script>
+{% endblock %}

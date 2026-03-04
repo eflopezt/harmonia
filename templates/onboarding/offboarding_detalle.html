@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-user-minus text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Plantilla: {{ proceso.plantilla.nombre }} | Motivo: {{ proceso.get_motivo_cese_display }}</small>
+    </div>
+    <a href="{% url 'offboarding_panel' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+
+<!-- Info del proceso -->
+<div class="row g-3 mb-3">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Trabajador</small>
+                        <strong>{{ proceso.personal.apellidos_nombres }}</strong>
+                        <br><small class="text-muted">{{ proceso.personal.nro_doc }} | {{ proceso.personal.cargo }}</small>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Fecha Cese</small>
+                        <strong>{{ proceso.fecha_cese|date:"d/m/Y" }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Motivo</small>
+                        <strong>{{ proceso.get_motivo_cese_display }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Estado</small>
+                        {% if proceso.estado == 'EN_CURSO' %}
+                        <span class="badge bg-primary">En Curso</span>
+                        {% elif proceso.estado == 'COMPLETADO' %}
+                        <span class="badge bg-success">Completado</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Cancelado</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card text-center">
+            <div class="stat-value text-primary" id="porcentaje-avance">{{ proceso.porcentaje_avance }}%</div>
+            <div class="stat-label">Avance</div>
+            <div class="progress mt-2" style="height:8px;">
+                <div class="progress-bar bg-primary" id="barra-avance" style="width:{{ proceso.porcentaje_avance }}%"></div>
+            </div>
+            <small class="text-muted" id="pasos-info">{{ proceso.pasos_completados }}/{{ proceso.total_pasos }} pasos completados</small>
+        </div>
+    </div>
+</div>
+
+{% if proceso.notas %}
+<div class="alert alert-info py-2 mb-3" style="font-size:.85rem;">
+    <i class="fas fa-sticky-note me-1"></i> {{ proceso.notas }}
+</div>
+{% endif %}
+
+<!-- Checklist de pasos -->
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-tasks me-1"></i>Checklist de Pasos</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th style="width:40px">#</th>
+                    <th>Paso</th>
+                    <th class="text-center">Fecha Limite</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Completado</th>
+                    <th class="text-center" style="width:160px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paso in pasos %}
+                <tr id="paso-row-{{ paso.pk }}" class="{% if paso.esta_vencido %}table-danger{% elif paso.estado == 'COMPLETADO' %}table-success{% elif paso.estado == 'OMITIDO' %}table-light{% endif %}">
+                    <td class="text-center">{{ paso.orden }}</td>
+                    <td>
+                        <strong>{{ paso.titulo }}</strong>
+                        {% if paso.paso_plantilla %}
+                        <br><small class="text-muted">
+                            <span class="badge bg-light text-dark border">{{ paso.paso_plantilla.get_tipo_display }}</span>
+                            <span class="badge bg-light text-dark border">{{ paso.paso_plantilla.get_responsable_tipo_display }}</span>
+                            {% if not paso.paso_plantilla.obligatorio %}<span class="badge bg-warning text-dark">Opcional</span>{% endif %}
+                        </small>
+                        {% endif %}
+                        {% if paso.comentarios %}
+                        <br><small class="text-info"><i class="fas fa-comment me-1"></i>{{ paso.comentarios }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if paso.fecha_limite %}
+                        <span class="{% if paso.esta_vencido %}text-danger fw-bold{% endif %}">{{ paso.fecha_limite|date:"d/m/Y" }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center" id="paso-estado-{{ paso.pk }}">
+                        {% if paso.estado == 'PENDIENTE' %}
+                        <span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif paso.estado == 'EN_PROGRESO' %}
+                        <span class="badge bg-info">En Progreso</span>
+                        {% elif paso.estado == 'COMPLETADO' %}
+                        <span class="badge bg-success">Completado</span>
+                        {% elif paso.estado == 'OMITIDO' %}
+                        <span class="badge bg-secondary">Omitido</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center" id="paso-completado-{{ paso.pk }}">
+                        {% if paso.completado_por %}
+                        <small>{{ paso.completado_por.get_full_name|default:paso.completado_por.username }}<br>{{ paso.fecha_completado|date:"d/m/Y H:i" }}</small>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center" id="paso-acciones-{{ paso.pk }}">
+                        {% if paso.estado == 'PENDIENTE' or paso.estado == 'EN_PROGRESO' %}
+                        <button class="btn btn-success btn-sm" onclick="completarPaso({{ paso.pk }})" title="Completar">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="omitirPaso({{ paso.pk }})" title="Omitir">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function completarPaso(pasoId) {
+    if (!confirm('Marcar este paso como completado?')) return;
+    fetch(`/onboarding/offboarding/paso/${pasoId}/completar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            document.getElementById(`paso-estado-${pasoId}`).innerHTML = '<span class="badge bg-success">Completado</span>';
+            document.getElementById(`paso-completado-${pasoId}`).innerHTML = `<small>${data.completado_por}<br>${data.fecha_completado}</small>`;
+            document.getElementById(`paso-acciones-${pasoId}`).innerHTML = '';
+            document.getElementById(`paso-row-${pasoId}`).className = 'table-success';
+            document.getElementById('porcentaje-avance').textContent = data.porcentaje + '%';
+            document.getElementById('barra-avance').style.width = data.porcentaje + '%';
+            if (data.proceso_completado) {
+                location.reload();
+            }
+        }
+    });
+}
+
+function omitirPaso(pasoId) {
+    if (!confirm('Omitir este paso?')) return;
+    fetch(`/onboarding/offboarding/paso/${pasoId}/omitir/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            document.getElementById(`paso-estado-${pasoId}`).innerHTML = '<span class="badge bg-secondary">Omitido</span>';
+            document.getElementById(`paso-acciones-${pasoId}`).innerHTML = '';
+            document.getElementById(`paso-row-${pasoId}`).className = 'table-light';
+            document.getElementById('porcentaje-avance').textContent = data.porcentaje + '%';
+            document.getElementById('barra-avance').style.width = data.porcentaje + '%';
+            if (data.proceso_completado) {
+                location.reload();
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

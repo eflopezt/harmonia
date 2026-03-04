@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}Organigrama{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-sitemap me-2 text-primary"></i>Organigrama</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.org-area {
+    border-radius: 12px;
+    border: 1.5px solid rgba(15,118,110,.25);
+    background: #fff;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+.org-area-header {
+    background: linear-gradient(90deg, rgba(15,118,110,.1) 0%, rgba(15,118,110,.04) 100%);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid rgba(15,118,110,.12);
+}
+.org-area-header:hover { background: rgba(15,118,110,.13); }
+.org-area-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: var(--teal, #0f766e);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .9rem; flex-shrink: 0;
+}
+.org-area-body { padding: 16px 18px; }
+.org-responsable {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15,118,110,.08);
+    border: 1px solid rgba(15,118,110,.2);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: .78rem;
+    color: #0f766e;
+    font-weight: 600;
+    margin: 2px;
+}
+.org-subarea {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.org-subarea-header {
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+}
+.org-subarea-header:hover { background: #f1f5f9; }
+.org-subarea-body { padding: 0 14px 12px 14px; display: none; }
+.org-subarea-body.open { display: block; }
+.persona-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    margin: 3px 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    transition: box-shadow .1s;
+}
+.persona-chip:hover { box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.persona-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 700; color: #64748b;
+    flex-shrink: 0;
+}
+.persona-nombre { font-size: .85rem; font-weight: 600; }
+.persona-cargo  { font-size: .73rem; color: #64748b; }
+.count-badge {
+    font-size: .68rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    color: #475569;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Resumen stats -->
+<div class="row g-3 mb-4">
+    <div class="col-auto">
+        <div class="stat-card stat-card--primary" style="min-width:140px">
+            <div class="stat-icon"><i class="fas fa-building"></i></div>
+            <div class="stat-value">{{ areas|length }}</div>
+            <div class="stat-label">Áreas activas</div>
+        </div>
+    </div>
+    <div class="col-auto">
+        <div class="stat-card stat-card--success" style="min-width:140px">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-value">{{ total_colaboradores|default:"—" }}</div>
+            <div class="stat-label">Colaboradores</div>
+        </div>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'directorio' %}" class="stat-card stat-card--warning text-decoration-none" style="min-width:160px">
+            <div class="stat-icon"><i class="fas fa-address-book"></i></div>
+            <div class="stat-value" style="font-size:1rem;margin-top:4px">Ver Directorio</div>
+            <div class="stat-label"><i class="fas fa-arrow-right me-1"></i>Búsqueda por persona</div>
+        </a>
+    </div>
+</div>
+
+<!-- Árbol orgánico -->
+{% for area in areas %}
+<div class="org-area" id="area-{{ area.pk }}">
+    <div class="org-area-header" onclick="toggleArea({{ area.pk }})">
+        <div class="org-area-icon"><i class="fas fa-building"></i></div>
+        <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size:.95rem;color:#0f4c42">{{ area.nombre }}</div>
+            {% if area.responsables.all %}
+            <div class="mt-1">
+                {% for r in area.responsables.all %}
+                <span class="org-responsable"><i class="fas fa-user-tie me-1"></i>{{ r.apellidos_nombres|truncatechars:30 }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="count-badge">
+                {{ area.subareas.count }} subárea{{ area.subareas.count|pluralize:"s" }}
+            </span>
+            <i class="fas fa-chevron-down text-muted" style="font-size:.8rem" id="chevron-area-{{ area.pk }}"></i>
+        </div>
+    </div>
+
+    <div class="org-area-body" id="body-area-{{ area.pk }}">
+        {% for subarea in area.subareas.all %}
+        <div class="org-subarea">
+            <div class="org-subarea-header" onclick="toggleSubarea({{ subarea.pk }})">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-layer-group text-muted" style="font-size:.8rem"></i>
+                    <span class="fw-semibold" style="font-size:.85rem">{{ subarea.nombre }}</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="count-badge">{{ subarea.personal_asignado.count }} persona{{ subarea.personal_asignado.count|pluralize:"s" }}</span>
+                    <i class="fas fa-chevron-right text-muted" style="font-size:.72rem" id="chevron-sub-{{ subarea.pk }}"></i>
+                </div>
+            </div>
+            <div class="org-subarea-body" id="body-sub-{{ subarea.pk }}">
+                {% for persona in subarea.personal_asignado.all %}
+                {% if persona.estado == 'Activo' %}
+                <div class="persona-chip">
+                    <div class="persona-avatar">{{ persona.apellidos_nombres|slice:":1" }}</div>
+                    <div class="flex-grow-1">
+                        <div class="persona-nombre">{{ persona.apellidos_nombres|truncatechars:35 }}</div>
+                        <div class="persona-cargo">{{ persona.cargo|default:"—" }}</div>
+                    </div>
+                    {% if persona.correo_corporativo %}
+                    <a href="mailto:{{ persona.correo_corporativo }}" class="text-muted" title="{{ persona.correo_corporativo }}" style="font-size:.8rem">
+                        <i class="fas fa-envelope"></i>
+                    </a>
+                    {% endif %}
+                    {% if persona.celular %}
+                    <a href="tel:{{ persona.celular }}" class="text-muted" title="{{ persona.celular }}" style="font-size:.8rem">
+                        <i class="fas fa-phone"></i>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% empty %}
+                <div class="text-muted small py-2">Sin personas asignadas</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-muted small py-2">Sin subáreas configuradas</div>
+        {% endfor %}
+    </div>
+</div>
+{% empty %}
+<div class="dash-card">
+    <div class="dash-card-body text-center text-muted py-5">
+        <i class="fas fa-sitemap fa-2x mb-2 d-block opacity-25"></i>
+        No hay áreas configuradas
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleArea(pk) {
+    const body = document.getElementById('body-area-' + pk);
+    const chev = document.getElementById('chevron-area-' + pk);
+    const open = body.style.display !== 'none' && body.style.display !== '';
+    body.style.display = open ? 'none' : 'block';
+    chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function toggleSubarea(pk) {
+    const body = document.getElementById('body-sub-' + pk);
+    const chev = document.getElementById('chevron-sub-' + pk);
+    body.classList.toggle('open');
+    chev.style.transform = body.classList.contains('open') ? 'rotate(90deg)' : '';
+}
+
+// Abrir primera área por defecto
+document.addEventListener('DOMContentLoaded', () => {
+    const firstArea = document.querySelector('.org-area-body');
+    if (firstArea) firstArea.style.display = 'block';
+    const firstChev = document.getElementById('chevron-area-{{ areas.0.pk }}');
+    if (firstChev) firstChev.style.transform = 'rotate(180deg)';
+});
+</script>
+{% endblock %}

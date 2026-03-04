@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Agendar Entrevista — {{ postulacion.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">
+            <i class="fas fa-calendar-plus me-2" style="color:#5eead4"></i>Agendar Entrevista
+        </h2>
+        <small class="text-muted">
+            Candidato:
+            <a href="{% url 'postulacion_detalle' postulacion.pk %}" class="text-decoration-none fw-semibold">
+                {{ postulacion.nombre_completo }}
+            </a>
+            &middot;
+            <a href="{% url 'vacante_detalle' postulacion.vacante.pk %}" class="text-decoration-none text-muted">
+                {{ postulacion.vacante.titulo }}
+            </a>
+        </small>
+    </div>
+    <a href="{% url 'postulacion_detalle' postulacion.pk %}" class="btn btn-sm btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Cancelar
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+
+        <!-- Info rapida del candidato -->
+        <div class="card shadow-sm mb-3" style="border-left: 3px solid #5eead4;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-3" style="font-size:.83rem">
+                <div class="text-center" style="min-width:40px">
+                    <i class="fas fa-user-circle fa-2x" style="color:#5eead4"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ postulacion.nombre_completo }}</div>
+                    <div class="text-muted">
+                        {% if postulacion.email %}<i class="fas fa-envelope me-1"></i>{{ postulacion.email }}{% endif %}
+                        {% if postulacion.telefono %}&nbsp;&middot;&nbsp;<i class="fas fa-phone me-1"></i>{{ postulacion.telefono }}{% endif %}
+                    </div>
+                </div>
+                {% if postulacion.etapa %}
+                <span class="badge px-2 py-1" style="background:{{ postulacion.etapa.color }}">{{ postulacion.etapa.nombre }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="card shadow-sm">
+            <div class="card-header py-2" style="background:#0d2b27; color:#fff">
+                <i class="fas fa-calendar-check me-2"></i><strong>Datos de la Entrevista</strong>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        <!-- Fecha y Hora -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Fecha y Hora *</label>
+                            {{ form.fecha_hora }}
+                            {% if form.fecha_hora.errors %}
+                            <div class="text-danger small">{{ form.fecha_hora.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <!-- Duracion -->
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Duracion (min)</label>
+                            {{ form.duracion_minutos }}
+                        </div>
+                        <!-- Tipo -->
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Tipo</label>
+                            {{ form.tipo }}
+                        </div>
+                        <!-- Entrevistador -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Entrevistador *</label>
+                            {{ form.entrevistador }}
+                            {% if form.entrevistador.errors %}
+                            <div class="text-danger small">{{ form.entrevistador.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <!-- Modalidad -->
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Modalidad</label>
+                            {{ form.modalidad }}
+                        </div>
+                        <!-- Ubicacion / Enlace (condicional) -->
+                        <div class="col-md-6" id="ubicacionWrap">
+                            <label class="form-label small fw-semibold">Ubicacion</label>
+                            {{ form.ubicacion }}
+                        </div>
+                        <div class="col-md-6" id="enlaceWrap">
+                            <label class="form-label small fw-semibold">Enlace Virtual</label>
+                            {{ form.enlace_virtual }}
+                        </div>
+                        <!-- Notas previas -->
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Notas Previas</label>
+                            <div class="text-muted small mb-1">Puntos clave a evaluar, preguntas, contexto para el entrevistador.</div>
+                            {{ form.notas_pre }}
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'postulacion_detalle' postulacion.pk %}" class="btn btn-sm btn-outline-secondary">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-calendar-check me-1"></i>Agendar Entrevista
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Entrevistas previas si existen -->
+        {% with entrevistas_prev=postulacion.entrevistas.all %}
+        {% if entrevistas_prev %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header py-2">
+                <strong style="font-size:.85rem"><i class="fas fa-history me-1"></i>Entrevistas Anteriores</strong>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0" style="font-size:.8rem">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">Tipo</th>
+                            <th>Fecha</th>
+                            <th>Entrevistador</th>
+                            <th class="text-center">Resultado</th>
+                            <th class="text-center">Calif.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ent in entrevistas_prev %}
+                        <tr>
+                            <td class="ps-3">{{ ent.get_tipo_display }}</td>
+                            <td>{{ ent.fecha_hora|date:"d/m/Y H:i" }}</td>
+                            <td>{{ ent.entrevistador.get_full_name|default:ent.entrevistador.username|default:"—" }}</td>
+                            <td class="text-center">
+                                {% if ent.resultado == 'APROBADO' %}<span class="badge bg-success">Aprobado</span>
+                                {% elif ent.resultado == 'RECHAZADO' %}<span class="badge bg-danger">Rechazado</span>
+                                {% elif ent.resultado == 'REPROGRAMAR' %}<span class="badge bg-warning text-dark">Reprogramar</span>
+                                {% else %}<span class="badge bg-secondary">Pendiente</span>{% endif %}
+                            </td>
+                            <td class="text-center">{% if ent.calificacion %}{{ ent.calificacion }}/10{% else %}—{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const modalidadSel = document.querySelector('[name="modalidad"]');
+    const ubicacionWrap = document.getElementById('ubicacionWrap');
+    const enlaceWrap = document.getElementById('enlaceWrap');
+
+    function toggleFields() {
+        if (!modalidadSel) return;
+        const val = modalidadSel.value;
+        if (val === 'VIRTUAL') {
+            ubicacionWrap.style.display = 'none';
+            enlaceWrap.style.display = '';
+        } else if (val === 'PRESENCIAL') {
+            ubicacionWrap.style.display = '';
+            enlaceWrap.style.display = 'none';
+        } else {
+            ubicacionWrap.style.display = 'none';
+            enlaceWrap.style.display = 'none';
+        }
+    }
+
+    if (modalidadSel) {
+        modalidadSel.addEventListener('change', toggleFields);
+        toggleFields();
+    }
+})();
+</script>
+{% endblock %}

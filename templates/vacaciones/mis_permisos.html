@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis Permisos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+        {% if empleado %}<small class="text-muted">{{ empleado.apellidos_nombres }}</small>{% endif %}
+    </div>
+    <a href="{% url 'permiso_solicitar' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Solicitar Permiso</a>
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No tienes un perfil de empleado vinculado a tu usuario.</div>
+{% else %}
+
+<!-- Tipos disponibles -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header"><i class="fas fa-list-ul me-1"></i> Tipos de Permiso Disponibles</div>
+    <div class="card-body p-0">
+        <div class="d-flex flex-wrap gap-2 p-3">
+            {% for t in tipos %}
+            <span class="badge bg-light text-dark border px-2 py-1" style="font-size:.78rem;">
+                {{ t.nombre }}{% if t.dias_max %} <small>({{ t.dias_max }}d)</small>{% endif %}
+                {% if t.pagado %}<i class="fas fa-money-bill-wave text-success ms-1"></i>{% endif %}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Solicitudes -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Desde</th>
+                    <th>Hasta</th>
+                    <th class="text-center">Días</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in solicitudes %}
+                <tr>
+                    <td class="fw-semibold">{{ s.tipo.nombre }}</td>
+                    <td>{{ s.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ s.fecha_fin|date:"d/m/Y" }}</td>
+                    <td class="text-center">{{ s.dias }}</td>
+                    <td class="text-center">
+                        {% if s.estado == 'APROBADA' %}<span class="badge bg-success">Aprobada</span>
+                        {% elif s.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif s.estado == 'RECHAZADA' %}<span class="badge bg-danger">Rechazada</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ s.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if s.estado == 'PENDIENTE' %}
+                        <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="anular({{ s.pk }})" title="Anular"><i class="fas fa-times"></i></button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No tienes solicitudes de permisos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function anular(pk) {
+    if(!confirm('¿Anular esta solicitud de permiso?')) return;
+    fetch(`/vacaciones/solicitud/permiso/${pk}/anular/`, {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+</script>
+{% endblock %}

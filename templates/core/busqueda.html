@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block page_title %}
+<h1 class="h5 mb-0 fw-semibold">
+    <i class="fas fa-search me-2 text-muted"></i>Búsqueda Global
+</h1>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+
+        <!-- Search bar -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-3">
+                <form method="get" action="{% url 'buscar:busqueda_global_pagina' %}">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" name="q" value="{{ query }}"
+                               class="form-control border-start-0 border-end-0"
+                               placeholder="Buscar empleado, DNI, cargo, documento..."
+                               autofocus autocomplete="off">
+                        <button type="submit" class="btn btn-primary px-4">
+                            Buscar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if query %}
+        <!-- Results summary -->
+        <div class="d-flex align-items-center mb-3 gap-2">
+            {% if total > 0 %}
+            <span class="text-muted small">
+                <strong class="text-dark">{{ total }}</strong>
+                resultado{% if total != 1 %}s{% endif %} para
+                <strong class="text-dark">"{{ query }}"</strong>
+            </span>
+            {% else %}
+            <span class="text-muted small">
+                Sin resultados para <strong class="text-dark">"{{ query }}"</strong>
+            </span>
+            {% endif %}
+        </div>
+
+        {% if total == 0 %}
+        <!-- Empty state -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <div style="width:72px;height:72px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+                    <i class="fas fa-search-minus fa-2x text-muted opacity-50"></i>
+                </div>
+                <h5 class="fw-semibold text-dark mb-1">No encontramos resultados</h5>
+                <p class="text-muted mb-3" style="font-size:.9rem;">
+                    No hay coincidencias para <strong>"{{ query }}"</strong>.
+                </p>
+                <ul class="list-unstyled text-muted small mb-4" style="display:inline-block;text-align:left;">
+                    <li class="mb-1"><i class="fas fa-check-circle text-success me-2"></i>Verifica la ortografía</li>
+                    <li class="mb-1"><i class="fas fa-check-circle text-success me-2"></i>Intenta con el DNI o número de documento</li>
+                    <li class="mb-1"><i class="fas fa-check-circle text-success me-2"></i>Usa términos más generales (ej: "Juan" en vez de "Juan Carlos")</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Prueba buscando por cargo o área</li>
+                </ul>
+                <div>
+                    <a href="{% url 'personal_list' %}" class="btn btn-outline-primary btn-sm me-2">
+                        <i class="fas fa-users me-1"></i>Ver todos los empleados
+                    </a>
+                    <a href="{% url 'home' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-home me-1"></i>Ir al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Results by group -->
+        {% for grupo in grupos %}
+        <div class="mb-4">
+            <!-- Group header -->
+            <div class="d-flex align-items-center gap-2 mb-2 pb-1" style="border-bottom:2px solid #f1f5f9;">
+                <div style="width:28px;height:28px;border-radius:8px;background:{{ grupo.color }}18;
+                            display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas {{ grupo.icono }}" style="color:{{ grupo.color }};font-size:.75rem;"></i>
+                </div>
+                <span class="fw-semibold" style="font-size:.9rem;color:#374151;">{{ grupo.nombre }}</span>
+                <span class="badge rounded-pill ms-1" style="background:{{ grupo.color }}18;color:{{ grupo.color }};font-size:.7rem;">
+                    {{ grupo.items|length }}
+                </span>
+            </div>
+
+            <!-- Items -->
+            <div class="card border-0 shadow-sm overflow-hidden">
+                {% for item in grupo.items %}
+                <a href="{{ item.url }}"
+                   class="d-flex align-items-center gap-3 px-3 py-3 text-decoration-none search-result-item
+                          {% if not forloop.last %}border-bottom{% endif %}"
+                   style="transition:background .15s;">
+                    <!-- Icon -->
+                    <div class="flex-shrink-0 rounded-circle d-flex align-items-center justify-content-center"
+                         style="width:40px;height:40px;background:{{ item.color }}18;">
+                        <i class="fas {{ item.icono }}" style="color:{{ item.color }};font-size:.9rem;"></i>
+                    </div>
+                    <!-- Info -->
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="fw-semibold text-dark mb-0" style="font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {{ item.titulo }}
+                        </div>
+                        <div class="text-muted" style="font-size:.775rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {{ item.detalle }}{% if item.extra %} &middot; {{ item.extra }}{% endif %}
+                        </div>
+                    </div>
+                    <!-- Estado badge (if present) -->
+                    {% if item.estado %}
+                    <div class="flex-shrink-0">
+                        {% if item.estado == 'Activo' or item.estado == 'ACTIVO' or item.estado == 'APROBADO' %}
+                        <span class="badge rounded-pill bg-success bg-opacity-10 text-success" style="font-size:.7rem;">{{ item.estado }}</span>
+                        {% elif item.estado == 'Inactivo' or item.estado == 'INACTIVO' or item.estado == 'ANULADO' or item.estado == 'RECHAZADO' %}
+                        <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger" style="font-size:.7rem;">{{ item.estado }}</span>
+                        {% elif item.estado == 'PENDIENTE' or item.estado == 'BORRADOR' %}
+                        <span class="badge rounded-pill bg-warning bg-opacity-10 text-warning" style="font-size:.7rem;">{{ item.estado }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary" style="font-size:.7rem;">{{ item.estado }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <!-- Chevron -->
+                    <i class="fas fa-chevron-right text-muted opacity-50 flex-shrink-0" style="font-size:.7rem;"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% else %}
+        <!-- No query yet -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <div style="width:72px;height:72px;background:#f0fdfa;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+                    <i class="fas fa-search fa-2x" style="color:#0f766e;opacity:.7;"></i>
+                </div>
+                <h5 class="fw-semibold text-dark mb-1">Búsqueda Global</h5>
+                <p class="text-muted mb-3" style="font-size:.9rem;">
+                    Encuentra empleados, documentos, papeletas y más en toda la plataforma.
+                </p>
+                <div class="d-flex flex-wrap gap-2 justify-content-center text-muted small mt-2">
+                    <span class="px-3 py-1 rounded-pill" style="background:#f1f5f9;">
+                        <i class="fas fa-user me-1"></i>Busca por nombre
+                    </span>
+                    <span class="px-3 py-1 rounded-pill" style="background:#f1f5f9;">
+                        <i class="fas fa-id-card me-1"></i>Busca por DNI
+                    </span>
+                    <span class="px-3 py-1 rounded-pill" style="background:#f1f5f9;">
+                        <i class="fas fa-briefcase me-1"></i>Busca por cargo
+                    </span>
+                </div>
+                <div class="mt-3">
+                    <kbd class="me-1">Ctrl</kbd><kbd>+</kbd><kbd>K</kbd>
+                    <span class="text-muted ms-2 small">para buscar desde cualquier página</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<style>
+.search-result-item:hover {
+    background: #f8fafc !important;
+}
+.search-result-item:hover .fa-chevron-right {
+    opacity: 1 !important;
+    color: #0f766e !important;
+}
+</style>
+{% endblock %}

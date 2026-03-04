@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitudes de Horas Extra{% endblock %}
+
+{% block extra_css %}
+<style>
+.estado-pill { font-size:.72rem; padding:3px 8px; border-radius:20px; font-weight:600; }
+.estado-PENDIENTE  { background:#fff3cd; color:#856404; }
+.estado-APROBADA   { background:#d1e7dd; color:#0f5132; }
+.estado-RECHAZADA  { background:#f8d7da; color:#842029; }
+.estado-ANULADA    { background:#e2e3e5; color:#6c757d; }
+.tipo-pill { font-size:.72rem; background:#e9ecef; padding:2px 8px; border-radius:4px; }
+.alert-control { border-left:4px solid {% if he_requiere_solicitud %}#0f766e{% else %}#ffc107{% endif %}; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clock text-secondary me-2"></i>Solicitudes de Horas Extra</h2>
+        <small class="text-muted">DL 728 — Las HE son voluntarias y requieren acuerdo empleador–trabajador</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'asistencia_configuracion' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-sliders-h me-1"></i>Configuración
+        </a>
+        <button class="btn btn-primary btn-sm" onclick="abrirModal()">
+            <i class="fas fa-plus me-1"></i>Nueva Solicitud
+        </button>
+    </div>
+</div>
+
+<!-- Estado del control HE -->
+<div class="alert alert-control p-3 mb-4 small">
+    {% if he_requiere_solicitud %}
+    <i class="fas fa-shield-alt text-secondary me-2"></i>
+    <strong>Control de HE activo:</strong> El processor solo registra horas extra cuando existe una solicitud
+    <span class="badge bg-success">Aprobada</span> para el trabajador y la fecha. Sin solicitud aprobada, el exceso de horas se ignora.
+    {% else %}
+    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+    <strong>Control de HE desactivado:</strong> Las horas extra se registran automáticamente sin solicitud previa.
+    Para activar el control, ve a <a href="{% url 'asistencia_configuracion' %}">Configuración</a>.
+    {% endif %}
+</div>
+
+<!-- KPI Strip -->
+{% if he_stats %}
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#0f766e;">{{ he_stats.total }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Solicitudes {{ anio_actual }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#d97706;">{{ he_stats.pendientes }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Pendientes Aprobación</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#16a34a;">{{ he_stats.aprobadas }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Aprobadas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#0f766e;">{{ he_stats.total_horas|floatformat:0|default:"0" }}h</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Horas Aprobadas</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<form method="GET" class="d-flex gap-2 flex-wrap mb-3 align-items-end">
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Año</label>
+        <select name="anio" class="form-select form-select-sm" style="width:90px">
+            {% for y in anios %}<option value="{{ y }}" {% if y == anio_actual %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Estado</label>
+        <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for val, label in estados %}<option value="{{ val }}" {% if val == filtro_estado %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Trabajador</label>
+        <select name="personal" class="form-select form-select-sm" style="min-width:220px">
+            <option value="">Todos</option>
+            {% for p in personal_list %}
+            <option value="{{ p.pk }}" {% if p.pk|stringformat:'s' == filtro_personal %}selected{% endif %}>{{ p.apellidos_nombres }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<!-- Tabla -->
+<div class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Trabajador</th>
+                <th>Fecha</th>
+                <th>Horas Est.</th>
+                <th>Tipo</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th style="width:80px"></th>
+            </tr>
+        </thead>
+        <tbody id="solicitudesBody">
+            {% for s in solicitudes %}
+            <tr id="fila-s-{{ s.pk }}"
+                data-pk="{{ s.pk }}"
+                data-personal-id="{{ s.personal.pk }}"
+                data-fecha="{{ s.fecha|date:'Y-m-d' }}"
+                data-horas="{{ s.horas_estimadas }}"
+                data-tipo="{{ s.tipo }}"
+                data-motivo="{{ s.motivo|escapejs }}"
+                data-estado="{{ s.estado }}"
+                data-obs="{{ s.observaciones|escapejs }}">
+                <td class="fw-semibold">{{ s.personal.apellidos_nombres }}</td>
+                <td>{{ s.fecha|date:"d/m/Y" }}</td>
+                <td class="text-center">{{ s.horas_estimadas|floatformat:1 }}h</td>
+                <td><span class="tipo-pill">{{ s.get_tipo_display }}</span></td>
+                <td class="text-muted small">{{ s.motivo|truncatechars:60 }}</td>
+                <td><span class="estado-pill estado-{{ s.estado }}">{{ s.get_estado_display }}</span></td>
+                <td class="text-end">
+                    <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1"
+                            onclick="editarSolicitud({{ s.pk }})" title="Editar">
+                        <i class="fas fa-pen" style="font-size:.7rem"></i>
+                    </button>
+                    <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                            onclick="eliminarSolicitud({{ s.pk }}, '{{ s.personal.apellidos_nombres|escapejs }}')" title="Eliminar">
+                        <i class="fas fa-trash" style="font-size:.7rem"></i>
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr id="filaVaciaSolicitudes">
+                <td colspan="7" class="text-center text-muted py-4">
+                    <i class="fas fa-clock fa-2x d-block mb-2 opacity-25"></i>
+                    Sin solicitudes para los filtros seleccionados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalSolicitud" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalSolTitulo">Nueva Solicitud HE</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="solPk" value="">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Trabajador <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="solPersonal">
+                        <option value="">— Seleccionar —</option>
+                        {% for p in personal_list %}
+                        <option value="{{ p.pk }}">{{ p.apellidos_nombres }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm" id="solFecha">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label fw-semibold">Horas Est.</label>
+                        <input type="number" class="form-control form-control-sm" id="solHoras"
+                               step="0.5" min="0" max="12" value="2">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label fw-semibold">Estado</label>
+                        <select class="form-select form-select-sm" id="solEstado">
+                            {% for val, label in estados %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Tipo</label>
+                        <select class="form-select form-select-sm" id="solTipo">
+                            {% for val, label in tipos %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Motivo / Justificación <span class="text-danger">*</span></label>
+                        <textarea class="form-control form-control-sm" id="solMotivo" rows="2"
+                                  placeholder="Ej: Cierre de mes, emergencia operativa, despacho urgente..."></textarea>
+                    </div>
+                    <div class="col-12" id="panelObs" style="display:none">
+                        <label class="form-label fw-semibold">Observaciones del aprobador</label>
+                        <textarea class="form-control form-control-sm" id="solObs" rows="2"></textarea>
+                    </div>
+                </div>
+                <div id="solError" class="alert alert-danger py-2 small mt-3" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success btn-sm" onclick="aprobarRapido()" id="btnAprobar" style="display:none">
+                    <i class="fas fa-check me-1"></i>Aprobar
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="guardarSolicitud()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function abrirModal(d) {
+    d = d || {};
+    document.getElementById('solPk').value       = d.pk        || '';
+    document.getElementById('solPersonal').value = d.personalId || '';
+    document.getElementById('solFecha').value    = d.fecha     || '';
+    document.getElementById('solHoras').value    = d.horas     || '2';
+    document.getElementById('solTipo').value     = d.tipo      || 'PAGABLE';
+    document.getElementById('solEstado').value   = d.estado    || 'PENDIENTE';
+    document.getElementById('solMotivo').value   = d.motivo    || '';
+    document.getElementById('solObs').value      = d.obs       || '';
+    document.getElementById('solError').style.display = 'none';
+    document.getElementById('modalSolTitulo').textContent = d.pk ? 'Editar Solicitud HE' : 'Nueva Solicitud HE';
+    // Mostrar panel observaciones y botón aprobar solo en edición
+    const esEdicion = !!d.pk;
+    document.getElementById('panelObs').style.display = esEdicion ? '' : 'none';
+    document.getElementById('btnAprobar').style.display = (esEdicion && d.estado === 'PENDIENTE') ? '' : 'none';
+    new bootstrap.Modal(document.getElementById('modalSolicitud')).show();
+}
+
+function editarSolicitud(pk) {
+    const tr = document.getElementById('fila-s-' + pk);
+    abrirModal({
+        pk:        tr.dataset.pk,
+        personalId: tr.dataset.personalId,
+        fecha:     tr.dataset.fecha,
+        horas:     tr.dataset.horas,
+        tipo:      tr.dataset.tipo,
+        estado:    tr.dataset.estado,
+        motivo:    tr.dataset.motivo,
+        obs:       tr.dataset.obs,
+    });
+}
+
+function aprobarRapido() {
+    document.getElementById('solEstado').value = 'APROBADA';
+    guardarSolicitud();
+}
+
+async function guardarSolicitud() {
+    const pk         = document.getElementById('solPk').value;
+    const personalId = document.getElementById('solPersonal').value;
+    const fecha      = document.getElementById('solFecha').value;
+    const horas      = document.getElementById('solHoras').value;
+    const tipo       = document.getElementById('solTipo').value;
+    const estado     = document.getElementById('solEstado').value;
+    const motivo     = document.getElementById('solMotivo').value.trim();
+    const obs        = document.getElementById('solObs').value.trim();
+    const errDiv     = document.getElementById('solError');
+
+    if (!personalId || !fecha || !motivo) {
+        errDiv.textContent = 'Trabajador, Fecha y Motivo son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const url = pk
+        ? `/asistencia/solicitudes-he/${pk}/editar/`
+        : '/asistencia/solicitudes-he/crear/';
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            personal_id: personalId, fecha, horas_estimadas: horas,
+            tipo, estado, motivo, observaciones: obs,
+        }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) {
+        errDiv.textContent = data.error;
+        errDiv.style.display = '';
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalSolicitud')).hide();
+
+    const cls = {
+        PENDIENTE:'estado-PENDIENTE', APROBADA:'estado-APROBADA',
+        RECHAZADA:'estado-RECHAZADA', ANULADA:'estado-ANULADA'
+    };
+    const tbody = document.getElementById('solicitudesBody');
+    document.getElementById('filaVaciaSolicitudes')?.remove();
+
+    const filaHtml = `
+        <tr id="fila-s-${data.pk}"
+            data-pk="${data.pk}" data-personal-id="${personalId}"
+            data-fecha="${data.fecha}" data-horas="${data.horas_estimadas}"
+            data-tipo="${data.tipo}" data-motivo="${data.motivo.replace(/"/g,'&quot;')}"
+            data-estado="${data.estado}" data-obs="${data.observaciones.replace(/"/g,'&quot;')}">
+            <td class="fw-semibold">${data.personal_nombre}</td>
+            <td>${data.fecha_display}</td>
+            <td class="text-center">${parseFloat(data.horas_estimadas).toFixed(1)}h</td>
+            <td><span class="tipo-pill">${data.tipo_display}</span></td>
+            <td class="text-muted small">${data.motivo.substring(0,60)}</td>
+            <td><span class="estado-pill ${cls[data.estado]||''}">${data.estado_display}</span></td>
+            <td class="text-end">
+                <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1"
+                        onclick="editarSolicitud(${data.pk})" title="Editar">
+                    <i class="fas fa-pen" style="font-size:.7rem"></i>
+                </button>
+                <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                        onclick="eliminarSolicitud(${data.pk},'${data.personal_nombre.replace(/'/g,"\\'")}') " title="Eliminar">
+                    <i class="fas fa-trash" style="font-size:.7rem"></i>
+                </button>
+            </td>
+        </tr>`;
+
+    const existente = document.getElementById('fila-s-' + data.pk);
+    if (existente) { existente.outerHTML = filaHtml; }
+    else { tbody.insertAdjacentHTML('beforeend', filaHtml); }
+}
+
+async function eliminarSolicitud(pk, nombre) {
+    if (!confirm(`¿Eliminar solicitud HE de "${nombre}"?`)) return;
+    const resp = await fetch(`/asistencia/solicitudes-he/${pk}/eliminar/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-s-' + pk)?.remove();
+        if (!document.querySelector('#solicitudesBody tr')) {
+            document.getElementById('solicitudesBody').innerHTML =
+                '<tr id="filaVaciaSolicitudes"><td colspan="7" class="text-center text-muted py-4">Sin solicitudes.</td></tr>';
+        }
+    }
+}
+</script>
+{% endblock %}

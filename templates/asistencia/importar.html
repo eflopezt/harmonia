@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}Hub de Importaciones{% endblock %}
+
+{% block extra_css %}
+<style>
+.import-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  transition: border-color .2s, box-shadow .2s;
+  cursor: default;
+}
+.import-card:hover { border-color: var(--primary-color); box-shadow: 0 4px 16px rgba(15,118,110,.15); }
+.import-card .card-icon { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+.icon-reloj   { background: #dbeafe; color: #1d4ed8; }
+.icon-synkro  { background: #dcfce7; color: #15803d; }
+.icon-sunat   { background: #fee2e2; color: #b91c1c; }
+.icon-s10     { background: #e0f2fe; color: #0369a1; }
+.format-chip  { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: .1rem .45rem; font-size: .7rem; font-family: monospace; }
+
+/* Upload zone (para reloj inline) */
+.upload-zone {
+  border: 2px dashed #94a3b8;
+  border-radius: 10px;
+  padding: 28px 20px;
+  text-align: center;
+  transition: background .2s, border-color .2s;
+  cursor: pointer;
+}
+.upload-zone:hover, .upload-zone.drag-over { background: #f0fdfa; border-color: var(--primary-color); }
+.upload-zone i { font-size: 2.2rem; color: #94a3b8; }
+.upload-zone.has-file i { color: var(--primary-color); }
+.hist-badge { font-size: .68rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0"><i class="fas fa-file-import text-success me-2"></i>Hub de Importaciones</h2>
+      <small class="text-muted">Importa datos de asistencia, personal y horas extra desde múltiples fuentes</small>
+    </div>
+    <a href="{% url 'asistencia_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Dashboard
+    </a>
+  </div>
+
+  {# ── 4 tarjetas de importadores ──────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+
+    {# Reloj / BioTime (inline) #}
+    <div class="col-lg-6">
+      <div class="import-card card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="card-icon icon-reloj"><i class="fas fa-clock"></i></div>
+            <div>
+              <h5 class="fw-bold mb-0">Reloj Biométrico</h5>
+              <small class="text-muted">Marcaciones diarias de entrada/salida (BioTime / genérico)</small>
+            </div>
+          </div>
+
+          {# Form reloj inline #}
+          <form method="post" enctype="multipart/form-data" id="formReloj">
+            {% csrf_token %}
+            <input type="hidden" name="tipo_import" value="RELOJ">
+
+            <div class="mb-2">
+              <div class="upload-zone" id="uploadZone" onclick="document.getElementById('archivoExcel').click()">
+                <i class="fas fa-file-excel mb-1" id="uploadIcon"></i>
+                <p class="mb-0 text-muted small" id="uploadText">Arrastra o haz clic — <strong>.xlsx / .xls</strong></p>
+                <p class="mb-0 small text-muted" style="font-size:.7rem">Hoja "Reloj BioTime": columnas Nombre, No. (DNI), días</p>
+              </div>
+              <input type="file" name="archivo_excel" id="archivoExcel" accept=".xlsx,.xls" class="d-none" required>
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="dry_run" value="1" id="dryRun">
+                  <label class="form-check-label small" for="dryRun"><strong>Dry-run</strong> <span class="text-muted">— simular sin guardar</span></label>
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="force" value="1" id="forceImport">
+                  <label class="form-check-label small" for="forceImport"><strong>Force</strong> <span class="text-muted">— reemplazar existentes</span></label>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm fw-semibold" id="btnReloj">
+              <i class="fas fa-play me-1"></i>Importar Reloj
+            </button>
+          </form>
+
+          <div class="mt-3 pt-2 border-top d-flex gap-2 flex-wrap">
+            <span class="format-chip">.xlsx</span>
+            <span class="format-chip">.xls</span>
+            <span class="text-muted small ms-1">Total activos: {{ total_staff }} STAFF + {{ total_rco }} RCO</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Synkro #}
+    <div class="col-lg-6">
+      <div class="import-card card shadow-sm h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="card-icon icon-synkro"><i class="fas fa-sync-alt"></i></div>
+            <div>
+              <h5 class="fw-bold mb-0">Synkro</h5>
+              <small class="text-muted">Reloj + Papeletas combinados — archivo Excel multi-hoja</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-2">
+            Importa marcaciones de reloj <strong>y</strong> papeletas de permisos en un solo archivo.
+            Detecta hojas automáticamente (Reloj BioTime, Papeletas).
+          </p>
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="format-chip">.xlsx</span>
+            <span class="badge bg-light text-success border" style="font-size:.68rem">Reloj + Papeletas</span>
+            <span class="badge bg-light text-primary border" style="font-size:.68rem">Dry-run disponible</span>
+          </div>
+          <div class="mt-auto">
+            <a href="{% url 'asistencia_importar_synkro' %}" class="btn btn-success btn-sm fw-semibold">
+              <i class="fas fa-external-link-alt me-1"></i>Ir a Synkro
+            </a>
+            {% if stats_synkro %}
+            <span class="text-muted small ms-2">
+              Último: {{ stats_synkro.creado_en|date:"d/m/Y" }}
+              — {{ stats_synkro.total_registros }} registros
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# SUNAT #}
+    <div class="col-lg-6">
+      <div class="import-card card shadow-sm h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="card-icon icon-sunat"><i class="fas fa-landmark"></i></div>
+            <div>
+              <h5 class="fw-bold mb-0">SUNAT TR5</h5>
+              <small class="text-muted">T-Registro — cruce de trabajadores declarados</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-2">
+            Verifica concordancia entre personal activo en Harmoni y los trabajadores declarados al
+            T-Registro. Detecta ingresos/ceses no registrados y sincroniza régimen laboral.
+          </p>
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="format-chip">.txt</span>
+            <span class="badge bg-light text-danger border" style="font-size:.68rem">Pipe-delimitado SUNAT</span>
+          </div>
+          <div class="mt-auto">
+            <a href="{% url 'asistencia_importar_sunat' %}" class="btn btn-danger btn-sm fw-semibold">
+              <i class="fas fa-external-link-alt me-1"></i>Ir a SUNAT TR5
+            </a>
+            {% if stats_sunat %}
+            <span class="text-muted small ms-2">
+              Último: {{ stats_sunat.creado_en|date:"d/m/Y" }}
+              — {{ stats_sunat.total_registros }} registros
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# S10 #}
+    <div class="col-lg-6">
+      <div class="import-card card shadow-sm h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="card-icon icon-s10"><i class="fas fa-database"></i></div>
+            <div>
+              <h5 class="fw-bold mb-0">Reporte S10</h5>
+              <small class="text-muted">Sistema de obras S10 — personal y HE por proyecto</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-2">
+            Importa el reporte de personal desde S10. Actualiza código S10, partida de control
+            y verifica horas extra reportadas. Incluye detección IA de columnas vía Ollama local.
+          </p>
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="format-chip">.xlsx</span>
+            {% if ia_disponible %}
+            <span class="badge bg-light border" style="font-size:.68rem; color:#7c3aed">
+              <i class="fas fa-robot me-1"></i>Ollama activo
+            </span>
+            {% endif %}
+          </div>
+          <div class="mt-auto">
+            <a href="{% url 'asistencia_importar_s10' %}" class="btn btn-info text-white btn-sm fw-semibold">
+              <i class="fas fa-external-link-alt me-1"></i>Ir a S10
+            </a>
+            {% if stats_s10 %}
+            <span class="text-muted small ms-2">
+              Último: {{ stats_s10.creado_en|date:"d/m/Y" }}
+              — {{ stats_s10.total_registros }} registros
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Historial global ────────────────────────────────────────────────── #}
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="fw-semibold"><i class="fas fa-history me-2"></i>Historial de Importaciones</span>
+      <span class="badge bg-secondary">Últimas {{ ultimas_imports|length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Tipo</th>
+              <th>Período</th>
+              <th>Archivo</th>
+              <th>Registros</th>
+              <th>Sin match</th>
+              <th>Estado</th>
+              <th>Usuario</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for imp in ultimas_imports %}
+            <tr>
+              <td>
+                {% if imp.tipo == 'RELOJ' %}
+                  <span class="badge" style="background:#dbeafe;color:#1d4ed8">RELOJ</span>
+                {% elif imp.tipo == 'S10' %}
+                  <span class="badge" style="background:#e0f2fe;color:#0369a1">S10</span>
+                {% elif imp.tipo == 'SUNAT' %}
+                  <span class="badge" style="background:#fee2e2;color:#b91c1c">SUNAT</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ imp.tipo }}</span>
+                {% endif %}
+              </td>
+              <td class="small">
+                {% if imp.periodo_inicio %}
+                  {{ imp.periodo_inicio|date:"d/m" }}{% if imp.periodo_fin %} – {{ imp.periodo_fin|date:"d/m/Y" }}{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-muted small">{{ imp.archivo_nombre|truncatechars:30|default:"—" }}</td>
+              <td class="fw-semibold text-success">{{ imp.total_registros|default:0 }}</td>
+              <td class="{% if imp.registros_sin_match > 0 %}text-warning{% else %}text-muted{% endif %}">
+                {{ imp.registros_sin_match|default:0 }}
+              </td>
+              <td>
+                {% if imp.estado == 'COMPLETADO' %}
+                  <span class="badge bg-success hist-badge">OK</span>
+                {% elif imp.estado == 'COMPLETADO_CON_ERRORES' %}
+                  <span class="badge bg-warning text-dark hist-badge">Advertencias</span>
+                {% elif imp.estado == 'PROCESANDO' %}
+                  <span class="badge bg-primary hist-badge">En proceso</span>
+                {% else %}
+                  <span class="badge bg-danger hist-badge">Fallido</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">{{ imp.usuario.username|default:"—" }}</td>
+              <td class="small text-muted">{{ imp.creado_en|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>
+                No hay importaciones registradas aún
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Upload zone — drag & drop + file select
+const zone   = document.getElementById('uploadZone');
+const input  = document.getElementById('archivoExcel');
+const icon   = document.getElementById('uploadIcon');
+const utext  = document.getElementById('uploadText');
+
+function setFile(file) {
+  utext.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i><strong>' +
+                    file.name + '</strong> (' + (file.size/1024).toFixed(1) + ' KB)';
+  icon.className = 'fas fa-file-excel mb-1';
+  icon.style.color = 'var(--primary-color)';
+  zone.classList.add('has-file');
+}
+
+input.addEventListener('change', function() { if (this.files.length) setFile(this.files[0]); });
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; setFile(e.dataTransfer.files[0]); }
+});
+
+// Confirmar force + spinner
+document.getElementById('formReloj').addEventListener('submit', function(e) {
+  const isDry   = document.getElementById('dryRun').checked;
+  const isForce = document.getElementById('forceImport').checked;
+  if (!isDry && isForce) {
+    if (!confirm('El modo FORCE reemplazará registros existentes del mismo período. ¿Continuar?')) {
+      e.preventDefault(); return;
+    }
+  }
+  const btn = document.getElementById('btnReloj');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Procesando…';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Evaluaciones de Desempeño{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI Cards ──────────────────────────────────────────── */
+.eval-kpi-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 1px 6px rgba(13,43,39,.08);
+    border-left: 4px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: box-shadow .18s, transform .18s;
+}
+.eval-kpi-card:hover { box-shadow: 0 4px 18px rgba(13,43,39,.13); transform: translateY(-2px); }
+.eval-kpi-card .kpi-icon {
+    width: 46px; height: 46px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+}
+.eval-kpi-card .kpi-value { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+.eval-kpi-card .kpi-label { font-size: .72rem; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-top: .15rem; }
+
+/* Color variants */
+.kpi-total  { border-color: #0f766e; } .kpi-total .kpi-icon  { background: #f0fdf4; color: #0f766e; }
+.kpi-activa { border-color: #f59e0b; } .kpi-activa .kpi-icon { background: #fffbeb; color: #d97706; }
+.kpi-prom   { border-color: #6366f1; } .kpi-prom .kpi-icon   { background: #eef2ff; color: #6366f1; }
+.kpi-cierre { border-color: #64748b; } .kpi-cierre .kpi-icon { background: #f1f5f9; color: #475569; }
+
+/* ── 9-Box mini-grid ────────────────────────────────────── */
+.nine-box-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.nine-box-mini .box-cell {
+    border-radius: 6px;
+    padding: .45rem .3rem;
+    text-align: center;
+    font-size: .7rem;
+    font-weight: 600;
+    position: relative;
+    min-height: 52px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px;
+}
+.nine-box-mini .box-count { font-size: 1.15rem; font-weight: 700; }
+.nine-box-mini .box-label { font-size: .6rem; opacity: .8; }
+
+/* Colores por posición (fila=desempeño, col=potencial) */
+/* Posición: 1=bajo-bajo … 9=alto-alto */
+.box-1 { background: #fee2e2; color: #991b1b; }
+.box-2 { background: #fef3c7; color: #92400e; }
+.box-3 { background: #dbeafe; color: #1e40af; }
+.box-4 { background: #fef3c7; color: #92400e; }
+.box-5 { background: #e0e7ff; color: #3730a3; }
+.box-6 { background: #d1fae5; color: #065f46; }
+.box-7 { background: #dbeafe; color: #1e40af; }
+.box-8 { background: #d1fae5; color: #065f46; }
+.box-9 { background: #fef9c3; color: #854d0e; border: 2px solid #f59e0b; }
+
+/* ── Tabla recientes ────────────────────────────────────── */
+.recientes-table td { vertical-align: middle; font-size: .82rem; padding: .45rem .75rem; }
+.badge-estado-PENDIENTE  { background: #fef3c7; color: #92400e; }
+.badge-estado-EN_PROGRESO{ background: #dbeafe; color: #1e40af; }
+.badge-estado-COMPLETADA { background: #d1fae5; color: #065f46; }
+.badge-estado-CALIBRADA  { background: #e0e7ff; color: #3730a3; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-star-half-alt text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} ciclo{{ total|pluralize:"s" }} en el período seleccionado</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'evaluaciones_dashboard' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-chart-bar me-1"></i>Dashboard</a>
+        <a href="{% url 'ninebox_grid' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-th me-1"></i>9-Box Grid</a>
+        <a href="{% url 'comparativa_competencias' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-spider me-1"></i>Comparativa</a>
+        <a href="{% url 'competencias_panel' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-tags me-1"></i>Competencias</a>
+        <a href="{% url 'planes_panel' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-road me-1"></i>PDI</a>
+        <a href="{% url 'ciclo_crear' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Nuevo Ciclo</a>
+    </div>
+</div>
+
+<!-- ── KPI Cards ─────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="eval-kpi-card kpi-total">
+            <div class="kpi-icon"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="kpi-value text-success">{{ total_evaluaciones|intcomma }}</div>
+                <div class="kpi-label">Total Evaluaciones</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="eval-kpi-card kpi-activa">
+            <div class="kpi-icon"><i class="fas fa-spinner"></i></div>
+            <div>
+                <div class="kpi-value" style="color:#d97706;">{{ evaluaciones_activas|intcomma }}</div>
+                <div class="kpi-label">Pendientes Activas</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="eval-kpi-card kpi-prom">
+            <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+            <div>
+                {% if promedio_general is not None %}
+                <div class="kpi-value" style="color:#6366f1;">{{ promedio_general }}%</div>
+                {% else %}
+                <div class="kpi-value" style="color:#94a3b8; font-size:1.2rem;">Sin datos</div>
+                {% endif %}
+                <div class="kpi-label">Prom. Puntaje Global</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="eval-kpi-card kpi-cierre">
+            <div class="kpi-icon"><i class="fas fa-check-double"></i></div>
+            <div>
+                <div class="kpi-value" style="color:#475569;">{{ ciclos_cerrados }}</div>
+                <div class="kpi-label">Ciclos Cerrados</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Cuerpo: tabla + sidebar ──────────────────────────────── -->
+<div class="row g-3">
+
+    <!-- Columna principal -->
+    <div class="col-lg-8">
+
+        <!-- Filtros -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body py-2">
+                <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+                    <div>
+                        <label class="form-label small mb-0">Estado</label>
+                        <select name="estado" class="form-select form-select-sm" style="width:160px">
+                            <option value="">Todos</option>
+                            <option value="BORRADOR" {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                            <option value="ABIERTO" {% if filtro_estado == 'ABIERTO' %}selected{% endif %}>Abierto</option>
+                            <option value="EN_EVALUACION" {% if filtro_estado == 'EN_EVALUACION' %}selected{% endif %}>En Evaluación</option>
+                            <option value="CALIBRACION" {% if filtro_estado == 'CALIBRACION' %}selected{% endif %}>Calibración</option>
+                            <option value="CERRADO" {% if filtro_estado == 'CERRADO' %}selected{% endif %}>Cerrado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-0">Año</label>
+                        <input type="number" name="anio" value="{{ anio_filtro }}" class="form-control form-control-sm" style="width:90px">
+                    </div>
+                    <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+                    {% if filtro_estado or anio_filtro %}
+                    <a href="{% url 'ciclos_panel' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabla ciclos -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" style="font-size:.85rem;">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Período</th>
+                            <th class="text-center">Evals.</th>
+                            <th class="text-center">Avance</th>
+                            <th class="text-center">Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in ciclos %}
+                        <tr>
+                            <td class="fw-semibold">{{ c.nombre }}</td>
+                            <td><span class="badge bg-light text-dark">{{ c.get_tipo_display }}</span></td>
+                            <td style="font-size:.78rem;">{{ c.fecha_inicio|date:"d/m/Y" }} — {{ c.fecha_fin|date:"d/m/Y" }}</td>
+                            <td class="text-center">{{ c.total_evaluaciones }}</td>
+                            <td class="text-center">
+                                {% if c.total_evaluaciones > 0 %}
+                                <div class="progress" style="height:6px; width:70px; display:inline-block; vertical-align:middle;">
+                                    <div class="progress-bar bg-success" style="width:{{ c.porcentaje_avance }}%"></div>
+                                </div>
+                                <small class="ms-1">{{ c.porcentaje_avance }}%</small>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if c.estado == 'BORRADOR' %}<span class="badge bg-light text-dark">Borrador</span>
+                                {% elif c.estado == 'ABIERTO' %}<span class="badge bg-info">Abierto</span>
+                                {% elif c.estado == 'EN_EVALUACION' %}<span class="badge bg-warning text-dark">En Evaluación</span>
+                                {% elif c.estado == 'CALIBRACION' %}<span class="badge bg-primary">Calibración</span>
+                                {% elif c.estado == 'CERRADO' %}<span class="badge bg-success">Cerrado</span>{% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'ciclo_detalle' c.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2" title="Ver detalle"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted py-5">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+                            No hay ciclos de evaluación para los filtros seleccionados.
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Evaluaciones recientes -->
+        {% if recientes %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header d-flex align-items-center gap-2 py-2">
+                <i class="fas fa-history text-muted"></i>
+                <span class="fw-semibold" style="font-size:.88rem;">Últimas Evaluaciones Registradas</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table mb-0 recientes-table">
+                    <tbody>
+                        {% for ev in recientes %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ ev.evaluado.apellidos_nombres|truncatechars:28 }}</div>
+                                <small class="text-muted">{{ ev.ciclo.nombre|truncatechars:30 }}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark">{{ ev.get_relacion_display }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge badge-estado-{{ ev.estado }}">{{ ev.get_estado_display }}</span>
+                            </td>
+                            <td class="text-muted text-end" style="font-size:.75rem;">
+                                {{ ev.creado_en|date:"d/m/Y" }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+    </div><!-- /col-lg-8 -->
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+
+        <!-- 9-Box mini-grid -->
+        {% if hay_nine_box %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-th text-muted"></i>
+                <span class="fw-semibold" style="font-size:.88rem;">Distribución 9-Box</span>
+                <small class="text-muted ms-auto">Total consolidados</small>
+            </div>
+            <div class="card-body pb-2">
+                <!-- Eje Potencial (arriba) -->
+                <div class="d-flex justify-content-between mb-1 px-1">
+                    <small class="text-muted" style="font-size:.62rem;">← Potencial Bajo</small>
+                    <small class="text-muted" style="font-size:.62rem;">Potencial Alto →</small>
+                </div>
+
+                <!-- Grid 3x3 — filas: desempeño alto→bajo; cols: potencial bajo→alto -->
+                <div class="nine-box-mini">
+                    {# Fila 3: Desempeño ALTO — posiciones 7, 8, 9 #}
+                    <div class="box-cell box-7">
+                        <span class="box-count">{{ nine_box_counts.7 }}</span>
+                        <span class="box-label">Alto D / Bajo P</span>
+                    </div>
+                    <div class="box-cell box-8">
+                        <span class="box-count">{{ nine_box_counts.8 }}</span>
+                        <span class="box-label">Alto D / Medio P</span>
+                    </div>
+                    <div class="box-cell box-9">
+                        <span class="box-count">{{ nine_box_counts.9 }}</span>
+                        <span class="box-label">Estrella ★</span>
+                    </div>
+
+                    {# Fila 2: Desempeño MEDIO — posiciones 4, 5, 6 #}
+                    <div class="box-cell box-4">
+                        <span class="box-count">{{ nine_box_counts.4 }}</span>
+                        <span class="box-label">Medio D / Bajo P</span>
+                    </div>
+                    <div class="box-cell box-5">
+                        <span class="box-count">{{ nine_box_counts.5 }}</span>
+                        <span class="box-label">Núcleo</span>
+                    </div>
+                    <div class="box-cell box-6">
+                        <span class="box-count">{{ nine_box_counts.6 }}</span>
+                        <span class="box-label">Alto Potencial</span>
+                    </div>
+
+                    {# Fila 1: Desempeño BAJO — posiciones 1, 2, 3 #}
+                    <div class="box-cell box-1">
+                        <span class="box-count">{{ nine_box_counts.1 }}</span>
+                        <span class="box-label">Bajo D / Bajo P</span>
+                    </div>
+                    <div class="box-cell box-2">
+                        <span class="box-count">{{ nine_box_counts.2 }}</span>
+                        <span class="box-label">Bajo D / Medio P</span>
+                    </div>
+                    <div class="box-cell box-3">
+                        <span class="box-count">{{ nine_box_counts.3 }}</span>
+                        <span class="box-label">Bajo D / Alto P</span>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-1 px-1">
+                    <small class="text-muted" style="font-size:.62rem;">← Desempeño Bajo</small>
+                    <small class="text-muted" style="font-size:.62rem;">Desempeño Alto →</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow-sm mb-3 border-dashed">
+            <div class="card-body text-center py-4 text-muted">
+                <i class="fas fa-th fa-2x mb-2 d-block opacity-25"></i>
+                <div style="font-size:.82rem;">No hay datos 9-Box aún.</div>
+                <small>Cierra un ciclo y clasifica resultados.</small>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Atajos rápidos -->
+        <div class="card shadow-sm">
+            <div class="card-header py-2">
+                <span class="fw-semibold" style="font-size:.88rem;"><i class="fas fa-bolt text-muted me-1"></i>Acceso Rápido</span>
+            </div>
+            <div class="list-group list-group-flush" style="font-size:.83rem;">
+                <a href="{% url 'evaluaciones_dashboard' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-chart-bar" style="width:18px; color:#0f766e;"></i> Dashboard Ejecutivo
+                </a>
+                <a href="{% url 'ninebox_grid' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-th" style="width:18px; color:#6366f1;"></i> 9-Box Grid Global
+                </a>
+                <a href="{% url 'comparativa_competencias' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-spider" style="width:18px; color:#0f766e;"></i> Comparativa Competencias
+                </a>
+                <a href="{% url 'ciclo_crear' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-plus-circle text-primary" style="width:18px;"></i> Nuevo Ciclo
+                </a>
+                <a href="{% url 'competencias_panel' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-tags text-secondary" style="width:18px;"></i> Gestionar Competencias
+                </a>
+                <a href="{% url 'plantillas_panel' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-file-alt text-secondary" style="width:18px;"></i> Plantillas de Evaluación
+                </a>
+                <a href="{% url 'planes_panel' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-road text-secondary" style="width:18px;"></i> Planes de Desarrollo (PDI)
+                </a>
+                <a href="{% url 'okr_panel' %}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <i class="fas fa-bullseye text-secondary" style="width:18px;"></i> OKRs
+                </a>
+            </div>
+        </div>
+
+    </div><!-- /col-lg-4 -->
+
+</div><!-- /row -->
+{% endblock %}

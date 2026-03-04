@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+{% load humanize harmoni_tags %}
+
+{% block title %}Timeline Legal — {{ medida.personal.apellidos_nombres }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══════════════════════════════════════
+   TIMELINE LEGAL DISCIPLINARIO
+   DS 003-97-TR — Proceso de despido
+══════════════════════════════════════ */
+
+.tl-page-header {
+    background: #0d2b27;
+    color: #fff;
+    border-radius: .5rem;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.tl-page-header h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: .15rem;
+}
+.tl-page-header .sub { font-size: .8rem; opacity: .72; }
+
+/* ── Medidor de progreso ── */
+.tl-progress-bar-wrap {
+    background: #f3f4f6;
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: .4rem;
+}
+.tl-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width .5s ease;
+}
+.tl-progress-fill.verde    { background: linear-gradient(90deg, #10b981, #34d399); }
+.tl-progress-fill.amarillo { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.tl-progress-fill.rojo     { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+/* ── Timeline vertical ── */
+.tl-wrap {
+    position: relative;
+    padding-left: 3rem;
+}
+.tl-wrap::before {
+    content: '';
+    position: absolute;
+    left: 1.15rem;
+    top: 1.5rem;
+    bottom: 1.5rem;
+    width: 3px;
+    background: #e5e7eb;
+    border-radius: 2px;
+}
+
+.tl-item {
+    position: relative;
+    margin-bottom: 1.75rem;
+    opacity: 1;
+}
+.tl-item:last-child { margin-bottom: 0; }
+
+/* Ícono dot */
+.tl-dot {
+    position: absolute;
+    left: -1.9rem;
+    top: .3rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .8rem;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 3px #e5e7eb;
+    background: #e5e7eb;
+    color: #9ca3af;
+    transition: all .2s;
+    z-index: 1;
+}
+.tl-dot.completado {
+    background: #10b981;
+    box-shadow: 0 0 0 3px #d1fae5;
+    color: #fff;
+}
+.tl-dot.en_curso {
+    background: #f59e0b;
+    box-shadow: 0 0 0 3px #fef3c7;
+    color: #fff;
+    animation: tl-pulse 2s infinite;
+}
+.tl-dot.urgente {
+    background: #ef4444;
+    box-shadow: 0 0 0 3px #fee2e2;
+    color: #fff;
+    animation: tl-pulse 1.2s infinite;
+}
+.tl-dot.vencido {
+    background: #ef4444;
+    box-shadow: 0 0 0 3px #fee2e2;
+    color: #fff;
+}
+.tl-dot.pendiente {
+    background: #f9fafb;
+    box-shadow: 0 0 0 3px #e5e7eb;
+    color: #9ca3af;
+}
+.tl-dot.no_aplica {
+    background: #e5e7eb;
+    color: #9ca3af;
+}
+.tl-dot.anulado {
+    background: #6b7280;
+    box-shadow: 0 0 0 3px #f3f4f6;
+    color: #fff;
+}
+
+@keyframes tl-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(245,158,11,.3); }
+    50%       { box-shadow: 0 0 0 7px rgba(245,158,11,.15); }
+}
+
+/* Tarjeta del hito */
+.tl-card {
+    background: #fff;
+    border-radius: .5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    border: 1px solid #f3f4f6;
+    padding: 1rem 1.25rem;
+    transition: box-shadow .15s;
+}
+.tl-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); }
+
+.tl-card.estado-completado { border-left: 4px solid #10b981; }
+.tl-card.estado-en_curso   { border-left: 4px solid #f59e0b; }
+.tl-card.estado-urgente    { border-left: 4px solid #ef4444; }
+.tl-card.estado-vencido    { border-left: 4px solid #ef4444; background: #fff5f5; }
+.tl-card.estado-pendiente  { border-left: 4px solid #e5e7eb; opacity: .7; }
+.tl-card.estado-no_aplica  { border-left: 4px solid #e5e7eb; opacity: .55; }
+.tl-card.estado-anulado    { border-left: 4px solid #6b7280; opacity: .75; }
+
+.tl-hito-nombre {
+    font-weight: 700;
+    font-size: .95rem;
+    color: #111827;
+    margin-bottom: .2rem;
+}
+.tl-hito-subtitulo {
+    font-size: .78rem;
+    color: #6b7280;
+    margin-bottom: .6rem;
+}
+.tl-fecha-row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: .4rem;
+}
+.tl-fecha-block {
+    display: flex;
+    flex-direction: column;
+}
+.tl-fecha-label {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #9ca3af;
+    font-weight: 600;
+    margin-bottom: .1rem;
+}
+.tl-fecha-valor {
+    font-size: .88rem;
+    font-weight: 600;
+    color: #374151;
+}
+.tl-fecha-estimada .tl-fecha-valor {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.tl-base-legal {
+    display: inline-block;
+    font-size: .68rem;
+    background: #f0fdf4;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    border-radius: 999px;
+    padding: .1rem .55rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+}
+
+/* Semáforo badge */
+.tl-badge {
+    font-size: .72rem;
+    font-weight: 600;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.tl-badge-verde    { background: #d1fae5; color: #065f46; }
+.tl-badge-amarillo { background: #fef3c7; color: #92400e; }
+.tl-badge-rojo     { background: #fee2e2; color: #991b1b; }
+.tl-badge-gris     { background: #f3f4f6; color: #6b7280; }
+
+/* Contador regresivo de días */
+.tl-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .25rem .75rem;
+    border-radius: .35rem;
+    font-size: .8rem;
+    font-weight: 700;
+}
+.tl-countdown.verde    { background: #ecfdf5; color: #065f46; }
+.tl-countdown.amarillo { background: #fffbeb; color: #92400e; }
+.tl-countdown.rojo     { background: #fff5f5; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── HEADER ── -->
+<div class="tl-page-header">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <h2><i class="fas fa-stream me-2" style="color:#5eead4;"></i>Timeline Legal del Proceso</h2>
+            <div class="sub">
+                {{ medida.personal.apellidos_nombres }}
+                <span class="opacity-50 mx-1">·</span>
+                {{ medida.personal.nro_doc }}
+                <span class="opacity-50 mx-1">·</span>
+                {{ medida.get_tipo_medida_display }}
+                <span class="opacity-50 mx-1">·</span>
+                Hechos: {{ medida.fecha_hechos|date:"d/m/Y" }}
+            </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap mt-1">
+            <a href="{% url 'medida_detalle' medida.pk %}" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+                <i class="fas fa-file-alt me-1"></i>Detalle
+            </a>
+            <a href="{% url 'disciplinaria_dashboard' %}" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+            </a>
+            <a href="{% url 'disciplinaria_panel' %}" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+                <i class="fas fa-list me-1"></i>Panel
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ── BARRA DE PROGRESO LEGAL ── -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body py-3">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <div>
+                <span class="fw-semibold" style="font-size:.9rem;">Progreso del plazo legal</span>
+                <span class="text-muted ms-2" style="font-size:.78rem;">DS 003-97-TR — Máx. 30 días hábiles para imponer sanción</span>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <span class="fw-bold" style="font-size:1.1rem;{% if plazo_superado %}color:#ef4444;{% elif dias_habiles_total > 20 %}color:#f59e0b;{% else %}color:#10b981;{% endif %}">
+                    {{ dias_habiles_total }}
+                </span>
+                <span class="text-muted" style="font-size:.8rem;">/ 30 días hábiles</span>
+                {% if plazo_superado %}
+                    <span class="tl-badge tl-badge-rojo"><i class="fas fa-times-circle me-1"></i>Plazo Vencido</span>
+                {% elif dias_habiles_total > 20 %}
+                    <span class="tl-badge tl-badge-amarillo"><i class="fas fa-exclamation-triangle me-1"></i>Próximo a vencer</span>
+                {% else %}
+                    <span class="tl-badge tl-badge-verde"><i class="fas fa-check-circle me-1"></i>En plazo</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="tl-progress-bar-wrap">
+            {% widthratio dias_habiles_total 30 100 as pct_progreso %}
+            <div class="tl-progress-fill {% if plazo_superado %}rojo{% elif dias_habiles_total > 20 %}amarillo{% else %}verde{% endif %}"
+                 style="width:{% if pct_progreso > 100 %}100{% else %}{{ pct_progreso }}{% endif %}%;"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-1" style="font-size:.68rem;color:#9ca3af;">
+            <span>Inicio: {{ medida.fecha_hechos|date:"d/m/Y" }}</span>
+            <span>Hoy: {{ hoy|date:"d/m/Y" }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- ── TIMELINE ── -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body pt-4 pb-3">
+                <div class="tl-wrap">
+                    {% for hito in hitos %}
+                    <div class="tl-item">
+
+                        <!-- Dot del hito -->
+                        <div class="tl-dot {{ hito.estado }}">
+                            <i class="fas {{ hito.icono }}"></i>
+                        </div>
+
+                        <!-- Tarjeta del hito -->
+                        <div class="tl-card estado-{{ hito.estado }}">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+                                <div class="tl-hito-nombre">{{ hito.nombre }}</div>
+                                <div class="d-flex gap-1 flex-wrap align-items-center">
+                                    {% if hito.base_legal %}
+                                    <span class="tl-base-legal">{{ hito.base_legal }}</span>
+                                    {% endif %}
+
+                                    {% if hito.estado == 'completado' %}
+                                        <span class="tl-badge tl-badge-verde"><i class="fas fa-check-circle me-1"></i>Completado</span>
+                                    {% elif hito.estado == 'en_curso' %}
+                                        <span class="tl-badge tl-badge-amarillo"><i class="fas fa-circle-notch fa-spin me-1"></i>En curso</span>
+                                    {% elif hito.estado == 'urgente' %}
+                                        <span class="tl-badge tl-badge-rojo"><i class="fas fa-exclamation-triangle me-1"></i>Urgente</span>
+                                    {% elif hito.estado == 'vencido' %}
+                                        <span class="tl-badge tl-badge-rojo"><i class="fas fa-times-circle me-1"></i>Plazo vencido</span>
+                                    {% elif hito.estado == 'pendiente' %}
+                                        <span class="tl-badge tl-badge-gris"><i class="fas fa-clock me-1"></i>Pendiente</span>
+                                    {% elif hito.estado == 'no_aplica' %}
+                                        <span class="tl-badge tl-badge-gris">No aplica</span>
+                                    {% elif hito.estado == 'anulado' %}
+                                        <span class="tl-badge tl-badge-gris"><i class="fas fa-ban me-1"></i>Anulado</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="tl-hito-subtitulo">{{ hito.subtitulo }}</div>
+
+                            <!-- Fechas -->
+                            <div class="tl-fecha-row">
+                                {% if hito.fecha_real %}
+                                <div class="tl-fecha-block">
+                                    <span class="tl-fecha-label"><i class="fas fa-calendar-check me-1"></i>Fecha real</span>
+                                    <span class="tl-fecha-valor">{{ hito.fecha_real|date:"d/m/Y" }}</span>
+                                </div>
+                                {% endif %}
+                                {% if hito.fecha_estimada %}
+                                <div class="tl-fecha-block tl-fecha-estimada">
+                                    <span class="tl-fecha-label"><i class="fas fa-calendar-alt me-1"></i>Fecha estimada</span>
+                                    <span class="tl-fecha-valor">{{ hito.fecha_estimada|date:"d/m/Y" }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Información especial por hito -->
+                            {% if hito.dias_restantes is not None %}
+                            <div class="mt-2">
+                                {% if hito.dias_restantes < 0 %}
+                                <span class="tl-countdown rojo">
+                                    <i class="fas fa-clock"></i>
+                                    Plazo vencido hace {{ hito.dias_restantes|abs_value|floatformat:0 }} día{{ hito.dias_restantes|abs_value|floatformat:0|pluralize }}
+                                </span>
+                                {% elif hito.dias_restantes == 0 %}
+                                <span class="tl-countdown rojo">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Vence hoy
+                                </span>
+                                {% elif hito.dias_restantes <= 2 %}
+                                <span class="tl-countdown amarillo">
+                                    <i class="fas fa-hourglass-half"></i>
+                                    {{ hito.dias_restantes }} día{{ hito.dias_restantes|pluralize }} restante{{ hito.dias_restantes|pluralize }}
+                                </span>
+                                {% else %}
+                                <span class="tl-countdown verde">
+                                    <i class="fas fa-hourglass"></i>
+                                    {{ hito.dias_restantes }} días restantes
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            {% if hito.a_tiempo is not None %}
+                            <div class="mt-2">
+                                {% if hito.a_tiempo %}
+                                <span class="tl-badge tl-badge-verde"><i class="fas fa-check me-1"></i>Presentado a tiempo</span>
+                                {% else %}
+                                <span class="tl-badge tl-badge-rojo"><i class="fas fa-times me-1"></i>Presentado fuera de plazo</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            {% if hito.resuelto_por %}
+                            <div class="mt-2" style="font-size:.75rem;color:#6b7280;">
+                                <i class="fas fa-user-check me-1"></i>
+                                Resuelto por <strong>{{ hito.resuelto_por.get_full_name|default:hito.resuelto_por.username }}</strong>
+                            </div>
+                            {% endif %}
+
+                        </div><!-- /tl-card -->
+                    </div><!-- /tl-item -->
+                    {% endfor %}
+                </div><!-- /tl-wrap -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ── PANEL LATERAL ── -->
+    <div class="col-lg-4">
+
+        <!-- Resumen del proceso -->
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header py-2" style="background:#0d2b27;color:#fff;font-size:.82rem;font-weight:600;border-radius:.5rem .5rem 0 0;">
+                <i class="fas fa-info-circle me-1" style="color:#5eead4;"></i>Resumen del Proceso
+            </div>
+            <div class="card-body py-3" style="font-size:.82rem;">
+                <table class="w-100" style="border-spacing:0;line-height:1.7;">
+                    <tr>
+                        <td style="color:#6b7280;width:45%;">Trabajador</td>
+                        <td class="fw-semibold">{{ medida.personal.apellidos_nombres|truncatechars:25 }}</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#6b7280;">DNI</td>
+                        <td>{{ medida.personal.nro_doc }}</td>
+                    </tr>
+                    {% if medida.personal.subarea %}
+                    <tr>
+                        <td style="color:#6b7280;">Área</td>
+                        <td>{{ medida.personal.subarea.area.nombre }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td style="color:#6b7280;">Tipo Medida</td>
+                        <td>
+                            {% if medida.tipo_medida == 'VERBAL' %}<span class="badge bg-info" style="font-size:.7rem;">Verbal</span>
+                            {% elif medida.tipo_medida == 'ESCRITA' %}<span class="badge bg-warning text-dark" style="font-size:.7rem;">Escrita</span>
+                            {% elif medida.tipo_medida == 'SUSPENSION' %}<span class="badge bg-danger" style="font-size:.7rem;">Suspensión</span>
+                            {% elif medida.tipo_medida == 'DESPIDO' %}<span class="badge bg-dark" style="font-size:.7rem;">Despido</span>{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color:#6b7280;">Tipo Falta</td>
+                        <td>{{ medida.tipo_falta.nombre|truncatechars:22 }}</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#6b7280;">Gravedad</td>
+                        <td>
+                            {% if medida.tipo_falta.gravedad == 'LEVE' %}<span class="badge bg-light text-secondary" style="font-size:.7rem;">Leve</span>
+                            {% elif medida.tipo_falta.gravedad == 'GRAVE' %}<span class="badge bg-warning text-dark" style="font-size:.7rem;">Grave</span>
+                            {% elif medida.tipo_falta.gravedad == 'MUY_GRAVE' %}<span class="badge bg-danger" style="font-size:.7rem;">Muy Grave</span>{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color:#6b7280;">Estado</td>
+                        <td>
+                            {% if medida.estado == 'BORRADOR' %}<span class="badge bg-light text-dark" style="font-size:.7rem;">Borrador</span>
+                            {% elif medida.estado == 'NOTIFICADA' %}<span class="badge bg-primary" style="font-size:.7rem;">Notificada</span>
+                            {% elif medida.estado == 'EN_DESCARGO' %}<span class="badge bg-warning text-dark" style="font-size:.7rem;">En Descargo</span>
+                            {% elif medida.estado == 'DESCARGO_RECIBIDO' %}<span class="badge bg-info text-dark" style="font-size:.7rem;">Desc. Recibido</span>
+                            {% elif medida.estado == 'RESUELTA' %}<span class="badge bg-success" style="font-size:.7rem;">Resuelta</span>
+                            {% elif medida.estado == 'ANULADA' %}<span class="badge bg-secondary" style="font-size:.7rem;">Anulada</span>{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color:#6b7280;">Fecha Hechos</td>
+                        <td>{{ medida.fecha_hechos|date:"d/m/Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#6b7280;">Días hábiles</td>
+                        <td class="fw-bold {% if plazo_superado %}text-danger{% elif dias_habiles_total > 20 %}text-warning{% else %}text-success{% endif %}">
+                            {{ dias_habiles_total }} / 30
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Base legal de referencia -->
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header py-2" style="font-size:.82rem;font-weight:600;background:#f9fafb;">
+                <i class="fas fa-balance-scale me-1" style="color:#0f766e;"></i>Base Legal — DS 003-97-TR
+            </div>
+            <div class="card-body py-2" style="font-size:.78rem;line-height:1.7;color:#374151;">
+                <div class="mb-1"><span class="fw-semibold text-muted">Art. 31</span> — Antes del despido, el empleador debe cursar carta notarial de imputación de cargos. El trabajador tiene <strong>6 días hábiles</strong> para presentar descargo.</div>
+                <div class="mb-1"><span class="fw-semibold text-muted">Art. 32</span> — La carta de despido debe indicar la causa y la fecha de cese. Es requisito formal bajo sanción de nulidad.</div>
+                <div><span class="fw-semibold text-muted">Art. 25</span> — Lista taxativa de faltas graves que habilitan el despido justificado.</div>
+            </div>
+        </div>
+
+        <!-- Descargos recibidos -->
+        {% if descargos %}
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header py-2" style="font-size:.82rem;font-weight:600;background:#f9fafb;">
+                <i class="fas fa-comment-dots me-1" style="color:#0f766e;"></i>Descargos Recibidos
+                <span class="badge ms-1" style="background:#0f766e;font-size:.65rem;">{{ descargos|length }}</span>
+            </div>
+            <div class="card-body py-2">
+                {% for d in descargos %}
+                <div class="{% if not forloop.last %}pb-2 mb-2{% endif %}" style="{% if not forloop.last %}border-bottom:1px solid #f3f4f6;{% endif %}font-size:.78rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold">{{ d.fecha_presentacion|date:"d/m/Y" }}</span>
+                        <div class="d-flex gap-1">
+                            {% if d.presentado_a_tiempo %}
+                            <span class="badge bg-success" style="font-size:.65rem;">A tiempo</span>
+                            {% else %}
+                            <span class="badge bg-danger" style="font-size:.65rem;">Fuera de plazo</span>
+                            {% endif %}
+                            <span class="badge bg-{% if d.estado == 'ACEPTADO' %}success{% elif d.estado == 'RECHAZADO' %}danger{% elif d.estado == 'EN_REVISION' %}warning text-dark{% else %}secondary{% endif %}" style="font-size:.65rem;">
+                                {{ d.get_estado_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0" style="line-height:1.4;">{{ d.texto|truncatechars:120 }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Acciones rápidas -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body py-2 d-flex flex-column gap-2">
+                <a href="{% url 'medida_detalle' medida.pk %}" class="btn btn-sm" style="background:#0f766e;color:#fff;border:none;">
+                    <i class="fas fa-file-alt me-1"></i>Ver Detalle Completo
+                </a>
+                {% if medida.estado in 'BORRADOR,NOTIFICADA,EN_DESCARGO,DESCARGO_RECIBIDO' %}
+                <a href="{% url 'medida_detalle' medida.pk %}" class="btn btn-sm btn-outline-warning">
+                    <i class="fas fa-check-circle me-1"></i>Gestionar Proceso
+                </a>
+                {% endif %}
+                <a href="{% url 'historial_disciplinario' medida.personal.pk %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-history me-1"></i>Historial del Trabajador
+                </a>
+            </div>
+        </div>
+
+    </div><!-- /col lateral -->
+</div><!-- /row -->
+
+{% endblock %}

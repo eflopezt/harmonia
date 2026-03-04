@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:600px">
+  <h1 class="h3 fw-bold mb-4"><i class="fas fa-code-branch me-2"></i>{{ titulo }}</h1>
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">
+            Nombre <span class="text-danger">*</span>
+          </label>
+          <input type="text" name="nombre" class="form-control" required
+            placeholder="Ej: Aprobacion de Vacaciones">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">
+            Modelo (que entidad activa el flujo) <span class="text-danger">*</span>
+          </label>
+          <select name="content_type" class="form-select" required>
+            <option value="">Seleccionar modelo...</option>
+            {% for ct in content_types %}
+            <option value="{{ ct.pk }}">{{ ct.app_label }}.{{ ct.model }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Campo trigger</label>
+            <input type="text" name="campo_trigger" class="form-control" value="estado" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Valor trigger</label>
+            <input type="text" name="valor_trigger" class="form-control" placeholder="Pendiente" required>
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Campo resultado</label>
+            <input type="text" name="campo_resultado" class="form-control" value="estado">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Valor si aprobado</label>
+            <input type="text" name="valor_aprobado" class="form-control" value="Aprobado">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Valor si rechazado</label>
+            <input type="text" name="valor_rechazado" class="form-control" value="Rechazado">
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Crear flujo
+          </button>
+          <a href="{% url 'workflow_config' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

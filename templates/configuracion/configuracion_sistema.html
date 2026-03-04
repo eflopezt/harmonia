@@ -1,0 +1,764 @@
+{% extends "base.html" %}
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-cog me-2" style="color:#0f766e;"></i>Configuración del Sistema</h2>
+    <small class="text-muted">
+      Harmoni ERP · Singleton · Actualizado
+      {% if config.actualizado_en %}{{ config.actualizado_en|date:"d/m/Y H:i" }}{% endif %}
+      {% if config.actualizado_por %}por {{ config.actualizado_por.username }}{% endif %}
+    </small>
+  </div>
+  <a href="{% url 'integraciones_panel' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-plug me-1"></i>Integraciones
+  </a>
+</div>
+
+{# Mensajes #}
+{% if messages %}
+{% for msg in messages %}
+<div class="alert alert-{% if 'error' in msg.tags %}danger{% else %}success{% endif %} d-flex align-items-center gap-2 mb-3 alert-dismissible fade show">
+  <i class="fas fa-{% if 'error' in msg.tags %}times-circle{% else %}check-circle{% endif %}"></i>
+  {{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endif %}
+
+{# Toast de guardado #}
+<div class="position-fixed top-0 end-0 p-3" style="z-index:9999;">
+  <div id="toastGuardar" class="toast" role="alert">
+    <div class="toast-header">
+      <i class="fas fa-check-circle text-success me-2"></i>
+      <strong class="me-auto">Configuración</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="toastMensaje">Guardado correctamente.</div>
+  </div>
+</div>
+
+{# Tabs de navegación #}
+<ul class="nav nav-tabs mb-0" id="configTabs" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link {% if tab_activo == 'general' or not tab_activo %}active{% endif %}"
+            data-bs-toggle="tab" data-bs-target="#tab-general" type="button">
+      <i class="fas fa-building me-1"></i>General
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link {% if tab_activo == 'modulos' %}active{% endif %}"
+            data-bs-toggle="tab" data-bs-target="#tab-modulos" type="button">
+      <i class="fas fa-puzzle-piece me-1"></i>Módulos
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link {% if tab_activo == 'nomina' %}active{% endif %}"
+            data-bs-toggle="tab" data-bs-target="#tab-nomina" type="button">
+      <i class="fas fa-calculator me-1"></i>Nómina
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link {% if tab_activo == 'integraciones' %}active{% endif %}"
+            data-bs-toggle="tab" data-bs-target="#tab-integraciones" type="button">
+      <i class="fas fa-plug me-1"></i>Integraciones
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link {% if tab_activo == 'ia' %}active{% endif %}"
+            data-bs-toggle="tab" data-bs-target="#tab-ia" type="button">
+      <i class="fas fa-robot me-1"></i>IA
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom shadow-sm bg-white">
+
+  {# ══════════════════════════════════════════════════════
+     TAB GENERAL
+  ══════════════════════════════════════════════════════ #}
+  <div class="tab-pane fade {% if tab_activo == 'general' or not tab_activo %}show active{% endif %} p-4"
+       id="tab-general">
+    <form method="post" data-tab="general">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="general">
+
+      <div class="row g-3">
+        <div class="col-12">
+          <h5 class="fw-bold text-muted border-bottom pb-2 mb-3">
+            <i class="fas fa-building me-2"></i>Datos de la Empresa
+          </h5>
+        </div>
+
+        <div class="col-md-8">
+          <label class="form-label">Nombre de la Empresa <span class="text-danger">*</span></label>
+          <input type="text" name="empresa_nombre" class="form-control"
+                 value="{{ config.empresa_nombre }}" required maxlength="200">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">RUC</label>
+          <input type="text" name="ruc" class="form-control"
+                 value="{{ config.ruc }}" maxlength="11" pattern="\d{11}"
+                 placeholder="20xxxxxxxxx">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Email Corporativo</label>
+          <input type="email" name="empresa_email" class="form-control"
+                 value="{{ config.empresa_email }}"
+                 placeholder="rrhh@empresa.com.pe">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Teléfono / Anexo</label>
+          <input type="text" name="empresa_telefono" class="form-control"
+                 value="{{ config.empresa_telefono }}"
+                 placeholder="(01) 234-5678 / Anexo 100">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Dirección</label>
+          <input type="text" name="empresa_direccion" class="form-control"
+                 value="{{ config.empresa_direccion }}"
+                 placeholder="Av. Principal 123, Lima, Perú">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Sitio Web</label>
+          <input type="text" name="empresa_web" class="form-control"
+                 value="{{ config.empresa_web }}" placeholder="www.empresa.com.pe">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Modo del Sistema</label>
+          <select name="modo_sistema" class="form-select">
+            {% for val, label in modo_choices %}
+            <option value="{{ val }}" {% if config.modo_sistema == val %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Define el alcance funcional del sistema.</div>
+        </div>
+
+        <div class="col-12">
+          <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-2">
+            <i class="fas fa-signature me-2"></i>Membrete y Firma
+          </h5>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Nombre del Firmante</label>
+          <input type="text" name="firma_nombre" class="form-control"
+                 value="{{ config.firma_nombre }}" placeholder="Juan Pérez García">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Cargo del Firmante</label>
+          <input type="text" name="firma_cargo" class="form-control"
+                 value="{{ config.firma_cargo }}" placeholder="Jefe de Recursos Humanos">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Color Membrete</label>
+          <div class="input-group">
+            <input type="color" name="membrete_color" class="form-control form-control-color"
+                   value="{{ config.membrete_color }}" style="width:60px;">
+            <input type="text" id="colorHexInput" class="form-control font-monospace"
+                   value="{{ config.membrete_color }}" maxlength="7"
+                   oninput="document.querySelector('[name=membrete_color]').value=this.value">
+          </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="membrete_mostrar"
+                   id="chkMembrete" {% if config.membrete_mostrar %}checked{% endif %}>
+            <label class="form-check-label" for="chkMembrete">Usar membrete en documentos</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+        <button type="submit" class="btn btn-success px-4" data-tab="general">
+          <i class="fas fa-save me-2"></i>Guardar General
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {# ══════════════════════════════════════════════════════
+     TAB MÓDULOS
+  ══════════════════════════════════════════════════════ #}
+  <div class="tab-pane fade {% if tab_activo == 'modulos' %}show active{% endif %} p-4"
+       id="tab-modulos">
+    <form method="post" data-tab="modulos">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="modulos">
+
+      <h5 class="fw-bold text-muted border-bottom pb-2 mb-4">
+        <i class="fas fa-puzzle-piece me-2"></i>Módulos Activos
+      </h5>
+      <p class="text-muted small mb-4">
+        Activa o desactiva módulos según los servicios contratados.
+        Los módulos desactivados no aparecerán en la navegación.
+      </p>
+
+      <div class="row g-3">
+        {% with modulos=config %}
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-hand-holding-usd me-2 text-success"></i>Préstamos y Adelantos</div>
+                  <div class="text-muted small">Gestión de préstamos con cuotas y adelantos de sueldo.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_prestamos"
+                         id="modPrestamos" {% if config.mod_prestamos %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-plane me-2 text-primary"></i>Viáticos y CDT</div>
+                  <div class="text-muted small">Viáticos con adelantos mensuales y conciliación.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_viaticos"
+                         id="modViaticos" {% if config.mod_viaticos %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-folder-open me-2 text-warning"></i>Legajo Digital y Constancias</div>
+                  <div class="text-muted small">Gestión de documentos, constancias y boletas PDF.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_documentos"
+                         id="modDocumentos" {% if config.mod_documentos %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-star me-2 text-info"></i>Evaluaciones de Desempeño</div>
+                  <div class="text-muted small">360°, 9-Box Grid, competencias y PDI.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_evaluaciones"
+                         id="modEvaluaciones" {% if config.mod_evaluaciones %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-graduation-cap me-2 text-success"></i>Capacitaciones / LMS</div>
+                  <div class="text-muted small">Cursos, asistencia, certificaciones y requerimientos.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_capacitaciones"
+                         id="modCapacitaciones" {% if config.mod_capacitaciones %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-users me-2 text-primary"></i>Reclutamiento y Selección</div>
+                  <div class="text-muted small">Vacantes, pipeline kanban y portal de empleo.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_reclutamiento"
+                         id="modReclutamiento" {% if config.mod_reclutamiento %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-poll me-2 text-warning"></i>Encuestas y Clima Laboral</div>
+                  <div class="text-muted small">Encuestas anónimas, eNPS y pulsos de clima.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_encuestas"
+                         id="modEncuestas" {% if config.mod_encuestas %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card border h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold"><i class="fas fa-chart-bar me-2 text-info"></i>Estructura Salarial</div>
+                  <div class="text-muted small">Bandas salariales, compa-ratio y simulaciones.</div>
+                </div>
+                <div class="form-check form-switch ms-3">
+                  <input class="form-check-input" type="checkbox" name="mod_salarios"
+                         id="modSalarios" {% if config.mod_salarios %}checked{% endif %}>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+      </div>
+
+      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+        <button type="submit" class="btn btn-success px-4">
+          <i class="fas fa-save me-2"></i>Guardar Módulos
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {# ══════════════════════════════════════════════════════
+     TAB NÓMINA
+  ══════════════════════════════════════════════════════ #}
+  <div class="tab-pane fade {% if tab_activo == 'nomina' %}show active{% endif %} p-4"
+       id="tab-nomina">
+    <form method="post" data-tab="nomina">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="nomina">
+
+      <div class="row g-4">
+        <div class="col-12">
+          <h5 class="fw-bold text-muted border-bottom pb-2">
+            <i class="fas fa-calendar-alt me-2"></i>Ciclo de Planilla
+          </h5>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Día de Corte de Planilla</label>
+          <div class="input-group">
+            <input type="number" name="dia_corte_planilla" class="form-control"
+                   value="{{ config.dia_corte_planilla }}" min="1" max="28">
+            <span class="input-group-text text-muted small">de cada mes</span>
+          </div>
+          <div class="form-text">
+            Ciclo HE: día {{ config.dia_corte_planilla|add:"1" }} mes ant. → día {{ config.dia_corte_planilla }} mes actual.
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Jornada Local (h/día)</label>
+          <div class="input-group">
+            <input type="number" name="jornada_local_horas" class="form-control"
+                   value="{{ config.jornada_local_horas }}" step="0.5" min="4" max="12">
+            <span class="input-group-text text-muted small">horas</span>
+          </div>
+          <div class="form-text">Ej: 8.5 para 7:30–17:00 con almuerzo.</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Jornada Foráneo (h/día)</label>
+          <div class="input-group">
+            <input type="number" name="jornada_foraneo_horas" class="form-control"
+                   value="{{ config.jornada_foraneo_horas }}" step="0.5" min="4" max="14">
+            <span class="input-group-text text-muted small">horas</span>
+          </div>
+          <div class="form-text">Ej: 11.0 para 7:30–18:30 con almuerzo.</div>
+        </div>
+
+        <div class="col-md-4 d-flex align-items-center">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="regularizacion_activa"
+                   id="chkRegularizacion" {% if config.regularizacion_activa %}checked{% endif %}>
+            <label class="form-check-label" for="chkRegularizacion">
+              <strong>Regularización Fin de Mes</strong>
+            </label>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="alert alert-light border small mb-0">
+            Si activo, los descuentos entre el día (corte+1) y fin de mes se difieren al siguiente mes
+            como regularización. Recomendado: <strong>activado</strong>.
+          </div>
+        </div>
+
+        <div class="col-12 mt-2">
+          <h5 class="fw-bold text-muted border-bottom pb-2">
+            <i class="fas fa-clock me-2"></i>Horas Extra
+          </h5>
+        </div>
+
+        <div class="col-md-4 d-flex align-items-center">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="he_requiere_solicitud"
+                   id="chkHeSolicitud" {% if config.he_requiere_solicitud %}checked{% endif %}>
+            <label class="form-check-label" for="chkHeSolicitud">
+              <strong>Requiere solicitud previa para HE</strong>
+            </label>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="alert alert-light border small mb-0">
+            Si activo, las HE solo se registran si hay una SolicitudHE aprobada.
+            Sin solicitud aprobada, el exceso se ignora (no va a banco ni nómina).
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Tipo de HE por Defecto</label>
+          <select name="he_tipo_default" class="form-select">
+            {% for val, label in he_tipo_choices %}
+            <option value="{{ val }}" {% if config.he_tipo_default == val %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 mt-2">
+          <h5 class="fw-bold text-muted border-bottom pb-2">
+            <i class="fas fa-file-export me-2"></i>Exportaciones
+          </h5>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Formato por Defecto</label>
+          <select name="export_formato" class="form-select">
+            {% for val, label in export_formato_choices %}
+            <option value="{{ val }}" {% if config.export_formato == val %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-9">
+          <label class="form-label d-block">Opciones de Exportación</label>
+          <div class="d-flex flex-wrap gap-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="export_incluir_sueldo"
+                     id="chkExportSueldo" {% if config.export_incluir_sueldo %}checked{% endif %}>
+              <label class="form-check-label" for="chkExportSueldo">Incluir sueldo base</label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="export_incluir_faltas"
+                     id="chkExportFaltas" {% if config.export_incluir_faltas %}checked{% endif %}>
+              <label class="form-check-label" for="chkExportFaltas">Incluir faltas/descuentos</label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="export_incluir_banco_horas"
+                     id="chkExportBanco" {% if config.export_incluir_banco_horas %}checked{% endif %}>
+              <label class="form-check-label" for="chkExportBanco">Incluir banco de horas</label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="export_separar_staff_rco"
+                     id="chkSepararStaff" {% if config.export_separar_staff_rco %}checked{% endif %}>
+              <label class="form-check-label" for="chkSepararStaff">Separar STAFF / RCO</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+        <button type="submit" class="btn btn-success px-4">
+          <i class="fas fa-save me-2"></i>Guardar Nómina
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {# ══════════════════════════════════════════════════════
+     TAB INTEGRACIONES
+  ══════════════════════════════════════════════════════ #}
+  <div class="tab-pane fade {% if tab_activo == 'integraciones' %}show active{% endif %} p-4"
+       id="tab-integraciones">
+    <form method="post" data-tab="integraciones">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="integraciones">
+
+      <div class="row g-4">
+        <div class="col-12">
+          <h5 class="fw-bold text-muted border-bottom pb-2">
+            <i class="fas fa-calculator me-2"></i>Programa de Nómina Destino
+          </h5>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Sistema de Nómina</label>
+          <select name="programa_nomina" class="form-select">
+            {% for val, label in programa_choices %}
+            <option value="{{ val }}" {% if config.programa_nomina == val %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Nombre del sistema (si es Otro)</label>
+          <input type="text" name="programa_nomina_nombre" class="form-control"
+                 value="{{ config.programa_nomina_nombre }}"
+                 placeholder="Exactus, Contasis, Starsoft...">
+        </div>
+
+        <div class="col-12">
+          <h5 class="fw-bold text-muted border-bottom pb-2 mt-2">
+            <i class="fas fa-envelope me-2"></i>Notificaciones por Email
+          </h5>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-center">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="email_habilitado"
+                   id="chkEmail" {% if config.email_habilitado %}checked{% endif %}>
+            <label class="form-check-label" for="chkEmail">
+              <strong>Habilitar notificaciones</strong>
+            </label>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Email Remitente</label>
+          <input type="email" name="email_desde" class="form-control"
+                 value="{{ config.email_desde }}" placeholder="tareo@empresa.com">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Asunto Email Semanal</label>
+          <input type="text" name="email_asunto_semanal" class="form-control"
+                 value="{{ config.email_asunto_semanal }}">
+          <div class="form-text">Variables: {empresa}, {semana}, {empleado}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Día de Envío Semanal</label>
+          <select name="email_dia_envio" class="form-select">
+            <option value="0" {% if config.email_dia_envio == 0 %}selected{% endif %}>Lunes</option>
+            <option value="1" {% if config.email_dia_envio == 1 %}selected{% endif %}>Martes</option>
+            <option value="2" {% if config.email_dia_envio == 2 %}selected{% endif %}>Miércoles</option>
+            <option value="3" {% if config.email_dia_envio == 3 %}selected{% endif %}>Jueves</option>
+            <option value="4" {% if config.email_dia_envio == 4 %}selected{% endif %}>Viernes</option>
+            <option value="5" {% if config.email_dia_envio == 5 %}selected{% endif %}>Sábado</option>
+            <option value="6" {% if config.email_dia_envio == 6 %}selected{% endif %}>Domingo</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <h5 class="fw-bold text-muted border-bottom pb-2 mt-2">
+            <i class="fas fa-pen-fancy me-2"></i>ZapSign — Firma Digital
+          </h5>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-center">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="zapsign_activo"
+                   id="chkZapsign" {% if config.zapsign_activo %}checked{% endif %}>
+            <label class="form-check-label" for="chkZapsign">
+              <strong>Firma Digital Activa</strong>
+            </label>
+          </div>
+        </div>
+        <div class="col-md-9">
+          <label class="form-label">ZapSign API Key</label>
+          <input type="password" name="zapsign_api_key" class="form-control font-monospace"
+                 value="{{ config.zapsign_api_key }}"
+                 placeholder="Dejar vacío para mantener el actual"
+                 autocomplete="new-password">
+          <div class="form-text">
+            Obtener en: <a href="https://app.zapsign.com.br/settings/tokens" target="_blank">
+            app.zapsign.com.br/settings/tokens</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+        <button type="submit" class="btn btn-success px-4">
+          <i class="fas fa-save me-2"></i>Guardar Integraciones
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {# ══════════════════════════════════════════════════════
+     TAB IA
+  ══════════════════════════════════════════════════════ #}
+  <div class="tab-pane fade {% if tab_activo == 'ia' %}show active{% endif %} p-4"
+       id="tab-ia">
+    <form method="post" data-tab="ia">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="ia">
+
+      <div class="row g-4">
+        <div class="col-12">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                 style="width:48px;height:48px;background:rgba(15,118,110,0.12);">
+              <i class="fas fa-robot" style="color:#0f766e; font-size:1.3rem;"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0">Inteligencia Artificial Local</h5>
+              <small class="text-muted">Motor IA vía Ollama — datos 100% privados, sin cloud APIs</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Proveedor de IA</label>
+          <select name="ia_provider" class="form-select" id="iaProviderSel">
+            {% for val, label in ia_choices %}
+            <option value="{{ val }}" {% if config.ia_provider == val %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4" id="iaEndpointGroup">
+          <label class="form-label">Endpoint Ollama</label>
+          <input type="url" name="ia_endpoint" class="form-control font-monospace"
+                 value="{{ config.ia_endpoint }}"
+                 placeholder="http://localhost:11434">
+          <div class="form-text">URL del servidor Ollama. Default: http://localhost:11434</div>
+        </div>
+
+        <div class="col-md-4" id="iaModeloGroup">
+          <label class="form-label">Modelo</label>
+          <input type="text" name="ia_modelo" class="form-control"
+                 value="{{ config.ia_modelo }}"
+                 placeholder="llama3.2">
+          <div class="form-text">Modelos recomendados: llama3.2, mistral, qwen2.5</div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" name="ia_mapeo_activo"
+                   id="chkIaMapeo" {% if config.ia_mapeo_activo %}checked{% endif %}>
+            <label class="form-check-label" for="chkIaMapeo">
+              <strong>Activar Mapeo IA de Columnas</strong>
+            </label>
+          </div>
+          <div class="form-text">
+            Detecta automáticamente columnas en archivos de importación desconocidos.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-info d-flex align-items-start gap-3">
+            <i class="fas fa-info-circle fa-lg mt-1"></i>
+            <div>
+              <strong>Arquitectura de IA en Harmoni:</strong>
+              <ul class="mb-0 mt-1 small">
+                <li>Dentro del producto: <strong>Solo Ollama local</strong> — sin cloud APIs, sin API keys externas.</li>
+                <li>Claude Desktop es usado externamente para <em>construir</em> el sistema (no vive dentro del producto).</li>
+                <li>Los datos del HR nunca salen del servidor local.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+        <button type="submit" class="btn btn-success px-4">
+          <i class="fas fa-save me-2"></i>Guardar IA
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<script>
+// AJAX form submit con toast
+document.querySelectorAll('form[data-tab]').forEach(function(form) {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = form.querySelector('[type=submit]');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+    btn.disabled = true;
+
+    const data = new FormData(form);
+
+    fetch(form.action || window.location.href, {
+      method: 'POST',
+      body: data,
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+    })
+    .then(r => r.json())
+    .then(res => {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+
+      const toast = document.getElementById('toastGuardar');
+      const msg = document.getElementById('toastMensaje');
+      msg.textContent = res.mensaje || 'Guardado.';
+
+      const toastHeader = toast.querySelector('.toast-header i');
+      if (res.ok) {
+        toastHeader.className = 'fas fa-check-circle text-success me-2';
+        toast.classList.remove('text-bg-danger');
+      } else {
+        toastHeader.className = 'fas fa-times-circle text-danger me-2';
+      }
+
+      const bsToast = new bootstrap.Toast(toast, {delay: 3500});
+      bsToast.show();
+    })
+    .catch(() => {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+      alert('Error al guardar. Intente nuevamente.');
+    });
+  });
+});
+
+// IA provider toggle
+const iaProvider = document.getElementById('iaProviderSel');
+function toggleIaFields() {
+  const activo = iaProvider && iaProvider.value === 'OLLAMA';
+  ['iaEndpointGroup', 'iaModeloGroup'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.opacity = activo ? '1' : '0.4';
+  });
+}
+if (iaProvider) {
+  iaProvider.addEventListener('change', toggleIaFields);
+  toggleIaFields();
+}
+
+// Color hex sync
+document.querySelector('[name=membrete_color]')?.addEventListener('input', function() {
+  const hexInput = document.getElementById('colorHexInput');
+  if (hexInput) hexInput.value = this.value;
+});
+</script>
+{% endblock %}

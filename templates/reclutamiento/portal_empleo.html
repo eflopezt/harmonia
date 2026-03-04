@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oportunidades Laborales — Harmoni</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0f766e;
+            --accent: #5eead4;
+            --dark: #0d2b27;
+        }
+        body { background: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; }
+        .hero {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--primary) 100%);
+            color: #fff;
+            padding: 48px 0 40px;
+        }
+        .hero-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .hero-logo span {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .hero h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+        .hero p { opacity: .85; font-size: 1rem; margin-bottom: 0; }
+        .filter-bar {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+            padding: 12px 16px;
+            margin-top: -24px;
+            margin-bottom: 24px;
+        }
+        .vacante-card {
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            transition: box-shadow .2s, transform .15s;
+            height: 100%;
+        }
+        .vacante-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,.08);
+            transform: translateY(-2px);
+        }
+        .vacante-card h5 { font-size: 1.05rem; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
+        .vacante-card .meta { font-size: .82rem; color: #64748b; margin-bottom: 12px; }
+        .vacante-card .meta i { width: 16px; text-align: center; margin-right: 4px; }
+        .badge-area { background: #e0f2fe; color: #0369a1; font-size: .75rem; }
+        .badge-contrato { background: #f0fdf4; color: #166534; font-size: .75rem; }
+        .btn-postular {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            font-size: .85rem;
+            padding: 6px 20px;
+            border-radius: 6px;
+        }
+        .btn-postular:hover { background: #0e6b63; color: #fff; }
+        .footer-portal {
+            text-align: center;
+            padding: 32px 0;
+            color: #94a3b8;
+            font-size: .8rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+    <div class="container">
+        <div class="hero-logo">
+            <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+                <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+                <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+                <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+                <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+                <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            </svg>
+            <span>Harmoni</span>
+        </div>
+        <h1>Oportunidades Laborales</h1>
+        <p>Encuentra tu proximo reto profesional con nosotros.</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Filtro -->
+    <div class="filter-bar">
+        <form method="get" class="d-flex gap-3 align-items-center flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-filter text-muted"></i>
+                <select name="area" class="form-select form-select-sm" style="width:220px">
+                    <option value="">Todas las areas</option>
+                    {% for a in areas %}
+                    <option value="{{ a.pk }}" {% if filtro_area == a.pk|stringformat:"d" %}selected{% endif %}>{{ a.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary" style="background:var(--primary);border:none">Filtrar</button>
+            {% if filtro_area %}
+            <a href="{% url 'portal_empleo' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            {% endif %}
+            <span class="ms-auto text-muted small">{{ vacantes|length }} vacante{{ vacantes|length|pluralize:"s" }} disponible{{ vacantes|length|pluralize:"s" }}</span>
+        </form>
+    </div>
+
+    <!-- Vacantes -->
+    <div class="row g-3 mb-4">
+        {% for v in vacantes %}
+        <div class="col-md-6 col-lg-4">
+            <div class="vacante-card">
+                <h5>{{ v.titulo }}</h5>
+                <div class="mb-2">
+                    {% if v.area %}<span class="badge badge-area">{{ v.area.nombre }}</span>{% endif %}
+                    <span class="badge badge-contrato">{{ v.get_tipo_contrato_display }}</span>
+                </div>
+                <div class="meta">
+                    {% if v.experiencia_minima %}
+                    <div><i class="fas fa-briefcase"></i>{{ v.experiencia_minima }} anio{{ v.experiencia_minima|pluralize:"s" }} de experiencia</div>
+                    {% endif %}
+                    {% if v.educacion_minima != 'NO_REQUERIDO' %}
+                    <div><i class="fas fa-graduation-cap"></i>{{ v.get_educacion_minima_display }}</div>
+                    {% endif %}
+                    {% if v.salario_min or v.salario_max %}
+                    <div>
+                        <i class="fas fa-money-bill-wave"></i>
+                        {{ v.moneda }}
+                        {% if v.salario_min %}{{ v.salario_min|floatformat:0 }}{% endif %}
+                        {% if v.salario_min and v.salario_max %} - {% endif %}
+                        {% if v.salario_max %}{{ v.salario_max|floatformat:0 }}{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if v.fecha_limite %}
+                    <div><i class="fas fa-clock"></i>Hasta {{ v.fecha_limite|date:"d/m/Y" }}</div>
+                    {% endif %}
+                </div>
+                {% if v.descripcion %}
+                <p style="font-size:.82rem;color:#475569;margin-bottom:12px">{{ v.descripcion|truncatewords:30 }}</p>
+                {% endif %}
+                <a href="{% url 'portal_postular' v.pk %}" class="btn btn-postular"><i class="fas fa-paper-plane me-1"></i>Postularme</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No hay vacantes disponibles en este momento</h5>
+            <p class="text-muted">Vuelve pronto, estamos en constante crecimiento.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="footer-portal">
+    <svg width="18" height="18" viewBox="0 0 40 40" fill="none" style="vertical-align: middle; margin-right: 4px;">
+        <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    Harmoni ERP &mdash; Sistema de Recursos Humanos
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

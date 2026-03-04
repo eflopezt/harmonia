@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Plantillas de Evaluación{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ plantillas|length }} plantilla{{ plantillas|length|pluralize:"s" }} activa{{ plantillas|length|pluralize:"s" }}</small>
+    </div>
+</div>
+
+{% for p in plantillas %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <strong>{{ p.nombre }}</strong>
+            <span class="badge bg-light text-dark ms-2">Escala 1-{{ p.escala_max }}</span>
+        </div>
+        <div class="d-flex gap-1" style="font-size:.75rem;">
+            {% if p.aplica_autoevaluacion %}<span class="badge bg-info">Auto</span>{% endif %}
+            {% if p.aplica_jefe %}<span class="badge bg-primary">Jefe</span>{% endif %}
+            {% if p.aplica_pares %}<span class="badge bg-secondary">Pares</span>{% endif %}
+            {% if p.aplica_subordinados %}<span class="badge bg-dark">Subordinados</span>{% endif %}
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0" style="font-size:.82rem;">
+            <thead><tr><th>Competencia</th><th>Categoría</th><th class="text-center">Peso</th></tr></thead>
+            <tbody>
+                {% for item in p.items.all %}
+                <tr>
+                    <td>{{ item.competencia.nombre }}</td>
+                    <td><span class="badge bg-light text-dark">{{ item.competencia.get_categoria_display }}</span></td>
+                    <td class="text-center">{{ item.peso }}x</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-2">Sin competencias asignadas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% empty %}
+<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No hay plantillas configuradas. Cree competencias primero y luego cree plantillas desde el admin de Django.</div>
+{% endfor %}
+{% endblock %}

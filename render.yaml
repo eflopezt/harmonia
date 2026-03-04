@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: harmoni
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-file - --log-level info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DJANGO_ALLOWED_HOSTS
+        value: harmoni.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://harmoni.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: harmoni-db
+          property: connectionString
+    healthCheckPath: /health/
+
+databases:
+  - name: harmoni-db
+    databaseName: harmoni
+    user: harmoni
+    plan: free

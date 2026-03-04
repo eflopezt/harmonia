@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Lista de Contratos{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{% url 'contratos_panel' %}" class="btn btn-outline-secondary me-3">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <h2 class="mb-0"><i class="fas fa-list me-2"></i>Contratos — Lista completa</h2>
+</div>
+
+{# Filtros #}
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-3">
+    <input type="text" name="buscar" class="form-control" placeholder="Nombre o DNI..." value="{{ buscar }}">
+  </div>
+  <div class="col-md-3">
+    <select name="tipo" class="form-select">
+      <option value="">Todas las modalidades</option>
+      {% for val, lbl in tipos %}
+      <option value="{{ val }}" {% if tipo_f == val %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select name="estado_contrato" class="form-select">
+      <option value="">Todos los estados</option>
+      <option value="VIGENTE" {% if estado_f == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+      <option value="VENCIDO" {% if estado_f == 'VENCIDO' %}selected{% endif %}>Vencido</option>
+      <option value="INDEFINIDO" {% if estado_f == 'INDEFINIDO' %}selected{% endif %}>Indefinido</option>
+      <option value="SIN_DATOS" {% if estado_f == 'SIN_DATOS' %}selected{% endif %}>Sin datos</option>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-secondary w-100"><i class="fas fa-search"></i> Filtrar</button>
+  </div>
+  {% if buscar or tipo_f or estado_f %}
+  <div class="col-md-2">
+    <a href="{% url 'contratos_lista' %}" class="btn btn-outline-secondary w-100"><i class="fas fa-times"></i> Limpiar</a>
+  </div>
+  {% endif %}
+</form>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Trabajador</th>
+            <th>Área</th>
+            <th>Modalidad</th>
+            <th class="text-center">Inicio contrato</th>
+            <th class="text-center">Vencimiento</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Días restantes</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in empleados %}
+          {% with p=item.personal %}
+          <tr class="
+            {% if item.estado_contrato == 'VENCIDO' %}table-danger
+            {% elif item.estado_contrato == 'URGENTE' %}table-warning
+            {% endif %}">
+            <td class="ps-3 fw-semibold">
+              <a href="{% url 'personal_detail' p.pk %}" class="text-decoration-none">{{ p.apellidos_nombres }}</a>
+            </td>
+            <td class="text-muted small">{{ p.subarea.area.nombre|default:"—" }}</td>
+            <td>
+              {% if p.tipo_contrato %}
+                <span class="badge bg-light text-dark border">{{ p.get_tipo_contrato_display }}</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center small">{{ p.fecha_inicio_contrato|date:"d/m/Y"|default:"—" }}</td>
+            <td class="text-center small">{{ p.fecha_fin_contrato|date:"d/m/Y"|default:"Indefinido" }}</td>
+            <td class="text-center">
+              {% if item.estado_contrato == 'VENCIDO' %}
+                <span class="badge bg-danger">Vencido</span>
+              {% elif item.estado_contrato == 'URGENTE' %}
+                <span class="badge bg-warning text-dark">Urgente</span>
+              {% elif item.estado_contrato == 'VIGENTE' %}
+                <span class="badge bg-success">Vigente</span>
+              {% elif item.estado_contrato == 'INDEFINIDO' %}
+                <span class="badge bg-secondary">Indefinido</span>
+              {% else %}
+                <span class="badge bg-light text-muted border">Sin datos</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if item.dias_restantes is not None %}
+                <span class="fw-bold {% if item.dias_restantes < 0 %}text-danger{% elif item.dias_restantes <= 15 %}text-warning{% else %}text-success{% endif %}">
+                  {% if item.dias_restantes < 0 %}{{ item.dias_restantes|stringformat:"d" }}{% else %}{{ item.dias_restantes }}{% endif %}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{% url 'contrato_editar' p.pk %}" class="btn btn-sm btn-outline-primary" title="Editar contrato">
+                <i class="fas fa-edit"></i>
+              </a>
+            </td>
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">No se encontraron empleados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <small class="text-muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}">‹</a></li>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}">›</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

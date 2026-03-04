@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% load humanize harmoni_tags %}
+
+{% block title %}Análisis de Equidad Salarial{% endblock %}
+
+{% block extra_css %}
+<style>
+.eq-header {
+    background: #0d2b27;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.eq-header h2 { margin: 0; font-size: 1.3rem; }
+.eq-header small { color: #5eead4; font-size: .82rem; }
+
+/* Stat cards */
+.eq-stat {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: .85rem 1rem;
+}
+.eq-stat .val { font-size: 1.4rem; font-weight: 700; color: #0d2b27; }
+.eq-stat .lbl { font-size: .72rem; color: #6b7280; text-transform: uppercase; letter-spacing: .03em; }
+.eq-stat.danger .val  { color: #dc2626; }
+.eq-stat.warning .val { color: #d97706; }
+.eq-stat.success .val { color: #059669; }
+
+/* Tabla de estadísticas de género */
+.tbl-stats th {
+    background: #0d2b27;
+    color: #fff;
+    font-size: .8rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.tbl-stats td { font-size: .83rem; vertical-align: middle; }
+
+/* Tabla de áreas */
+.tbl-areas th {
+    background: #134e4a;
+    color: #fff;
+    font-size: .78rem;
+    white-space: nowrap;
+}
+.tbl-areas td { font-size: .82rem; vertical-align: middle; }
+
+/* Badge de género */
+.badge-m { background: #0ea5e9; color: #fff; }
+.badge-f { background: #ec4899; color: #fff; }
+
+/* Brecha semáforo */
+.brecha-ok     { color: #059669; font-weight: 700; }
+.brecha-warn   { color: #d97706; font-weight: 700; }
+.brecha-danger { color: #dc2626; font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="eq-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h2><i class="fas fa-balance-scale me-2" style="color:#5eead4;"></i>{{ titulo }}</h2>
+        <small>{{ total_analizados }} empleado{{ total_analizados|pluralize:",s" }} analizado{{ total_analizados|pluralize:",s" }} · UIT 2026: S/ 5,350</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'bandas_panel' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-layer-group me-1"></i>Bandas
+        </a>
+        <a href="{% url 'bandas_grafico' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-chart-bar me-1"></i>Gráfico
+        </a>
+        <a href="{% url 'simulacion_comparativa' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-scale-balanced me-1"></i>Simulador
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Área</label>
+                <select name="area" class="form-select form-select-sm" style="width:200px;">
+                    <option value="">Todas las áreas</option>
+                    {% for area in areas %}
+                    <option value="{{ area.pk }}" {% if filtro_area == area.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ area.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Grupo Tareo</label>
+                <select name="grupo" class="form-select form-select-sm" style="width:160px;">
+                    <option value="">Todos</option>
+                    {% for val, lbl in grupos_choices %}
+                    <option value="{{ val }}" {% if filtro_grupo == val %}selected{% endif %}>{{ lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-filter me-1"></i>Filtrar
+            </button>
+            {% if filtro_area or filtro_grupo %}
+            <a href="{% url 'equidad_salarial' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>Limpiar
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- ══ SECCIÓN 1: BRECHA DE GÉNERO ══ -->
+<h5 class="mb-3 fw-semibold" style="color:#0d2b27;">
+    <i class="fas fa-venus-mars me-2" style="color:#0f766e;"></i>Análisis por Género
+</h5>
+
+{% if stats_genero.M or stats_genero.F %}
+<!-- Card brecha principal -->
+{% if brecha_genero is not None %}
+<div class="alert {% if brecha_genero > 15 %}alert-danger{% elif brecha_genero > 5 %}alert-warning{% else %}alert-success{% endif %} mb-3" style="font-size:.9rem;">
+    <strong>
+        <i class="fas fa-{% if brecha_genero > 15 %}exclamation-triangle{% elif brecha_genero > 5 %}exclamation-circle{% else %}check-circle{% endif %} me-1"></i>
+        Brecha salarial de género:
+        <span class="{% if brecha_genero > 15 %}brecha-danger{% elif brecha_genero > 5 %}brecha-warn{% else %}brecha-ok{% endif %}">
+            {{ brecha_genero }}%
+        </span>
+    </strong>
+    <span class="ms-2 text-muted" style="font-size:.82rem;">
+        {% if brecha_genero > 0 %}
+        El promedio masculino supera al femenino en un {{ brecha_genero }}%.
+        {% elif brecha_genero < 0 %}
+        El promedio femenino supera al masculino en un {{ brecha_genero|floatformat:2 }}%.
+        {% else %}
+        Sin brecha salarial detectada.
+        {% endif %}
+    </span>
+</div>
+{% endif %}
+
+<!-- Tabla de estadísticas por género -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <table class="table mb-0 tbl-stats">
+            <thead>
+                <tr>
+                    <th class="ps-3">Género</th>
+                    <th class="text-center">N</th>
+                    <th class="text-end">Promedio</th>
+                    <th class="text-end">Mediana</th>
+                    <th class="text-end">Mínimo</th>
+                    <th class="text-end">Máximo</th>
+                    <th class="text-end">Desviación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if stats_genero.M %}
+                <tr>
+                    <td class="ps-3">
+                        <span class="badge badge-m"><i class="fas fa-mars me-1"></i>Masculino</span>
+                    </td>
+                    <td class="text-center fw-bold">{{ stats_genero.M.n }}</td>
+                    <td class="text-end fw-bold">S/ {{ stats_genero.M.promedio|floatformat:2|intcomma }}</td>
+                    <td class="text-end">S/ {{ stats_genero.M.mediana|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-muted">S/ {{ stats_genero.M.minimo|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-muted">S/ {{ stats_genero.M.maximo|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-muted">S/ {{ stats_genero.M.desviacion|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endif %}
+                {% if stats_genero.F %}
+                <tr>
+                    <td class="ps-3">
+                        <span class="badge badge-f"><i class="fas fa-venus me-1"></i>Femenino</span>
+                    </td>
+                    <td class="text-center fw-bold">{{ stats_genero.F.n }}</td>
+                    <td class="text-end fw-bold">S/ {{ stats_genero.F.promedio|floatformat:2|intcomma }}</td>
+                    <td class="text-end">S/ {{ stats_genero.F.mediana|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-muted">S/ {{ stats_genero.F.minimo|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-muted">S/ {{ stats_genero.F.maximo|floatformat:2|intcomma }}</td>
+                    <td class="text-end text-muted">S/ {{ stats_genero.F.desviacion|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info mb-4">No hay datos de género registrados para el filtro seleccionado.</div>
+{% endif %}
+
+<!-- ══ SECCIÓN 2: POR GRUPO TAREO ══ -->
+<h5 class="mb-3 fw-semibold" style="color:#0d2b27;">
+    <i class="fas fa-users me-2" style="color:#0f766e;"></i>Análisis por Grupo Tareo
+</h5>
+{% if stats_grupo %}
+<div class="row g-3 mb-4">
+    {% for grupo_key, s in stats_grupo.items %}
+    <div class="col-12 col-md-4">
+        <div class="eq-stat">
+            <div class="lbl">{{ grupo_key }}</div>
+            <div class="val">S/ {{ s.promedio|floatformat:2|intcomma }}</div>
+            <div style="font-size:.78rem;color:#6b7280;">
+                {{ s.n }} empleado{{ s.n|pluralize:",s" }} ·
+                mediana S/ {{ s.mediana|floatformat:0|intcomma }} ·
+                desv. S/ {{ s.desviacion|floatformat:0|intcomma }}
+            </div>
+            <div style="font-size:.75rem;color:#9ca3af;">
+                Rango: S/ {{ s.minimo|floatformat:0|intcomma }} – S/ {{ s.maximo|floatformat:0|intcomma }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info mb-4">Sin datos de grupo tareo para el filtro seleccionado.</div>
+{% endif %}
+
+<!-- ══ SECCIÓN 3: GRÁFICO POR ÁREA ══ -->
+<h5 class="mb-3 fw-semibold" style="color:#0d2b27;">
+    <i class="fas fa-chart-bar me-2" style="color:#0f766e;"></i>Comparativa Salarial por Área
+    <small class="text-muted fw-normal" style="font-size:.8rem;">(sueldo promedio — M vs F)</small>
+</h5>
+
+{% if tabla_areas %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <canvas id="chartEquidad" style="width:100%;height:380px;"></canvas>
+    </div>
+</div>
+
+<!-- Tabla detallada por área -->
+<div class="card shadow-sm">
+    <div class="card-header py-2" style="background:#0d2b27;">
+        <span class="text-white fw-semibold">
+            <i class="fas fa-table me-1" style="color:#5eead4;"></i>
+            Detalle por Área
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 tbl-areas">
+                <thead>
+                    <tr>
+                        <th class="ps-3">Área</th>
+                        <th class="text-center">N Total</th>
+                        <th class="text-center"><span class="badge badge-m">M</span></th>
+                        <th class="text-center"><span class="badge badge-f">F</span></th>
+                        <th class="text-end">Prom. Masc.</th>
+                        <th class="text-end">Prom. Fem.</th>
+                        <th class="text-end">Prom. Total</th>
+                        <th class="text-center">Brecha %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in tabla_areas %}
+                    <tr>
+                        <td class="ps-3 fw-semibold">{{ row.area }}</td>
+                        <td class="text-center">{{ row.n_total }}</td>
+                        <td class="text-center">
+                            {% if row.n_m %}<span class="badge badge-m">{{ row.n_m }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if row.n_f %}<span class="badge badge-f">{{ row.n_f }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if row.prom_m %}S/ {{ row.prom_m|floatformat:2|intcomma }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if row.prom_f %}S/ {{ row.prom_f|floatformat:2|intcomma }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end fw-semibold" style="color:#0d2b27;">
+                            S/ {{ row.prom_total|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-center">
+                            {% if row.brecha is not None %}
+                            <span class="{% if row.brecha > 15 %}brecha-danger{% elif row.brecha > 5 %}brecha-warn{% else %}brecha-ok{% endif %}">
+                                {{ row.brecha }}%
+                            </span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Sin datos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">Sin datos suficientes para graficar por área.</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    const labels     = {{ chart_labels_json|safe }};
+    const promM      = {{ chart_prom_m_json|safe }};
+    const promF      = {{ chart_prom_f_json|safe }};
+    const promTotal  = {{ chart_prom_total_json|safe }};
+
+    const ctx = document.getElementById('chartEquidad');
+    if (!ctx || !labels || labels.length === 0) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Promedio Masculino',
+                    data: promM,
+                    backgroundColor: 'rgba(14,165,233,0.75)',
+                    borderColor: '#0ea5e9',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Promedio Femenino',
+                    data: promF,
+                    backgroundColor: 'rgba(236,72,153,0.7)',
+                    borderColor: '#ec4899',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Promedio Total',
+                    data: promTotal,
+                    type: 'line',
+                    backgroundColor: 'transparent',
+                    borderColor: '#0d2b27',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#5eead4',
+                    tension: 0.3,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { boxWidth: 14, font: { size: 12 } },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            if (ctx.raw === null || ctx.raw === undefined) return null;
+                            return ' ' + ctx.dataset.label + ': S/ ' + ctx.raw.toLocaleString();
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: { font: { size: 11 }, maxRotation: 40 },
+                    grid: { display: false },
+                },
+                y: {
+                    ticks: {
+                        callback: function (val) { return 'S/ ' + val.toLocaleString(); },
+                        font: { size: 11 },
+                    },
+                    grid: { color: 'rgba(0,0,0,0.06)' },
+                    title: { display: true, text: 'Sueldo Promedio (S/)', font: { size: 12 } },
+                },
+            },
+        },
+    });
+}());
+</script>
+{% endblock %}

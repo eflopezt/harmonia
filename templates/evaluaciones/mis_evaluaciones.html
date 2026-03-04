@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Evaluaciones{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-star-half-alt text-secondary me-2"></i>{{ titulo }}</h2>
+    {% if empleado %}<small class="text-muted">{{ empleado.apellidos_nombres }}</small>{% endif %}
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No tienes un perfil de empleado vinculado a tu usuario.</div>
+{% else %}
+
+<!-- Evaluaciones pendientes que debo realizar a otros -->
+{% if a_evaluar %}
+<div class="card shadow-sm mb-3 border-warning">
+    <div class="card-header bg-warning bg-opacity-10"><i class="fas fa-clipboard-check me-1"></i> Evaluaciones por Realizar ({{ a_evaluar|length }})</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead><tr><th>Evaluado</th><th>Ciclo</th><th>Relación</th><th></th></tr></thead>
+            <tbody>
+                {% for e in a_evaluar %}
+                <tr>
+                    <td class="fw-semibold">{{ e.evaluado.apellidos_nombres }}</td>
+                    <td>{{ e.ciclo.nombre }}</td>
+                    <td><span class="badge bg-light text-dark">{{ e.get_relacion_display }}</span></td>
+                    <td><a href="{% url 'evaluacion_completar' e.pk %}" class="btn btn-xs btn-primary py-0 px-2"><i class="fas fa-edit me-1"></i>Evaluar</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Mis autoevaluaciones pendientes -->
+{% if pendientes %}
+<div class="card shadow-sm mb-3 border-info">
+    <div class="card-header bg-info bg-opacity-10"><i class="fas fa-user-edit me-1"></i> Autoevaluaciones Pendientes</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead><tr><th>Ciclo</th><th>Período</th><th></th></tr></thead>
+            <tbody>
+                {% for e in pendientes %}
+                <tr>
+                    <td class="fw-semibold">{{ e.ciclo.nombre }}</td>
+                    <td>{{ e.ciclo.fecha_inicio|date:"d/m/Y" }} — {{ e.ciclo.fecha_fin|date:"d/m/Y" }}</td>
+                    <td><a href="{% url 'evaluacion_completar' e.pk %}" class="btn btn-xs btn-info py-0 px-2"><i class="fas fa-edit me-1"></i>Completar</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Evaluaciones completadas -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header"><i class="fas fa-check-circle me-1"></i> Evaluaciones Completadas</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead><tr><th>Ciclo</th><th class="text-center">Puntaje</th><th>Fecha</th></tr></thead>
+            <tbody>
+                {% for e in completadas %}
+                <tr>
+                    <td class="fw-semibold">{{ e.ciclo.nombre }}</td>
+                    <td class="text-center fw-bold">{{ e.puntaje_final|floatformat:1|default:"—" }}</td>
+                    <td>{{ e.fecha_completada|date:"d/m/Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-4">No hay evaluaciones completadas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- PDI -->
+{% if planes %}
+<div class="card shadow-sm">
+    <div class="card-header"><i class="fas fa-route me-1"></i> Mis Planes de Desarrollo</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead><tr><th>Plan</th><th class="text-center">Avance</th><th>Período</th></tr></thead>
+            <tbody>
+                {% for p in planes %}
+                <tr>
+                    <td class="fw-semibold">{{ p.titulo }}</td>
+                    <td class="text-center">
+                        <div class="progress" style="height:6px; width:60px; display:inline-block;">
+                            <div class="progress-bar bg-success" style="width:{{ p.porcentaje_avance }}%"></div>
+                        </div>
+                        <small class="ms-1">{{ p.porcentaje_avance }}%</small>
+                    </td>
+                    <td style="font-size:.78rem;">{{ p.fecha_inicio|date:"d/m/Y" }} — {{ p.fecha_fin|date:"d/m/Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

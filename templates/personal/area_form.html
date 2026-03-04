@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 {% load static %}
 
 {% block title %}{% if area %}Editar{% else %}Nueva{% endif %} Área{% endblock %}
@@ -7,114 +6,174 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'admin/css/widgets.css' %}">
 <style>
-    /* Estilos para el selector múltiple filtrado */
-    .selector {
-        width: 100%;
-        display: flex;
-        gap: 10px;
-        margin: 15px 0;
-    }
-    
-    .selector-available, .selector-chosen {
-        width: 48%;
-    }
-    
-    .selector h2 {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 8px;
-        padding: 8px;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px 4px 0 0;
-    }
-    
-    .selector select {
-        width: 100%;
-        height: 200px;
-        border: 1px solid #ced4da;
-        border-radius: 0 0 4px 4px;
-        padding: 5px;
-    }
-    
-    .selector-chooser {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 10px;
-        padding: 10px 0;
-    }
-    
-    .selector-chooser a {
-        display: inline-block;
-        width: 40px;
-        height: 35px;
-        line-height: 35px;
-        text-align: center;
-        background-color: #007bff;
-        color: white;
-        border-radius: 4px;
-        text-decoration: none;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    
-    .selector-chooser a:hover {
-        background-color: #0056b3;
-        transform: scale(1.05);
-    }
-    
-    .selector-filter {
-        margin-bottom: 8px;
-    }
-    
-    .selector-filter input {
-        width: 100%;
-        padding: 6px 10px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 0.9rem;
-    }
-    
-    .selector-filter label {
-        display: block;
-        margin-bottom: 4px;
-        font-size: 0.85rem;
-        color: #6c757d;
-    }
-    
-    #id_responsables {
-        display: none;
-    }
-    
-    /* Ajustar ancho del card para el selector */
-    .area-form-container .col-md-8 {
-        max-width: 900px;
-    }
+  .selector { width:100%; display:flex; gap:10px; margin:10px 0; }
+  .selector-available, .selector-chosen { width:48%; }
+  .selector h2 {
+    font-size:.9rem; font-weight:600; color:#495057; margin-bottom:6px;
+    padding:7px 10px; background:#f8f9fa; border:1px solid #dee2e6;
+    border-radius:4px 4px 0 0;
+  }
+  .selector select { width:100%; height:190px; border:1px solid #ced4da;
+    border-radius:0 0 4px 4px; padding:5px; }
+  .selector-chooser {
+    display:flex; flex-direction:column; justify-content:center; gap:10px; padding:10px 0;
+  }
+  .selector-chooser a {
+    display:inline-block; width:38px; height:33px; line-height:33px; text-align:center;
+    background:#0d6efd; color:#fff; border-radius:4px; text-decoration:none;
+    font-weight:bold;
+  }
+  .selector-chooser a:hover { background:#0b5ed7; }
+  .selector-filter { margin-bottom:6px; }
+  .selector-filter input { width:100%; padding:5px 9px; border:1px solid #ced4da; border-radius:4px; font-size:.85rem; }
+  .selector-filter label { display:block; margin-bottom:3px; font-size:.8rem; color:#6c757d; }
+  #id_responsables { display:none; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center area-form-container">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">
-                    <i class="fas fa-building"></i>
-                    {% if area %}Editar Área{% else %}Nueva Área{% endif %}
-                </h4>
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'area_list' %}">Áreas</a></li>
+    {% if area %}
+    <li class="breadcrumb-item"><a href="{% url 'area_detail' area.pk %}">{{ area.nombre }}</a></li>
+    <li class="breadcrumb-item active">Editar</li>
+    {% else %}
+    <li class="breadcrumb-item active">Nueva Área</li>
+    {% endif %}
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="fas fa-building me-2"></i>
+          {% if area %}Editar Área — {{ area.nombre }}{% else %}Nueva Área{% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+          {% csrf_token %}
+
+          {# Errores globales #}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          {# Fila: Nombre + Código #}
+          <div class="row g-3 mb-3">
+            <div class="col-md-8">
+              <label for="{{ form.nombre.id_for_label }}" class="form-label fw-semibold">
+                Nombre del Área <span class="text-danger">*</span>
+              </label>
+              <input type="text" name="{{ form.nombre.html_name }}"
+                     id="{{ form.nombre.id_for_label }}"
+                     class="form-control {% if form.nombre.errors %}is-invalid{% endif %}"
+                     value="{{ form.nombre.value|default:'' }}"
+                     placeholder="Ej: Administración, Operaciones, Gerencia General"
+                     required maxlength="150">
+              {% if form.nombre.errors %}
+              <div class="invalid-feedback">{{ form.nombre.errors.0 }}</div>
+              {% endif %}
             </div>
-            <div class="card-body">
-                {% crispy form %}
+            <div class="col-md-4">
+              <label for="{{ form.codigo.id_for_label }}" class="form-label fw-semibold">
+                Código / Centro de Costo
+              </label>
+              <input type="text" name="{{ form.codigo.html_name }}"
+                     id="{{ form.codigo.id_for_label }}"
+                     class="form-control {% if form.codigo.errors %}is-invalid{% endif %}"
+                     value="{{ form.codigo.value|default:'' }}"
+                     placeholder="ADM, OPS-01, GG…"
+                     maxlength="20"
+                     style="text-transform:uppercase">
+              <div class="form-text small">Código interno o de centro de costo</div>
+              {% if form.codigo.errors %}
+              <div class="invalid-feedback">{{ form.codigo.errors.0 }}</div>
+              {% endif %}
             </div>
-        </div>
-        <div class="mt-3">
-            <a href="{% url 'area_list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver
+          </div>
+
+          {# Jefe de Área #}
+          <div class="mb-3">
+            <label for="{{ form.jefe_area.id_for_label }}" class="form-label fw-semibold">
+              <i class="fas fa-user-tie me-1 text-muted"></i>Jefe de Área
+            </label>
+            <select name="{{ form.jefe_area.html_name }}"
+                    id="{{ form.jefe_area.id_for_label }}"
+                    class="form-select {% if form.jefe_area.errors %}is-invalid{% endif %}">
+              <option value="">— Sin jefe asignado —</option>
+              {% for emp in form.fields.jefe_area.queryset %}
+              <option value="{{ emp.pk }}"
+                {% if form.jefe_area.value|stringformat:"s" == emp.pk|stringformat:"s" %}selected{% endif %}>
+                {{ emp.apellidos_nombres }}
+              </option>
+              {% endfor %}
+            </select>
+            <div class="form-text small">Jefe inmediato del área (aparece en reportes SUNAT)</div>
+            {% if form.jefe_area.errors %}
+            <div class="invalid-feedback">{{ form.jefe_area.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          {# Descripción #}
+          <div class="mb-3">
+            <label for="{{ form.descripcion.id_for_label }}" class="form-label fw-semibold">
+              Descripción
+            </label>
+            <textarea name="{{ form.descripcion.html_name }}"
+                      id="{{ form.descripcion.id_for_label }}"
+                      class="form-control {% if form.descripcion.errors %}is-invalid{% endif %}"
+                      rows="3"
+                      placeholder="Descripción breve de las funciones del área…">{{ form.descripcion.value|default:'' }}</textarea>
+            {% if form.descripcion.errors %}
+            <div class="invalid-feedback">{{ form.descripcion.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          {# Responsables adicionales (FilteredSelectMultiple) #}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-users me-1 text-muted"></i>Responsables adicionales
+            </label>
+            <div class="form-text small mb-2">Personas con acceso de gestión al área (además del jefe)</div>
+            {{ form.responsables }}
+            {% if form.responsables.errors %}
+            <div class="text-danger small mt-1">{{ form.responsables.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          {# Activa #}
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input type="checkbox" name="{{ form.activa.html_name }}"
+                     id="{{ form.activa.id_for_label }}"
+                     class="form-check-input"
+                     role="switch"
+                     {% if form.activa.value %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="{{ form.activa.id_for_label }}">
+                Área activa
+              </label>
+            </div>
+          </div>
+
+          {# Botones #}
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i>Guardar Área
+            </button>
+            <a href="{% if area %}{% url 'area_detail' area.pk %}{% else %}{% url 'area_list' %}{% endif %}"
+               class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>Cancelar
             </a>
-        </div>
+          </div>
+
+        </form>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -126,17 +185,19 @@
 <script src="{% static 'admin/js/SelectFilter2.js' %}"></script>
 <script>
 (function($) {
-    $(document).ready(function() {
-        // Inicializar el selector filtrado
-        if (typeof SelectFilter !== 'undefined') {
-            SelectFilter.init('id_responsables', 'Responsables', 0);
-        }
-        
-        // Asegurar que los valores seleccionados se envíen con el formulario
-        $('form').submit(function() {
-            $('#id_responsables option').prop('selected', true);
-        });
+  $(document).ready(function() {
+    if (typeof SelectFilter !== 'undefined') {
+      SelectFilter.init('id_responsables', 'Responsables', 0);
+    }
+    // Enviar todos los seleccionados al hacer submit
+    $('form').on('submit', function() {
+      $('#id_responsables option').prop('selected', true);
     });
+    // Convertir código a mayúsculas en tiempo real
+    $('#id_codigo').on('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+  });
 })(django.jQuery);
 </script>
 {% endblock %}

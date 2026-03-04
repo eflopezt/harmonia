@@ -1,0 +1,1161 @@
+{% extends "base.html" %}
+
+{% block title %}Parámetros Tareo{% endblock %}
+
+{% block extra_css %}
+<style>
+.param-section { border-left: 4px solid var(--secondary-color); padding-left: 12px; }
+.codigo-pill   { font-family: monospace; font-size: .82rem; background: #e9ecef;
+                 padding: 2px 8px; border-radius: 4px; }
+.tipo-HE  { color: #856404; }
+.tipo-AUS { color: #842029; }
+.tipo-PER { color: #0c5460; }
+.tipo-DES { color: #4a1c7a; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-cogs text-secondary me-2"></i>Parámetros del Módulo Tareo</h2>
+        <small class="text-muted">Configuración de regímenes, horarios, feriados y homologaciones</small>
+    </div>
+    <a href="{% url 'asistencia_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Dashboard
+    </a>
+</div>
+
+<!-- Tabs de secciones -->
+<ul class="nav nav-tabs mb-4" id="paramTabs" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#tabRegimenes">
+            <i class="fas fa-calendar-alt me-1"></i>Regímenes
+            <span class="badge bg-secondary ms-1">{{ regimenes|length }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tabHorarios">
+            <i class="fas fa-clock me-1"></i>Horarios
+            <span class="badge bg-secondary ms-1">{{ horarios|length }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tabFeriados">
+            <i class="fas fa-flag me-1"></i>Feriados
+            <span class="badge bg-secondary ms-1">{{ feriados|length }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tabHomologaciones">
+            <i class="fas fa-exchange-alt me-1"></i>Homologaciones
+            <span class="badge bg-secondary ms-1">{{ homologaciones|length }}</span>
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- ── REGÍMENES ───────────────────────────────────────────── -->
+    <div class="tab-pane fade show active" id="tabRegimenes">
+        <!-- Toolbar -->
+        <div class="d-flex gap-2 mb-3 align-items-center">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalRegimen()">
+                <i class="fas fa-plus me-1"></i>Agregar Régimen
+            </button>
+            <span class="text-muted small">
+                <i class="fas fa-info-circle me-1"></i>
+                Define los ciclos de trabajo/descanso según la normativa peruana (DS 007-2002-TR).
+            </span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm" id="tablaRegimenes">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Código</th>
+                        <th>Tipo Jornada</th>
+                        <th>Ciclo</th>
+                        <th>Max h/ciclo</th>
+                        <th>Almuerzo</th>
+                        <th>Nocturno</th>
+                        <th>Estado</th>
+                        <th style="width:70px"></th>
+                    </tr>
+                </thead>
+                <tbody id="regimenesBody">
+                    {% for r in regimenes %}
+                    <tr id="fila-r-{{ r.pk }}"
+                        data-pk="{{ r.pk }}"
+                        data-nombre="{{ r.nombre|escapejs }}"
+                        data-codigo="{{ r.codigo }}"
+                        data-jornada="{{ r.jornada_tipo }}"
+                        data-dtrab="{{ r.dias_trabajo_ciclo }}"
+                        data-ddesc="{{ r.dias_descanso_ciclo }}"
+                        data-almuerzo="{{ r.minutos_almuerzo }}"
+                        data-nocturno="{{ r.es_nocturno|yesno:'1,0' }}"
+                        data-recargo="{{ r.recargo_nocturno_pct }}"
+                        data-desc="{{ r.descripcion|escapejs }}"
+                        data-activo="{{ r.activo|yesno:'1,0' }}">
+                        <td class="fw-semibold">{{ r.nombre }}</td>
+                        <td><span class="codigo-pill">{{ r.codigo }}</span></td>
+                        <td class="small">{{ r.get_jornada_tipo_display }}</td>
+                        <td class="text-center fw-semibold">{{ r.dias_trabajo_ciclo }}×{{ r.dias_descanso_ciclo }}</td>
+                        <td class="text-center">{{ r.horas_max_ciclo }} h</td>
+                        <td class="text-center text-muted">{{ r.minutos_almuerzo }} min</td>
+                        <td class="text-center">
+                            {% if r.es_nocturno %}<span class="badge bg-dark"><i class="fas fa-moon me-1"></i>{{ r.recargo_nocturno_pct }}%</span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if r.activo %}<span class="badge bg-success">Activo</span>
+                            {% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1"
+                                    onclick="editarRegimen({{ r.pk }})" title="Editar">
+                                <i class="fas fa-pen" style="font-size:.7rem"></i>
+                            </button>
+                            <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                                    onclick="eliminarRegimen({{ r.pk }}, '{{ r.nombre|escapejs }}')" title="Eliminar">
+                                <i class="fas fa-trash" style="font-size:.7rem"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="filaVaciaRegimenes">
+                        <td colspan="9" class="text-center text-muted py-3">Sin regímenes configurados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── HORARIOS ────────────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tabHorarios">
+        <!-- Toolbar -->
+        <div class="d-flex gap-2 mb-3 align-items-center">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalHorario()">
+                <i class="fas fa-plus me-1"></i>Agregar Horario
+            </button>
+            <span class="text-muted small">
+                <i class="fas fa-info-circle me-1"></i>
+                Cada régimen puede tener múltiples horarios según el tipo de día (L-V, Sábado, Turno A/B/C).
+            </span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm" id="tablaHorarios">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Régimen</th>
+                        <th>Nombre</th>
+                        <th>Tipo Día</th>
+                        <th>Entrada</th>
+                        <th>Salida</th>
+                        <th>H. Brutas</th>
+                        <th>H. Efectivas</th>
+                        <th>Noche</th>
+                        <th style="width:70px"></th>
+                    </tr>
+                </thead>
+                <tbody id="horariosBody">
+                    {% for h in horarios %}
+                    <tr id="fila-ho-{{ h.pk }}"
+                        data-pk="{{ h.pk }}"
+                        data-regimen="{{ h.regimen_id }}"
+                        data-nombre="{{ h.nombre|escapejs }}"
+                        data-tipodia="{{ h.tipo_dia }}"
+                        data-entrada="{{ h.hora_entrada|time:'H:i' }}"
+                        data-salida="{{ h.hora_salida|time:'H:i' }}"
+                        data-siguiente="{{ h.salida_dia_siguiente|yesno:'1,0' }}"
+                        data-activo="{{ h.activo|yesno:'1,0' }}">
+                        <td><span class="codigo-pill">{{ h.regimen.codigo }}</span></td>
+                        <td class="fw-semibold">{{ h.nombre }}</td>
+                        <td>{{ h.get_tipo_dia_display }}</td>
+                        <td class="text-center">{{ h.hora_entrada|time:"H:i" }}</td>
+                        <td class="text-center">{{ h.hora_salida|time:"H:i" }}</td>
+                        <td class="text-center">{{ h.horas_brutas|floatformat:2 }}</td>
+                        <td class="text-center fw-semibold text-success">{{ h.horas_efectivas|floatformat:2 }}</td>
+                        <td class="text-center">
+                            {% if h.salida_dia_siguiente %}<span class="badge bg-dark"><i class="fas fa-moon"></i></span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1"
+                                    onclick="editarHorario({{ h.pk }})" title="Editar">
+                                <i class="fas fa-pen" style="font-size:.7rem"></i>
+                            </button>
+                            <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                                    onclick="eliminarHorario({{ h.pk }}, '{{ h.nombre|escapejs }}')" title="Eliminar">
+                                <i class="fas fa-trash" style="font-size:.7rem"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="filaVaciaHorarios">
+                        <td colspan="9" class="text-center text-muted py-3">Sin horarios configurados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── FERIADOS ────────────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tabFeriados">
+        <!-- Toolbar -->
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalFeriado()">
+                <i class="fas fa-plus me-1"></i>Agregar Feriado
+            </button>
+            <div class="d-flex align-items-center gap-1">
+                <select class="form-select form-select-sm" id="selAnioFeriados" style="width:100px">
+                    {% for y in anios_feriados %}
+                    <option value="{{ y }}" {% if y == anio_actual %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary btn-sm" onclick="cargarFeriadosPeru()" title="Cargar feriados nacionales del Perú">
+                    <i class="fas fa-flag me-1"></i>Cargar Perú
+                </button>
+            </div>
+            <span class="text-muted small ms-auto" id="msgFeriados"></span>
+        </div>
+
+        <!-- Tabla -->
+        <div class="table-responsive">
+            <table class="table table-hover table-sm" id="tablaFeriados">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Día</th>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th style="width:80px"></th>
+                    </tr>
+                </thead>
+                <tbody id="feriadosBody">
+                    {% for f in feriados %}
+                    <tr id="fila-f-{{ f.pk }}" data-pk="{{ f.pk }}" data-fecha="{{ f.fecha|date:'Y-m-d' }}" data-nombre="{{ f.nombre }}" data-tipo="{{ f.tipo }}">
+                        <td class="fw-semibold">{{ f.fecha|date:"d/m/Y" }}</td>
+                        <td class="text-muted small">{{ f.fecha|date:"l" }}</td>
+                        <td>{{ f.nombre }}</td>
+                        <td>
+                            <span class="badge {% if f.tipo == 'NO_RECUPERABLE' %}bg-danger{% elif f.tipo == 'RECUPERABLE' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}" style="font-size:.68rem">
+                                {{ f.get_tipo_display }}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1" onclick="editarFeriado({{ f.pk }})" title="Editar">
+                                <i class="fas fa-pen" style="font-size:.7rem"></i>
+                            </button>
+                            <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarFeriado({{ f.pk }}, '{{ f.nombre|escapejs }}')" title="Eliminar">
+                                <i class="fas fa-trash" style="font-size:.7rem"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="filaVaciaFeriados">
+                        <td colspan="5" class="text-center text-muted py-3">
+                            Sin feriados configurados. Usa "Cargar Perú" para cargar el año actual.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── HOMOLOGACIONES ─────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tabHomologaciones">
+        <!-- Toolbar -->
+        <div class="d-flex gap-2 mb-3 align-items-center">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalHomolog()">
+                <i class="fas fa-plus me-1"></i>Agregar Homologación
+            </button>
+            <span class="text-muted small">
+                <i class="fas fa-info-circle me-1"></i>
+                Mapea códigos del sistema Reloj BioTime a códigos internos de Tareo/Roster.
+                Los códigos con <strong>Genera HE = Sí</strong> activan el cálculo de horas extra.
+            </span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm" id="tablaHomolog">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Pri.</th>
+                        <th>Cód. Origen</th>
+                        <th>Cód. Tareo</th>
+                        <th>Cód. Roster</th>
+                        <th>Tipo Evento</th>
+                        <th>Signo</th>
+                        <th>Gen. HE</th>
+                        <th>Numérico</th>
+                        <th>Descripción</th>
+                        <th style="width:70px"></th>
+                    </tr>
+                </thead>
+                <tbody id="homologBody">
+                    {% for h in homologaciones %}
+                    <tr id="fila-h-{{ h.pk }}"
+                        data-pk="{{ h.pk }}"
+                        data-origen="{{ h.codigo_origen }}"
+                        data-tareo="{{ h.codigo_tareo }}"
+                        data-roster="{{ h.codigo_roster }}"
+                        data-desc="{{ h.descripcion|escapejs }}"
+                        data-tipo="{{ h.tipo_evento }}"
+                        data-signo="{{ h.signo }}"
+                        data-casistr="{{ h.cuenta_asistencia|yesno:'1,0' }}"
+                        data-ghe="{{ h.genera_he|yesno:'1,0' }}"
+                        data-enum="{{ h.es_numerico|yesno:'1,0' }}"
+                        data-prio="{{ h.prioridad }}"
+                        data-activo="{{ h.activo|yesno:'1,0' }}">
+                        <td class="text-center text-muted">{{ h.prioridad }}</td>
+                        <td><span class="codigo-pill">{{ h.codigo_origen }}</span></td>
+                        <td><span class="codigo-pill">{{ h.codigo_tareo|default:"—" }}</span></td>
+                        <td><span class="codigo-pill text-muted">{{ h.codigo_roster|default:"—" }}</span></td>
+                        <td>
+                            <span class="fw-semibold
+                                {% if h.tipo_evento == 'FERIADO_LABORADO' %}tipo-HE
+                                {% elif h.tipo_evento == 'AUSENCIA' %}tipo-AUS
+                                {% elif h.tipo_evento == 'PERMISO' or h.tipo_evento == 'VACACIONES' %}tipo-PER
+                                {% else %}tipo-DES{% endif %}">
+                                {{ h.get_tipo_evento_display }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if h.signo == '+' %}<span class="text-success fw-bold">+</span>
+                            {% elif h.signo == '-' %}<span class="text-danger fw-bold">−</span>
+                            {% else %}<span class="text-muted">N</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if h.genera_he %}<span class="badge bg-warning text-dark">Sí</span>
+                            {% else %}<span class="text-muted">No</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if h.es_numerico %}<span class="badge bg-info">Sí</span>
+                            {% else %}<span class="text-muted">No</span>{% endif %}
+                        </td>
+                        <td class="text-muted small">{{ h.descripcion|default:"—" }}</td>
+                        <td class="text-end">
+                            <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1"
+                                    onclick="editarHomolog({{ h.pk }})" title="Editar">
+                                <i class="fas fa-pen" style="font-size:.7rem"></i>
+                            </button>
+                            <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                                    onclick="eliminarHomolog({{ h.pk }}, '{{ h.codigo_origen|escapejs }}')" title="Eliminar">
+                                <i class="fas fa-trash" style="font-size:.7rem"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="filaVaciaHomolog">
+                        <td colspan="10" class="text-center text-muted py-3">Sin homologaciones configuradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Régimen -->
+<div class="modal fade" id="modalRegimen" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalRegimenTitulo">Agregar Régimen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="regimenPk" value="">
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="regimenNombre"
+                               placeholder="Ej: 21x7 Foráneo" maxlength="60">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm text-uppercase" id="regimenCodigo"
+                               placeholder="Ej: 21X7" maxlength="10">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Tipo de Jornada</label>
+                        <select class="form-select form-select-sm" id="regimenJornada">
+                            <option value="SEMANAL">Jornada Semanal Fija (máx. 48 h/semana)</option>
+                            <option value="ACUMULATIVA">Jornada Acumulativa / Atípica (Art. 9 DS 007-2002)</option>
+                            <option value="ROTATIVA">Turno Rotativo (descanso no fijo)</option>
+                            <option value="NOCTURNA">Turno Nocturno (+35% recargo mínimo legal)</option>
+                            <option value="ESPECIAL">Régimen Especial (configuración manual)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Días Trabajo <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control form-control-sm" id="regimenDiasTrab"
+                               min="1" max="30" placeholder="21">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Días Descanso <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control form-control-sm" id="regimenDiasDesc"
+                               min="1" max="30" placeholder="7">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Almuerzo (min)</label>
+                        <input type="number" class="form-control form-control-sm" id="regimenAlmuerzo"
+                               min="0" max="120" value="60">
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex gap-4 align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="regimenNocturno" value="1"
+                                       onchange="document.getElementById('regimenRecargoDiv').style.display = this.checked ? '' : 'none'">
+                                <label class="form-check-label" for="regimenNocturno">Turno Nocturno</label>
+                            </div>
+                            <div id="regimenRecargoDiv" style="display:none" class="d-flex align-items-center gap-1">
+                                <label class="form-label mb-0 small">Recargo %:</label>
+                                <input type="number" class="form-control form-control-sm" id="regimenRecargo"
+                                       value="35" min="35" max="100" step="0.01" style="width:80px">
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="regimenActivo" value="1" checked>
+                                <label class="form-check-label" for="regimenActivo">Activo</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Descripción</label>
+                        <textarea class="form-control form-control-sm" id="regimenDesc" rows="2"
+                                  placeholder="Notas adicionales sobre este régimen"></textarea>
+                    </div>
+                </div>
+                <div id="regimenError" class="alert alert-danger py-2 small mt-3" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="guardarRegimen()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Horario -->
+<div class="modal fade" id="modalHorario" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalHorarioTitulo">Agregar Horario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="horarioPk" value="">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Régimen <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="horarioRegimen">
+                            {% for r in regimenes %}
+                            <option value="{{ r.pk }}">{{ r.nombre }} ({{ r.codigo }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tipo de Día <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="horarioTipoDia">
+                            <option value="LUNES_VIERNES">Lunes a Viernes</option>
+                            <option value="SABADO">Sábado</option>
+                            <option value="DOMINGO">Domingo</option>
+                            <option value="LUNES_SABADO">Lunes a Sábado</option>
+                            <option value="TODOS">Todos los días del ciclo</option>
+                            <option value="TURNO_A">Turno A (rotativo)</option>
+                            <option value="TURNO_B">Turno B (rotativo)</option>
+                            <option value="TURNO_C">Turno C (rotativo)</option>
+                            <option value="ESPECIAL">Especial / Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="horarioNombre"
+                               placeholder="Ej: Foráneo L-V, Local Sábado" maxlength="60">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Entrada <span class="text-danger">*</span></label>
+                        <input type="time" class="form-control form-control-sm" id="horarioEntrada">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Salida <span class="text-danger">*</span></label>
+                        <input type="time" class="form-control form-control-sm" id="horarioSalida">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="horarioSiguiente" value="1">
+                            <label class="form-check-label small" for="horarioSiguiente">
+                                <i class="fas fa-moon me-1"></i>Salida día siguiente
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="horarioActivo" value="1" checked>
+                            <label class="form-check-label" for="horarioActivo">Activo</label>
+                        </div>
+                    </div>
+                </div>
+                <div id="horarioError" class="alert alert-danger py-2 small mt-3" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="guardarHorario()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Feriado -->
+<div class="modal fade" id="modalFeriado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalFeriadoTitulo">Agregar Feriado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="feriadoPk" value="">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Fecha</label>
+                    <input type="date" class="form-control" id="feriadoFecha">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nombre del Feriado</label>
+                    <input type="text" class="form-control" id="feriadoNombre" placeholder="Ej: Fiestas Patrias">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tipo</label>
+                    <select class="form-select" id="feriadoTipo">
+                        <option value="NO_RECUPERABLE">No Recuperable (HE 100%)</option>
+                        <option value="RECUPERABLE">Recuperable</option>
+                        <option value="PUENTE">Puente</option>
+                    </select>
+                </div>
+                <div id="feriadoError" class="alert alert-danger py-2 small" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" id="btnGuardarFeriado" onclick="guardarFeriado()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Homologación -->
+<div class="modal fade" id="modalHomolog" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalHomologTitulo">Agregar Homologación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="homologPk" value="">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Código Origen <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm text-uppercase" id="homologOrigen"
+                               placeholder="Ej: B, V, SS, >0" maxlength="20">
+                        <small class="text-muted">Código que llega del sistema de reloj</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Código Tareo <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm text-uppercase" id="homologTareo"
+                               placeholder="Ej: DL, VAC, A" maxlength="20">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Código Roster</label>
+                        <input type="text" class="form-control form-control-sm text-uppercase" id="homologRoster"
+                               placeholder="Vacío si no aplica" maxlength="20">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Descripción <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="homologDesc"
+                               placeholder="Ej: Asistencia efectiva con horas marcadas" maxlength="200">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tipo de Evento</label>
+                        <select class="form-select form-select-sm" id="homologTipo">
+                            <option value="ASISTENCIA">Asistencia efectiva</option>
+                            <option value="AUSENCIA">Ausencia no justificada (Falta)</option>
+                            <option value="PERMISO">Permiso / Licencia</option>
+                            <option value="DESCANSO">Descanso del ciclo / DL</option>
+                            <option value="VACACIONES">Vacaciones</option>
+                            <option value="SUSPENSION">Suspensión disciplinaria</option>
+                            <option value="FERIADO">Feriado</option>
+                            <option value="FERIADO_LABORADO">Feriado laborado</option>
+                            <option value="TELETRABAJO">Trabajo remoto</option>
+                            <option value="COMPENSACION">Compensación de horas</option>
+                            <option value="DESCANSO_MEDICO">Descanso médico</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Signo</label>
+                        <select class="form-select form-select-sm" id="homologSigno">
+                            <option value="+">+ Suma (día trabajado)</option>
+                            <option value="-">− Resta (descuento)</option>
+                            <option value="N">N Neutral</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Prioridad</label>
+                        <input type="number" class="form-control form-control-sm" id="homologPrio"
+                               value="10" min="1" max="99">
+                        <small class="text-muted">1=Papeleta · 10=Reloj · 99=Falta</small>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="homologCasistr" value="1">
+                                <label class="form-check-label" for="homologCasistr">Cuenta como asistencia</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="homologGhe" value="1">
+                                <label class="form-check-label" for="homologGhe">Puede generar HE</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="homologEnum" value="1">
+                                <label class="form-check-label" for="homologEnum">Valor origen es numérico (horas)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="homologActivo" value="1" checked>
+                                <label class="form-check-label" for="homologActivo">Activo</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="homologError" class="alert alert-danger py-2 small mt-3" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="guardarHomolog()">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+// ── Regímenes CRUD ──────────────────────────────────────────
+function abrirModalRegimen(d) {
+    d = d || {};
+    document.getElementById('regimenPk').value       = d.pk       || '';
+    document.getElementById('regimenNombre').value   = d.nombre   || '';
+    document.getElementById('regimenCodigo').value   = d.codigo   || '';
+    document.getElementById('regimenJornada').value  = d.jornada  || 'SEMANAL';
+    document.getElementById('regimenDiasTrab').value = d.dtrab    || '';
+    document.getElementById('regimenDiasDesc').value = d.ddesc    || '';
+    document.getElementById('regimenAlmuerzo').value = d.almuerzo || '60';
+    document.getElementById('regimenNocturno').checked = d.nocturno === '1';
+    document.getElementById('regimenRecargo').value  = d.recargo  || '35';
+    document.getElementById('regimenRecargoDiv').style.display = d.nocturno === '1' ? '' : 'none';
+    document.getElementById('regimenDesc').value     = d.desc     || '';
+    document.getElementById('regimenActivo').checked = d.activo !== '0';
+    document.getElementById('regimenError').style.display = 'none';
+    document.getElementById('modalRegimenTitulo').textContent = d.pk ? 'Editar Régimen' : 'Agregar Régimen';
+    new bootstrap.Modal(document.getElementById('modalRegimen')).show();
+}
+
+function editarRegimen(pk) {
+    const tr = document.getElementById('fila-r-' + pk);
+    abrirModalRegimen({
+        pk: tr.dataset.pk, nombre: tr.dataset.nombre, codigo: tr.dataset.codigo,
+        jornada: tr.dataset.jornada, dtrab: tr.dataset.dtrab, ddesc: tr.dataset.ddesc,
+        almuerzo: tr.dataset.almuerzo, nocturno: tr.dataset.nocturno,
+        recargo: tr.dataset.recargo, desc: tr.dataset.desc, activo: tr.dataset.activo,
+    });
+}
+
+async function guardarRegimen() {
+    const pk       = document.getElementById('regimenPk').value;
+    const nombre   = document.getElementById('regimenNombre').value.trim();
+    const codigo   = document.getElementById('regimenCodigo').value.trim().toUpperCase();
+    const jornada  = document.getElementById('regimenJornada').value;
+    const dtrab    = document.getElementById('regimenDiasTrab').value;
+    const ddesc    = document.getElementById('regimenDiasDesc').value;
+    const almuerzo = document.getElementById('regimenAlmuerzo').value;
+    const nocturno = document.getElementById('regimenNocturno').checked ? '1' : '0';
+    const recargo  = document.getElementById('regimenRecargo').value;
+    const desc     = document.getElementById('regimenDesc').value.trim();
+    const activo   = document.getElementById('regimenActivo').checked ? '1' : '0';
+    const errDiv   = document.getElementById('regimenError');
+
+    if (!nombre || !codigo || !dtrab || !ddesc) {
+        errDiv.textContent = 'Nombre, código, días de trabajo y descanso son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const url = pk ? `/asistencia/regimenes/${pk}/editar/` : '/asistencia/regimenes/crear/';
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            nombre, codigo, jornada_tipo: jornada,
+            dias_trabajo: dtrab, dias_descanso: ddesc, minutos_almuerzo: almuerzo,
+            es_nocturno: nocturno, recargo_nocturno: recargo, descripcion: desc, activo,
+        }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) { errDiv.textContent = data.error; errDiv.style.display = ''; return; }
+    bootstrap.Modal.getInstance(document.getElementById('modalRegimen')).hide();
+
+    const tbody = document.getElementById('regimenesBody');
+    document.getElementById('filaVaciaRegimenes')?.remove();
+
+    const noctHtml = data.es_nocturno
+        ? `<span class="badge bg-dark"><i class="fas fa-moon me-1"></i>${data.recargo_nocturno}%</span>`
+        : '<span class="text-muted">—</span>';
+    const estadoHtml = data.activo
+        ? '<span class="badge bg-success">Activo</span>'
+        : '<span class="badge bg-secondary">Inactivo</span>';
+
+    const filaHtml = `
+        <tr id="fila-r-${data.pk}" data-pk="${data.pk}" data-nombre="${data.nombre.replace(/"/g,'&quot;')}"
+            data-codigo="${data.codigo}" data-jornada="${data.jornada_tipo}"
+            data-dtrab="${data.dias_trabajo}" data-ddesc="${data.dias_descanso}"
+            data-almuerzo="${data.minutos_almuerzo}" data-nocturno="${data.es_nocturno ? '1' : '0'}"
+            data-recargo="${data.recargo_nocturno}" data-desc="${data.descripcion.replace(/"/g,'&quot;')}"
+            data-activo="${data.activo ? '1' : '0'}">
+            <td class="fw-semibold">${data.nombre}</td>
+            <td><span class="codigo-pill">${data.codigo}</span></td>
+            <td class="small">${data.jornada_tipo_display}</td>
+            <td class="text-center fw-semibold">${data.ciclo}</td>
+            <td class="text-center">${data.horas_max_ciclo} h</td>
+            <td class="text-center text-muted">${data.minutos_almuerzo} min</td>
+            <td class="text-center">${noctHtml}</td>
+            <td class="text-center">${estadoHtml}</td>
+            <td class="text-end">
+                <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1" onclick="editarRegimen(${data.pk})" title="Editar"><i class="fas fa-pen" style="font-size:.7rem"></i></button>
+                <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarRegimen(${data.pk}, '${data.nombre.replace(/'/g, "\\'")}')" title="Eliminar"><i class="fas fa-trash" style="font-size:.7rem"></i></button>
+            </td>
+        </tr>`;
+
+    const existente = document.getElementById('fila-r-' + data.pk);
+    if (existente) { existente.outerHTML = filaHtml; } else { tbody.insertAdjacentHTML('beforeend', filaHtml); }
+
+    // Sync horario regimen select
+    syncRegimenSelect();
+}
+
+function syncRegimenSelect() {
+    const sel = document.getElementById('horarioRegimen');
+    const current = sel.value;
+    sel.innerHTML = '';
+    document.querySelectorAll('#regimenesBody tr[data-pk]').forEach(tr => {
+        const opt = document.createElement('option');
+        opt.value = tr.dataset.pk;
+        opt.textContent = `${tr.dataset.nombre} (${tr.dataset.codigo})`;
+        sel.appendChild(opt);
+    });
+    if (current) sel.value = current;
+}
+
+async function eliminarRegimen(pk, nombre) {
+    if (!confirm(`¿Eliminar el régimen "${nombre}"?`)) return;
+    const resp = await fetch(`/asistencia/regimenes/${pk}/eliminar/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (!data.ok) { alert(data.error); return; }
+    document.getElementById('fila-r-' + pk)?.remove();
+    if (!document.querySelector('#regimenesBody tr[data-pk]')) {
+        document.getElementById('regimenesBody').innerHTML =
+            '<tr id="filaVaciaRegimenes"><td colspan="9" class="text-center text-muted py-3">Sin regímenes configurados.</td></tr>';
+    }
+    syncRegimenSelect();
+}
+
+// ── Horarios CRUD ───────────────────────────────────────────
+function abrirModalHorario(d) {
+    d = d || {};
+    document.getElementById('horarioPk').value         = d.pk         || '';
+    document.getElementById('horarioRegimen').value    = d.regimen    || '';
+    document.getElementById('horarioNombre').value     = d.nombre     || '';
+    document.getElementById('horarioTipoDia').value    = d.tipodia    || 'LUNES_VIERNES';
+    document.getElementById('horarioEntrada').value    = d.entrada    || '';
+    document.getElementById('horarioSalida').value     = d.salida     || '';
+    document.getElementById('horarioSiguiente').checked = d.siguiente === '1';
+    document.getElementById('horarioActivo').checked   = d.activo !== '0';
+    document.getElementById('horarioError').style.display = 'none';
+    document.getElementById('modalHorarioTitulo').textContent = d.pk ? 'Editar Horario' : 'Agregar Horario';
+    new bootstrap.Modal(document.getElementById('modalHorario')).show();
+}
+
+function editarHorario(pk) {
+    const tr = document.getElementById('fila-ho-' + pk);
+    abrirModalHorario({
+        pk: tr.dataset.pk, regimen: tr.dataset.regimen, nombre: tr.dataset.nombre,
+        tipodia: tr.dataset.tipodia, entrada: tr.dataset.entrada, salida: tr.dataset.salida,
+        siguiente: tr.dataset.siguiente, activo: tr.dataset.activo,
+    });
+}
+
+async function guardarHorario() {
+    const pk        = document.getElementById('horarioPk').value;
+    const regimen   = document.getElementById('horarioRegimen').value;
+    const nombre    = document.getElementById('horarioNombre').value.trim();
+    const tipodia   = document.getElementById('horarioTipoDia').value;
+    const entrada   = document.getElementById('horarioEntrada').value;
+    const salida    = document.getElementById('horarioSalida').value;
+    const siguiente = document.getElementById('horarioSiguiente').checked ? '1' : '0';
+    const activo    = document.getElementById('horarioActivo').checked ? '1' : '0';
+    const errDiv    = document.getElementById('horarioError');
+
+    if (!regimen || !nombre || !entrada || !salida) {
+        errDiv.textContent = 'Régimen, nombre, hora entrada y salida son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const url = pk ? `/asistencia/horarios/${pk}/editar/` : '/asistencia/horarios/crear/';
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            regimen, nombre, tipo_dia: tipodia,
+            hora_entrada: entrada, hora_salida: salida,
+            salida_dia_siguiente: siguiente, activo,
+        }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) { errDiv.textContent = data.error; errDiv.style.display = ''; return; }
+    bootstrap.Modal.getInstance(document.getElementById('modalHorario')).hide();
+
+    const tbody = document.getElementById('horariosBody');
+    document.getElementById('filaVaciaHorarios')?.remove();
+
+    const nocheHtml = data.salida_dia_siguiente
+        ? '<span class="badge bg-dark"><i class="fas fa-moon"></i></span>'
+        : '<span class="text-muted">—</span>';
+
+    const filaHtml = `
+        <tr id="fila-ho-${data.pk}" data-pk="${data.pk}" data-regimen="${data.regimen_pk}"
+            data-nombre="${data.nombre.replace(/"/g,'&quot;')}" data-tipodia="${data.tipo_dia}"
+            data-entrada="${data.hora_entrada}" data-salida="${data.hora_salida}"
+            data-siguiente="${data.salida_dia_siguiente ? '1' : '0'}" data-activo="${data.activo ? '1' : '0'}">
+            <td><span class="codigo-pill">${data.regimen_codigo}</span></td>
+            <td class="fw-semibold">${data.nombre}</td>
+            <td>${data.tipo_dia_display}</td>
+            <td class="text-center">${data.hora_entrada}</td>
+            <td class="text-center">${data.hora_salida}</td>
+            <td class="text-center">${data.horas_brutas}</td>
+            <td class="text-center fw-semibold text-success">${data.horas_efectivas}</td>
+            <td class="text-center">${nocheHtml}</td>
+            <td class="text-end">
+                <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1" onclick="editarHorario(${data.pk})" title="Editar"><i class="fas fa-pen" style="font-size:.7rem"></i></button>
+                <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarHorario(${data.pk}, '${data.nombre.replace(/'/g, "\\'")}')" title="Eliminar"><i class="fas fa-trash" style="font-size:.7rem"></i></button>
+            </td>
+        </tr>`;
+
+    const existente = document.getElementById('fila-ho-' + data.pk);
+    if (existente) { existente.outerHTML = filaHtml; } else { tbody.insertAdjacentHTML('beforeend', filaHtml); }
+}
+
+async function eliminarHorario(pk, nombre) {
+    if (!confirm(`¿Eliminar el horario "${nombre}"?`)) return;
+    const resp = await fetch(`/asistencia/horarios/${pk}/eliminar/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-ho-' + pk)?.remove();
+        if (!document.querySelector('#horariosBody tr')) {
+            document.getElementById('horariosBody').innerHTML =
+                '<tr id="filaVaciaHorarios"><td colspan="9" class="text-center text-muted py-3">Sin horarios configurados.</td></tr>';
+        }
+    }
+}
+
+// ── Feriados CRUD ────────────────────────────────────────────
+function abrirModalFeriado(pk, fecha, nombre, tipo) {
+    document.getElementById('feriadoPk').value    = pk    || '';
+    document.getElementById('feriadoFecha').value = fecha || '';
+    document.getElementById('feriadoNombre').value = nombre || '';
+    document.getElementById('feriadoTipo').value  = tipo  || 'NO_RECUPERABLE';
+    document.getElementById('feriadoError').style.display = 'none';
+    document.getElementById('modalFeriadoTitulo').textContent = pk ? 'Editar Feriado' : 'Agregar Feriado';
+    new bootstrap.Modal(document.getElementById('modalFeriado')).show();
+}
+
+function editarFeriado(pk) {
+    const tr = document.getElementById('fila-f-' + pk);
+    abrirModalFeriado(pk, tr.dataset.fecha, tr.dataset.nombre, tr.dataset.tipo);
+}
+
+async function guardarFeriado() {
+    const pk     = document.getElementById('feriadoPk').value;
+    const fecha  = document.getElementById('feriadoFecha').value;
+    const nombre = document.getElementById('feriadoNombre').value.trim();
+    const tipo   = document.getElementById('feriadoTipo').value;
+    const errDiv = document.getElementById('feriadoError');
+
+    if (!fecha || !nombre) {
+        errDiv.textContent = 'Fecha y nombre son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const url = pk
+        ? `/asistencia/feriados/${pk}/editar/`
+        : '/asistencia/feriados/crear/';
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ fecha, nombre, tipo }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) {
+        errDiv.textContent = data.error;
+        errDiv.style.display = '';
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalFeriado')).hide();
+
+    // Actualizar/insertar fila en la tabla
+    const tbody = document.getElementById('feriadosBody');
+    document.getElementById('filaVaciaFeriados')?.remove();
+
+    const badgeMap = {
+        NO_RECUPERABLE: 'bg-danger',
+        RECUPERABLE: 'bg-warning text-dark',
+        PUENTE: 'bg-info text-dark',
+    };
+    const filaHtml = `
+        <tr id="fila-f-${data.pk}" data-pk="${data.pk}" data-fecha="${fecha}" data-nombre="${nombre}" data-tipo="${tipo}">
+            <td class="fw-semibold">${data.fecha}</td>
+            <td class="text-muted small">${data.dia_semana}</td>
+            <td>${data.nombre}</td>
+            <td><span class="badge ${badgeMap[data.tipo] || 'bg-secondary'}" style="font-size:.68rem">${data.tipo_display}</span></td>
+            <td class="text-end">
+                <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1" onclick="editarFeriado(${data.pk})" title="Editar"><i class="fas fa-pen" style="font-size:.7rem"></i></button>
+                <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="eliminarFeriado(${data.pk}, '${data.nombre.replace(/'/g, "\\'")}')" title="Eliminar"><i class="fas fa-trash" style="font-size:.7rem"></i></button>
+            </td>
+        </tr>`;
+
+    const filaExistente = document.getElementById('fila-f-' + data.pk);
+    if (filaExistente) {
+        filaExistente.outerHTML = filaHtml;
+    } else {
+        tbody.insertAdjacentHTML('beforeend', filaHtml);
+    }
+}
+
+async function eliminarFeriado(pk, nombre) {
+    if (!confirm(`¿Eliminar el feriado "${nombre}"?`)) return;
+    const resp = await fetch(`/asistencia/feriados/${pk}/eliminar/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-f-' + pk)?.remove();
+        if (!document.querySelector('#feriadosBody tr')) {
+            document.getElementById('feriadosBody').innerHTML =
+                '<tr id="filaVaciaFeriados"><td colspan="5" class="text-center text-muted py-3">Sin feriados configurados.</td></tr>';
+        }
+    }
+}
+
+async function cargarFeriadosPeru() {
+    const anio = document.getElementById('selAnioFeriados').value;
+    const msg  = document.getElementById('msgFeriados');
+    msg.textContent = 'Cargando...';
+    const resp = await fetch('/asistencia/feriados/cargar-peru/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ anio }),
+    });
+    const data = await resp.json();
+    msg.textContent = data.mensaje;
+    if (data.creados > 0) {
+        setTimeout(() => window.location.reload(), 800);
+    }
+}
+
+// ── Homologaciones CRUD ──────────────────────────────────────
+function abrirModalHomolog(d) {
+    d = d || {};
+    document.getElementById('homologPk').value       = d.pk    || '';
+    document.getElementById('homologOrigen').value   = d.origen || '';
+    document.getElementById('homologTareo').value    = d.tareo  || '';
+    document.getElementById('homologRoster').value   = d.roster || '';
+    document.getElementById('homologDesc').value     = d.desc   || '';
+    document.getElementById('homologTipo').value     = d.tipo   || 'ASISTENCIA';
+    document.getElementById('homologSigno').value    = d.signo  || '+';
+    document.getElementById('homologPrio').value     = d.prio   || '10';
+    document.getElementById('homologCasistr').checked = d.casistr !== '0';
+    document.getElementById('homologGhe').checked    = d.ghe    === '1';
+    document.getElementById('homologEnum').checked   = d.enum   === '1';
+    document.getElementById('homologActivo').checked = d.activo !== '0';
+    document.getElementById('homologError').style.display = 'none';
+    document.getElementById('modalHomologTitulo').textContent = d.pk ? 'Editar Homologación' : 'Agregar Homologación';
+    new bootstrap.Modal(document.getElementById('modalHomolog')).show();
+}
+
+function editarHomolog(pk) {
+    const tr = document.getElementById('fila-h-' + pk);
+    abrirModalHomolog({
+        pk:      tr.dataset.pk,
+        origen:  tr.dataset.origen,
+        tareo:   tr.dataset.tareo,
+        roster:  tr.dataset.roster,
+        desc:    tr.dataset.desc,
+        tipo:    tr.dataset.tipo,
+        signo:   tr.dataset.signo,
+        casistr: tr.dataset.casistr,
+        ghe:     tr.dataset.ghe,
+        enum:    tr.dataset.enum,
+        prio:    tr.dataset.prio,
+        activo:  tr.dataset.activo,
+    });
+}
+
+async function guardarHomolog() {
+    const pk      = document.getElementById('homologPk').value;
+    const origen  = document.getElementById('homologOrigen').value.trim().toUpperCase();
+    const tareo   = document.getElementById('homologTareo').value.trim().toUpperCase();
+    const roster  = document.getElementById('homologRoster').value.trim().toUpperCase();
+    const desc    = document.getElementById('homologDesc').value.trim();
+    const tipo    = document.getElementById('homologTipo').value;
+    const signo   = document.getElementById('homologSigno').value;
+    const prio    = document.getElementById('homologPrio').value;
+    const casistr = document.getElementById('homologCasistr').checked ? '1' : '0';
+    const ghe     = document.getElementById('homologGhe').checked     ? '1' : '0';
+    const enu     = document.getElementById('homologEnum').checked     ? '1' : '0';
+    const activo  = document.getElementById('homologActivo').checked   ? '1' : '0';
+    const errDiv  = document.getElementById('homologError');
+
+    if (!origen || !tareo || !desc) {
+        errDiv.textContent = 'Código Origen, Código Tareo y Descripción son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const url = pk
+        ? `/asistencia/homologaciones/${pk}/editar/`
+        : '/asistencia/homologaciones/crear/';
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            codigo_origen: origen, codigo_tareo: tareo, codigo_roster: roster,
+            descripcion: desc, tipo_evento: tipo, signo, prioridad: prio,
+            cuenta_asistencia: casistr, genera_he: ghe, es_numerico: enu, activo,
+        }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) {
+        errDiv.textContent = data.error;
+        errDiv.style.display = '';
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalHomolog')).hide();
+
+    const tbody = document.getElementById('homologBody');
+    document.getElementById('filaVaciaHomolog')?.remove();
+
+    const signoHtml = data.signo === '+'
+        ? '<span class="text-success fw-bold">+</span>'
+        : data.signo === '-'
+            ? '<span class="text-danger fw-bold">−</span>'
+            : '<span class="text-muted">N</span>';
+
+    const gheHtml = data.genera_he
+        ? '<span class="badge bg-warning text-dark">Sí</span>'
+        : '<span class="text-muted">No</span>';
+
+    const enumHtml = data.es_numerico
+        ? '<span class="badge bg-info">Sí</span>'
+        : '<span class="text-muted">No</span>';
+
+    const filaHtml = `
+        <tr id="fila-h-${data.pk}"
+            data-pk="${data.pk}"
+            data-origen="${data.codigo_origen}"
+            data-tareo="${data.codigo_tareo}"
+            data-roster="${data.codigo_roster}"
+            data-desc="${data.descripcion.replace(/"/g,'&quot;')}"
+            data-tipo="${data.tipo_evento}"
+            data-signo="${data.signo}"
+            data-casistr="${data.cuenta_asistencia ? '1' : '0'}"
+            data-ghe="${data.genera_he ? '1' : '0'}"
+            data-enum="${data.es_numerico ? '1' : '0'}"
+            data-prio="${data.prioridad}"
+            data-activo="${data.activo ? '1' : '0'}">
+            <td class="text-center text-muted">${data.prioridad}</td>
+            <td><span class="codigo-pill">${data.codigo_origen}</span></td>
+            <td><span class="codigo-pill">${data.codigo_tareo || '—'}</span></td>
+            <td><span class="codigo-pill text-muted">${data.codigo_roster || '—'}</span></td>
+            <td class="fw-semibold">${data.tipo_evento_display}</td>
+            <td class="text-center">${signoHtml}</td>
+            <td class="text-center">${gheHtml}</td>
+            <td class="text-center">${enumHtml}</td>
+            <td class="text-muted small">${data.descripcion}</td>
+            <td class="text-end">
+                <button class="btn btn-xs btn-outline-secondary py-0 px-1 me-1"
+                        onclick="editarHomolog(${data.pk})" title="Editar">
+                    <i class="fas fa-pen" style="font-size:.7rem"></i>
+                </button>
+                <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                        onclick="eliminarHomolog(${data.pk}, '${data.codigo_origen}')" title="Eliminar">
+                    <i class="fas fa-trash" style="font-size:.7rem"></i>
+                </button>
+            </td>
+        </tr>`;
+
+    const existente = document.getElementById('fila-h-' + data.pk);
+    if (existente) {
+        existente.outerHTML = filaHtml;
+    } else {
+        tbody.insertAdjacentHTML('beforeend', filaHtml);
+    }
+}
+
+async function eliminarHomolog(pk, origen) {
+    if (!confirm(`¿Eliminar la homologación "${origen}"?`)) return;
+    const resp = await fetch(`/asistencia/homologaciones/${pk}/eliminar/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-h-' + pk)?.remove();
+        if (!document.querySelector('#homologBody tr')) {
+            document.getElementById('homologBody').innerHTML =
+                '<tr id="filaVaciaHomolog"><td colspan="10" class="text-center text-muted py-3">Sin homologaciones configuradas.</td></tr>';
+        }
+    }
+}
+</script>
+{% endblock %}

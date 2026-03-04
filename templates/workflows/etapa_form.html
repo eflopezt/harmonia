@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:600px">
+  <h1 class="h3 fw-bold mb-4">{{ titulo }}</h1>
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">
+            Nombre de la etapa <span class="text-danger">*</span>
+          </label>
+          <input type="text" name="nombre" class="form-control" required
+            placeholder="Ej: Aprobacion Jefe Inmediato">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tipo de aprobador</label>
+          <select name="tipo_aprobador" class="form-select" onchange="toggleAprobador(this.value)">
+            {% for val, label in tipo_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3" id="div-aprobador-usuario" style="display:none">
+          <label class="form-label fw-semibold">Usuario aprobador</label>
+          <select name="aprobador_usuario" class="form-select">
+            <option value="">Seleccionar...</option>
+            {% for u in usuarios %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3" id="div-aprobador-grupo" style="display:none">
+          <label class="form-label fw-semibold">Grupo</label>
+          <select name="aprobador_grupo" class="form-select">
+            <option value="">Seleccionar...</option>
+            {% for g in grupos %}
+            <option value="{{ g.pk }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Tiempo limite (horas)</label>
+            <input type="number" name="tiempo_limite_horas" class="form-control" value="72" min="0">
+            <div class="form-text">0 = sin limite</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Accion al vencer</label>
+            <select name="accion_vencimiento" class="form-select">
+              {% for val, label in venc_choices %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-check mb-3">
+          <input type="checkbox" name="requiere_comentario" value="1"
+            class="form-check-input" id="reqComentario">
+          <label class="form-check-label" for="reqComentario">
+            Requiere comentario obligatorio
+          </label>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Agregar etapa
+          </button>
+          <a href="{% url 'workflow_config' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAprobador(tipo) {
+  document.getElementById('div-aprobador-usuario').style.display =
+    tipo === 'USUARIO' ? '' : 'none';
+  document.getElementById('div-aprobador-grupo').style.display =
+    tipo === 'GRUPO_DJANGO' ? '' : 'none';
+}
+toggleAprobador(document.querySelector('[name=tipo_aprobador]').value);
+</script>
+{% endblock %}

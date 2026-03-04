@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Snapshots KPI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-camera me-2 text-teal"></i>Snapshots KPI Mensuales</h2>
+    <div>
+        <a href="{% url 'analytics_dashboard' %}" class="btn btn-sm btn-outline-secondary me-1">
+            <i class="fas fa-arrow-left me-1"></i>Dashboard
+        </a>
+        <form method="post" action="{% url 'analytics_generar_snapshot' %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Generar Mes Actual</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.85rem">
+            <thead class="table-light">
+                <tr>
+                    <th>Periodo</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-end">Staff</th>
+                    <th class="text-end">RCO</th>
+                    <th class="text-end">Altas</th>
+                    <th class="text-end">Bajas</th>
+                    <th class="text-end">Rotación %</th>
+                    <th class="text-end">Asistencia %</th>
+                    <th class="text-end">Total HE</th>
+                    <th class="text-end">Capacitación h</th>
+                    <th>Generado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in snapshots %}
+                <tr>
+                    <td><strong>{{ s.periodo|date:"M Y" }}</strong></td>
+                    <td class="text-end">{{ s.total_empleados }}</td>
+                    <td class="text-end">{{ s.empleados_staff }}</td>
+                    <td class="text-end">{{ s.empleados_rco }}</td>
+                    <td class="text-end text-success">+{{ s.altas_mes }}</td>
+                    <td class="text-end text-danger">-{{ s.bajas_mes }}</td>
+                    <td class="text-end">{{ s.tasa_rotacion }}%</td>
+                    <td class="text-end">{{ s.tasa_asistencia }}%</td>
+                    <td class="text-end">{{ s.total_he_mes|floatformat:1 }}</td>
+                    <td class="text-end">{{ s.horas_capacitacion_mes|floatformat:1 }}</td>
+                    <td><small class="text-muted">{{ s.creado_en|date:"d/m/Y H:i" }}</small></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="11" class="text-center text-muted py-4">
+                    <i class="fas fa-camera fa-2x mb-2 d-block opacity-50"></i>
+                    No hay snapshots generados. Haz clic en "Generar Mes Actual" para crear el primero.
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

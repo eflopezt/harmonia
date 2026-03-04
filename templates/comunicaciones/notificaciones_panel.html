@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Notificaciones{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-bell text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Motor de notificaciones de Harmoni</small>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-2">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ enviadas_hoy }}</div>
+            <div class="stat-label">Hoy</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ enviadas_semana }}</div>
+            <div class="stat-label">Esta semana</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ enviadas_mes }}</div>
+            <div class="stat-label">Este mes</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ pendientes_in_app }}</div>
+            <div class="stat-label">In-App sin leer</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value text-danger">{{ fallidas }}</div>
+            <div class="stat-label">Fallidas</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:120px">
+                    <option value="">Todos</option>
+                    <option value="EMAIL" {% if filtro_tipo == 'EMAIL' %}selected{% endif %}>Email</option>
+                    <option value="IN_APP" {% if filtro_tipo == 'IN_APP' %}selected{% endif %}>In-App</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:130px">
+                    <option value="">Todos</option>
+                    <option value="PENDIENTE" {% if filtro_estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                    <option value="ENVIADA" {% if filtro_estado == 'ENVIADA' %}selected{% endif %}>Enviada</option>
+                    <option value="FALLIDA" {% if filtro_estado == 'FALLIDA' %}selected{% endif %}>Fallida</option>
+                    <option value="LEIDA" {% if filtro_estado == 'LEIDA' %}selected{% endif %}>Le&iacute;da</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Asunto o destinatario..." style="width:200px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if filtro_tipo or filtro_estado or buscar %}
+            <a href="{% url 'com_notificaciones_panel' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Asunto</th>
+                    <th>Destinatario</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Estado</th>
+                    <th>Fecha</th>
+                    <th>Plantilla</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for n in notificaciones %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ n.asunto|truncatechars:50 }}</div>
+                    </td>
+                    <td>
+                        {% if n.destinatario %}
+                        {{ n.destinatario.apellidos_nombres|truncatechars:30 }}
+                        {% elif n.destinatario_email %}
+                        <small class="text-muted">{{ n.destinatario_email }}</small>
+                        {% else %}
+                        <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if n.tipo == 'EMAIL' %}
+                        <span class="badge bg-info"><i class="fas fa-envelope me-1"></i>Email</span>
+                        {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-bell me-1"></i>In-App</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if n.estado == 'ENVIADA' %}<span class="badge bg-success">Enviada</span>
+                        {% elif n.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif n.estado == 'FALLIDA' %}<span class="badge bg-danger" title="{{ n.error_detalle }}">Fallida</span>
+                        {% elif n.estado == 'LEIDA' %}<span class="badge bg-light text-dark">Le&iacute;da</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ n.creado_en|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if n.plantilla %}
+                        <span class="badge bg-light text-dark">{{ n.plantilla.codigo }}</span>
+                        {% else %}
+                        <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No hay notificaciones registradas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

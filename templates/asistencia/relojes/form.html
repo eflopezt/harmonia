@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-card { border: 2px solid #e5e7eb; border-radius: 14px; }
+.form-section { background: #f8fafc; border-radius: 10px; padding: 1.2rem 1.4rem; margin-bottom: 1.2rem; }
+.form-section h6 { color: var(--primary-color); font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .8rem; }
+.field-hint { font-size: .77rem; color: #94a3b8; margin-top: .25rem; }
+
+.ip-preview { font-family: monospace; background: #0d2b27; color: #5eead4; padding: .3rem .7rem; border-radius: 8px; font-size: .9rem; display: inline-block; }
+.brand-logos { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.brand-logo { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: .4rem .8rem; font-size: .78rem; color: #475569; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'asistencia_relojes_lista' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Volver
+    </a>
+    <div>
+      <h2 class="fw-bold mb-0">{{ titulo }}</h2>
+      <small class="text-muted">Relojes biométricos ZKTeco y compatibles</small>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-7">
+      <div class="form-card card">
+        <div class="card-body p-4">
+          <form method="post" id="formReloj">
+            {% csrf_token %}
+
+            {# ── Identificación ──────────────────────────────── #}
+            <div class="form-section">
+              <h6><i class="fas fa-tag me-2"></i>Identificación del dispositivo</h6>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                <input type="text" name="nombre" class="form-control"
+                       value="{{ reloj.nombre|default:'' }}" required
+                       placeholder="Ej: Reloj Planta Principal">
+                <div class="field-hint">Nombre amigable para identificar el dispositivo en Harmoni.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Ubicación física</label>
+                <input type="text" name="ubicacion" class="form-control"
+                       value="{{ reloj.ubicacion|default:'' }}"
+                       placeholder="Ej: Control acceso — Planta Arequipa">
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Notas / Descripción</label>
+                <textarea name="descripcion" class="form-control" rows="2"
+                          placeholder="Observaciones sobre el dispositivo, acceso físico, etc.">{{ reloj.descripcion|default:'' }}</textarea>
+              </div>
+            </div>
+
+            {# ── Conexión de red ──────────────────────────────── #}
+            <div class="form-section">
+              <h6><i class="fas fa-network-wired me-2"></i>Conexión de red</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-sm-8">
+                  <label class="form-label fw-semibold">Dirección IP <span class="text-danger">*</span></label>
+                  <input type="text" name="ip" id="inputIp" class="form-control font-monospace"
+                         value="{{ reloj.ip|default:'' }}" required
+                         placeholder="192.168.1.100"
+                         pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                  <div class="field-hint">IP fija del dispositivo en la red local. Asegúrate de que sea estática.</div>
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label fw-semibold">Puerto</label>
+                  <input type="number" name="puerto" class="form-control"
+                         value="{{ reloj.puerto|default:4370 }}" min="1" max="65535">
+                  <div class="field-hint">Estándar ZK: 4370</div>
+                </div>
+              </div>
+              <div class="row g-3">
+                <div class="col-sm-6">
+                  <label class="form-label fw-semibold">Protocolo</label>
+                  <select name="protocolo" class="form-select">
+                    <option value="TCP" {% if not reloj or reloj.protocolo == 'TCP' %}selected{% endif %}>
+                      TCP — Recomendado
+                    </option>
+                    <option value="UDP" {% if reloj and reloj.protocolo == 'UDP' %}selected{% endif %}>
+                      UDP — Dispositivos antiguos
+                    </option>
+                  </select>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label fw-semibold">Timeout (segundos)</label>
+                  <input type="number" name="timeout" class="form-control"
+                         value="{{ reloj.timeout|default:10 }}" min="3" max="60">
+                  <div class="field-hint">Tiempo máximo de espera para conectar.</div>
+                </div>
+              </div>
+
+              {# Preview de la dirección #}
+              <div class="mt-3">
+                <div class="ip-preview" id="ipPreview">
+                  <i class="fas fa-network-wired me-2"></i><span id="ipPreviewText">{{ reloj.ip|default:'192.168.x.x' }}</span>:{{ reloj.puerto|default:4370 }}
+                </div>
+              </div>
+            </div>
+
+            {# ── Mapeo de empleados ───────────────────────────── #}
+            <div class="form-section">
+              <h6><i class="fas fa-id-card me-2"></i>Mapeo de empleados</h6>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">¿Cómo está registrado el DNI en el dispositivo?</label>
+                <select name="campo_id_empleado" class="form-select">
+                  <option value="USER_ID" {% if not reloj or reloj.campo_id_empleado == 'USER_ID' %}selected{% endif %}>
+                    User ID = DNI del empleado (más común en Perú)
+                  </option>
+                  <option value="CARD" {% if reloj and reloj.campo_id_empleado == 'CARD' %}selected{% endif %}>
+                    Número de tarjeta (badge / card number)
+                  </option>
+                </select>
+                <div class="field-hint">
+                  En la mayoría de empresas peruanas, el administrador del ZKTeco
+                  registra a los empleados usando su DNI como "User ID". Si usas
+                  tarjetas RFID con otro código, selecciona "Número de tarjeta".
+                </div>
+              </div>
+            </div>
+
+            {# ── Estado ──────────────────────────────────────────── #}
+            <div class="form-section">
+              <h6><i class="fas fa-toggle-on me-2"></i>Estado</h6>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="activo"
+                       id="switchActivo" value="1"
+                       {% if not reloj or reloj.activo %}checked{% endif %}>
+                <label class="form-check-label fw-semibold" for="switchActivo">
+                  Reloj activo (incluir en sincronizaciones automáticas)
+                </label>
+              </div>
+            </div>
+
+            {# ── Botones ─────────────────────────────────────────── #}
+            <div class="d-flex gap-3 justify-content-end pt-2">
+              <a href="{% url 'asistencia_relojes_lista' %}" class="btn btn-outline-secondary">
+                Cancelar
+              </a>
+              <button type="submit" class="btn btn-primary px-4">
+                <i class="fas fa-save me-2"></i>{{ accion }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ── Panel de ayuda ─────────────────────────────────── #}
+    <div class="col-lg-5">
+      <div class="card border-0 bg-light mb-3">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="fas fa-info-circle text-primary me-2"></i>Requisitos de conexión</h6>
+          <ul class="small text-muted mb-0 ps-3">
+            <li class="mb-2">El servidor de Harmoni y el reloj deben estar en la misma red local (o conectados via VPN).</li>
+            <li class="mb-2">El puerto <code>4370</code> debe estar habilitado en el firewall.</li>
+            <li class="mb-2">El reloj debe tener una <strong>IP estática</strong> (configurada desde el menú del dispositivo o via DHCP reservado en el router).</li>
+            <li class="mb-2">Usa <strong>TCP</strong> para dispositivos ZKTeco 2015 en adelante. UDP para modelos muy antiguos.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card border-0 bg-light mb-3">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="fas fa-fingerprint text-primary me-2"></i>Marcas compatibles</h6>
+          <div class="brand-logos">
+            <span class="brand-logo">ZKTeco</span>
+            <span class="brand-logo">Anviz</span>
+            <span class="brand-logo">FingerTec</span>
+            <span class="brand-logo">Hikvision*</span>
+            <span class="brand-logo">Nitgen</span>
+          </div>
+          <p class="small text-muted mt-2 mb-0">
+            *Requiere modo de compatibilidad ZK habilitado en la configuración del dispositivo.
+          </p>
+        </div>
+      </div>
+
+      <div class="card border-0 mb-3" style="border-left: 3px solid #0f766e !important; border-radius: 10px;">
+        <div class="card-body py-3">
+          <h6 class="fw-bold mb-2" style="color: #0f766e;">
+            <i class="fas fa-lightbulb me-2"></i>Tip: Configurar IP en ZKTeco
+          </h6>
+          <ol class="small text-muted mb-0 ps-3">
+            <li>En el reloj: <code>Menú → Comm → Ethernet</code></li>
+            <li>Configurar <code>IP Address</code> (fija)</li>
+            <li>Configurar <code>Subnet Mask</code> y <code>Gateway</code></li>
+            <li>Reiniciar el dispositivo</li>
+          </ol>
+        </div>
+      </div>
+
+      {% if reloj %}
+      <div class="card border-danger border-2">
+        <div class="card-body py-3">
+          <h6 class="fw-bold text-danger mb-2"><i class="fas fa-trash me-2"></i>Zona de peligro</h6>
+          <p class="small text-muted mb-2">
+            Eliminar este reloj borrará permanentemente todas sus marcaciones biométricas.
+            Los RegistroTareo generados a partir de ellas <strong>no se eliminarán</strong>.
+          </p>
+          <form method="post" action="{% url 'asistencia_relojes_eliminar' reloj.pk %}"
+                onsubmit="return confirm('¿Eliminar reloj y todas sus marcaciones? Esta acción no se puede deshacer.')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-trash me-2"></i>Eliminar reloj
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// IP Preview en tiempo real
+const ipInput = document.getElementById('inputIp');
+const ipPreviewText = document.getElementById('ipPreviewText');
+if (ipInput) {
+  ipInput.addEventListener('input', () => {
+    ipPreviewText.textContent = ipInput.value || '192.168.x.x';
+  });
+}
+</script>
+{% endblock %}

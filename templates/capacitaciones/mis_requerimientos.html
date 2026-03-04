@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Requerimientos de Capacitación{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-check text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Cumplimiento de requerimientos obligatorios de capacitación</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'incumplimientos_panel' %}" class="btn btn-sm btn-outline-danger">
+            <i class="fas fa-exclamation-triangle me-1"></i>Incumplimientos
+        </a>
+        <a href="{% url 'capacitaciones_panel' %}" class="btn btn-sm btn-secondary">Panel</a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()" style="width:160px">
+                    <option value="todos" {% if estado_filtro == 'todos' %}selected{% endif %}>Todos</option>
+                    <option value="pendientes" {% if estado_filtro == 'pendientes' %}selected{% endif %}>Pendientes</option>
+                    <option value="completados" {% if estado_filtro == 'completados' %}selected{% endif %}>Completados</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Área</label>
+                <select name="area" class="form-select form-select-sm" onchange="this.form.submit()" style="width:200px">
+                    <option value="">Todas las áreas</option>
+                    {% for a in areas %}
+                    <option value="{{ a.pk }}" {% if area_filtro == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Listado de requerimientos -->
+{% if reqs_con_estado %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0" style="font-size:.86rem;">
+            <thead>
+                <tr>
+                    <th>Requerimiento</th>
+                    <th>Categoría</th>
+                    <th>Frecuencia</th>
+                    <th class="text-center">Aplica a</th>
+                    <th class="text-center">Certificados vigentes</th>
+                    <th class="text-center">Pendientes</th>
+                    <th class="text-center">Cumplimiento</th>
+                    <th class="text-center">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in reqs_con_estado %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ item.req.nombre }}</div>
+                        {% if item.req.base_legal %}
+                        <small class="text-muted">{{ item.req.base_legal }}</small>
+                        {% endif %}
+                        {% if item.req.horas_minimas %}
+                        <small class="text-muted d-block">Min. {{ item.req.horas_minimas }}h</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.req.categoria %}
+                        <span class="badge bg-light text-dark">{{ item.req.categoria.nombre }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary" style="font-size:.72rem;">{{ item.req.get_frecuencia_display }}</span>
+                    </td>
+                    <td class="text-center">{{ item.total_aplica }}</td>
+                    <td class="text-center fw-bold" style="color:#059669;">{{ item.certs_vigentes }}</td>
+                    <td class="text-center fw-bold" style="color:{% if item.pendientes > 0 %}#DC2626{% else %}#059669{% endif %};">
+                        {{ item.pendientes }}
+                    </td>
+                    <td class="text-center" style="min-width:100px;">
+                        {% if item.total_aplica %}
+                        {% widthratio item.certs_vigentes item.total_aplica 100 as pct_c %}
+                        <div class="progress" style="height:6px;">
+                            <div class="progress-bar {% if pct_c >= 80 %}bg-success{% elif pct_c >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                 style="width:{{ pct_c }}%;"></div>
+                        </div>
+                        <span style="font-size:.72rem;">{{ pct_c }}%</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if item.completado %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>OK</span>
+                        {% else %}
+                        <span class="badge bg-danger"><i class="fas fa-exclamation me-1"></i>Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center text-muted py-5">
+        <i class="fas fa-clipboard-check fa-2x mb-2 d-block"></i>
+        No hay requerimientos que coincidan con el filtro seleccionado.
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

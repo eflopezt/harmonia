@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Proceso Disciplinario{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-gavel text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} medida{{ total|pluralize:"s" }} — {{ anio_filtro }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'disciplinaria_dashboard' %}" class="btn btn-sm"
+           style="background:#0d2b27;color:#fff;border:none;" title="Dashboard disciplinario con KPIs y alertas legales">
+            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+        </a>
+        <a href="{% url 'disciplinaria_exportar' %}?anio={{ anio_filtro }}"
+           class="btn btn-outline-success btn-sm" title="Exportar reporte Excel del año">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{% url 'medida_crear' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>Nueva Medida
+        </a>
+    </div>
+</div>
+
+<!-- ── ALERTA: PRÓXIMOS A VENCER ── -->
+{% if proximos_vencer %}
+<div class="card border-danger shadow-sm mb-3">
+    <div class="card-header bg-danger text-white py-2">
+        <i class="fas fa-exclamation-circle me-1"></i>
+        <strong>Procesos con Plazo de Descargo Próximo a Vencer</strong>
+        <span class="badge bg-light text-danger ms-2">{{ proximos_vencer|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0" style="font-size:.83rem;">
+            <thead>
+                <tr class="table-light">
+                    <th>Trabajador</th>
+                    <th>Tipo</th>
+                    <th class="text-center">Fecha Límite</th>
+                    <th class="text-center">Días Restantes</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in proximos_vencer %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ m.personal.apellidos_nombres|truncatechars:30 }}</div>
+                        <small class="text-muted">{{ m.personal.nro_doc }}</small>
+                    </td>
+                    <td>
+                        {% if m.tipo_medida == 'VERBAL' %}<span class="badge bg-info">Verbal</span>
+                        {% elif m.tipo_medida == 'ESCRITA' %}<span class="badge bg-warning text-dark">Escrita</span>
+                        {% elif m.tipo_medida == 'SUSPENSION' %}<span class="badge bg-danger">Suspensión</span>
+                        {% elif m.tipo_medida == 'DESPIDO' %}<span class="badge bg-dark">Despido</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span class="fw-semibold {% if m.fecha_limite_descargo <= hoy %}text-danger{% else %}text-warning{% endif %}">
+                            {{ m.fecha_limite_descargo|date:"d/m/Y" }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        {% if m.dias_para_descargo == 0 %}
+                            <span class="badge bg-danger px-2 py-1">VENCIDO</span>
+                        {% elif m.dias_para_descargo == 1 %}
+                            <span class="badge bg-danger px-2 py-1">
+                                <i class="fas fa-exclamation-triangle me-1"></i>URGENTE — 1 día
+                            </span>
+                        {% elif m.dias_para_descargo == 2 %}
+                            <span class="badge bg-warning text-dark px-2 py-1">2 días</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark px-2 py-1">{{ m.dias_para_descargo }} días</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'medida_detalle' m.pk %}" class="btn btn-xs btn-outline-danger py-0 px-2">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-4">
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ stats.en_proceso }}</div>
+            <div class="stat-label">En Proceso</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="stat-card">
+            <div class="stat-value text-danger">{{ stats.pendientes_descargo }}</div>
+            <div class="stat-label">Pend. Descargo</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ stats.resueltas_anio }}</div>
+            <div class="stat-label">Resueltas {{ anio_filtro }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:160px">
+                    <option value="">Todos</option>
+                    <option value="BORRADOR" {% if filtro_estado == 'BORRADOR' %}selected{% endif %}>Borrador</option>
+                    <option value="NOTIFICADA" {% if filtro_estado == 'NOTIFICADA' %}selected{% endif %}>Notificada</option>
+                    <option value="EN_DESCARGO" {% if filtro_estado == 'EN_DESCARGO' %}selected{% endif %}>En Descargo</option>
+                    <option value="DESCARGO_RECIBIDO" {% if filtro_estado == 'DESCARGO_RECIBIDO' %}selected{% endif %}>Descargo Recibido</option>
+                    <option value="RESUELTA" {% if filtro_estado == 'RESUELTA' %}selected{% endif %}>Resuelta</option>
+                    <option value="ANULADA" {% if filtro_estado == 'ANULADA' %}selected{% endif %}>Anulada</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:160px">
+                    <option value="">Todos</option>
+                    <option value="VERBAL" {% if filtro_tipo == 'VERBAL' %}selected{% endif %}>Verbal</option>
+                    <option value="ESCRITA" {% if filtro_tipo == 'ESCRITA' %}selected{% endif %}>Escrita</option>
+                    <option value="SUSPENSION" {% if filtro_tipo == 'SUSPENSION' %}selected{% endif %}>Suspensión</option>
+                    <option value="DESPIDO" {% if filtro_tipo == 'DESPIDO' %}selected{% endif %}>Despido</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Año</label>
+                <input type="number" name="anio" value="{{ anio_filtro }}" class="form-control form-control-sm"
+                       style="width:90px" min="2020" max="2099">
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm"
+                       placeholder="Nombre o DNI..." style="width:180px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if filtro_estado or filtro_tipo or buscar %}
+            <a href="{% url 'disciplinaria_panel' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times"></i> Limpiar
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Tabla principal -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Tipo</th>
+                    <th>Falta</th>
+                    <th>Fecha Hechos</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Días</th>
+                    <th>Plazo Descargo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in medidas %}{% with m=item.medida %}
+                <tr {% if m.estado == 'EN_DESCARGO' and m.dias_para_descargo is not None and m.dias_para_descargo <= 1 %}class="table-danger"{% elif m.estado == 'EN_DESCARGO' and m.dias_para_descargo is not None and m.dias_para_descargo <= 3 %}class="table-warning"{% endif %}>
+                    <td>
+                        <div class="fw-semibold">{{ m.personal.apellidos_nombres|truncatechars:30 }}</div>
+                        <small class="text-muted">{{ m.personal.nro_doc }}</small>
+                    </td>
+                    <td>
+                        {% if m.tipo_medida == 'VERBAL' %}<span class="badge bg-info">Verbal</span>
+                        {% elif m.tipo_medida == 'ESCRITA' %}<span class="badge bg-warning text-dark">Escrita</span>
+                        {% elif m.tipo_medida == 'SUSPENSION' %}<span class="badge bg-danger">Suspensión</span>
+                        {% elif m.tipo_medida == 'DESPIDO' %}<span class="badge bg-dark">Despido</span>{% endif %}
+                    </td>
+                    <td>{{ m.tipo_falta.nombre|truncatechars:25 }}</td>
+                    <td style="font-size:.78rem;">{{ m.fecha_hechos|date:"d/m/Y" }}</td>
+                    <td class="text-center">
+                        {% if m.estado == 'BORRADOR' %}<span class="badge bg-light text-dark">Borrador</span>
+                        {% elif m.estado == 'NOTIFICADA' %}<span class="badge bg-primary">Notificada</span>
+                        {% elif m.estado == 'EN_DESCARGO' %}<span class="badge bg-warning text-dark">En Descargo</span>
+                        {% elif m.estado == 'DESCARGO_RECIBIDO' %}<span class="badge bg-info text-dark">Desc. Recibido</span>
+                        {% elif m.estado == 'RESUELTA' %}<span class="badge bg-success">Resuelta</span>
+                        {% elif m.estado == 'ANULADA' %}<span class="badge bg-secondary">Anulada</span>
+                        {% else %}<span class="badge bg-secondary">{{ m.get_estado_display }}</span>{% endif %}
+                    </td>
+                    {# ── Columna Días hábiles transcurridos desde los hechos ── #}
+                    <td class="text-center">
+                        {% if item.dias_habiles is not None %}
+                            <span class="badge
+                                {% if item.semaforo == 'rojo' %}bg-danger
+                                {% elif item.semaforo == 'amarillo' %}bg-warning text-dark
+                                {% else %}bg-light text-secondary border
+                                {% endif %}"
+                                  style="font-size:.72rem;"
+                                  title="{{ item.dias_habiles }} días hábiles desde la fecha de los hechos (máx. 30 — DS 003-97-TR)">
+                                {{ item.dias_habiles }}d
+                            </span>
+                        {% else %}
+                            <span class="text-muted" style="font-size:.75rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.dias_para_descargo is not None %}
+                            {% if m.dias_para_descargo == 0 %}
+                                <span class="badge bg-danger">VENCIDO</span>
+                            {% elif m.dias_para_descargo == 1 %}
+                                <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>URGENTE</span>
+                            {% elif m.dias_para_descargo <= 3 %}
+                                <span class="text-warning fw-semibold">{{ m.dias_para_descargo }}d restantes</span>
+                            {% else %}
+                                <span class="text-muted">{{ m.dias_para_descargo }}d restantes</span>
+                            {% endif %}
+                        {% elif m.fecha_limite_descargo %}
+                            <span class="text-muted" style="font-size:.78rem;">{{ m.fecha_limite_descargo|date:"d/m/Y" }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'medida_detalle' m.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if m.estado != 'RESUELTA' and m.estado != 'ANULADA' %}
+                            <a href="{% url 'disciplinaria_timeline' m.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-2" title="Ver timeline legal">
+                                <i class="fas fa-stream"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>{% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle me-1"></i>No hay medidas disciplinarias registradas con los filtros aplicados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if total > 100 %}
+    <div class="card-footer text-muted text-center" style="font-size:.8rem;">
+        Mostrando 100 de {{ total }} registros. Use filtros para acotar resultados.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

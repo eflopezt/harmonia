@@ -1,0 +1,742 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard Disciplinario{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Dashboard Disciplinario ── */
+.disc-header {
+    background: #0d2b27;
+    color: #fff;
+    border-radius: .5rem;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.disc-header h2 { margin-bottom: .15rem; font-size: 1.3rem; font-weight: 700; }
+.disc-header .sub { font-size: .82rem; opacity: .75; }
+
+.kpi-card {
+    background: #fff;
+    border-radius: .5rem;
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    border-left: 4px solid transparent;
+    height: 100%;
+}
+.kpi-card.kpi-activos  { border-left-color: #f59e0b; }
+.kpi-card.kpi-cerrados { border-left-color: #10b981; }
+.kpi-card.kpi-anio     { border-left-color: #0f766e; }
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: .2rem;
+}
+.kpi-label {
+    font-size: .78rem;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* Semáforo días */
+.badge-semaforo-verde   { background: #10b981; color: #fff; }
+.badge-semaforo-amarillo{ background: #f59e0b; color: #fff; }
+.badge-semaforo-rojo    { background: #ef4444; color: #fff; }
+
+/* Barra de tipo falta */
+.falta-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #0f766e;
+    transition: width .4s ease;
+}
+.falta-bar.grave     { background: #f59e0b; }
+.falta-bar.muy_grave { background: #ef4444; }
+
+/* Alerta legal */
+.alerta-legal {
+    border-left: 4px solid #ef4444;
+    background: #fff5f5;
+    border-radius: .4rem;
+    padding: .75rem 1rem;
+    margin-bottom: .5rem;
+}
+.alerta-legal.amarillo {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.section-title {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #6b7280;
+    margin-bottom: .75rem;
+    padding-bottom: .35rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Tabla procesos activos */
+.tabla-activos th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 2px solid #e5e7eb;
+    padding: .5rem .75rem;
+}
+.tabla-activos td {
+    font-size: .83rem;
+    vertical-align: middle;
+    padding: .55rem .75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.tabla-activos tr:last-child td { border-bottom: none; }
+.tabla-activos tr:hover td { background: #f9fafb; }
+
+/* Pill medida tipo */
+.pill-verbal     { background: #e0f2fe; color: #0369a1; }
+.pill-escrita    { background: #fef3c7; color: #92400e; }
+.pill-suspension { background: #fee2e2; color: #991b1b; }
+.pill-despido    { background: #1f2937; color: #f9fafb; }
+.pill-tipo {
+    font-size: .7rem;
+    font-weight: 600;
+    padding: .15rem .55rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+/* Gauge total días */
+.dias-gauge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    font-size: .75rem;
+    font-weight: 700;
+    border: 2px solid currentColor;
+}
+.dias-gauge.verde    { color: #10b981; border-color: #10b981; }
+.dias-gauge.amarillo { color: #f59e0b; border-color: #f59e0b; }
+.dias-gauge.rojo     { color: #ef4444; border-color: #ef4444; }
+
+/* ── Analytics Charts Row ── */
+.analytics-card {
+    background: #fff;
+    border-radius: .5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    border: 1px solid #f3f4f6;
+    height: 100%;
+}
+.analytics-card .analytics-header {
+    padding: .75rem 1rem .5rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.analytics-card .analytics-body {
+    padding: 1rem;
+}
+.analytics-chart-wrap {
+    position: relative;
+    height: 200px;
+}
+
+/* ── Procesos Críticos Table ── */
+.tabla-criticos th {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 2px solid #e5e7eb;
+    padding: .45rem .75rem;
+    white-space: nowrap;
+}
+.tabla-criticos td {
+    font-size: .82rem;
+    vertical-align: middle;
+    padding: .5rem .75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.tabla-criticos tr:last-child td { border-bottom: none; }
+.tabla-criticos tr:hover td { background: #f9fafb; }
+
+/* Estado badges — criticos */
+.badge-estado-BORRADOR          { background:#e5e7eb; color:#374151; }
+.badge-estado-NOTIFICADA        { background:#dbeafe; color:#1d4ed8; }
+.badge-estado-EN_DESCARGO       { background:#fef3c7; color:#92400e; }
+.badge-estado-DESCARGO_RECIBIDO { background:#cffafe; color:#0e7490; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── HEADER ── -->
+<div class="disc-header d-flex justify-content-between align-items-start">
+    <div>
+        <h2><i class="fas fa-tachometer-alt me-2" style="color:#5eead4;"></i>Dashboard Disciplinario</h2>
+        <div class="sub">Año {{ anio_actual }} — Actualizado {{ hoy|date:"d/m/Y" }} — Base legal: DS 003-97-TR (TUO DL 728)</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap mt-1">
+        <a href="{% url 'disciplinaria_panel' %}" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+            <i class="fas fa-list me-1"></i>Panel
+        </a>
+        <a href="{% url 'medida_crear' %}" class="btn btn-sm" style="background:#0f766e;color:#fff;border:none;">
+            <i class="fas fa-plus me-1"></i>Nueva Medida
+        </a>
+        <a href="{% url 'disciplinaria_exportar' %}?anio={{ anio_actual }}" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+    </div>
+</div>
+
+<!-- ── KPIs ── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-4">
+        <div class="kpi-card kpi-activos">
+            <div class="kpi-value text-warning">{{ kpi.activos }}</div>
+            <div class="kpi-label">Procesos Activos</div>
+            <small class="text-muted">En borrador, notificados o en descargo</small>
+        </div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="kpi-card kpi-cerrados">
+            <div class="kpi-value text-success">{{ kpi.cerrados_mes }}</div>
+            <div class="kpi-label">Cerrados Este Mes</div>
+            <small class="text-muted">Resueltos en {{ hoy|date:"F Y" }}</small>
+        </div>
+    </div>
+    <div class="col-6 col-lg-4">
+        <div class="kpi-card kpi-anio">
+            <div class="kpi-value" style="color:#0f766e;">{{ kpi.total_anio }}</div>
+            <div class="kpi-label">Total {{ anio_actual }}</div>
+            <small class="text-muted">Medidas registradas en el año</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-card" style="border-left-color:#94a3b8;">
+            <div class="kpi-value" style="font-size:1.6rem;color:#374151;">{{ tipo_medida_map.VERBAL|default:0 }}</div>
+            <div class="kpi-label">Amonestación Verbal</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-card" style="border-left-color:#d97706;">
+            <div class="kpi-value" style="font-size:1.6rem;color:#d97706;">{{ tipo_medida_map.ESCRITA|default:0 }}</div>
+            <div class="kpi-label">Amonestación Escrita</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-card" style="border-left-color:#dc2626;">
+            <div class="kpi-value" style="font-size:1.6rem;color:#dc2626;">{{ tipo_medida_map.SUSPENSION|default:0 }}</div>
+            <div class="kpi-label">Suspensión</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-card" style="border-left-color:#111827;">
+            <div class="kpi-value" style="font-size:1.6rem;color:#111827;">{{ tipo_medida_map.DESPIDO|default:0 }}</div>
+            <div class="kpi-label">Despido</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── ALERTAS LEGALES: PLAZOS PRÓXIMOS A VENCER ── -->
+{% if alertas_vencimiento %}
+<div class="card shadow-sm mb-4 border-0" style="border-left:4px solid #ef4444 !important;">
+    <div class="card-header d-flex align-items-center gap-2 py-2" style="background:#fff5f5;border-bottom:1px solid #fecaca;">
+        <i class="fas fa-gavel text-danger"></i>
+        <strong class="text-danger">Alertas — Plazo Legal en Riesgo</strong>
+        <span class="badge bg-danger ms-1">{{ alertas_vencimiento|length }}</span>
+        <small class="text-muted ms-2">DS 003-97-TR: sanción debe imponerse dentro de 30 días hábiles desde la falta</small>
+    </div>
+    <div class="card-body p-0">
+        {% for a in alertas_vencimiento %}
+        <div class="alerta-legal {% if a.semaforo == 'amarillo' %}amarillo{% endif %} mx-3 my-2">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="fw-semibold">{{ a.medida.personal.apellidos_nombres }}</span>
+                    <small class="text-muted ms-1">{{ a.medida.personal.nro_doc }}</small>
+                    <span class="pill-tipo pill-{% if a.medida.tipo_medida == 'VERBAL' %}verbal{% elif a.medida.tipo_medida == 'ESCRITA' %}escrita{% elif a.medida.tipo_medida == 'SUSPENSION' %}suspension{% elif a.medida.tipo_medida == 'DESPIDO' %}despido{% endif %} ms-2">
+                        {{ a.medida.get_tipo_medida_display }}
+                    </span>
+                </div>
+                <div class="d-flex gap-3 align-items-center">
+                    <div class="text-center">
+                        <div class="fw-bold {% if a.semaforo == 'rojo' %}text-danger{% else %}text-warning{% endif %}">
+                            {{ a.dias_habiles }} días háb.
+                        </div>
+                        <div style="font-size:.7rem;color:#6b7280;">transcurridos</div>
+                    </div>
+                    <div class="text-center">
+                        {% if a.dias_restantes_legal <= 0 %}
+                        <span class="badge bg-danger px-2 py-1"><i class="fas fa-times-circle me-1"></i>VENCIDO</span>
+                        {% else %}
+                        <span class="badge badge-semaforo-amarillo px-2 py-1">
+                            <i class="fas fa-exclamation-triangle me-1"></i>{{ a.dias_restantes_legal }} días restantes
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <a href="{% url 'disciplinaria_timeline' a.medida.pk %}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Ver Timeline Legal">
+                            <i class="fas fa-stream me-1"></i>Timeline
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── FILA PRINCIPAL: FALTAS + ÁREAS ── -->
+<div class="row g-3 mb-4">
+
+    <!-- Top 5 Tipos de Falta -->
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="fas fa-chart-bar me-1"></i>Top Tipos de Falta — {{ anio_actual }}</div>
+                {% if por_tipo_falta %}
+                {% with max_falta=por_tipo_falta.0.total %}
+                {% for tf in por_tipo_falta %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <span class="fw-semibold" style="font-size:.83rem;">{{ tf.tipo_falta__nombre|truncatechars:30 }}</span>
+                            {% if tf.tipo_falta__gravedad == 'GRAVE' %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem;">Grave</span>
+                            {% elif tf.tipo_falta__gravedad == 'MUY_GRAVE' %}
+                                <span class="badge bg-danger ms-1" style="font-size:.65rem;">Muy Grave</span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary ms-1" style="font-size:.65rem;">Leve</span>
+                            {% endif %}
+                        </div>
+                        <span class="fw-bold" style="font-size:.85rem;color:#374151;">{{ tf.total }}</span>
+                    </div>
+                    <div style="background:#f3f4f6;border-radius:4px;height:8px;overflow:hidden;">
+                        <div class="falta-bar {% if tf.tipo_falta__gravedad == 'GRAVE' %}grave{% elif tf.tipo_falta__gravedad == 'MUY_GRAVE' %}muy_grave{% endif %}"
+                             style="width:{% widthratio tf.total max_falta 100 %}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endwith %}
+                {% else %}
+                <div class="text-muted text-center py-3" style="font-size:.85rem;">
+                    <i class="fas fa-info-circle me-1"></i>Sin datos para {{ anio_actual }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js: Por Área -->
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="section-title d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-building me-1"></i>Medidas por Área — {{ anio_actual }}</span>
+                    <span id="totalAreaBadge" class="badge" style="background:#0f766e;font-size:.65rem;"></span>
+                </div>
+                <div style="position:relative;height:220px;">
+                    <canvas id="chartArea"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── ANALYTICS ROW: 3 CHARTS ── -->
+<div class="row g-3 mb-4">
+
+    <!-- Doughnut: Por Tipo de Falta -->
+    <div class="col-12 col-lg-4">
+        <div class="analytics-card">
+            <div class="analytics-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-pie" style="color:#0f766e;font-size:.85rem;"></i>
+                <span class="section-title mb-0" style="border:none;">Por Tipo de Falta</span>
+                <small class="text-muted ms-auto" style="font-size:.72rem;">{{ anio_actual }}</small>
+            </div>
+            <div class="analytics-body">
+                <div class="analytics-chart-wrap">
+                    <canvas id="chartTipoFalta"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Line: Tendencia 6 meses -->
+    <div class="col-12 col-lg-4">
+        <div class="analytics-card">
+            <div class="analytics-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-line" style="color:#0f766e;font-size:.85rem;"></i>
+                <span class="section-title mb-0" style="border:none;">Tendencia 6 Meses</span>
+                <small class="text-muted ms-auto" style="font-size:.72rem;">procesos abiertos</small>
+            </div>
+            <div class="analytics-body">
+                <div class="analytics-chart-wrap">
+                    <canvas id="chartTendencia"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doughnut: Por Estado -->
+    <div class="col-12 col-lg-4">
+        <div class="analytics-card">
+            <div class="analytics-header d-flex align-items-center gap-2">
+                <i class="fas fa-circle-half-stroke" style="color:#0f766e;font-size:.85rem;"></i>
+                <span class="section-title mb-0" style="border:none;">Por Estado</span>
+                <small class="text-muted ms-auto" style="font-size:.72rem;">histórico total</small>
+            </div>
+            <div class="analytics-body">
+                <div class="analytics-chart-wrap">
+                    <canvas id="chartEstado"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── PROCESOS CRÍTICOS ── -->
+{% if procesos_criticos %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header d-flex align-items-center gap-2 py-2" style="background:#fff;border-bottom:1px solid #f3f4f6;">
+        <i class="fas fa-fire-flame-curved" style="color:#ef4444;"></i>
+        <strong style="font-size:.85rem;color:#374151;">Procesos Críticos — Abiertos Recientes</strong>
+        <span class="badge ms-1" style="background:#ef4444;font-size:.65rem;">{{ procesos_criticos|length }}</span>
+        <small class="text-muted ms-2" style="font-size:.72rem;">Últimos 5 procesos activos por fecha de apertura</small>
+    </div>
+    <div class="table-responsive">
+        <table class="tabla-criticos w-100">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Tipo de Falta</th>
+                    <th class="text-center">Fecha Apertura</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proc in procesos_criticos %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold" style="font-size:.83rem;">{{ proc.personal.apellidos_nombres|truncatechars:32 }}</div>
+                        <small class="text-muted">{{ proc.personal.nro_doc }}</small>
+                    </td>
+                    <td>
+                        <span style="font-size:.82rem;">{{ proc.tipo_falta.nombre|truncatechars:30 }}</span>
+                        {% if proc.tipo_falta.gravedad == 'MUY_GRAVE' %}
+                            <span class="badge bg-danger ms-1" style="font-size:.6rem;">Muy Grave</span>
+                        {% elif proc.tipo_falta.gravedad == 'GRAVE' %}
+                            <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem;">Grave</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span style="font-size:.82rem;color:#374151;">{{ proc.fecha_hechos|date:"d/m/Y" }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge badge-estado-{{ proc.estado }}" style="font-size:.7rem;padding:.2rem .55rem;border-radius:999px;">
+                            {{ proc.get_estado_display }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex gap-1 justify-content-center">
+                            <a href="{% url 'medida_detalle' proc.pk %}"
+                               class="btn btn-xs py-0 px-2"
+                               style="font-size:.72rem;background:#e0f2fe;color:#0369a1;border:none;"
+                               title="Ver detalle">
+                                <i class="fas fa-eye me-1"></i>Detalle
+                            </a>
+                            <a href="{% url 'disciplinaria_timeline' proc.pk %}"
+                               class="btn btn-xs py-0 px-2"
+                               style="font-size:.72rem;background:#f3f4f6;color:#374151;border:none;"
+                               title="Timeline legal">
+                                <i class="fas fa-stream me-1"></i>Timeline
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── TABLA: PROCESOS ACTIVOS CON SEMÁFORO ── -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-0">
+        <div class="d-flex justify-content-between align-items-center px-3 py-2" style="border-bottom:1px solid #f3f4f6;">
+            <div class="section-title mb-0">
+                <i class="fas fa-list-check me-1"></i>Procesos Activos
+                <span class="badge ms-2" style="background:#0f766e;font-size:.65rem;">{{ procesos_con_dias|length }}</span>
+            </div>
+            <a href="{% url 'disciplinaria_panel' %}?estado=EN_DESCARGO" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.75rem;">
+                Ver todos activos
+            </a>
+        </div>
+        {% if procesos_con_dias %}
+        <div class="table-responsive">
+            <table class="tabla-activos w-100">
+                <thead>
+                    <tr>
+                        <th>Trabajador</th>
+                        <th>Área</th>
+                        <th>Medida</th>
+                        <th>Falta</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Días Háb.</th>
+                        <th class="text-center">Plazo Legal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in procesos_con_dias %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold" style="font-size:.83rem;">{{ item.medida.personal.apellidos_nombres|truncatechars:28 }}</div>
+                            <small class="text-muted">{{ item.medida.personal.nro_doc }}</small>
+                        </td>
+                        <td style="font-size:.8rem;color:#6b7280;">
+                            {% if item.medida.personal.subarea %}
+                                {{ item.medida.personal.subarea.area.nombre|default:"—"|truncatechars:18 }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            <span class="pill-tipo pill-{% if item.medida.tipo_medida == 'VERBAL' %}verbal{% elif item.medida.tipo_medida == 'ESCRITA' %}escrita{% elif item.medida.tipo_medida == 'SUSPENSION' %}suspension{% elif item.medida.tipo_medida == 'DESPIDO' %}despido{% endif %}">
+                                {{ item.medida.get_tipo_medida_display }}
+                            </span>
+                        </td>
+                        <td style="font-size:.78rem;">{{ item.medida.tipo_falta.nombre|truncatechars:22 }}</td>
+                        <td class="text-center">
+                            {% if item.medida.estado == 'BORRADOR' %}<span class="badge bg-light text-dark" style="font-size:.7rem;">Borrador</span>
+                            {% elif item.medida.estado == 'NOTIFICADA' %}<span class="badge bg-primary" style="font-size:.7rem;">Notificada</span>
+                            {% elif item.medida.estado == 'EN_DESCARGO' %}<span class="badge bg-warning text-dark" style="font-size:.7rem;">En Descargo</span>
+                            {% elif item.medida.estado == 'DESCARGO_RECIBIDO' %}<span class="badge bg-info text-dark" style="font-size:.7rem;">Desc. Recibido</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="dias-gauge {{ item.semaforo }}">{{ item.dias_habiles }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if item.dias_restantes_legal <= 0 %}
+                                <span class="badge badge-semaforo-rojo" style="font-size:.7rem;"><i class="fas fa-times-circle me-1"></i>VENCIDO</span>
+                            {% elif item.dias_restantes_legal <= 5 %}
+                                <span class="badge badge-semaforo-amarillo" style="font-size:.7rem;"><i class="fas fa-exclamation me-1"></i>{{ item.dias_restantes_legal }}d</span>
+                            {% else %}
+                                <span class="badge badge-semaforo-verde" style="font-size:.7rem;">{{ item.dias_restantes_legal }}d restantes</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'medida_detalle' item.medida.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2" title="Detalle">
+                                    <i class="fas fa-eye" style="font-size:.7rem;"></i>
+                                </a>
+                                <a href="{% url 'disciplinaria_timeline' item.medida.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-2" title="Timeline Legal">
+                                    <i class="fas fa-stream" style="font-size:.7rem;"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-check-circle fa-2x mb-2 text-success d-block"></i>
+            No hay procesos disciplinarios activos.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    /* ── Shared tooltip defaults ── */
+    Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,sans-serif";
+    Chart.defaults.font.size   = 11;
+
+    /* ── Helper: build doughnut from server-rendered JSON ── */
+    function buildDoughnut(canvasId, rawJson, opts) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        let items;
+        try { items = JSON.parse(rawJson || '[]'); } catch (e) { items = []; }
+        if (!items.length) {
+            canvas.parentElement.innerHTML = '<p class="text-muted text-center py-4" style="font-size:.82rem;"><i class="fas fa-info-circle me-1"></i>Sin datos suficientes</p>';
+            return;
+        }
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: items.map(i => i.label),
+                datasets: [{
+                    data:            items.map(i => i.value),
+                    backgroundColor: items.map(i => i.color),
+                    borderColor:     '#ffffff',
+                    borderWidth:     2,
+                    hoverOffset:     6,
+                }],
+            },
+            options: Object.assign({
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 10,
+                            padding: 8,
+                            font: { size: 10 },
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                                const pct   = total ? Math.round(ctx.parsed / total * 100) : 0;
+                                return ' ' + ctx.parsed + ' (' + pct + '%)';
+                            },
+                        },
+                    },
+                },
+            }, opts || {}),
+        });
+    }
+
+    /* ── 1. Doughnut — Por Tipo de Falta ── */
+    buildDoughnut('chartTipoFalta', '{{ tipos_falta_json|escapejs }}');
+
+    /* ── 2. Doughnut — Por Estado ── */
+    buildDoughnut('chartEstado', '{{ por_estado_json|escapejs }}');
+
+    /* ── 3. Line — Tendencia 6 meses ── */
+    (function () {
+        const canvas = document.getElementById('chartTendencia');
+        if (!canvas) return;
+        let items;
+        try { items = JSON.parse('{{ tendencia_6m_json|escapejs }}' || '[]'); } catch (e) { items = []; }
+        if (!items.length) {
+            canvas.parentElement.innerHTML = '<p class="text-muted text-center py-4" style="font-size:.82rem;"><i class="fas fa-info-circle me-1"></i>Sin datos suficientes</p>';
+            return;
+        }
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: items.map(i => i.label),
+                datasets: [{
+                    label: 'Procesos abiertos',
+                    data:  items.map(i => i.value),
+                    borderColor:     '#0f766e',
+                    backgroundColor: 'rgba(15,118,110,.12)',
+                    pointBackgroundColor: '#0f766e',
+                    pointBorderColor:     '#ffffff',
+                    pointBorderWidth:     2,
+                    pointRadius:          5,
+                    pointHoverRadius:     7,
+                    tension: 0.35,
+                    fill: true,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ' ' + ctx.parsed.y + ' proceso' + (ctx.parsed.y !== 1 ? 's' : ''),
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        ticks: { font: { size: 11 } },
+                        grid:  { display: false },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font:      { size: 11 },
+                            stepSize:  1,
+                            precision: 0,
+                        },
+                        grid: { color: '#f3f4f6' },
+                    },
+                },
+            },
+        });
+    })();
+
+    /* ── 4. Bar — Medidas por Área (existing, via AJAX) ── */
+    const ctxArea = document.getElementById('chartArea');
+    if (ctxArea) {
+        fetch("{% url 'disciplinaria_reporte_area' %}?anio={{ anio_actual }}")
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('totalAreaBadge');
+                if (badge) badge.textContent = data.total + ' total';
+
+                new Chart(ctxArea, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: data.datasets,
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => ' ' + ctx.parsed.y + ' medida' + (ctx.parsed.y !== 1 ? 's' : ''),
+                                },
+                            },
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    font: { size: 11 },
+                                    maxRotation: 35,
+                                },
+                                grid: { display: false },
+                            },
+                            y: {
+                                ticks: {
+                                    font: { size: 11 },
+                                    stepSize: 1,
+                                    precision: 0,
+                                },
+                                grid: { color: '#f3f4f6' },
+                            },
+                        },
+                    },
+                });
+            })
+            .catch(() => {
+                ctxArea.parentElement.innerHTML = '<p class="text-muted text-center py-4" style="font-size:.82rem;">No se pudieron cargar los datos del gráfico.</p>';
+            });
+    }
+
+})();
+</script>
+{% endblock %}

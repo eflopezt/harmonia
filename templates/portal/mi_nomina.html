@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Mis Recibos de Sueldo{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Mis Recibos de Sueldo</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.nomina-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #fff;
+    margin-bottom: 24px;
+}
+.nomina-kpi {
+    text-align: center;
+    padding: 14px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.15);
+}
+.nomina-kpi-num { font-size: 1.4rem; font-weight: 700; line-height: 1.1; color: #5eead4; }
+.nomina-kpi-lbl { font-size: .72rem; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+.neto-badge {
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+    color: #fff;
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+.concepto-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: .85rem; }
+.concepto-row:last-child { border-bottom: none; }
+.concepto-nombre { color: #374151; }
+.concepto-monto { font-weight: 500; font-variant-numeric: tabular-nums; }
+.concepto-monto.ingreso { color: #059669; }
+.concepto-monto.descuento { color: #dc2626; }
+
+.periodo-row { cursor: pointer; transition: background .12s; }
+.periodo-row:hover td { background: #f0fdfa !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-lg flex-shrink-0"></i>
+    <div>
+        <strong>Cuenta no vinculada.</strong>
+        Tu usuario no está vinculado a un registro de empleado.
+        Contacta a RRHH o TI.
+    </div>
+</div>
+{% else %}
+
+<!-- Encabezado -->
+<div class="nomina-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <div style="font-size:.8rem;opacity:.7;margin-bottom:4px">TRABAJADOR</div>
+            <h2 class="mb-0 fw-bold" style="font-size:1.15rem">{{ empleado.apellidos_nombres }}</h2>
+            <p class="mb-0 mt-1" style="font-size:.82rem;opacity:.8">{{ empleado.cargo }}{% if empleado.subarea %} · {{ empleado.subarea.area.nombre }}{% endif %}</p>
+        </div>
+        {% if registros %}
+        <div class="col-auto">
+            <div class="row g-2">
+                <div class="col-6 col-md-auto">
+                    <div class="nomina-kpi">
+                        <div class="nomina-kpi-num">{{ registros|length }}</div>
+                        <div class="nomina-kpi-lbl">Recibos</div>
+                    </div>
+                </div>
+                {% if registro_reciente %}
+                <div class="col-6 col-md-auto">
+                    <div class="nomina-kpi">
+                        <div class="nomina-kpi-num">S/ {{ registro_reciente.neto_a_pagar|floatformat:0|intcomma }}</div>
+                        <div class="nomina-kpi-lbl">Último neto</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if not registros %}
+<!-- Estado vacío -->
+<div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-file-invoice-dollar fa-3x mb-3" style="color:#cbd5e1"></i>
+        <h5 class="text-muted fw-semibold">Sin recibos disponibles</h5>
+        <p class="text-muted small mb-0">Aún no tienes recibos de sueldo generados en el sistema.<br>Contacta al área de RRHH si crees que esto es un error.</p>
+    </div>
+</div>
+
+{% else %}
+
+<!-- Último período: detalle -->
+{% if registro_reciente %}
+<div class="row g-3 mb-4">
+    <!-- Ingresos -->
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header border-0 pb-2" style="background:#f0fdf4">
+                <span class="fw-semibold" style="color:#059669;font-size:.9rem"><i class="fas fa-plus-circle me-2"></i>Ingresos — {{ registro_reciente.periodo }}</span>
+            </div>
+            <div class="card-body pt-2">
+                {% if lineas_ingresos %}
+                    {% for l in lineas_ingresos %}
+                    <div class="concepto-row">
+                        <span class="concepto-nombre">{{ l.concepto.nombre }}</span>
+                        <span class="concepto-monto ingreso">S/ {{ l.monto|floatformat:2 }}</span>
+                    </div>
+                    {% endfor %}
+                    <div class="concepto-row fw-bold mt-1" style="border-top:2px solid #d1fae5;padding-top:8px">
+                        <span>Total Ingresos</span>
+                        <span class="ingreso">S/ {{ registro_reciente.total_ingresos|floatformat:2 }}</span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small text-center py-3 mb-0">Sin detalle de conceptos</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Descuentos -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header border-0 pb-2" style="background:#fef2f2">
+                <span class="fw-semibold" style="color:#dc2626;font-size:.9rem"><i class="fas fa-minus-circle me-2"></i>Descuentos</span>
+            </div>
+            <div class="card-body pt-2">
+                {% if lineas_descuentos %}
+                    {% for l in lineas_descuentos %}
+                    <div class="concepto-row">
+                        <span class="concepto-nombre">{{ l.concepto.nombre }}</span>
+                        <span class="concepto-monto descuento">S/ {{ l.monto|floatformat:2 }}</span>
+                    </div>
+                    {% endfor %}
+                    <div class="concepto-row fw-bold mt-1" style="border-top:2px solid #fecaca;padding-top:8px">
+                        <span>Total Descuentos</span>
+                        <span class="descuento">S/ {{ registro_reciente.total_descuentos|floatformat:2 }}</span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small text-center py-3 mb-0">Sin descuentos</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Neto -->
+    <div class="col-md-3 d-flex flex-column gap-3">
+        <div class="card shadow-sm border-0 text-center p-3">
+            <div style="font-size:.75rem;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Neto a Pagar</div>
+            <div class="neto-badge">S/ {{ registro_reciente.neto_a_pagar|floatformat:2 }}</div>
+            <div class="mt-3">
+                <span class="badge bg-{% if registro_reciente.estado == 'APROBADO' %}success{% elif registro_reciente.estado == 'REVISADO' %}info{% else %}secondary{% endif %}">
+                    {{ registro_reciente.get_estado_display }}
+                </span>
+            </div>
+        </div>
+        <div class="card shadow-sm border-0 p-3">
+            <div style="font-size:.75rem;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Resumen</div>
+            <div class="concepto-row" style="font-size:.8rem">
+                <span class="text-muted">Días trabajados</span>
+                <span class="fw-semibold">{{ registro_reciente.dias_trabajados }}</span>
+            </div>
+            <div class="concepto-row" style="font-size:.8rem">
+                <span class="text-muted">Sueldo base</span>
+                <span class="fw-semibold">S/ {{ registro_reciente.sueldo_base|floatformat:2 }}</span>
+            </div>
+            <div class="concepto-row" style="font-size:.8rem">
+                <span class="text-muted">Régimen</span>
+                <span class="fw-semibold">{{ registro_reciente.regimen_pension }}{% if registro_reciente.afp %} ({{ registro_reciente.afp }}){% endif %}</span>
+            </div>
+            {% if registro_reciente.periodo.fecha_pago %}
+            <div class="concepto-row" style="font-size:.8rem">
+                <span class="text-muted">Fecha pago</span>
+                <span class="fw-semibold">{{ registro_reciente.periodo.fecha_pago|date:"d/m/Y" }}</span>
+            </div>
+            {% endif %}
+        </div>
+        <a href="{% url 'nominas_boleta_pdf' registro_reciente.pk %}"
+           class="btn btn-outline-primary btn-sm w-100"
+           target="_blank" rel="noopener">
+            <i class="fas fa-download me-2"></i>Descargar Boleta
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Historial completo -->
+<div class="card shadow-sm border-0">
+    <div class="card-header border-0 d-flex align-items-center" style="background:#f8fafc">
+        <i class="fas fa-history me-2 text-primary"></i>
+        <span class="fw-semibold" style="font-size:.9rem">Historial de Recibos</span>
+        <span class="badge bg-light text-dark ms-2 border">{{ registros|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3">Período</th>
+                    <th>Tipo</th>
+                    <th class="text-end">Días</th>
+                    <th class="text-end">Ingresos</th>
+                    <th class="text-end">Descuentos</th>
+                    <th class="text-end">Neto</th>
+                    <th class="text-center">Estado</th>
+                    <th class="pe-3 text-center">Boleta</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reg in registros %}
+                <tr class="periodo-row">
+                    <td class="ps-3 small fw-semibold">{{ reg.periodo.mes_nombre }} {{ reg.periodo.anio }}</td>
+                    <td><span class="badge bg-light text-dark border" style="font-size:.7rem">{{ reg.periodo.get_tipo_display }}</span></td>
+                    <td class="text-end small">{{ reg.dias_trabajados }}</td>
+                    <td class="text-end small" style="color:#059669">S/ {{ reg.total_ingresos|floatformat:2 }}</td>
+                    <td class="text-end small" style="color:#dc2626">S/ {{ reg.total_descuentos|floatformat:2 }}</td>
+                    <td class="text-end small fw-bold" style="color:#0f766e">S/ {{ reg.neto_a_pagar|floatformat:2 }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-{% if reg.estado == 'APROBADO' %}success{% elif reg.estado == 'REVISADO' %}info{% elif reg.estado == 'OBSERVADO' %}warning text-dark{% else %}secondary{% endif %}" style="font-size:.68rem">
+                            {{ reg.get_estado_display }}
+                        </span>
+                    </td>
+                    <td class="pe-3 text-center">
+                        <a href="{% url 'nominas_boleta_pdf' reg.pk %}" target="_blank" rel="noopener"
+                           class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:.72rem" title="Descargar PDF">
+                            <i class="fas fa-download"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+{% endif %}
+{% endblock %}

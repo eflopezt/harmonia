@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}Rezagos Post-Cierre — {{ periodo }}{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1">
+    <i class="fas fa-file-invoice me-2 text-info"></i>
+    Rezagos Post-Cierre — {{ periodo.mes_nombre }} {{ periodo.anio }}
+</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.rezago-card {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    overflow: hidden;
+}
+.rezago-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.rezago-card-body { padding: 14px 16px; }
+.kpi-box {
+    text-align: center;
+    padding: 14px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.kpi-num { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.kpi-label { font-size: .75rem; color: #64748b; margin-top: 4px; }
+.kpi-num.text-danger { color: #dc3545 !important; }
+.kpi-num.text-warning { color: #f59e0b !important; }
+.kpi-num.text-info    { color: #0891b2 !important; }
+.kpi-num.text-success { color: #059669 !important; }
+.tipo-pill { font-size:.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
+.tipo-comp { background:#fef3c7; color:#92400e; }
+.tipo-lic  { background:#dbeafe; color:#1e40af; }
+.tipo-vac  { background:#d1fae5; color:#065f46; }
+.tipo-otro { background:#f3f4f6; color:#374151; }
+.estado-pill { font-size:.72rem; padding:2px 8px; border-radius:20px; font-weight:600; }
+.estado-APROBADA  { background:#d1e7dd; color:#0f5132; }
+.estado-PENDIENTE { background:#fff3cd; color:#856404; }
+.estado-RECHAZADA { background:#f8d7da; color:#842029; }
+.estado-EJECUTADA { background:#cfe2ff; color:#084298; }
+.estado-ANULADA   { background:#e9ecef; color:#6c757d; }
+.info-alert {
+    background: #f0f9ff;
+    border-left: 4px solid #0ea5e9;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: .85rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Navegación -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{% url 'cierre_wizard' pk=periodo.pk %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Volver al Wizard
+        </a>
+    </div>
+    <div>
+        {% if periodo.esta_cerrado %}
+        <span class="badge bg-success"><i class="fas fa-lock me-1"></i>Cerrado</span>
+        {% else %}
+        <span class="badge bg-secondary"><i class="fas fa-folder-open me-1"></i>{{ periodo.get_estado_display }}</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if sin_rezagos %}
+<div class="alert alert-success">
+    <i class="fas fa-check-circle me-2"></i>
+    <strong>Sin rezagos.</strong> El corte de planilla (día {{ corte }}) coincide con el fin de mes.
+    No hay días pendientes de regularización.
+</div>
+{% else %}
+
+<!-- Explicación -->
+<div class="info-alert mb-4">
+    <i class="fas fa-info-circle text-info me-2"></i>
+    <strong>¿Qué son los rezagos?</strong> Son eventos de asistencia que ocurren entre el
+    <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong> y el
+    <strong>{{ fecha_fin|date:"d/m/Y" }}</strong> (después del corte de planilla día {{ corte }}).
+    Estos eventos pertenecen al mes de <strong>{{ periodo.mes_nombre }}</strong> pero se liquidan
+    en la planilla de <strong>{{ sig_mes }}/{{ sig_anio }}</strong>.
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="kpi-box">
+            <div class="kpi-num text-info">{{ resumen.total|default:0 }}</div>
+            <div class="kpi-label">Registros en rango</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-box">
+            <div class="kpi-num text-danger">{{ resumen.faltas|default:0 }}</div>
+            <div class="kpi-label">Faltas (FA)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-box">
+            <div class="kpi-num text-warning">{{ resumen.ss|default:0 }}</div>
+            <div class="kpi-label">Sin Salida (SS)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-box">
+            <div class="kpi-num text-success">{{ he_total|floatformat:1 }}h</div>
+            <div class="kpi-label">HE Rezago</div>
+        </div>
+    </div>
+</div>
+
+<!-- Detalle de Faltas y Anomalías -->
+{% if faltas_detalle %}
+<div class="rezago-card mb-4">
+    <div class="rezago-card-header">
+        <i class="fas fa-exclamation-triangle text-danger"></i>
+        <strong>Faltas y Anomalías ({{ fecha_inicio|date:"d" }} — {{ fecha_fin|date:"d/m/Y" }})</strong>
+        <span class="badge bg-danger ms-auto">{{ faltas_detalle|length }}</span>
+    </div>
+    <div class="rezago-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Trabajador</th>
+                        <th>DNI</th>
+                        <th>Fecha</th>
+                        <th>Código</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in faltas_detalle %}
+                    <tr>
+                        <td class="small">{{ r.personal__apellidos_nombres|default:"—" }}</td>
+                        <td class="small text-muted">{{ r.personal__nro_doc|default:"—" }}</td>
+                        <td class="small">{{ r.fecha|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="badge {% if r.codigo_dia == 'FA' %}bg-danger{% elif r.codigo_dia == 'SS' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                {{ r.codigo_dia }}
+                            </span>
+                        </td>
+                        <td class="small text-muted">{{ r.observaciones|truncatechars:60|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success mb-4">
+    <i class="fas fa-check-circle me-2"></i>
+    Sin faltas ni anomalías en el período de rezago.
+</div>
+{% endif %}
+
+<!-- Papeletas en el rango -->
+{% if papeletas %}
+<div class="rezago-card mb-4">
+    <div class="rezago-card-header">
+        <i class="fas fa-file-alt text-primary"></i>
+        <strong>Papeletas que cubren el rango de rezago</strong>
+        <span class="badge bg-primary ms-auto">{{ papeletas|length }}</span>
+    </div>
+    <div class="rezago-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Trabajador</th>
+                        <th>Tipo</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
+                        <th class="text-center">Días</th>
+                        <th>Estado</th>
+                        <th>Origen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in papeletas %}
+                    <tr>
+                        <td class="small">{{ p.personal.apellidos_nombres|default:p.nombre_archivo }}</td>
+                        <td>
+                            <span class="tipo-pill {% if 'COMPENSACION' in p.tipo_permiso or 'BAJADAS' in p.tipo_permiso or p.tipo_permiso == 'COMP_DIA_TRABAJO' %}tipo-comp{% elif p.tipo_permiso == 'VACACIONES' %}tipo-vac{% elif 'LICENCIA' in p.tipo_permiso or p.tipo_permiso == 'DESCANSO_MEDICO' %}tipo-lic{% else %}tipo-otro{% endif %}">
+                                {{ p.get_tipo_permiso_display|truncatechars:30 }}
+                            </span>
+                        </td>
+                        <td class="small">{{ p.fecha_inicio|date:"d/m/Y" }}</td>
+                        <td class="small">{{ p.fecha_fin|date:"d/m/Y" }}</td>
+                        <td class="text-center small fw-semibold">{{ p.dias_habiles }}</td>
+                        <td><span class="estado-pill estado-{{ p.estado }}">{{ p.get_estado_display }}</span></td>
+                        <td class="small text-muted">{{ p.get_origen_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- HE en el rango -->
+{% if he_detalle %}
+<div class="rezago-card mb-4">
+    <div class="rezago-card-header">
+        <i class="fas fa-clock text-success"></i>
+        <strong>Horas Extra en período de rezago</strong>
+        <span class="badge bg-success ms-auto">{{ he_total|floatformat:1 }}h</span>
+    </div>
+    <div class="rezago-card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Trabajador</th>
+                        <th>Grupo</th>
+                        <th class="text-end">HE 25%</th>
+                        <th class="text-end">HE 35%</th>
+                        <th class="text-end">HE 100%</th>
+                        <th class="text-end fw-bold">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in he_detalle %}
+                    <tr>
+                        <td class="small">{{ h.personal__apellidos_nombres }}</td>
+                        <td><span class="badge {% if h.personal__grupo_tareo == 'STAFF' %}bg-primary{% else %}bg-secondary{% endif %}" style="font-size:.68rem">{{ h.personal__grupo_tareo }}</span></td>
+                        <td class="text-end small">{{ h.sum_he25|floatformat:2 }}h</td>
+                        <td class="text-end small">{{ h.sum_he35|floatformat:2 }}h</td>
+                        <td class="text-end small">{{ h.sum_he100|floatformat:2 }}h</td>
+                        <td class="text-end small fw-bold">{{ h.sum_total|floatformat:2 }}h</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Nota final -->
+<div class="info-alert mt-3">
+    <i class="fas fa-arrow-right text-info me-2"></i>
+    Estos rezagos se incluirán automáticamente en el cierre de
+    <strong>{{ sig_mes }}/{{ sig_anio }}</strong> como parte del ciclo de planilla
+    ({{ fecha_inicio|date:"d/m" }} → {{ corte }}/{% if sig_mes < 10 %}0{% endif %}{{ sig_mes }}/{{ sig_anio }}).
+</div>
+
+{% endif %}
+
+{% endblock %}

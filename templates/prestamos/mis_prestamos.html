@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis Préstamos{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Tu usuario no está vinculado a un empleado. Contacta a RRHH o TI.
+</div>
+{% else %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-hand-holding-usd text-secondary me-2"></i>Mis Préstamos</h2>
+        <small class="text-muted">Historial de préstamos y adelantos</small>
+    </div>
+</div>
+
+{% if prestamos %}
+<!-- Stats rapidos -->
+{% with en_curso=0 total_saldo=0 %}
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ prestamos|length }}</div>
+            <div class="stat-label">Préstamos</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-warning" id="statEnCurso">—</div>
+            <div class="stat-label">En Curso</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-danger" id="statSaldo">—</div>
+            <div class="stat-label">Saldo Total</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-value text-success" id="statCuotaMes">—</div>
+            <div class="stat-label">Dscto. Este Mes</div>
+        </div>
+    </div>
+</div>
+{% endwith %}
+
+<!-- Préstamos activos -->
+{% for p in prestamos %}
+<div class="card shadow-sm mb-3 {% if p.estado == 'PAGADO' %}border-success{% endif %}">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <h6 class="mb-0">
+                    <i class="fas fa-hand-holding-usd text-primary me-2"></i>
+                    {{ p.tipo.nombre }}
+                </h6>
+                <small class="text-muted">Solicitado el {{ p.fecha_solicitud|date:"d/m/Y" }}</small>
+            </div>
+            <div>
+                {% if p.estado == 'EN_CURSO' %}<span class="badge bg-primary">En Curso</span>
+                {% elif p.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                {% elif p.estado == 'PAGADO' %}<span class="badge bg-success">Pagado</span>
+                {% elif p.estado == 'APROBADO' %}<span class="badge bg-info">Aprobado</span>
+                {% else %}<span class="badge bg-secondary">{{ p.get_estado_display }}</span>{% endif %}
+            </div>
+        </div>
+
+        <div class="row g-2 mb-2" style="font-size:.85rem;">
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Monto:</span>
+                <span class="fw-semibold">S/ {{ p.monto_efectivo|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Cuotas:</span>
+                <span class="fw-semibold">{{ p.cuotas_pagadas }}/{{ p.num_cuotas }}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Cuota:</span>
+                <span class="fw-semibold">{% if p.cuota_mensual %}S/ {{ p.cuota_mensual|floatformat:2|intcomma }}{% else %}—{% endif %}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Saldo:</span>
+                <span class="fw-semibold {% if p.saldo_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
+                    S/ {{ p.saldo_pendiente|floatformat:2|intcomma }}
+                </span>
+            </div>
+        </div>
+
+        {% if p.estado == 'EN_CURSO' or p.estado == 'PAGADO' %}
+        <div class="progress mb-1" style="height:8px;">
+            <div class="progress-bar {% if p.estado == 'PAGADO' %}bg-success{% else %}bg-primary{% endif %}"
+                 style="width:{{ p.porcentaje_avance }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between" style="font-size:.75rem; color:#6b7280;">
+            <span>{{ p.porcentaje_avance }}% pagado</span>
+            {% if p.fecha_primer_descuento %}<span>Desde {{ p.fecha_primer_descuento|date:"m/Y" }}</span>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if p.estado == 'EN_CURSO' %}
+        <!-- Próximas cuotas -->
+        {% with proximas=p.cuotas.all %}
+        {% if proximas %}
+        <div class="mt-2">
+            <a class="text-primary text-decoration-none small" data-bs-toggle="collapse" href="#cuotas-{{ p.pk }}">
+                <i class="fas fa-list-ol me-1"></i>Ver cronograma de cuotas
+            </a>
+            <div class="collapse mt-2" id="cuotas-{{ p.pk }}">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0" style="font-size:.8rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Período</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in proximas %}
+                            <tr class="{% if c.estado == 'PAGADO' %}table-success{% endif %}">
+                                <td>{{ c.numero }}</td>
+                                <td>{{ c.periodo|date:"m/Y" }}</td>
+                                <td class="text-end">S/ {{ c.monto|floatformat:2|intcomma }}</td>
+                                <td class="text-center">
+                                    {% if c.estado == 'PAGADO' %}<span class="badge bg-success" style="font-size:.7rem;">Pagado</span>
+                                    {% else %}<span class="badge bg-warning text-dark" style="font-size:.7rem;">Pendiente</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<!-- Empty state -->
+<div class="text-center py-5">
+    <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3" style="opacity:.3"></i>
+    <h5 class="text-muted">No tienes préstamos registrados</h5>
+    <p class="text-muted small">Cuando solicites un préstamo o adelanto, aparecerá aquí con el detalle de cuotas.</p>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate stats from DOM (avoids extra backend query)
+    const cards = document.querySelectorAll('.card.shadow-sm.mb-3');
+    let enCurso = 0, saldoTotal = 0, cuotaMes = 0;
+
+    cards.forEach(card => {
+        const badge = card.querySelector('.badge');
+        if (badge && badge.textContent.trim() === 'En Curso') enCurso++;
+    });
+
+    // Quick stats from page data
+    document.getElementById('statEnCurso').textContent = enCurso;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Plantillas Onboarding / Offboarding{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'onboarding_panel' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Onboarding</a>
+        <a href="{% url 'plantilla_onboarding_crear' %}?tipo=onboarding" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Nueva Plantilla</a>
+    </div>
+</div>
+
+<!-- Plantillas de Onboarding -->
+<h5 class="mb-2"><i class="fas fa-user-plus text-primary me-1"></i>Plantillas de Onboarding</h5>
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Grupo</th>
+                    <th class="text-center">Pasos</th>
+                    <th class="text-center">Procesos Creados</th>
+                    <th class="text-center">Activa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pl in plantillas_on %}
+                <tr class="cursor-pointer" onclick="location.href='{% url 'plantilla_detalle' tipo='onboarding' pk=pl.pk %}'">
+                    <td>
+                        <strong>{{ pl.nombre }}</strong>
+                        {% if pl.descripcion %}<br><small class="text-muted">{{ pl.descripcion|truncatechars:80 }}</small>{% endif %}
+                    </td>
+                    <td>{{ pl.get_aplica_grupo_display }}</td>
+                    <td class="text-center">{{ pl.num_pasos }}</td>
+                    <td class="text-center">{{ pl.num_procesos }}</td>
+                    <td class="text-center">
+                        {% if pl.activa %}
+                        <span class="badge bg-success">Activa</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactiva</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No hay plantillas de onboarding.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Plantillas de Offboarding -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0"><i class="fas fa-user-minus text-danger me-1"></i>Plantillas de Offboarding</h5>
+    <a href="{% url 'plantilla_onboarding_crear' %}?tipo=offboarding" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Nueva</a>
+</div>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th class="text-center">Pasos</th>
+                    <th class="text-center">Procesos Creados</th>
+                    <th class="text-center">Activa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pl in plantillas_off %}
+                <tr class="cursor-pointer" onclick="location.href='{% url 'plantilla_detalle' tipo='offboarding' pk=pl.pk %}'">
+                    <td>
+                        <strong>{{ pl.nombre }}</strong>
+                        {% if pl.descripcion %}<br><small class="text-muted">{{ pl.descripcion|truncatechars:80 }}</small>{% endif %}
+                    </td>
+                    <td class="text-center">{{ pl.num_pasos }}</td>
+                    <td class="text-center">{{ pl.num_procesos }}</td>
+                    <td class="text-center">
+                        {% if pl.activa %}
+                        <span class="badge bg-success">Activa</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactiva</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">No hay plantillas de offboarding.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

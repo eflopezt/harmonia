@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Documentos Laborales{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-file-signature"></i> Documentos Laborales</h2>
+    <small class="text-muted">Distribución formal de reglamentos, políticas y comunicados</small>
+  </div>
+  <a href="{% url 'doc_laboral_crear' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Nuevo Documento
+  </a>
+</div>
+
+{# Stats #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-primary">{{ stats.total }}</div>
+        <div class="text-muted small">Total</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-success">{{ stats.publicados }}</div>
+        <div class="text-muted small">Publicados</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-warning">{{ stats.borradores }}</div>
+        <div class="text-muted small">Borradores</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-danger">{{ stats.pendientes_conf }}</div>
+        <div class="text-muted small">Sin confirmar</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    {# Filtros #}
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar título..." value="{{ buscar }}">
+      </div>
+      <div class="col-md-2">
+        <select name="tipo" class="form-select">
+          <option value="">Todos los tipos</option>
+          {% for val, lbl in tipos %}
+          <option value="{{ val }}" {% if tipo_f == val %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="estado" class="form-select">
+          <option value="TODOS" {% if estado_f == 'TODOS' %}selected{% endif %}>Todos los estados</option>
+          {% for val, lbl in estados %}
+          <option value="{{ val }}" {% if estado_f == val %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-secondary w-100"><i class="fas fa-search"></i> Buscar</button>
+      </div>
+      {% if buscar or tipo_f or estado_f != 'PUBLICADO' %}
+      <div class="col-md-2">
+        <a href="{% url 'docs_laborales_panel' %}" class="btn btn-outline-secondary w-100"><i class="fas fa-times"></i> Limpiar</a>
+      </div>
+      {% endif %}
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Documento</th>
+            <th>Tipo</th>
+            <th>Destinatarios</th>
+            <th class="text-center">Confirmados</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in docs %}
+          <tr>
+            <td>
+              <a href="{% url 'doc_laboral_detalle' doc.pk %}" class="fw-semibold text-decoration-none">
+                {{ doc.titulo }}
+              </a>
+              {% if doc.descripcion %}
+              <div class="text-muted small">{{ doc.descripcion|truncatechars:80 }}</div>
+              {% endif %}
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ doc.get_tipo_display }}</span></td>
+            <td>{{ doc.get_destinatarios_tipo_display }}</td>
+            <td class="text-center">
+              {% if doc.total_entregas %}
+              <small>{{ doc.total_confirmados }}/{{ doc.total_entregas }}</small>
+              <div class="progress mt-1" style="height:4px">
+                <div class="progress-bar bg-success" style="width:{% widthratio doc.total_confirmados doc.total_entregas 100 %}%"></div>
+              </div>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+              {% if doc.estado == 'PUBLICADO' %}
+                <span class="badge bg-success">Publicado</span>
+              {% elif doc.estado == 'BORRADOR' %}
+                <span class="badge bg-warning text-dark">Borrador</span>
+              {% else %}
+                <span class="badge bg-secondary">Archivado</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{% url 'doc_laboral_detalle' doc.pk %}" class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                <i class="fas fa-eye"></i>
+              </a>
+              {% if doc.estado == 'BORRADOR' %}
+              <form method="post" action="{% url 'doc_laboral_publicar' doc.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success" title="Publicar"
+                        onclick="return confirm('¿Publicar y distribuir este documento?')">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </form>
+              {% endif %}
+              {% if doc.estado == 'PUBLICADO' %}
+              <form method="post" action="{% url 'doc_laboral_archivar' doc.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Archivar">
+                  <i class="fas fa-archive"></i>
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="fas fa-file-signature fa-2x mb-2 d-block"></i>
+              No hay documentos laborales
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

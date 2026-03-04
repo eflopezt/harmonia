@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} — Harmoni{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'dossier_list' %}">Dossiers</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'plantilla_dossier_list' %}">Plantillas</a></li>
+      <li class="breadcrumb-item active">{{ titulo }}</li>
+    </ol>
+  </nav>
+  <h1 class="page-title"><i class="fas fa-layer-group me-2 text-primary"></i>{{ titulo }}</h1>
+</div>
+
+<form method="post" id="formPlantilla">
+  {% csrf_token %}
+  <div class="row g-4">
+    {# Columna izquierda: datos de la plantilla #}
+    <div class="col-lg-4">
+      <div class="card mb-4">
+        <div class="card-header fw-semibold">Datos de la Plantilla</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" required
+                   value="{{ plantilla.nombre|default:'' }}"
+                   placeholder="Ej: Dossier Obra Minera SSOMA">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tipo</label>
+            <select name="tipo" class="form-select">
+              {% for val, label in TIPO_CHOICES %}
+              <option value="{{ val }}" {% if plantilla.tipo == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea name="descripcion" class="form-control" rows="3"
+                      placeholder="Para qué sirve esta plantilla...">{{ plantilla.descripcion|default:'' }}</textarea>
+          </div>
+          <div class="form-check form-switch">
+            <input type="checkbox" name="activa" class="form-check-input" id="chkActiva"
+                   {% if not plantilla or plantilla.activa %}checked{% endif %}>
+            <label class="form-check-label" for="chkActiva">Plantilla activa</label>
+          </div>
+        </div>
+      </div>
+
+      {# Agregar documento #}
+      <div class="card">
+        <div class="card-header fw-semibold">Agregar Documento</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <input type="text" id="filtroTipo" class="form-control form-control-sm mb-2"
+                   placeholder="Buscar tipo de documento...">
+            <select id="selectorTipo" class="form-select form-select-sm" size="8"
+                    style="height:180px;">
+              {% regroup tipos by categoria as tipos_por_cat %}
+              {% for cat_group in tipos_por_cat %}
+              <optgroup label="{{ cat_group.grouper }}">
+                {% for t in cat_group.list %}
+                <option value="{{ t.pk }}" data-nombre="{{ t.nombre }}">{{ t.nombre }}</option>
+                {% endfor %}
+              </optgroup>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <input type="text" id="inputSeccion" class="form-control form-control-sm"
+                   placeholder="Sección (ej: I. Identidad) — opcional">
+          </div>
+          <button type="button" class="btn btn-sm btn-primary w-100" onclick="agregarItem()">
+            <i class="fas fa-plus me-1"></i> Agregar al Dossier
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# Columna derecha: ítems del dossier ordenados #}
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold"><i class="fas fa-list-ol me-1"></i> Documentos del Dossier</span>
+          <small class="text-muted" id="contadorItems">
+            {{ items_existentes|length }} ítem(s)
+          </small>
+        </div>
+        <div class="card-body p-0">
+          <div id="listaItems" class="list-group list-group-flush">
+            {% if items_existentes %}
+              {% for item in items_existentes %}
+              <div class="list-group-item dossier-item" data-id="{{ item.pk }}">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="drag-handle text-muted" style="cursor:grab;">
+                    <i class="fas fa-grip-vertical"></i>
+                  </span>
+                  <span class="orden-badge badge bg-secondary" style="min-width:24px;">{{ item.orden }}</span>
+                  <div class="flex-grow-1">
+                    <span class="fw-semibold small">{{ item.tipo_documento.nombre }}</span>
+                    {% if item.seccion %}
+                    <span class="badge bg-light text-dark border ms-1" style="font-size:.65rem;">{{ item.seccion }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="form-check mb-0" title="Obligatorio">
+                    <input type="checkbox" class="form-check-input obl-check"
+                           {% if item.obligatorio %}checked{% endif %} title="Obligatorio">
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
+                          onclick="eliminarItem(this)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                {# Hidden fields #}
+                <input type="hidden" name="item_tipo[]" value="{{ item.tipo_documento.pk }}">
+                <input type="hidden" name="item_seccion[]" value="{{ item.seccion }}">
+                <input type="hidden" name="item_orden[]" class="orden-input" value="{{ item.orden }}">
+                <input type="hidden" name="item_instruccion[]" value="{{ item.instruccion }}">
+                {% if item.obligatorio %}<input type="hidden" name="item_obligatorio[]" value="{{ item.tipo_documento.pk }}">{% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+            <div class="text-center py-5 text-muted" id="emptyState">
+              <i class="fas fa-inbox fa-3x mb-2 opacity-50"></i>
+              <p class="mb-0">Agrega documentos desde el panel izquierdo.</p>
+              <small>Los documentos se pueden reordenar arrastrando.</small>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            Arrastra para reordenar · <i class="fas fa-check-square me-1"></i> = obligatorio
+          </small>
+          <div class="d-flex gap-2">
+            <a href="{% url 'plantilla_dossier_list' %}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="fas fa-save me-1"></i> Guardar Plantilla
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// IDs ya en la lista para evitar duplicados
+const idsEnLista = new Set([
+  {% for item in items_existentes %}{{ item.tipo_documento.pk }},{% endfor %}
+]);
+
+// Filtro búsqueda tipos
+document.getElementById('filtroTipo').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#selectorTipo option').forEach(opt => {
+    opt.style.display = opt.text.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+function agregarItem() {
+  const sel = document.getElementById('selectorTipo');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) { alert('Selecciona un tipo de documento'); return; }
+  if (idsEnLista.has(parseInt(opt.value))) {
+    alert('Este documento ya está en la lista.'); return;
+  }
+
+  const seccion = document.getElementById('inputSeccion').value.trim();
+  const orden = document.querySelectorAll('.dossier-item').length + 1;
+  const nombre = opt.dataset.nombre || opt.text;
+  const id = opt.value;
+
+  // Ocultar empty state
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.style.display = 'none';
+
+  const div = document.createElement('div');
+  div.className = 'list-group-item dossier-item';
+  div.innerHTML = `
+    <div class="d-flex align-items-center gap-2">
+      <span class="drag-handle text-muted" style="cursor:grab;"><i class="fas fa-grip-vertical"></i></span>
+      <span class="orden-badge badge bg-secondary" style="min-width:24px;">${orden}</span>
+      <div class="flex-grow-1">
+        <span class="fw-semibold small">${nombre}</span>
+        ${seccion ? `<span class="badge bg-light text-dark border ms-1" style="font-size:.65rem;">${seccion}</span>` : ''}
+      </div>
+      <div class="form-check mb-0"><input type="checkbox" class="form-check-input obl-check" checked title="Obligatorio"></div>
+      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="eliminarItem(this)">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <input type="hidden" name="item_tipo[]" value="${id}">
+    <input type="hidden" name="item_seccion[]" value="${seccion}">
+    <input type="hidden" name="item_orden[]" class="orden-input" value="${orden}">
+    <input type="hidden" name="item_instruccion[]" value="">
+    <input type="hidden" name="item_obligatorio[]" class="obl-hidden" value="${id}">
+  `;
+  document.getElementById('listaItems').appendChild(div);
+  idsEnLista.add(parseInt(id));
+  actualizarContador();
+}
+
+function eliminarItem(btn) {
+  const item = btn.closest('.dossier-item');
+  const tipoId = item.querySelector('input[name="item_tipo[]"]').value;
+  idsEnLista.delete(parseInt(tipoId));
+  item.remove();
+  renumerarItems();
+  actualizarContador();
+}
+
+function renumerarItems() {
+  document.querySelectorAll('.dossier-item').forEach((el, i) => {
+    el.querySelector('.orden-badge').textContent = i + 1;
+    el.querySelector('.orden-input').value = i + 1;
+  });
+}
+
+function actualizarContador() {
+  const n = document.querySelectorAll('.dossier-item').length;
+  document.getElementById('contadorItems').textContent = n + ' ítem(s)';
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.style.display = n === 0 ? '' : 'none';
+}
+
+// Antes de enviar: sincronizar checkboxes obligatorio
+document.getElementById('formPlantilla').addEventListener('submit', function() {
+  document.querySelectorAll('.dossier-item').forEach(item => {
+    const tipoId = item.querySelector('input[name="item_tipo[]"]').value;
+    const obl = item.querySelector('.obl-check').checked;
+    let oblHidden = item.querySelector('.obl-hidden');
+    if (obl && !oblHidden) {
+      oblHidden = document.createElement('input');
+      oblHidden.type = 'hidden';
+      oblHidden.name = 'item_obligatorio[]';
+      oblHidden.className = 'obl-hidden';
+      oblHidden.value = tipoId;
+      item.appendChild(oblHidden);
+    } else if (!obl && oblHidden) {
+      oblHidden.remove();
+    }
+  });
+});
+
+// Drag & drop ordenamiento (simple)
+const lista = document.getElementById('listaItems');
+let dragSrc = null;
+lista.addEventListener('dragstart', e => {
+  dragSrc = e.target.closest('.dossier-item');
+  if (dragSrc) { dragSrc.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; }
+});
+lista.addEventListener('dragend', e => {
+  const el = e.target.closest('.dossier-item');
+  if (el) el.style.opacity = '1';
+  renumerarItems();
+});
+lista.addEventListener('dragover', e => {
+  e.preventDefault();
+  const target = e.target.closest('.dossier-item');
+  if (target && target !== dragSrc) {
+    const rect = target.getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    lista.insertBefore(dragSrc, after ? target.nextSibling : target);
+  }
+});
+document.querySelectorAll('.dossier-item').forEach(el => el.setAttribute('draggable', 'true'));
+</script>
+{% endblock %}

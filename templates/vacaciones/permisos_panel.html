@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Permisos y Licencias{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} solicitud{{ total|pluralize:"es" }}</small>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <a href="?estado=PENDIENTE" class="text-decoration-none">
+        <div class="stat-card" style="border-left:3px solid #f59e0b;">
+            <div class="stat-value text-warning">{{ pendientes }}</div>
+            <div class="stat-label">Pend. Aprobación</div>
+        </div></a>
+    </div>
+    {% if perm_stats %}
+    <div class="col-6 col-md-3">
+        <div class="stat-card" style="border-left:3px solid #10b981;">
+            <div class="stat-value text-success">{{ perm_stats.aprobadas_mes }}</div>
+            <div class="stat-label">Aprobadas Este Mes</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card" style="border-left:3px solid #dc2626;">
+            <div class="stat-value text-danger">{{ perm_stats.rechazadas_mes }}</div>
+            <div class="stat-label">Rechazadas Este Mes</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card" style="border-left:3px solid #0f766e;">
+            <div class="stat-value" style="color:#0f766e;">{{ perm_stats.dias_aprobados_mes|floatformat:0|default:"0" }}</div>
+            <div class="stat-label">Días Aprobados Mes</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:150px">
+                    <option value="">Todos</option>
+                    <option value="PENDIENTE" {% if filtro_estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                    <option value="APROBADA" {% if filtro_estado == 'APROBADA' %}selected{% endif %}>Aprobada</option>
+                    <option value="RECHAZADA" {% if filtro_estado == 'RECHAZADA' %}selected{% endif %}>Rechazada</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:200px">
+                    <option value="">Todos</option>
+                    {% for t in tipos %}
+                    <option value="{{ t.pk }}" {% if filtro_tipo == t.pk|stringformat:"d" %}selected{% endif %}>{{ t.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Nombre o DNI..." style="width:180px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Tipo Permiso</th>
+                    <th>Desde</th>
+                    <th>Hasta</th>
+                    <th class="text-center">Días</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in solicitudes %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ s.personal.apellidos_nombres|truncatechars:35 }}</div>
+                        <small class="text-muted">{{ s.personal.nro_doc }}</small>
+                    </td>
+                    <td>
+                        <span class="fw-semibold">{{ s.tipo.nombre }}</span>
+                        {% if s.tipo.pagado %}<i class="fas fa-money-bill-wave text-success ms-1" title="Pagado"></i>{% endif %}
+                    </td>
+                    <td>{{ s.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ s.fecha_fin|date:"d/m/Y" }}</td>
+                    <td class="text-center fw-semibold">{{ s.dias }}</td>
+                    <td class="text-center">
+                        {% if s.estado == 'APROBADA' %}<span class="badge bg-success">Aprobada</span>
+                        {% elif s.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif s.estado == 'RECHAZADA' %}<span class="badge bg-danger">Rechazada</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ s.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if s.estado == 'PENDIENTE' %}
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-xs btn-outline-success py-0 px-2" onclick="aprobar({{ s.pk }})" title="Aprobar"><i class="fas fa-check"></i></button>
+                            <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="rechazar({{ s.pk }})" title="Rechazar"><i class="fas fa-times"></i></button>
+                        </div>
+                        {% endif %}
+                        {% if s.sustento %}<a href="{{ s.sustento.url }}" class="btn btn-xs btn-outline-secondary py-0 px-2" target="_blank" title="Sustento"><i class="fas fa-paperclip"></i></a>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay solicitudes de permisos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function aprobar(pk) {
+    if(!confirm('¿Aprobar este permiso?')) return;
+    fetch(`/vacaciones/permisos/${pk}/aprobar/`, {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+function rechazar(pk) {
+    const motivo = prompt('Motivo del rechazo:');
+    if(motivo===null) return;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken','{{ csrf_token }}');
+    fd.append('motivo', motivo);
+    fetch(`/vacaciones/permisos/${pk}/rechazar/`, {method:'POST', body:fd})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+</script>
+{% endblock %}

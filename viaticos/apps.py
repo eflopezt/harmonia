@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class ViaticosConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'viaticos'
+    verbose_name = 'Viáticos y CDT'

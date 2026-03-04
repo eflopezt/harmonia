@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Importar Biométrico{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-fingerprint me-2" style="color:#92400e;"></i>Importar Marcaciones Biométrico</h2>
+    <small class="text-muted">Reloj ZKTeco · Formato .dat o .txt</small>
+  </div>
+  <a href="{% url 'integraciones_panel' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>Panel Principal
+  </a>
+</div>
+
+{# Mensajes #}
+{% if messages %}
+{% for msg in messages %}
+<div class="alert alert-{{ msg.tags|default:'info' }} d-flex align-items-center gap-2 mb-3">
+  <i class="fas fa-{% if 'success' in msg.tags %}check-circle{% elif 'warning' in msg.tags %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+  {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="row g-4">
+  {# Formulario de upload #}
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-header" style="background:#fef3c7;">
+        <strong><i class="fas fa-upload me-2" style="color:#92400e;"></i>Cargar Archivo</strong>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Archivo de Marcaciones</label>
+            <input type="file" name="archivo" class="form-control"
+                   accept=".dat,.txt,.log"
+                   id="inputArchivo" required>
+            <div class="form-text">
+              Formatos aceptados: .dat, .txt, .log<br>
+              Separado por tabulaciones. Columnas: ID · Empleado · Fecha · Hora · Estado
+            </div>
+          </div>
+
+          <div class="alert alert-light border small mb-3">
+            <strong>Formato esperado (por línea):</strong>
+            <pre class="mb-0 mt-1" style="font-size:0.75rem;">TAB_ID  EMP_ID  YYYY-MM-DD  HH:MM:SS  STATUS</pre>
+            <div class="mt-1 text-muted">Ejemplo:</div>
+            <pre class="mb-0" style="font-size:0.7rem;">1  001  2026-03-01  08:05:33  0
+2  002  2026-03-01  08:12:44  0
+3  001  2026-03-01  17:32:10  1</pre>
+          </div>
+
+          <button type="submit" class="btn w-100" style="background:#92400e; color:#fff;">
+            <i class="fas fa-search me-1"></i>Analizar Archivo
+          </button>
+        </form>
+
+        <hr>
+        <div class="text-muted small">
+          <div class="fw-semibold mb-1">Modelos de reloj compatibles:</div>
+          <ul class="mb-0 ps-3">
+            <li>ZKTeco K40, K50, K60</li>
+            <li>ZKTeco F22, F18, F19</li>
+            <li>Virdi AC-2000</li>
+            <li>Nitgen eNBioAccess</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Preview de registros #}
+  <div class="col-md-8">
+    {% if registros %}
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <strong><i class="fas fa-list me-2"></i>Marcaciones Encontradas</strong>
+        <div class="d-flex gap-2">
+          {% if hay_mas %}
+          <span class="badge bg-warning text-dark">
+            Mostrando 200 de {{ total_registros }}
+          </span>
+          {% else %}
+          <span class="badge bg-success">{{ total_registros }} marcación(es)</span>
+          {% endif %}
+          {% if archivo_nombre %}
+          <span class="badge bg-light text-dark border">
+            <i class="fas fa-file me-1"></i>{{ archivo_nombre }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:400px; overflow-y:auto;">
+          <table class="table table-sm table-hover align-middle mb-0" style="font-size:0.82rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th class="ps-3">Línea</th>
+                <th>ID Terminal</th>
+                <th>ID Empleado</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th class="text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reg in registros %}
+              <tr class="{% if not reg.valido %}table-danger{% endif %}">
+                <td class="ps-3 text-muted">{{ reg.linea }}</td>
+                <td class="font-monospace small">{{ reg.tab_id }}</td>
+                <td class="font-monospace"><strong>{{ reg.emp_id }}</strong></td>
+                <td>{{ reg.fecha }}</td>
+                <td class="font-monospace">{{ reg.hora }}</td>
+                <td class="text-center">
+                  {% if reg.status == '0' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">Entrada</span>
+                  {% elif reg.status == '1' %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Salida</span>
+                  {% else %}
+                  <span class="badge bg-light text-dark border">{{ reg.status }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# Errores #}
+    {% if errores %}
+    <div class="card shadow-sm border-warning mb-3">
+      <div class="card-header bg-warning-subtle d-flex align-items-center gap-2">
+        <i class="fas fa-exclamation-triangle text-warning"></i>
+        <strong>Líneas con errores ({{ errores|length }})</strong>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush" style="max-height:150px;overflow-y:auto;">
+          {% for error in errores %}
+          <li class="list-group-item list-group-item-warning small py-1">
+            <i class="fas fa-times me-1"></i>{{ error }}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Botón confirmar #}
+    <div class="card shadow-sm border-0" style="border-left:4px solid #0f766e !important;">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div style="font-size:2rem; color:#0f766e;"><i class="fas fa-check-circle"></i></div>
+        <div>
+          <div class="fw-bold">¿Confirmar importación?</div>
+          <div class="text-muted small">
+            Se procesarán <strong>{{ total_registros }}</strong> marcaciones.
+            Serán enviadas al módulo de asistencia para su revisión.
+          </div>
+        </div>
+        <a href="{% url 'asistencia_importar' %}?fuente=biometrico&periodo={{ periodo_actual }}"
+           class="btn btn-success ms-auto"
+           onclick="return confirm('¿Confirmar la importación de {{ total_registros }} marcaciones al módulo de asistencia?')">
+          <i class="fas fa-arrow-right me-1"></i>Continuar en Asistencia
+        </a>
+      </div>
+    </div>
+
+    {% else %}
+
+    {# Estado vacío #}
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body d-flex flex-column align-items-center justify-content-center py-5 text-center">
+        <div style="font-size:4rem; color:#d6d3d1; margin-bottom:1rem;">
+          <i class="fas fa-fingerprint"></i>
+        </div>
+        <h5 class="text-muted">Sin archivo cargado</h5>
+        <p class="text-muted small mb-0">
+          Selecciona un archivo .dat o .txt exportado desde el reloj biométrico<br>
+          y haz clic en "Analizar Archivo" para ver las marcaciones.
+        </p>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

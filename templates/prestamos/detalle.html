@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Préstamo #{{ p.pk }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div class="mb-3">
+    <a href="{% url 'prestamos_panel' %}" class="text-muted text-decoration-none small">
+        <i class="fas fa-arrow-left me-1"></i>Préstamos
+    </a>
+</div>
+
+<!-- Header -->
+<div class="card shadow-sm mb-3 border-0" style="background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%); color: #fff;">
+    <div class="card-body py-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h4 class="mb-1">
+                    <i class="fas fa-hand-holding-usd me-2" style="opacity:.7"></i>
+                    {{ p.tipo.nombre }}
+                </h4>
+                <div style="font-size:.9rem; opacity:.85;">
+                    <a href="{% url 'personal_detail' p.personal.pk %}" class="text-white text-decoration-none">
+                        <i class="fas fa-user me-1"></i>{{ p.personal.apellidos_nombres }}
+                    </a>
+                    <span class="mx-2">·</span>
+                    <span>{{ p.personal.nro_doc }}</span>
+                    {% if p.personal.cargo %}
+                    <span class="mx-2">·</span>
+                    <span>{{ p.personal.cargo }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-end">
+                {% if p.estado == 'EN_CURSO' %}<span class="badge bg-primary px-3 py-2" style="font-size:.85rem;">En Curso</span>
+                {% elif p.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark px-3 py-2" style="font-size:.85rem;">Pendiente Aprobación</span>
+                {% elif p.estado == 'PAGADO' %}<span class="badge bg-success px-3 py-2" style="font-size:.85rem;">Pagado</span>
+                {% elif p.estado == 'CANCELADO' %}<span class="badge bg-secondary px-3 py-2" style="font-size:.85rem;">Cancelado</span>
+                {% elif p.estado == 'BORRADOR' %}<span class="badge bg-light text-dark px-3 py-2" style="font-size:.85rem;">Borrador</span>
+                {% else %}<span class="badge bg-info px-3 py-2" style="font-size:.85rem;">{{ p.get_estado_display }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Left: Info + Cuotas -->
+    <div class="col-lg-8">
+        <!-- Info Card -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Información del Préstamo</h6></div>
+            <div class="card-body">
+                <div class="row g-3" style="font-size:.87rem;">
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Monto Solicitado</div>
+                        <div class="fw-semibold">S/ {{ p.monto_solicitado|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Monto Aprobado</div>
+                        <div class="fw-semibold {% if p.monto_aprobado %}text-success{% else %}text-muted{% endif %}">
+                            {% if p.monto_aprobado %}S/ {{ p.monto_aprobado|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Cuota Mensual</div>
+                        <div class="fw-semibold">{% if p.cuota_mensual %}S/ {{ p.cuota_mensual|floatformat:2|intcomma }}{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Tasa Interés</div>
+                        <div class="fw-semibold">{{ p.tasa_interes }}%</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Fecha Solicitud</div>
+                        <div>{{ p.fecha_solicitud|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Fecha Aprobación</div>
+                        <div>{% if p.fecha_aprobacion %}{{ p.fecha_aprobacion|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Inicio Descuento</div>
+                        <div>{% if p.fecha_primer_descuento %}{{ p.fecha_primer_descuento|date:"m/Y" }}{% else %}—{% endif %}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Solicitado por</div>
+                        <div>{% if p.solicitado_por %}{{ p.solicitado_por.get_full_name|default:p.solicitado_por.username }}{% else %}—{% endif %}</div>
+                    </div>
+                    {% if p.motivo %}
+                    <div class="col-12">
+                        <div class="text-muted small">Motivo</div>
+                        <div>{{ p.motivo }}</div>
+                    </div>
+                    {% endif %}
+                    {% if p.observaciones %}
+                    <div class="col-12">
+                        <div class="text-muted small">Observaciones</div>
+                        <div>{{ p.observaciones }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Progreso -->
+        {% if p.estado == 'EN_CURSO' or p.estado == 'PAGADO' %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size:.85rem;">
+                    <span class="text-muted">Avance de pago</span>
+                    <span class="fw-semibold" id="avancePct">{{ p.porcentaje_avance }}%</span>
+                </div>
+                <div class="progress" style="height:10px;">
+                    <div class="progress-bar {% if p.estado == 'PAGADO' %}bg-success{% else %}bg-primary{% endif %}"
+                         id="barraAvance" style="width:{{ p.porcentaje_avance }}%; transition:width .5s"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2" style="font-size:.8rem; color:#6b7280;">
+                    <span><i class="fas fa-check-circle text-success me-1"></i><span id="cuotasPagadas">{{ p.cuotas_pagadas }}</span> de {{ p.num_cuotas }} cuotas</span>
+                    <span>Saldo: <strong id="saldoRestante">S/ {{ p.saldo_pendiente|floatformat:2|intcomma }}</strong></span>
+                </div>
+                <!-- Última pagada / próxima a vencer -->
+                <div class="row g-2 mt-2" style="font-size:.78rem;">
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+                            <div class="text-muted mb-1"><i class="fas fa-check-circle text-success me-1"></i>Última pagada</div>
+                            {% if ultima_pagada %}
+                            <div class="fw-semibold">Cuota #{{ ultima_pagada.numero }} — {{ ultima_pagada.fecha_pago|date:"d/m/Y" }}</div>
+                            {% else %}
+                            <div class="text-muted">Sin pagos aún</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background:{% if proxima_vencer and proxima_vencer.periodo < today %}#fef2f2; border:1px solid #fecaca{% else %}#fffbeb; border:1px solid #fde68a{% endif %};">
+                            <div class="text-muted mb-1">
+                                <i class="fas fa-clock {% if proxima_vencer and proxima_vencer.periodo < today %}text-danger{% else %}text-warning{% endif %} me-1"></i>
+                                Próxima a vencer
+                            </div>
+                            {% if proxima_vencer %}
+                            <div class="fw-semibold {% if proxima_vencer.periodo < today %}text-danger{% endif %}">
+                                Cuota #{{ proxima_vencer.numero }} — {{ proxima_vencer.periodo|date:"m/Y" }}
+                                {% if proxima_vencer.periodo < today %}<span class="badge bg-danger ms-1" style="font-size:.65rem;">VENCIDA</span>{% endif %}
+                            </div>
+                            {% else %}
+                            <div class="text-muted">{% if p.estado == 'PAGADO' %}Completado{% else %}—{% endif %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Cuotas -->
+        {% if cuotas %}
+        <div class="card shadow-sm">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-list-ol me-2 text-primary"></i>Cronograma de Cuotas</h6>
+                <small class="text-muted">{{ cuotas|length }} cuota{{ cuotas|length|pluralize:"s" }}</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" style="font-size:.84rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width:50px">#</th>
+                                <th>Período</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-end">Pagado</th>
+                                <th class="text-center">Estado</th>
+                                <th>Fecha Pago</th>
+                                <th class="text-center pe-3">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in cuotas %}
+                            <tr id="cuota-row-{{ c.pk }}"
+                                class="{% if c.estado == 'PAGADO' %}table-success{% elif c.estado == 'PENDIENTE' and c.periodo < today %}table-danger{% endif %}">
+                                <td class="ps-3 fw-medium">{{ c.numero }}</td>
+                                <td>
+                                    {{ c.periodo|date:"m/Y" }}
+                                    {% if c.estado == 'PENDIENTE' and c.periodo < today %}
+                                    <i class="fas fa-exclamation-circle text-danger ms-1" title="Cuota vencida"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">S/ {{ c.monto|floatformat:2|intcomma }}</td>
+                                <td class="text-end" id="cuota-pagado-{{ c.pk }}">
+                                    {% if c.monto_pagado > 0 %}S/ {{ c.monto_pagado|floatformat:2|intcomma }}{% else %}—{% endif %}
+                                </td>
+                                <td class="text-center" id="cuota-estado-{{ c.pk }}">
+                                    {% if c.estado == 'PAGADO' %}
+                                    <span class="badge bg-success">Pagado</span>
+                                    {% elif c.estado == 'PARCIAL' %}
+                                    <span class="badge bg-info">Parcial</span>
+                                    {% elif c.estado == 'CONDONADO' %}
+                                    <span class="badge bg-secondary">Condonado</span>
+                                    {% elif c.estado == 'PENDIENTE' and c.periodo < today %}
+                                    <span class="badge bg-danger">Vencido</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td id="cuota-fecha-{{ c.pk }}">{% if c.fecha_pago %}{{ c.fecha_pago|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                                <td class="text-center pe-3" id="cuota-accion-{{ c.pk }}">
+                                    {% if c.estado == 'PENDIENTE' and p.estado == 'EN_CURSO' %}
+                                    <button class="btn btn-xs {% if c.periodo < today %}btn-danger{% else %}btn-success{% endif %} py-0 px-2 btn-pagar-cuota"
+                                            data-cuota-id="{{ c.pk }}" data-cuota-num="{{ c.numero }}"
+                                            data-monto="{{ c.monto|floatformat:2 }}"
+                                            title="Registrar pago">
+                                        <i class="fas fa-check me-1"></i>Pagar
+                                    </button>
+                                    {% elif c.estado == 'PAGADO' %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right: Actions + Timeline -->
+    <div class="col-lg-4">
+        <!-- Acciones -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>Acciones</h6></div>
+            <div class="card-body d-grid gap-2">
+                {% if p.estado == 'PENDIENTE' or p.estado == 'BORRADOR' %}
+                <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAprobar">
+                    <i class="fas fa-check-circle me-1"></i>Aprobar Préstamo
+                </button>
+                {% endif %}
+                {% if p.estado != 'PAGADO' and p.estado != 'CANCELADO' %}
+                <form method="post" action="{% url 'prestamo_cancelar' p.pk %}"
+                      onsubmit="return confirm('¿Cancelar este préstamo? Esta acción no se puede deshacer.')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                        <i class="fas fa-times-circle me-1"></i>Cancelar Préstamo
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{% url 'personal_detail' p.personal.pk %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-user me-1"></i>Ver Empleado
+                </a>
+                <a href="{% url 'prestamos_panel' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-list me-1"></i>Volver al Panel
+                </a>
+            </div>
+        </div>
+
+        <!-- Resumen rápido -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-receipt me-2 text-info"></i>Resumen</h6></div>
+            <div class="card-body py-2" style="font-size:.85rem;">
+                <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Tipo</span>
+                    <span class="fw-medium">{{ p.tipo.nombre }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Monto</span>
+                    <span class="fw-semibold">S/ {{ p.monto_efectivo|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Cuotas</span>
+                    <span>{{ p.cuotas_pagadas }}/{{ p.num_cuotas }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Cuota mensual</span>
+                    <span>{% if p.cuota_mensual %}S/ {{ p.cuota_mensual|floatformat:2|intcomma }}{% else %}—{% endif %}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Saldo pendiente</span>
+                    <span class="fw-semibold text-danger" id="saldoResumen">S/ {{ p.saldo_pendiente|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado de cuenta del empleado -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <h6 class="mb-0"><i class="fas fa-user-circle me-2 text-primary"></i>Estado de Cuenta</h6>
+                <small class="text-muted">({{ today.year }})</small>
+            </div>
+            <div class="card-body py-2" style="font-size:.84rem;">
+                <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Total prestado este año</span>
+                    <span class="fw-semibold">S/ {{ cuenta_empleado.total_prestado_anio|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Total amortizado</span>
+                    <span class="fw-semibold text-success">S/ {{ cuenta_empleado.total_amortizado|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Saldo pendiente total</span>
+                    <span class="fw-bold {% if cuenta_empleado.saldo_total > 0 %}text-danger{% else %}text-success{% endif %}">
+                        S/ {{ cuenta_empleado.saldo_total|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trazabilidad -->
+        <div class="card shadow-sm">
+            <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-history me-2 text-muted"></i>Trazabilidad</h6></div>
+            <div class="card-body py-2" style="font-size:.82rem;">
+                <div class="d-flex align-items-start mb-2">
+                    <div class="me-2 mt-1"><i class="fas fa-circle text-primary" style="font-size:.45rem;"></i></div>
+                    <div>
+                        <div class="fw-medium">Solicitud creada</div>
+                        <div class="text-muted">{{ p.creado_en|date:"d/m/Y H:i" }}
+                            {% if p.solicitado_por %} · {{ p.solicitado_por.get_full_name|default:p.solicitado_por.username }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if p.fecha_aprobacion %}
+                <div class="d-flex align-items-start mb-2">
+                    <div class="me-2 mt-1"><i class="fas fa-circle text-success" style="font-size:.45rem;"></i></div>
+                    <div>
+                        <div class="fw-medium">Aprobado</div>
+                        <div class="text-muted">{{ p.fecha_aprobacion|date:"d/m/Y" }}
+                            {% if p.aprobado_por %} · {{ p.aprobado_por.get_full_name|default:p.aprobado_por.username }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if p.estado == 'PAGADO' %}
+                <div class="d-flex align-items-start mb-2">
+                    <div class="me-2 mt-1"><i class="fas fa-circle text-success" style="font-size:.45rem;"></i></div>
+                    <div>
+                        <div class="fw-medium">Préstamo pagado</div>
+                        <div class="text-muted">Todas las cuotas liquidadas</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if p.estado == 'CANCELADO' %}
+                <div class="d-flex align-items-start">
+                    <div class="me-2 mt-1"><i class="fas fa-circle text-danger" style="font-size:.45rem;"></i></div>
+                    <div>
+                        <div class="fw-medium">Cancelado</div>
+                        <div class="text-muted">{{ p.actualizado_en|date:"d/m/Y H:i" }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aprobar -->
+{% if p.estado == 'PENDIENTE' or p.estado == 'BORRADOR' %}
+<div class="modal fade" id="modalAprobar" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <form method="post" action="{% url 'prestamo_aprobar' p.pk %}" class="modal-content">
+            {% csrf_token %}
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="fas fa-check-circle me-2 text-success"></i>Aprobar Préstamo</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:.85rem;" class="text-muted mb-3">
+                    {{ p.personal.apellidos_nombres }}<br>
+                    Solicita: <strong>S/ {{ p.monto_solicitado|floatformat:2|intcomma }}</strong> en <strong>{{ p.num_cuotas }}</strong> cuotas
+                </p>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Monto a aprobar (S/)</label>
+                    <input type="number" name="monto_aprobado" class="form-control form-control-sm"
+                           step="0.01" value="{{ p.monto_solicitado }}" placeholder="Dejar vacío = monto solicitado">
+                    <small class="text-muted">Puedes ajustar el monto si es necesario</small>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Inicio de descuento</label>
+                    <input type="date" name="fecha_descuento" class="form-control form-control-sm"
+                           {% if p.fecha_primer_descuento %}value="{{ p.fecha_primer_descuento|date:'Y-m-d' }}"{% endif %}>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>Aprobar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // AJAX pagar cuota
+    document.querySelectorAll('.btn-pagar-cuota').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const cuotaId = this.dataset.cuotaId;
+            const num = this.dataset.cuotaNum;
+            const monto = this.dataset.monto;
+
+            if (!confirm(`¿Registrar pago de cuota #${num} por S/ ${monto}?`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch(`/prestamos/cuota/${cuotaId}/pagar/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value
+                                   || '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    // Update cuota row
+                    const row = document.getElementById(`cuota-row-${cuotaId}`);
+                    row.classList.add('table-success');
+
+                    document.getElementById(`cuota-estado-${cuotaId}`).innerHTML =
+                        '<span class="badge bg-success">Pagado</span>';
+                    document.getElementById(`cuota-pagado-${cuotaId}`).textContent =
+                        `S/ ${monto}`;
+
+                    const hoy = new Date();
+                    const fechaStr = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+                    document.getElementById(`cuota-fecha-${cuotaId}`).textContent = fechaStr;
+
+                    document.getElementById(`cuota-accion-${cuotaId}`).innerHTML =
+                        '<i class="fas fa-check-circle text-success"></i>';
+
+                    // Update progress
+                    const avancePct = document.getElementById('avancePct');
+                    const barra = document.getElementById('barraAvance');
+                    if (avancePct && barra) {
+                        avancePct.textContent = data.avance + '%';
+                        barra.style.width = data.avance + '%';
+                    }
+
+                    const saldo = document.getElementById('saldoRestante');
+                    if (saldo) saldo.textContent = `S/ ${parseFloat(data.saldo).toLocaleString('es-PE', {minimumFractionDigits:2})}`;
+
+                    const saldoR = document.getElementById('saldoResumen');
+                    if (saldoR) saldoR.textContent = `S/ ${parseFloat(data.saldo).toLocaleString('es-PE', {minimumFractionDigits:2})}`;
+
+                    // Update cuotas pagadas counter
+                    const cp = document.getElementById('cuotasPagadas');
+                    if (cp) cp.textContent = parseInt(cp.textContent) + 1;
+
+                    // If fully paid, show alert
+                    if (data.prestamo_estado === 'Pagado') {
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'alert alert-success mt-3';
+                        alertDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i><strong>¡Préstamo completamente pagado!</strong>';
+                        document.querySelector('.card.shadow-sm.mb-3:last-of-type')?.before(alertDiv);
+                    }
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo procesar'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check me-1"></i>Pagar';
+                }
+            })
+            .catch(err => {
+                alert('Error de conexión');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check me-1"></i>Pagar';
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

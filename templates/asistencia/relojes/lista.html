@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Relojes Biométricos{% endblock %}
+
+{% block extra_css %}
+<style>
+.reloj-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.reloj-card:hover { border-color: var(--primary-color); box-shadow: 0 4px 20px rgba(15,118,110,.15); }
+.reloj-card .card-body { padding: 1.4rem; }
+
+.estado-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; padding: .25rem .65rem; border-radius: 30px; font-weight: 600; }
+.estado-CONECTADO      { background: #dcfce7; color: #15803d; }
+.estado-DESCONECTADO   { background: #fee2e2; color: #b91c1c; }
+.estado-ERROR          { background: #fef3c7; color: #b45309; }
+.estado-SIN_VERIFICAR  { background: #f1f5f9; color: #64748b; }
+
+.stat-pill { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: .25rem .6rem; font-size: .8rem; color: #0f766e; }
+.stat-pill.warn { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+
+.icon-reloj-zk { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; background: linear-gradient(135deg, #0d2b27, #134e4a); color: #5eead4; }
+
+.zk-warn { background: #fef9c3; border: 1px solid #fde68a; border-radius: 10px; padding: .8rem 1.2rem; font-size: .88rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">
+        <i class="fas fa-fingerprint text-teal me-2" style="color:var(--primary-color)"></i>
+        Relojes Biométricos
+      </h2>
+      <small class="text-muted">
+        Conexión directa con dispositivos ZKTeco via protocolo ZK (TCP/UDP puerto 4370)
+      </small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'asistencia_importar' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Importaciones
+      </a>
+      <a href="{% url 'asistencia_relojes_crear' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Agregar Reloj
+      </a>
+    </div>
+  </div>
+
+  {# ── Aviso si pyzk no está instalado ─────────────────────────────── #}
+  {% if not pyzk_disponible %}
+  <div class="zk-warn mb-4">
+    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+    <strong>Librería pyzk no instalada.</strong>
+    La conexión directa con ZKTeco requiere pyzk.
+    Ejecuta en el servidor: <code>pip install pyzk</code>
+    <br>
+    <small class="text-muted mt-1 d-block">
+      Puedes configurar relojes ahora; la sincronización estará disponible después de instalar pyzk.
+    </small>
+  </div>
+  {% endif %}
+
+  {# ── Sin relojes ──────────────────────────────────────────────────── #}
+  {% if not relojes %}
+  <div class="text-center py-5">
+    <div class="mb-3" style="font-size: 3rem; color: #cbd5e1;">
+      <i class="fas fa-fingerprint"></i>
+    </div>
+    <h5 class="text-muted">No hay relojes configurados</h5>
+    <p class="text-muted small">Agrega tu primer reloj ZKTeco para sincronizar marcaciones directamente.</p>
+    <a href="{% url 'asistencia_relojes_crear' %}" class="btn btn-primary">
+      <i class="fas fa-plus me-2"></i>Agregar primer reloj
+    </a>
+  </div>
+
+  {# ── Guía rápida de conexión ─────────────────────────────────────── #}
+  <div class="row g-3 mt-2">
+    <div class="col-12"><h6 class="text-muted fw-bold small text-uppercase">Cómo conectar tu reloj ZKTeco</h6></div>
+    {% for step, icon, text in guia_steps %}
+    <div class="col-md-3">
+      <div class="border rounded-3 p-3 text-center h-100">
+        <div class="mb-2 fs-2 text-primary"><i class="{{ icon }}"></i></div>
+        <div class="fw-bold small mb-1">Paso {{ forloop.counter }}</div>
+        <div class="text-muted" style="font-size:.82rem">{{ text }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+
+  {# ── Grid de relojes ──────────────────────────────────────────────── #}
+  <div class="row g-3">
+    {% for reloj in relojes %}
+    <div class="col-md-6 col-xl-4">
+      <div class="reloj-card card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="icon-reloj-zk flex-shrink-0">
+              <i class="fas fa-fingerprint"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h6 class="fw-bold mb-0 text-truncate">{{ reloj.nombre }}</h6>
+                {% if not reloj.activo %}
+                <span class="badge bg-secondary">Inactivo</span>
+                {% endif %}
+              </div>
+              <div class="text-muted small">
+                <i class="fas fa-network-wired me-1"></i>
+                {{ reloj.ip }}:{{ reloj.puerto }} ({{ reloj.protocolo }})
+              </div>
+              {% if reloj.ubicacion %}
+              <div class="text-muted small">
+                <i class="fas fa-map-marker-alt me-1"></i>{{ reloj.ubicacion }}
+              </div>
+              {% endif %}
+            </div>
+            <span class="estado-badge estado-{{ reloj.estado_conexion }}">
+              {% if reloj.estado_conexion == 'CONECTADO' %}<i class="fas fa-check-circle"></i>{% endif %}
+              {% if reloj.estado_conexion == 'DESCONECTADO' %}<i class="fas fa-times-circle"></i>{% endif %}
+              {% if reloj.estado_conexion == 'ERROR' %}<i class="fas fa-exclamation-circle"></i>{% endif %}
+              {% if reloj.estado_conexion == 'SIN_VERIFICAR' %}<i class="fas fa-question-circle"></i>{% endif %}
+              {{ reloj.get_estado_conexion_display }}
+            </span>
+          </div>
+
+          {# Estadísticas #}
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="stat-pill">
+              <i class="fas fa-clock me-1"></i>{{ reloj.total_marc }} marcaciones
+            </span>
+            {% if reloj.sin_procesar > 0 %}
+            <span class="stat-pill warn">
+              <i class="fas fa-exclamation me-1"></i>{{ reloj.sin_procesar }} sin procesar
+            </span>
+            {% endif %}
+          </div>
+
+          {# Info del dispositivo #}
+          {% if reloj.numero_serie or reloj.modelo_dispositivo %}
+          <div class="text-muted small mb-3">
+            {% if reloj.modelo_dispositivo %}<span class="me-2"><i class="fas fa-microchip me-1"></i>{{ reloj.modelo_dispositivo }}</span>{% endif %}
+            {% if reloj.numero_serie %}<span><i class="fas fa-barcode me-1"></i>{{ reloj.numero_serie }}</span>{% endif %}
+          </div>
+          {% endif %}
+
+          {# Última sincronización #}
+          <div class="text-muted small mb-3">
+            {% if reloj.ultima_sincronizacion %}
+            <i class="fas fa-sync me-1"></i>Última sync: {{ reloj.ultima_sincronizacion|date:"d/m/Y H:i" }}
+            {% else %}
+            <i class="fas fa-sync me-1 text-warning"></i><span class="text-warning">Nunca sincronizado</span>
+            {% endif %}
+          </div>
+
+          {# Botones de acción #}
+          <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'asistencia_relojes_detalle' reloj.pk %}"
+               class="btn btn-primary btn-sm flex-grow-1">
+              <i class="fas fa-external-link-alt me-1"></i>Abrir
+            </a>
+            {% if pyzk_disponible and reloj.activo %}
+            <button class="btn btn-outline-success btn-sm btn-test-reloj"
+                    data-pk="{{ reloj.pk }}" data-nombre="{{ reloj.nombre }}"
+                    title="Probar conexión">
+              <i class="fas fa-plug"></i>
+            </button>
+            <button class="btn btn-outline-primary btn-sm btn-sync-reloj"
+                    data-pk="{{ reloj.pk }}" data-nombre="{{ reloj.nombre }}"
+                    title="Sincronizar marcaciones">
+              <i class="fas fa-sync"></i>
+            </button>
+            {% endif %}
+            <a href="{% url 'asistencia_relojes_editar' reloj.pk %}"
+               class="btn btn-outline-secondary btn-sm" title="Editar">
+              <i class="fas fa-cog"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+{# ── Toast de estado ─────────────────────────────────────────────────── #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="relojToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive">
+    <div class="d-flex">
+      <div class="toast-body" id="relojToastMsg">...</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showToast(msg, ok) {
+  const el = document.getElementById('relojToast');
+  el.classList.remove('bg-success', 'bg-danger', 'bg-warning');
+  el.classList.add(ok ? 'bg-success' : 'bg-danger');
+  document.getElementById('relojToastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, {delay: 4000}).show();
+}
+
+function csrfToken() {
+  return document.cookie.split(';').map(c => c.trim())
+    .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+// Probar conexión
+document.querySelectorAll('.btn-test-reloj').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const pk = btn.dataset.pk;
+    const nombre = btn.dataset.nombre;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+      const r = await fetch(`/asistencia/relojes/${pk}/test/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      });
+      const data = await r.json();
+      showToast(data.ok ? `✓ ${nombre}: ${data.detail}` : `✗ ${nombre}: ${data.detail}`, data.ok);
+      if (data.ok) setTimeout(() => location.reload(), 1500);
+    } catch(e) {
+      showToast(`Error de red: ${e.message}`, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+});
+
+// Sincronizar
+document.querySelectorAll('.btn-sync-reloj').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const pk = btn.dataset.pk;
+    const nombre = btn.dataset.nombre;
+    if (!confirm(`¿Sincronizar marcaciones de "${nombre}"?\n\nSe descargarán todas las marcaciones del dispositivo.`)) return;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+      const r = await fetch(`/asistencia/relojes/${pk}/sync/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      });
+      const data = await r.json();
+      if (data.ok) {
+        showToast(`✓ ${nombre}: ${data.nuevos} nuevas, ${data.omitidos} duplicadas`, true);
+        setTimeout(() => location.reload(), 2000);
+      } else {
+        showToast(`✗ Error: ${data.error}`, false);
+      }
+    } catch(e) {
+      showToast(`Error de red: ${e.message}`, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+});
+</script>
+{% endblock %}

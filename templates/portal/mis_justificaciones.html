@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Justificaciones de Asistencia{% endblock %}
+
+{% block extra_css %}
+<style>
+.estado-pill { font-size:.72rem; padding:2px 8px; border-radius:20px; font-weight:600; }
+.estado-PENDIENTE { background:#fff3cd; color:#856404; }
+.estado-APROBADA  { background:#d1e7dd; color:#0f5132; }
+.estado-RECHAZADA { background:#f8d7da; color:#842029; }
+.tipo-pill { font-size:.72rem; background:#e9ecef; padding:2px 8px; border-radius:4px; }
+.info-banner { background:#f0fdf9; border-left:4px solid var(--secondary-color); padding:10px 14px; border-radius:0 6px 6px 0; font-size:.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-pen-square text-secondary me-2"></i>Mis Justificaciones</h2>
+        <small class="text-muted">Justifica días donde no pudiste marcar tu asistencia</small>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="abrirModal()">
+        <i class="fas fa-plus me-1"></i>Nueva Justificación
+    </button>
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Tu usuario no tiene un perfil de empleado vinculado. Contacta a RR.HH.
+</div>
+{% else %}
+
+<div class="info-banner mb-4">
+    <i class="fas fa-info-circle text-secondary me-2"></i>
+    Puedes justificar días donde el reloj no registró tu asistencia por razones válidas.
+    <strong>RR.HH. revisará</strong> y aprobará o rechazará tu justificación.
+    Solo puedes enviar una justificación por día y solo mientras esté <em>Pendiente</em>.
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="d-flex gap-2 flex-wrap mb-3 align-items-end">
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Año</label>
+        <select name="anio" class="form-select form-select-sm" style="width:90px">
+            {% for y in anios %}<option value="{{ y }}" {% if y == anio_sel %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Mes</label>
+        <select name="mes" class="form-select form-select-sm">
+            {% for val, nombre in meses %}<option value="{{ val }}" {% if val == mes_sel %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<!-- Tabla -->
+<div class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th>Comentario RR.HH.</th>
+                <th style="width:60px"></th>
+            </tr>
+        </thead>
+        <tbody id="justBody">
+            {% for j in justificaciones %}
+            <tr id="fila-j-{{ j.pk }}" data-pk="{{ j.pk }}" data-estado="{{ j.estado }}">
+                <td>{{ j.fecha|date:"d/m/Y" }}</td>
+                <td><span class="tipo-pill">{{ j.get_tipo_display }}</span></td>
+                <td class="text-muted small">{{ j.motivo|truncatechars:80 }}</td>
+                <td><span class="estado-pill estado-{{ j.estado }}">{{ j.get_estado_display }}</span></td>
+                <td class="text-muted small">{{ j.comentario_revisor|default:"—"|truncatechars:60 }}</td>
+                <td class="text-end">
+                    {% if j.estado == 'PENDIENTE' %}
+                    <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                            onclick="anularJustificacion({{ j.pk }})" title="Anular">
+                        <i class="fas fa-times" style="font-size:.7rem"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr id="filaVacia">
+                <td colspan="6" class="text-center text-muted py-4">
+                    <i class="fas fa-pen-square fa-2x d-block mb-2 opacity-25"></i>
+                    No hay justificaciones para {{ fecha_inicio|date:"F Y" }}.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal nueva justificación -->
+<div class="modal fade" id="modalJust" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-pen-square me-2"></i>Nueva Justificación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control form-control-sm" id="justFecha"
+                           min="{{ fecha_inicio|date:'Y-m-d' }}" max="{{ fecha_fin|date:'Y-m-d' }}">
+                    <div class="form-text">Elige el día que necesitas justificar (dentro del mes seleccionado)</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="justTipo">
+                        {% for val, label in tipos %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Motivo / Detalle <span class="text-danger">*</span></label>
+                    <textarea class="form-control form-control-sm" id="justMotivo" rows="3"
+                              placeholder="Describe brevemente el motivo (cita médica, corte de luz, emergencia familiar, etc.)"></textarea>
+                </div>
+                <div id="justError" class="alert alert-danger py-2 small" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="enviarJustificacion()">
+                    <i class="fas fa-paper-plane me-1"></i>Enviar Justificación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function abrirModal() {
+    document.getElementById('justFecha').value = '';
+    document.getElementById('justTipo').selectedIndex = 0;
+    document.getElementById('justMotivo').value = '';
+    document.getElementById('justError').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('modalJust')).show();
+}
+
+async function enviarJustificacion() {
+    const fecha  = document.getElementById('justFecha').value;
+    const tipo   = document.getElementById('justTipo').value;
+    const motivo = document.getElementById('justMotivo').value.trim();
+    const errDiv = document.getElementById('justError');
+
+    if (!fecha || !tipo || !motivo) {
+        errDiv.textContent = 'Fecha, tipo y motivo son obligatorios.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    const resp = await fetch('/mi-portal/justificaciones/crear/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ fecha, tipo, motivo }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) {
+        errDiv.textContent = data.error;
+        errDiv.style.display = '';
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalJust')).hide();
+
+    const tbody = document.getElementById('justBody');
+    document.getElementById('filaVacia')?.remove();
+
+    const filaHtml = `
+        <tr id="fila-j-${data.pk}" data-pk="${data.pk}" data-estado="${data.estado}">
+            <td>${data.fecha_display}</td>
+            <td><span class="tipo-pill">${data.tipo_display}</span></td>
+            <td class="text-muted small">${document.getElementById('justMotivo').value.substring(0,80)}</td>
+            <td><span class="estado-pill estado-${data.estado}">${data.estado_display}</span></td>
+            <td class="text-muted small">—</td>
+            <td class="text-end">
+                <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                        onclick="anularJustificacion(${data.pk})" title="Anular">
+                    <i class="fas fa-times" style="font-size:.7rem"></i>
+                </button>
+            </td>
+        </tr>`;
+
+    const existente = document.getElementById('fila-j-' + data.pk);
+    if (existente) existente.outerHTML = filaHtml;
+    else tbody.insertAdjacentHTML('afterbegin', filaHtml);
+}
+
+async function anularJustificacion(pk) {
+    if (!confirm('¿Anular esta justificación?')) return;
+    const resp = await fetch(`/mi-portal/justificaciones/${pk}/anular/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-j-' + pk)?.remove();
+        if (!document.querySelector('#justBody tr')) {
+            document.getElementById('justBody').innerHTML =
+                '<tr id="filaVacia"><td colspan="6" class="text-center text-muted py-4">No hay justificaciones.</td></tr>';
+        }
+    } else {
+        alert(data.error);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Mis Documentos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-file-signature me-2"></i>Mis Documentos</h2>
+  {% if pendientes > 0 %}
+  <span class="badge bg-danger fs-6">{{ pendientes }} pendiente{{ pendientes|pluralize }} de confirmar</span>
+  {% endif %}
+</div>
+
+{% if entregas %}
+<div class="row g-3">
+  {% for entrega in entregas %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100 shadow-sm {% if not entrega.confirmado and entrega.documento.requiere_confirmacion %}border-warning{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="badge bg-light text-dark border">{{ entrega.documento.get_tipo_display }}</span>
+          {% if entrega.confirmado %}
+            <span class="badge bg-success"><i class="fas fa-check"></i> Confirmado</span>
+          {% elif entrega.visto %}
+            <span class="badge bg-info">Visto</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pendiente</span>
+          {% endif %}
+        </div>
+        <h6 class="card-title">{{ entrega.documento.titulo }}</h6>
+        {% if entrega.documento.descripcion %}
+        <p class="card-text text-muted small">{{ entrega.documento.descripcion|truncatechars:100 }}</p>
+        {% endif %}
+        <div class="text-muted small mb-3">
+          <i class="fas fa-calendar me-1"></i>{{ entrega.documento.fecha_publicacion|date:"d/m/Y" }}
+          {% if entrega.documento.vigente_hasta %}
+          · Vigente hasta {{ entrega.documento.vigente_hasta|date:"d/m/Y" }}
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'doc_laboral_ver' entrega.documento.pk %}" class="btn btn-sm btn-outline-primary flex-fill">
+            <i class="fas fa-eye"></i> Ver
+          </a>
+          {% if not entrega.confirmado and entrega.documento.requiere_confirmacion %}
+          <form method="post" action="{% url 'doc_laboral_confirmar' entrega.documento.pk %}" class="flex-fill">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-success w-100"
+                    onclick="return confirm('¿Confirmar recepción de este documento?')">
+              <i class="fas fa-check"></i> Confirmar
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% if entrega.confirmado %}
+      <div class="card-footer text-muted small">
+        <i class="fas fa-shield-check text-success me-1"></i>
+        Recepción confirmada {{ entrega.fecha_confirmacion|date:"d/m/Y H:i" }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="fas fa-file-signature fa-3x mb-3 d-block"></i>
+  <p>No tienes documentos laborales asignados.</p>
+</div>
+{% endif %}
+{% endblock %}

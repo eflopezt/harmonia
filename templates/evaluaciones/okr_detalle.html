@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ obj.titulo }} — OKR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">
+      <i class="fas fa-bullseye me-2 text-accent"></i>{{ obj.titulo }}
+    </h1>
+    <p class="page-subtitle">
+      <a href="{% url 'okr_panel' %}" class="text-muted text-decoration-none">OKRs</a> /
+      <span class="badge bg-{{ obj.color_status }}">{{ obj.get_status_display }}</span>
+      &nbsp;·&nbsp;<span class="text-muted">{{ obj.periodo_display }}</span>
+      &nbsp;·&nbsp;<span class="badge bg-{% if obj.nivel == 'EMPRESA' %}danger{% elif obj.nivel == 'AREA' %}info{% else %}primary{% endif %}">{{ obj.get_nivel_display }}</span>
+    </p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'okr_editar' obj.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-edit me-1"></i>Editar
+    </a>
+    {# Cambiar status #}
+    <div class="dropdown d-inline-block">
+      <button class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+        Status
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        {% for v, l in status_choices %}
+        {% if v != obj.status %}
+        <li>
+          <a class="dropdown-item" href="#" onclick="cambiarStatus('{{ v }}', '{{ l }}'); return false;">
+            {{ l }}
+          </a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        {% if obj.status == 'BORRADOR' %}
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item text-danger" href="#"
+             onclick="eliminarObjetivo(); return false;">
+            <i class="fas fa-trash me-1"></i>Eliminar
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# Descripción + métricas globales #}
+<div class="row g-3 mb-3">
+  <div class="col-lg-8">
+    {% if obj.descripcion %}
+    <div class="dash-card mb-3">
+      <p class="mb-0 text-muted">{{ obj.descripcion }}</p>
+    </div>
+    {% endif %}
+
+    {# Barra de avance global #}
+    <div class="dash-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold">Avance Global</span>
+        <span class="fw-bold fs-5 {% if avance >= 70 %}text-success{% elif avance >= 40 %}text-warning{% else %}text-danger{% endif %}">
+          {{ avance }}%
+        </span>
+      </div>
+      <div class="progress" style="height:12px;border-radius:6px;">
+        <div class="progress-bar bg-{% if avance >= 70 %}success{% elif avance >= 40 %}warning{% else %}danger{% endif %}"
+             id="barraGlobal"
+             style="width:{{ avance }}%;transition:width .5s;border-radius:6px;">
+        </div>
+      </div>
+      <div class="d-flex justify-content-between mt-1" style="font-size:.75rem;color:#6b7280;">
+        <span>0%</span>
+        <span class="text-warning">40% — En riesgo</span>
+        <span class="text-success">70% — En camino</span>
+        <span>100%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="dash-card h-100">
+      <h6 class="mb-3 text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.05em;">Detalles</h6>
+      <table class="table table-sm table-borderless mb-0" style="font-size:.85rem;">
+        <tr><td class="text-muted">Responsable</td>
+          <td>{{ obj.personal.apellidos_nombres|default:"—" }}</td></tr>
+        <tr><td class="text-muted">Área</td>
+          <td>{{ obj.area.nombre|default:"—" }}</td></tr>
+        <tr><td class="text-muted">Peso</td>
+          <td>{{ obj.peso }}%</td></tr>
+        {% if obj.objetivo_padre %}
+        <tr><td class="text-muted">Padre</td>
+          <td><a href="{% url 'okr_detalle' obj.objetivo_padre.pk %}" class="text-decoration-none">
+            {{ obj.objetivo_padre.titulo|truncatechars:40 }}
+          </a></td></tr>
+        {% endif %}
+        <tr><td class="text-muted">KRs</td>
+          <td><span class="badge bg-secondary">{{ krs.count }}</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# KEY RESULTS #}
+<div class="dash-card mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="fas fa-key me-2 text-accent"></i>Key Results</h5>
+    {% if obj.status in 'BORRADOR,ACTIVO' %}
+    <button class="btn btn-sm btn-primary" onclick="mostrarModalKR()">
+      <i class="fas fa-plus me-1"></i>Agregar KR
+    </button>
+    {% endif %}
+  </div>
+
+  {% if krs %}
+  <div id="listaKRs">
+    {% for kr in krs %}
+    <div class="border rounded p-3 mb-2 bg-white" id="kr-{{ kr.pk }}">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <div class="fw-semibold mb-1">{{ kr.descripcion }}</div>
+          <div class="text-muted" style="font-size:.8rem;">
+            Unidad: {{ kr.unidad_label }}
+            {% if kr.responsable %} · Resp: {{ kr.responsable.apellidos_nombres }}{% endif %}
+            {% if kr.fecha_limite %} · Límite: {{ kr.fecha_limite|date:"d/m/Y" }}{% endif %}
+          </div>
+        </div>
+        <div class="col-lg-4">
+          {% if kr.unidad == 'SI_NO' %}
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-{% if kr.completado_binario %}success{% else %}secondary{% endif %} px-3 py-2">
+              {% if kr.completado_binario %}Completado ✓{% else %}Pendiente{% endif %}
+            </span>
+          </div>
+          {% else %}
+          <div class="d-flex align-items-center gap-2">
+            <div class="progress flex-grow-1" style="height:8px;">
+              <div class="progress-bar bg-{{ kr.color_avance }}" id="barra-{{ kr.pk }}"
+                   style="width:{{ kr.porcentaje_avance }}%"></div>
+            </div>
+            <span class="fw-semibold" id="avance-{{ kr.pk }}" style="min-width:40px;text-align:right;font-size:.85rem;">
+              {{ kr.porcentaje_avance }}%
+            </span>
+          </div>
+          <div class="d-flex justify-content-between mt-1" style="font-size:.75rem;color:#9ca3af;">
+            <span>{{ kr.valor_inicial }} {{ kr.unidad_label }}</span>
+            <span id="actual-{{ kr.pk }}">{{ kr.valor_actual }} {{ kr.unidad_label }}</span>
+            <span>{{ kr.valor_meta }} {{ kr.unidad_label }}</span>
+          </div>
+          {% endif %}
+        </div>
+        <div class="col-lg-2 text-end">
+          <button class="btn btn-sm btn-outline-primary" title="Check-in"
+                  onclick="mostrarCheckin({{ kr.pk }}, '{{ kr.descripcion|escapejs }}', '{{ kr.valor_actual }}', '{{ kr.unidad_label|escapejs }}')">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" title="Eliminar KR"
+                  onclick="eliminarKR({{ kr.pk }}, '{{ kr.descripcion|truncatechars:40|escapejs }}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      {# Últimos check-ins #}
+      {% if kr.checkins.all %}
+      <div class="mt-2 border-top pt-2">
+        <div class="text-muted mb-1" style="font-size:.75rem;">Últimos check-ins</div>
+        {% for ci in kr.checkins.all|slice:":3" %}
+        <div class="d-flex gap-2 align-items-start mb-1" style="font-size:.8rem;">
+          <span class="text-muted" style="white-space:nowrap;">{{ ci.fecha|date:"d/m/Y" }}</span>
+          <span class="fw-semibold">→ {{ ci.valor_nuevo }} {{ kr.unidad_label }}</span>
+          {% if ci.comentario %}<span class="text-muted">· {{ ci.comentario|truncatechars:60 }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-4 text-muted">
+    <i class="fas fa-key fa-2x mb-2 opacity-25"></i>
+    <p class="mb-1">Sin Key Results todavía.</p>
+    <p style="font-size:.85rem;">Agrega 2–5 KRs medibles que indiquen si se alcanzó el objetivo.</p>
+  </div>
+  {% endif %}
+</div>
+
+{# Objetivos hijo (cascada) #}
+{% if hijos %}
+<div class="dash-card mb-3">
+  <h5 class="mb-3"><i class="fas fa-sitemap me-2 text-accent"></i>Objetivos que contribuyen ({{ hijos.count }})</h5>
+  <div class="row g-2">
+    {% for hijo in hijos %}
+    <div class="col-md-6">
+      <div class="border rounded p-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <a href="{% url 'okr_detalle' hijo.pk %}" class="fw-semibold text-dark text-decoration-none">
+              {{ hijo.titulo }}
+            </a>
+            <div class="text-muted" style="font-size:.8rem;">
+              {{ hijo.get_nivel_display }} · {{ hijo.get_status_display }}
+              {% if hijo.personal %} · {{ hijo.personal.apellidos_nombres }}{% endif %}
+            </div>
+          </div>
+          <span class="badge bg-{{ hijo.color_status }}">{{ hijo.avance_promedio }}%</span>
+        </div>
+        <div class="progress mt-2" style="height:4px;">
+          <div class="progress-bar bg-{% if hijo.avance_promedio >= 70 %}success{% elif hijo.avance_promedio >= 40 %}warning{% else %}danger{% endif %}"
+               style="width:{{ hijo.avance_promedio }}%"></div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# MODAL: Agregar KR #}
+<div class="modal fade" id="modalKR" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-key me-2 text-accent"></i>Nuevo Key Result</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Descripción del KR <span class="text-danger">*</span></label>
+          <input type="text" id="kr_descripcion" class="form-control" maxlength="400"
+                 placeholder="Ej: Reducir rotación de 12% a 5%">
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Unidad</label>
+            <select id="kr_unidad" class="form-select" onchange="toggleBinario()">
+              {% for v, l in unidad_choices %}
+              <option value="{{ v }}">{{ l }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4" id="div_unidad_personalizada" style="display:none;">
+            <label class="form-label">Unidad personalizada</label>
+            <input type="text" id="kr_unidad_pers" class="form-control" placeholder="Ej: clientes">
+          </div>
+        </div>
+        <div class="row g-3 mb-3" id="div_valores">
+          <div class="col-md-4">
+            <label class="form-label">Valor Inicial</label>
+            <input type="number" id="kr_valor_inicial" class="form-control" value="0" step="0.01">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Meta <span class="text-danger">*</span></label>
+            <input type="number" id="kr_valor_meta" class="form-control" step="0.01" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Valor Actual</label>
+            <input type="number" id="kr_valor_actual" class="form-control" value="0" step="0.01">
+          </div>
+        </div>
+        <div id="div_binario" style="display:none;" class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="kr_completado_binario">
+            <label class="form-check-label">Completado</label>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Responsable</label>
+            <select id="kr_responsable" class="form-select">
+              <option value="">— Sin responsable específico —</option>
+              {% for p in personal_list %}
+              <option value="{{ p.pk }}">{{ p.apellidos_nombres }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Fecha Límite</label>
+            <input type="date" id="kr_fecha" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarKR()">
+          <i class="fas fa-save me-1"></i>Agregar KR
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# MODAL: Check-in #}
+<div class="modal fade" id="modalCheckin" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-sync-alt me-2 text-accent"></i>Actualizar Progreso</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-3" id="ci_descripcion"></p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nuevo valor <span id="ci_unidad" class="text-muted"></span></label>
+          <input type="number" id="ci_valor" class="form-control" step="0.01">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Fecha</label>
+          <input type="date" id="ci_fecha" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Comentario / Bloqueos</label>
+          <textarea id="ci_comentario" class="form-control" rows="2" placeholder="¿Qué avanzaste? ¿Algún bloqueo?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCheckin()">
+          <i class="fas fa-check me-1"></i>Registrar check-in
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let krPkActual = null;
+
+function mostrarModalKR() {
+  document.getElementById('kr_descripcion').value = '';
+  document.getElementById('kr_valor_inicial').value = '0';
+  document.getElementById('kr_valor_meta').value = '';
+  document.getElementById('kr_valor_actual').value = '0';
+  document.getElementById('kr_responsable').value = '';
+  document.getElementById('kr_fecha').value = '';
+  new bootstrap.Modal(document.getElementById('modalKR')).show();
+}
+
+function toggleBinario() {
+  const u = document.getElementById('kr_unidad').value;
+  document.getElementById('div_binario').style.display  = u === 'SI_NO' ? 'block' : 'none';
+  document.getElementById('div_valores').style.display  = u !== 'SI_NO' ? 'flex' : 'none';
+  document.getElementById('div_unidad_personalizada').style.display = u === 'PERSONALIZADO' ? 'block' : 'none';
+}
+
+function guardarKR() {
+  const desc = document.getElementById('kr_descripcion').value.trim();
+  const meta  = document.getElementById('kr_valor_meta').value;
+  if (!desc || !meta) { alert('Descripción y Meta son obligatorios.'); return; }
+
+  const data = new URLSearchParams({
+    descripcion: desc,
+    unidad: document.getElementById('kr_unidad').value,
+    unidad_personalizada: document.getElementById('kr_unidad_pers').value,
+    valor_inicial: document.getElementById('kr_valor_inicial').value,
+    valor_meta: meta,
+    valor_actual: document.getElementById('kr_valor_actual').value,
+    completado_binario: document.getElementById('kr_completado_binario').checked ? '1' : '0',
+    responsable_id: document.getElementById('kr_responsable').value,
+    fecha_limite: document.getElementById('kr_fecha').value,
+    csrfmiddlewaretoken: '{{ csrf_token }}',
+  });
+
+  fetch('{% url "kr_crear" obj.pk %}', { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(j => {
+      if (j.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('modalKR')).hide();
+        location.reload();
+      } else { alert('Error: ' + j.error); }
+    });
+}
+
+function mostrarCheckin(pk, desc, valorActual, unidad) {
+  krPkActual = pk;
+  document.getElementById('ci_descripcion').textContent = desc;
+  document.getElementById('ci_unidad').textContent = '(' + unidad + ')';
+  document.getElementById('ci_valor').value = valorActual;
+  document.getElementById('ci_fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('ci_comentario').value = '';
+  new bootstrap.Modal(document.getElementById('modalCheckin')).show();
+}
+
+function guardarCheckin() {
+  const valor = document.getElementById('ci_valor').value;
+  if (!valor) { alert('El valor es obligatorio.'); return; }
+
+  const data = new URLSearchParams({
+    valor_nuevo: valor,
+    fecha: document.getElementById('ci_fecha').value,
+    comentario: document.getElementById('ci_comentario').value,
+    csrfmiddlewaretoken: '{{ csrf_token }}',
+  });
+
+  fetch(`/evaluaciones/okrs/kr/${krPkActual}/checkin/`, { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(j => {
+      if (j.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('modalCheckin')).hide();
+        // Actualizar barra sin reload
+        const barra = document.getElementById('barra-' + krPkActual);
+        const txt   = document.getElementById('avance-' + krPkActual);
+        const actual= document.getElementById('actual-' + krPkActual);
+        if (barra) barra.style.width = j.avance + '%';
+        if (txt) txt.textContent = j.avance + '%';
+        if (actual) actual.textContent = j.valor + ' ' + document.getElementById('ci_unidad').textContent.replace(/[()]/g, '').trim();
+        // Actualizar barra global
+        const bg = document.getElementById('barraGlobal');
+        if (bg) { bg.style.width = j.avance + '%'; /* simplificado — reload para exacto */ }
+        setTimeout(() => location.reload(), 800);
+      } else { alert('Error: ' + j.error); }
+    });
+}
+
+function eliminarKR(pk, desc) {
+  if (!confirm('¿Eliminar el KR "' + desc + '"?')) return;
+  fetch(`/evaluaciones/okrs/kr/${pk}/eliminar/`, {
+    method: 'POST',
+    body: new URLSearchParams({ csrfmiddlewaretoken: '{{ csrf_token }}' }),
+  }).then(r => r.json()).then(j => { if (j.ok) location.reload(); else alert(j.error); });
+}
+
+function cambiarStatus(status, label) {
+  if (!confirm('¿Cambiar status a "' + label + '"?')) return;
+  fetch('{% url "okr_cambiar_status" obj.pk %}', {
+    method: 'POST',
+    body: new URLSearchParams({ status, csrfmiddlewaretoken: '{{ csrf_token }}' }),
+  }).then(r => r.json()).then(j => { if (j.ok) location.reload(); else alert(j.error); });
+}
+
+function eliminarObjetivo() {
+  if (!confirm('¿Eliminar este objetivo? Esta acción no se puede deshacer.')) return;
+  fetch('{% url "okr_eliminar" obj.pk %}', {
+    method: 'POST',
+    body: new URLSearchParams({ csrfmiddlewaretoken: '{{ csrf_token }}' }),
+  }).then(r => r.json()).then(j => {
+    if (j.ok) window.location = '{% url "okr_panel" %}';
+    else alert(j.error);
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ cap.titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-chalkboard-teacher text-secondary me-2"></i>{{ cap.titulo }}</h2>
+        <small class="text-muted">{{ cap.get_tipo_display }} — {{ cap.fecha_inicio|date:"d/m/Y" }}</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if cap.num_inscritos > 0 %}
+        <a href="{% url 'capacitacion_export_asistentes' cap.pk %}"
+           class="btn btn-sm btn-outline-success"
+           title="Exportar lista de asistentes a Excel">
+            <i class="fas fa-file-excel me-1"></i>Exportar
+        </a>
+        <a href="{% url 'capacitacion_estadisticas' cap.pk %}"
+           class="btn btn-sm btn-outline-info"
+           title="Ver estadísticas de esta capacitación">
+            <i class="fas fa-chart-bar me-1"></i>Estadísticas
+        </a>
+        {% endif %}
+        <form method="post" action="{% url 'capacitacion_duplicar' cap.pk %}" class="d-inline"
+              onsubmit="return confirm('¿Duplicar esta capacitación?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplicar capacitación">
+                <i class="fas fa-copy me-1"></i>Duplicar
+            </button>
+        </form>
+        {% if cap.estado != 'COMPLETADA' %}
+        <button class="btn btn-sm btn-success" onclick="completar()"><i class="fas fa-check me-1"></i>Completar</button>
+        {% endif %}
+        <a href="{% url 'capacitaciones_panel' %}" class="btn btn-sm btn-secondary">Volver</a>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Instructor:</strong></div><div class="col-8">{{ cap.instructor|default:"—" }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Lugar:</strong></div><div class="col-8">{{ cap.lugar|default:"—" }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Horas:</strong></div><div class="col-8">{{ cap.horas }}h</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4"><strong>Costo:</strong></div><div class="col-8">S/ {{ cap.costo|floatformat:2|intcomma }}</div>
+                </div>
+                {% if cap.descripcion %}<p class="mt-2 mb-0 text-muted">{{ cap.descripcion }}</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card text-center">
+            <div class="stat-value text-primary">{{ cap.num_inscritos }}</div>
+            <div class="stat-label">
+                Inscritos
+                {% if cap.max_participantes %}
+                de {{ cap.max_participantes }}
+                {% endif %}
+            </div>
+            {% if cap.max_participantes and cap.max_participantes > 0 %}
+            <div class="mt-1">
+                <div class="progress" style="height:6px;">
+                    {% widthratio cap.num_inscritos cap.max_participantes 100 as pct_cupos %}
+                    <div class="progress-bar {% if pct_cupos >= 100 %}bg-danger{% elif pct_cupos >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+                         style="width:{% if pct_cupos > 100 %}100{% else %}{{ pct_cupos }}{% endif %}%;"></div>
+                </div>
+                {% if cap.num_inscritos >= cap.max_participantes %}
+                <span class="badge bg-danger mt-1" style="font-size:.72rem;">Cupos agotados</span>
+                {% else %}
+                <small class="text-muted" style="font-size:.72rem;">{{ cap.max_participantes|add:"-"|add:cap.num_inscritos }} cupos disponibles</small>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="stat-card text-center mt-2">
+            <div class="stat-value text-success">{{ cap.tasa_aprobacion }}%</div>
+            <div class="stat-label">Aprobación</div>
+            <div class="progress mt-1" style="height:5px;">
+                <div class="progress-bar bg-success" style="width:{{ cap.tasa_aprobacion }}%;"></div>
+            </div>
+        </div>
+        {% if cap.num_inscritos > 0 %}
+        <div class="mt-2">
+            <a href="{% url 'capacitacion_estadisticas' cap.pk %}" class="btn btn-sm btn-outline-info w-100">
+                <i class="fas fa-chart-bar me-1"></i>Ver Estadísticas
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Participantes -->
+<h5 class="mb-2"><i class="fas fa-users me-1"></i>Participantes</h5>
+
+<!-- Agregar participante -->
+<div class="mb-3">
+    <form class="d-flex gap-2" onsubmit="return agregar(event)">
+        <select id="selPersonal" class="form-select form-select-sm" style="max-width:350px">
+            <option value="">Agregar participante...</option>
+            {% for p in personal_disponible %}
+            <option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i></button>
+    </form>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th class="text-center">Asistencia</th>
+                    <th class="text-center">Nota</th>
+                    <th class="text-center">Aprobado</th>
+                    <th>Certificado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in asistencias %}
+                <tr>
+                    <td class="fw-semibold">{{ a.personal.apellidos_nombres }}</td>
+                    <td class="text-center">
+                        {% if a.estado == 'ASISTIO' %}<span class="badge bg-success">Asistió</span>
+                        {% elif a.estado == 'NO_ASISTIO' %}<span class="badge bg-danger">No Asistió</span>
+                        {% elif a.estado == 'PARCIAL' %}<span class="badge bg-warning text-dark">Parcial</span>
+                        {% else %}<span class="badge bg-light text-dark">Inscrito</span>{% endif %}
+                    </td>
+                    <td class="text-center">{{ a.nota|default:"—" }}</td>
+                    <td class="text-center">{% if a.aprobado %}<i class="fas fa-check-circle text-success"></i>{% else %}<i class="fas fa-times-circle text-muted"></i>{% endif %}</td>
+                    <td>
+                        {% if a.certificado %}
+                        <a href="{{ a.certificado.url }}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-1" title="Ver certificado subido"><i class="fas fa-file-pdf"></i></a>
+                        {% endif %}
+                        {% if a.aprobado %}
+                        <a href="{% url 'capacitacion_certificado_pdf' a.pk %}" target="_blank"
+                           class="btn btn-xs btn-outline-success py-0 px-1 ms-1"
+                           title="Generar certificado de participación en PDF">
+                            <i class="fas fa-award"></i>
+                        </a>
+                        {% endif %}
+                        {% if not a.certificado and not a.aprobado %}—{% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-xs btn-outline-secondary py-0 px-2" onclick="editarAsistencia({{ a.pk }})"><i class="fas fa-edit"></i></button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay participantes inscritos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function agregar(e) {
+    e.preventDefault();
+    const sel = document.getElementById('selPersonal');
+    if(!sel.value) return;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken','{{ csrf_token }}');
+    fd.append('personal_id', sel.value);
+    fetch("{% url 'participante_agregar' cap.pk %}", {method:'POST', body:fd})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+function completar() {
+    if(!confirm('¿Marcar esta capacitación como completada?')) return;
+    fetch("{% url 'capacitacion_completar' cap.pk %}", {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+function editarAsistencia(pk) {
+    const estado = prompt('Estado (INSCRITO/ASISTIO/NO_ASISTIO/PARCIAL):');
+    if(!estado) return;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken','{{ csrf_token }}');
+    fd.append('estado', estado);
+    const nota = prompt('Nota (dejar vacío si no aplica):');
+    if(nota) fd.append('nota', nota);
+    const aprobado = confirm('¿Aprobado?');
+    if(aprobado) fd.append('aprobado', 'on');
+    fetch(`/capacitaciones/asistencia/${pk}/`, {method:'POST', body:fd})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+</script>
+{% endblock %}

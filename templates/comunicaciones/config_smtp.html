@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Configuraci&oacute;n SMTP{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-server text-secondary me-2"></i>{{ titulo }}</h2>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-8 mb-3">
+                            <label class="form-label">Servidor SMTP</label>
+                            <input type="text" name="smtp_host" class="form-control"
+                                   value="{{ config.smtp_host }}" placeholder="smtp.gmail.com">
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label">Puerto</label>
+                            <input type="number" name="smtp_port" class="form-control"
+                                   value="{{ config.smtp_port }}" placeholder="587">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Usuario SMTP</label>
+                            <input type="text" name="smtp_user" class="form-control"
+                                   value="{{ config.smtp_user }}">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Contrase&ntilde;a SMTP</label>
+                            <input type="password" name="smtp_password" class="form-control"
+                                   value="{{ config.smtp_password }}" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Email remitente</label>
+                            <input type="email" name="email_from" class="form-control"
+                                   value="{{ config.email_from }}" placeholder="noreply@empresa.com">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Email de respuesta</label>
+                            <input type="email" name="email_reply_to" class="form-control"
+                                   value="{{ config.email_reply_to }}" placeholder="rrhh@empresa.com">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Firma HTML</label>
+                        <textarea name="firma_html" class="form-control" rows="3"
+                                  placeholder="<p>Atentamente,<br>Equipo RRHH</p>">{{ config.firma_html }}</textarea>
+                    </div>
+                    <div class="d-flex gap-3 mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="smtp_use_tls" class="form-check-input" id="useTls"
+                                   {% if config.smtp_use_tls %}checked{% endif %}>
+                            <label class="form-check-label" for="useTls">Usar TLS</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="activa" class="form-check-input" id="activa"
+                                   {% if config.activa %}checked{% endif %}>
+                            <label class="form-check-label" for="activa">
+                                <strong>SMTP Activo</strong>
+                                <small class="text-muted d-block">Habilita el env&iacute;o de emails</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar
+                        </button>
+                        <button type="button" class="btn btn-outline-info" id="btnTestSmtp">
+                            <i class="fas fa-plug me-1"></i>Probar conexi&oacute;n
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light"><strong>Estado</strong></div>
+            <div class="card-body">
+                {% if config.activa %}
+                <div class="alert alert-success mb-2">
+                    <i class="fas fa-check-circle me-1"></i>SMTP activo
+                </div>
+                {% else %}
+                <div class="alert alert-warning mb-2">
+                    <i class="fas fa-exclamation-triangle me-1"></i>SMTP inactivo: los emails no se enviar&aacute;n
+                </div>
+                {% endif %}
+                <p class="small text-muted mb-0">
+                    Servidor: <strong>{{ config.smtp_host }}:{{ config.smtp_port }}</strong><br>
+                    TLS: {% if config.smtp_use_tls %}S&iacute;{% else %}No{% endif %}<br>
+                    Remitente: {{ config.email_from|default:"No configurado" }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Resultado del test -->
+        <div id="testResult" class="mt-3" style="display:none"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('btnTestSmtp').addEventListener('click', function() {
+    const btn = this;
+    const resultDiv = document.getElementById('testResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Probando...';
+    resultDiv.style.display = 'none';
+
+    fetch('{% url "com_test_smtp" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            resultDiv.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-1"></i>' + data.mensaje + '</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times-circle me-1"></i>' + data.mensaje + '</div>';
+        }
+        resultDiv.style.display = '';
+    })
+    .catch(() => {
+        resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times-circle me-1"></i>Error de conexi&oacute;n</div>';
+        resultDiv.style.display = '';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug me-1"></i>Probar conexi&oacute;n';
+    });
+});
+</script>
+{% endblock %}

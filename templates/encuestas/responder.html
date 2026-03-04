@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}{{ encuesta.titulo }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-poll text-secondary me-2"></i>{{ titulo }}</h2>
+    {% if encuesta.anonima %}<span class="badge bg-dark">Anónima</span>{% endif %}
+    {% if encuesta.descripcion %}<p class="text-muted mt-1 mb-0">{{ encuesta.descripcion }}</p>{% endif %}
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    {% for p in preguntas %}
+    <div class="card shadow-sm mb-2">
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between">
+                <label class="fw-semibold mb-2">{{ forloop.counter }}. {{ p.texto }}{% if p.obligatoria %} *{% endif %}</label>
+                {% if p.categoria %}<span class="badge bg-light text-dark">{{ p.categoria }}</span>{% endif %}
+            </div>
+
+            {% if p.tipo == 'ESCALA_5' %}
+            <div class="d-flex gap-2 align-items-center">
+                {% for i in "12345" %}
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="preg_{{ p.pk }}" value="{{ i }}" class="form-check-input" {% if p.obligatoria %}required{% endif %}>
+                    <label class="form-check-label">{{ i }}</label>
+                </div>
+                {% endfor %}
+                <small class="text-muted ms-2">(1=Muy malo, 5=Excelente)</small>
+            </div>
+
+            {% elif p.tipo == 'ESCALA_10' %}
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+                {% for i in "0123456789" %}
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="preg_{{ p.pk }}" value="{{ i }}" class="form-check-input" {% if p.obligatoria %}required{% endif %}>
+                    <label class="form-check-label">{{ i }}</label>
+                </div>
+                {% endfor %}
+                <div class="form-check form-check-inline">
+                    <input type="radio" name="preg_{{ p.pk }}" value="10" class="form-check-input">
+                    <label class="form-check-label">10</label>
+                </div>
+                <small class="text-muted ms-2">(0=Nada probable, 10=Muy probable)</small>
+            </div>
+
+            {% elif p.tipo == 'SI_NO' %}
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input type="radio" name="preg_{{ p.pk }}" value="Sí" class="form-check-input" {% if p.obligatoria %}required{% endif %}>
+                    <label class="form-check-label">Sí</label>
+                </div>
+                <div class="form-check">
+                    <input type="radio" name="preg_{{ p.pk }}" value="No" class="form-check-input">
+                    <label class="form-check-label">No</label>
+                </div>
+            </div>
+
+            {% elif p.tipo == 'OPCION' %}
+            {% for opt in p.opciones %}
+            <div class="form-check">
+                <input type="radio" name="preg_{{ p.pk }}" value="{{ opt }}" class="form-check-input" {% if p.obligatoria and forloop.first %}required{% endif %}>
+                <label class="form-check-label">{{ opt }}</label>
+            </div>
+            {% endfor %}
+
+            {% elif p.tipo == 'TEXTO' %}
+            <textarea name="preg_{{ p.pk }}" class="form-control" rows="3" {% if p.obligatoria %}required{% endif %}></textarea>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-3">
+            <label class="form-label">Comentarios adicionales (opcional)</label>
+            <textarea name="comentarios" class="form-control" rows="3" placeholder="Cualquier otro comentario que quieras compartir..."></textarea>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Enviar Respuesta</button>
+        <a href="{% url 'mis_encuestas' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

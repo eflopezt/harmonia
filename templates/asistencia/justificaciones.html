@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Justificaciones de No-Marcaje{% endblock %}
+
+{% block extra_css %}
+<style>
+.estado-pill { font-size:.72rem; padding:3px 8px; border-radius:20px; font-weight:600; }
+.estado-PENDIENTE { background:#fff3cd; color:#856404; }
+.estado-APROBADA  { background:#d1e7dd; color:#0f5132; }
+.estado-RECHAZADA { background:#f8d7da; color:#842029; }
+.tipo-pill { font-size:.72rem; background:#e9ecef; padding:2px 8px; border-radius:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-pen-square text-secondary me-2"></i>Justificaciones de No-Marcaje</h2>
+        <small class="text-muted">Solicitudes enviadas por trabajadores desde el portal — RR.HH. revisa y aprueba</small>
+    </div>
+    {% if pendientes > 0 %}
+    <span class="badge bg-warning text-dark fs-6">
+        <i class="fas fa-clock me-1"></i>{{ pendientes }} pendiente{{ pendientes|pluralize }}
+    </span>
+    {% endif %}
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="d-flex gap-2 flex-wrap mb-3 align-items-end">
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Año</label>
+        <select name="anio" class="form-select form-select-sm" style="width:90px">
+            {% for y in anios %}<option value="{{ y }}" {% if y == anio_actual %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Mes</label>
+        <select name="mes" class="form-select form-select-sm" style="width:120px">
+            <option value="">Todos</option>
+            {% for val, nombre in meses %}<option value="{{ val }}" {% if val|stringformat:'s' == filtro_mes %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Estado</label>
+        <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for val, label in estados %}<option value="{{ val }}" {% if val == filtro_estado %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label form-label-sm fw-semibold mb-1">Trabajador</label>
+        <select name="personal" class="form-select form-select-sm" style="min-width:220px">
+            <option value="">Todos</option>
+            {% for p in personal_list %}
+            <option value="{{ p.pk }}" {% if p.pk|stringformat:'s' == filtro_personal %}selected{% endif %}>{{ p.apellidos_nombres }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<!-- Tabla -->
+<div class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Trabajador</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th>Revisado por</th>
+                <th>Comentario</th>
+                <th style="width:90px"></th>
+            </tr>
+        </thead>
+        <tbody id="justBody">
+            {% for j in justificaciones %}
+            <tr id="fila-j-{{ j.pk }}" data-pk="{{ j.pk }}" data-estado="{{ j.estado }}"
+                data-personal="{{ j.personal.apellidos_nombres|escapejs }}"
+                data-motivo="{{ j.motivo|escapejs }}"
+                data-comentario="{{ j.comentario_revisor|escapejs }}">
+                <td class="fw-semibold">{{ j.personal.apellidos_nombres }}</td>
+                <td>{{ j.fecha|date:"d/m/Y" }}</td>
+                <td><span class="tipo-pill">{{ j.get_tipo_display }}</span></td>
+                <td class="text-muted small">{{ j.motivo|truncatechars:60 }}</td>
+                <td><span class="estado-pill estado-{{ j.estado }}">{{ j.get_estado_display }}</span></td>
+                <td class="text-muted small">{{ j.revisado_por|default:"—" }}</td>
+                <td class="text-muted small">{{ j.comentario_revisor|default:"—"|truncatechars:50 }}</td>
+                <td class="text-end">
+                    {% if j.estado == 'PENDIENTE' %}
+                    <button class="btn btn-xs btn-success py-0 px-1 me-1"
+                            onclick="revisarJustificacion({{ j.pk }}, 'APROBADA')" title="Aprobar">
+                        <i class="fas fa-check" style="font-size:.7rem"></i>
+                    </button>
+                    <button class="btn btn-xs btn-danger py-0 px-1 me-1"
+                            onclick="revisarJustificacion({{ j.pk }}, 'RECHAZADA')" title="Rechazar">
+                        <i class="fas fa-times" style="font-size:.7rem"></i>
+                    </button>
+                    {% endif %}
+                    <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                            onclick="eliminarJustificacion({{ j.pk }}, '{{ j.personal.apellidos_nombres|escapejs }}')" title="Eliminar">
+                        <i class="fas fa-trash" style="font-size:.7rem"></i>
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr id="filaVacia">
+                <td colspan="8" class="text-center text-muted py-4">
+                    <i class="fas fa-pen-square fa-2x d-block mb-2 opacity-25"></i>
+                    Sin justificaciones para los filtros seleccionados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal de revisión (con comentario) -->
+<div class="modal fade" id="modalRevision" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalRevTitulo">Revisar Justificación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="revPk">
+                <input type="hidden" id="revAccion">
+                <div class="mb-2">
+                    <label class="form-label fw-semibold form-label-sm">Comentario (opcional)</label>
+                    <textarea class="form-control form-control-sm" id="revComentario" rows="3"
+                              placeholder="Ej: Verificado con supervisor de área..."></textarea>
+                </div>
+                <div id="revError" class="alert alert-danger py-2 small" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" id="btnConfirmarRevision" onclick="confirmarRevision()">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+const estadoClass = {
+    PENDIENTE: 'estado-PENDIENTE',
+    APROBADA:  'estado-APROBADA',
+    RECHAZADA: 'estado-RECHAZADA',
+};
+
+function revisarJustificacion(pk, accion) {
+    document.getElementById('revPk').value = pk;
+    document.getElementById('revAccion').value = accion;
+    document.getElementById('revComentario').value = '';
+    document.getElementById('revError').style.display = 'none';
+    const titulo = accion === 'APROBADA' ? 'Aprobar Justificación' : 'Rechazar Justificación';
+    document.getElementById('modalRevTitulo').textContent = titulo;
+    const btn = document.getElementById('btnConfirmarRevision');
+    btn.className = 'btn btn-sm ' + (accion === 'APROBADA' ? 'btn-success' : 'btn-danger');
+    new bootstrap.Modal(document.getElementById('modalRevision')).show();
+}
+
+async function confirmarRevision() {
+    const pk = document.getElementById('revPk').value;
+    const accion = document.getElementById('revAccion').value;
+    const comentario = document.getElementById('revComentario').value.trim();
+    const errDiv = document.getElementById('revError');
+
+    const resp = await fetch(`/asistencia/justificaciones/${pk}/revisar/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ accion, comentario }),
+    });
+    const data = await resp.json();
+
+    if (!data.ok) {
+        errDiv.textContent = data.error;
+        errDiv.style.display = '';
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalRevision')).hide();
+
+    const tr = document.getElementById('fila-j-' + pk);
+    if (tr) {
+        tr.querySelector('.estado-pill').className = `estado-pill ${estadoClass[data.estado] || ''}`;
+        tr.querySelector('.estado-pill').textContent = data.estado_display;
+        // Actualizar revisado_por y comentario
+        const cells = tr.querySelectorAll('td');
+        if (cells[5]) cells[5].textContent = data.revisado_por || '—';
+        if (cells[6]) cells[6].textContent = (data.comentario_revisor || '—').substring(0, 50);
+        // Quitar botones aprobar/rechazar
+        const acciones = tr.querySelector('td:last-child');
+        if (acciones) {
+            acciones.querySelectorAll('.btn-success, .btn-danger:not(.btn-outline-danger)').forEach(b => b.remove());
+        }
+    }
+}
+
+async function eliminarJustificacion(pk, nombre) {
+    if (!confirm(`¿Eliminar la justificación de "${nombre}"?`)) return;
+    const resp = await fetch(`/asistencia/justificaciones/${pk}/eliminar/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        document.getElementById('fila-j-' + pk)?.remove();
+        if (!document.querySelector('#justBody tr')) {
+            document.getElementById('justBody').innerHTML =
+                '<tr id="filaVacia"><td colspan="8" class="text-center text-muted py-4">Sin justificaciones.</td></tr>';
+        }
+    }
+}
+</script>
+{% endblock %}

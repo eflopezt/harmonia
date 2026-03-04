@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Falta{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-cog text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ tipos|length }} tipo{{ tipos|length|pluralize:"s" }} configurado{{ tipos|length|pluralize:"s" }}</small>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTipo"><i class="fas fa-plus me-1"></i>Nuevo Tipo</button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Código</th>
+                    <th class="text-center">Gravedad</th>
+                    <th>Base Legal</th>
+                    <th class="text-center">Activo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tipos %}
+                <tr>
+                    <td class="fw-semibold">{{ t.nombre }}</td>
+                    <td><code>{{ t.codigo }}</code></td>
+                    <td class="text-center">
+                        {% if t.gravedad == 'LEVE' %}<span class="badge bg-info">Leve</span>
+                        {% elif t.gravedad == 'GRAVE' %}<span class="badge bg-warning text-dark">Grave</span>
+                        {% elif t.gravedad == 'MUY_GRAVE' %}<span class="badge bg-danger">Muy Grave</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ t.gravedad }}</span>{% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ t.base_legal }}</td>
+                    <td class="text-center">
+                        {% if t.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay tipos de falta configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Crear Tipo -->
+<div class="modal fade" id="modalTipo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Tipo de Falta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formTipo">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" name="nombre" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Código *</label>
+                        <input type="text" name="codigo" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Gravedad *</label>
+                        <select name="gravedad" class="form-select form-select-sm" required>
+                            <option value="LEVE">Leve</option>
+                            <option value="GRAVE">Grave</option>
+                            <option value="MUY_GRAVE">Muy Grave</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Descripción</label>
+                        <textarea name="descripcion" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Base Legal</label>
+                        <input type="text" name="base_legal" class="form-control form-control-sm" placeholder="Ej: DS 003-97-TR Art. 25">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('formTipo').addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch('{% url "tipo_falta_crear" %}', {method:'POST', body: new FormData(this)})
+    .then(r=>r.json()).then(d=>{
+        if(d.ok) location.reload();
+        else alert(d.error);
+    });
+});
+</script>
+{% endblock %}

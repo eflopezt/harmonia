@@ -1,0 +1,37 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # Panel y portal
+    path('', views.nominas_panel, name='nominas_panel'),
+    path('mis-recibos/', views.mis_recibos, name='mis_recibos'),
+
+    # Conceptos remunerativos
+    path('conceptos/', views.conceptos_panel, name='nominas_conceptos'),
+    path('conceptos/crear/', views.concepto_crear, name='nominas_concepto_crear'),
+    path('conceptos/<int:pk>/eliminar/', views.concepto_eliminar, name='nominas_concepto_eliminar'),
+
+    # Períodos
+    path('periodos/nuevo/', views.periodo_crear, name='nominas_periodo_crear'),
+    path('periodos/<int:pk>/', views.periodo_detalle, name='nominas_periodo_detalle'),
+    path('periodos/<int:pk>/generar/', views.periodo_generar, name='nominas_periodo_generar'),
+    path('periodos/<int:pk>/aprobar/', views.periodo_aprobar, name='nominas_periodo_aprobar'),
+    path('periodos/<int:pk>/exportar/', views.periodo_exportar, name='nominas_periodo_exportar'),
+    path('periodos/<int:pk>/resumen/', views.periodo_resumen_ajax, name='nominas_periodo_resumen'),
+    path('periodos/<int:pk>/boletas.zip', views.periodo_boletas_zip, name='nominas_periodo_boletas_zip'),
+
+    # Registros individuales
+    path('registros/<int:pk>/', views.registro_detalle, name='nominas_registro_detalle'),
+    path('registros/<int:pk>/editar/', views.registro_editar, name='nominas_registro_editar'),
+
+    # Boleta PDF
+    path('registros/<int:pk>/boleta.pdf', views.boleta_pdf, name='nominas_boleta_pdf'),
+
+    # Gratificaciones y períodos especiales
+    path('gratificaciones/', views.gratificacion_panel, name='nominas_gratificaciones'),
+    path('periodos/especial/crear/', views.crear_periodo_especial, name='nominas_crear_especial'),
+
+    # IR 5ta Categoría
+    path('ir5ta/', views.ir5ta_panel, name='nominas_ir5ta'),
+    path('registros/<int:pk>/ir5ta/', views.registro_ir5ta_ajax, name='nominas_registro_ir5ta'),
+]

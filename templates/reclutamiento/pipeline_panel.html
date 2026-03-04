@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Pipeline de Seleccion{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Kanban layout ──────────────────────────────────── */
+.kanban-wrapper {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 16px;
+    min-height: 420px;
+    cursor: default;
+}
+.kanban-col {
+    min-width: 250px;
+    max-width: 290px;
+    flex: 0 0 auto;
+    background: #f8fafc;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    transition: box-shadow .2s;
+}
+.kanban-col.drag-over {
+    box-shadow: 0 0 0 2px #5eead4;
+    background: #f0fdf4;
+}
+.kanban-col-header {
+    padding: 10px 14px;
+    border-radius: 10px 10px 0 0;
+    font-size: .8rem;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    letter-spacing: .03em;
+    /* left-border color accent per stage is added via inline border-left */
+}
+.kanban-col-body {
+    padding: 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 580px;
+    overflow-y: auto;
+}
+/* ── Kanban cards ───────────────────────────────────── */
+.kanban-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+    font-size: .8rem;
+    transition: box-shadow .15s, transform .1s;
+    cursor: grab;
+    position: relative;
+}
+.kanban-card:active { cursor: grabbing; }
+.kanban-card:hover {
+    box-shadow: 0 3px 10px rgba(0,0,0,.1);
+    transform: translateY(-1px);
+}
+.kanban-card.dragging {
+    opacity: .5;
+    cursor: grabbing;
+}
+.card-name {
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 3px;
+}
+.card-vacante {
+    color: #0f766e;
+    font-size: .72rem;
+    margin-bottom: 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.card-meta {
+    color: #64748b;
+    font-size: .72rem;
+}
+.dias-badge {
+    font-size: .68rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+/* ── Drag hint ──────────────────────────────────────── */
+.drag-hint {
+    text-align: center;
+    font-size: .72rem;
+    color: #94a3b8;
+    padding: 10px 0 4px;
+    letter-spacing: .03em;
+}
+/* ── Drop placeholder ───────────────────────────────── */
+.kanban-placeholder {
+    border: 2px dashed #5eead4;
+    border-radius: 8px;
+    height: 60px;
+    background: #f0fdf4;
+}
+/* ── Card actions ───────────────────────────────────── */
+.card-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-columns text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">
+            Vista global de todas las postulaciones activas
+            &middot; <i class="fas fa-hand-paper me-1" style="color:#5eead4"></i>Arrastra las tarjetas entre columnas para mover etapas
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reclutamiento_dashboard' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-chart-line me-1"></i>Dashboard
+        </a>
+        <a href="{% url 'vacantes_panel' %}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-briefcase me-1"></i>Vacantes
+        </a>
+    </div>
+</div>
+
+<!-- Filtro por vacante -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0 fw-semibold">Filtrar por Vacante</label>
+                <select name="vacante" class="form-select form-select-sm" style="width:320px">
+                    <option value="">Todas las vacantes activas</option>
+                    {% for v in vacantes_activas %}
+                    <option value="{{ v.pk }}" {% if filtro_vacante == v.pk|stringformat:"d" %}selected{% endif %}>{{ v.titulo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
+            {% if filtro_vacante %}
+            <a href="{% url 'pipeline_panel' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>Limpiar
+            </a>
+            {% if vacantes_activas %}
+            {% for v in vacantes_activas %}
+            {% if v.pk|stringformat:"d" == filtro_vacante %}
+            <a href="{% url 'reclutamiento_scoring' v.pk %}" class="btn btn-sm btn-outline-warning">
+                <i class="fas fa-star-half-alt me-1"></i>Scoring de esta Vacante
+            </a>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Hint de drag-drop -->
+<div class="drag-hint mb-2">
+    <i class="fas fa-arrows-alt me-1"></i>Arrastra las tarjetas para cambiar de etapa
+</div>
+
+<!-- Kanban -->
+<div class="kanban-wrapper" id="kanbanWrapper">
+    {% for col in pipeline %}
+    <div class="kanban-col" id="col-{{ col.etapa.pk }}" data-etapa-id="{{ col.etapa.pk }}">
+        <div class="kanban-col-header" style="background:{{ col.etapa.color }}">
+            <span>{{ col.etapa.nombre }}</span>
+            <span class="badge bg-white" style="color:{{ col.etapa.color }}">{{ col.count }}</span>
+        </div>
+        <div class="kanban-col-body" id="body-{{ col.etapa.pk }}"
+             ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, {{ col.etapa.pk }})">
+            {% for p in col.postulaciones %}
+            <div class="kanban-card"
+                 id="card-{{ p.pk }}"
+                 draggable="true"
+                 style="border-left-color:{{ col.etapa.color }}"
+                 ondragstart="onDragStart(event, {{ p.pk }})"
+                 ondragend="onDragEnd(event)">
+
+                <!-- Nombre -->
+                <div class="card-name">
+                    <a href="{% url 'postulacion_detalle' p.pk %}" class="text-decoration-none text-dark">
+                        {{ p.nombre_completo }}
+                    </a>
+                </div>
+
+                <!-- Vacante -->
+                <div class="card-vacante" title="{{ p.vacante.titulo }}">
+                    <i class="fas fa-briefcase me-1"></i>{{ p.vacante.titulo|truncatechars:32 }}
+                </div>
+
+                <!-- Meta: fuente + dias en etapa -->
+                <div class="card-meta d-flex align-items-center gap-1 flex-wrap mb-1">
+                    <span class="badge bg-light text-dark border">{{ p.get_fuente_display }}</span>
+
+                    {% if p.dias_en_etapa > 14 %}
+                        <span class="dias-badge" style="background:#dc2626;color:#fff;" title="{{ p.dias_en_etapa }} dias en esta etapa">
+                            <i class="fas fa-fire-alt"></i> {{ p.dias_en_etapa }}d
+                        </span>
+                    {% elif p.dias_en_etapa > 7 %}
+                        <span class="dias-badge" style="background:#f97316;color:#fff;" title="{{ p.dias_en_etapa }} dias en esta etapa">
+                            {{ p.dias_en_etapa }}d
+                        </span>
+                    {% else %}
+                        <span class="dias-badge" style="background:#e2e8f0;color:#475569;">
+                            {{ p.dias_en_etapa }}d
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Acciones rapidas -->
+                <div class="card-actions">
+                    <!-- Mover etapa dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-1 dropdown-toggle"
+                                style="font-size:.68rem"
+                                data-bs-toggle="dropdown"
+                                title="Mover a otra etapa">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                        <ul class="dropdown-menu" style="font-size:.78rem">
+                            {% for e in etapas %}
+                            {% if e.pk != col.etapa.pk %}
+                            <li>
+                                <a class="dropdown-item" href="#"
+                                   onclick="moverEtapa({{ p.pk }}, {{ e.pk }}); return false;">
+                                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ e.color }};margin-right:6px"></span>
+                                    {{ e.nombre }}
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Agendar entrevista -->
+                    <a href="{% url 'entrevista_agendar' p.pk %}"
+                       class="btn btn-outline-info btn-sm py-0 px-1"
+                       style="font-size:.68rem"
+                       title="Agendar Entrevista">
+                        <i class="fas fa-calendar-plus"></i>
+                    </a>
+
+                    <!-- Historial -->
+                    <a href="{% url 'postulacion_historial' p.pk %}"
+                       class="btn btn-outline-secondary btn-sm py-0 px-1"
+                       style="font-size:.68rem"
+                       title="Ver historial completo">
+                        <i class="fas fa-history"></i>
+                    </a>
+
+                    <!-- Scoring vacante -->
+                    <a href="{% url 'reclutamiento_scoring' p.vacante.pk %}"
+                       class="btn btn-sm py-0 px-1"
+                       style="font-size:.68rem;background:#5eead4;color:#0d2b27;"
+                       title="Ver scoring de la vacante">
+                        <i class="fas fa-star-half-alt"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted small py-4 drop-hint">
+                <i class="fas fa-inbox d-block mb-1" style="font-size:1.2rem;color:#cbd5e1"></i>
+                Sin candidatos
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+let draggedCardId = null;
+
+function onDragStart(event, postId) {
+    draggedCardId = postId;
+    event.dataTransfer.effectAllowed = 'move';
+    event.target.classList.add('dragging');
+}
+
+function onDragEnd(event) {
+    event.target.classList.remove('dragging');
+    document.querySelectorAll('.kanban-col').forEach(col => col.classList.remove('drag-over'));
+}
+
+function onDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const col = event.currentTarget.closest('.kanban-col');
+    if (col) col.classList.add('drag-over');
+}
+
+function onDragLeave(event) {
+    const col = event.currentTarget.closest('.kanban-col');
+    if (col) col.classList.remove('drag-over');
+}
+
+function onDrop(event, etapaId) {
+    event.preventDefault();
+    const col = event.currentTarget.closest('.kanban-col');
+    if (col) col.classList.remove('drag-over');
+    if (!draggedCardId) return;
+    moverEtapa(draggedCardId, etapaId);
+    draggedCardId = null;
+}
+
+function moverEtapa(postulacionId, etapaId) {
+    fetch(`/reclutamiento/postulacion/${postulacionId}/mover/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `etapa_id=${etapaId}`,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error al mover candidato');
+        }
+    })
+    .catch(() => alert('Error de conexion'));
+}
+</script>
+{% endblock %}

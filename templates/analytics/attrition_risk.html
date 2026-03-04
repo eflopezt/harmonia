@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Riesgo de Rotación — Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI Cards ── */
+.risk-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.risk-kpi {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.risk-kpi .kpi-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: .625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.risk-kpi .kpi-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.risk-kpi .kpi-label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #6b7280;
+}
+
+/* ── Risk Badges ── */
+.badge-HIGH   { background: #fee2e2; color: #dc2626; font-weight: 700; }
+.badge-MEDIUM { background: #fef3c7; color: #b45309; font-weight: 700; }
+.badge-LOW    { background: #dcfce7; color: #16a34a; font-weight: 700; }
+.risk-badge {
+    font-size: .72rem;
+    padding: .25rem .65rem;
+    border-radius: 999px;
+    display: inline-block;
+    white-space: nowrap;
+}
+.score-badge {
+    font-size: .78rem;
+    font-weight: 700;
+    padding: .25rem .6rem;
+    border-radius: .375rem;
+    min-width: 2.5rem;
+    text-align: center;
+}
+
+/* ── Factor Pills ── */
+.factor-pill {
+    display: inline-block;
+    font-size: .68rem;
+    padding: .15rem .5rem;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #374151;
+    margin: .1rem .1rem 0 0;
+    white-space: nowrap;
+}
+
+/* ── Table ── */
+.risk-table th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7280;
+    font-weight: 600;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding: .6rem .75rem;
+    white-space: nowrap;
+}
+.risk-table td {
+    font-size: .82rem;
+    vertical-align: middle;
+    padding: .6rem .75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.risk-table tbody tr:hover { background: #f9fafb; }
+.risk-table tbody tr.row-HIGH { border-left: 3px solid #dc2626; }
+.risk-table tbody tr.row-MEDIUM { border-left: 3px solid #f59e0b; }
+.risk-table tbody tr.row-LOW { border-left: 3px solid #16a34a; }
+
+/* ── Chart ── */
+.chart-container {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ── Alert box ── */
+.info-banner {
+    background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+    border: 1px solid #bfdbfe;
+    border-radius: .75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: .83rem;
+    color: #1e40af;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-1 fw-bold">
+            <i class="fas fa-shield-alt me-2" style="color:#dc2626"></i>Riesgo de Rotación
+        </h2>
+        <p class="text-muted mb-0" style="font-size:.83rem">
+            Scoring por empleado basado en: tipo de contrato, ausentismo, banda salarial,
+            evaluaciones y capacitaciones recientes.
+        </p>
+    </div>
+    <a href="{% url 'analytics_dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Dashboard
+    </a>
+</div>
+
+<!-- Info banner -->
+<div class="info-banner">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Metodología:</strong>
+    Contrato vence en 60 días (+30 pts) · Faltas &gt; 3/mes (+20 pts) ·
+    Sueldo bajo banda (+15 pts) · Sin evaluación reciente (+10 pts) ·
+    Sin capacitación último año (+10 pts).
+    <strong>Alto</strong> ≥ 40 pts · <strong>Medio</strong> 20-39 pts · <strong>Bajo</strong> &lt; 20 pts.
+</div>
+
+<!-- KPI Cards -->
+<div class="risk-kpi-grid">
+    <div class="risk-kpi">
+        <div class="kpi-icon" style="background:#fee2e2">
+            <i class="fas fa-exclamation-triangle" style="color:#dc2626"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Riesgo Alto</div>
+            <div class="kpi-value" style="color:#dc2626">{{ count_high }}</div>
+        </div>
+    </div>
+    <div class="risk-kpi">
+        <div class="kpi-icon" style="background:#fef3c7">
+            <i class="fas fa-exclamation-circle" style="color:#d97706"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Riesgo Medio</div>
+            <div class="kpi-value" style="color:#d97706">{{ count_medium }}</div>
+        </div>
+    </div>
+    <div class="risk-kpi">
+        <div class="kpi-icon" style="background:#dcfce7">
+            <i class="fas fa-check-circle" style="color:#16a34a"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Riesgo Bajo</div>
+            <div class="kpi-value" style="color:#16a34a">{{ count_low }}</div>
+        </div>
+    </div>
+    <div class="risk-kpi">
+        <div class="kpi-icon" style="background:#ede9fe">
+            <i class="fas fa-users" style="color:#7c3aed"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Total Analizados</div>
+            <div class="kpi-value" style="color:#7c3aed">{{ total }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart + Table layout -->
+<div class="row g-4 mb-4">
+    <!-- Horizontal Bar Chart: Top 10 -->
+    <div class="col-lg-5">
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-chart-bar me-1 text-muted"></i>Top 10 Empleados en Riesgo
+            </h6>
+            <canvas id="chartAttrition" height="320"></canvas>
+        </div>
+    </div>
+
+    <!-- Summary por nivel -->
+    <div class="col-lg-7">
+        <div class="chart-container h-100">
+            <h6 class="mb-3 fw-semibold">
+                <i class="fas fa-pie-chart me-1 text-muted"></i>Distribución de Riesgo
+            </h6>
+            <div class="row align-items-center">
+                <div class="col-sm-5">
+                    <canvas id="chartRiskDist" height="220"></canvas>
+                </div>
+                <div class="col-sm-7">
+                    <table class="table table-sm mb-0" style="font-size:.84rem">
+                        <thead>
+                            <tr>
+                                <th style="font-size:.72rem;color:#6b7280;text-transform:uppercase">Nivel</th>
+                                <th class="text-end" style="font-size:.72rem;color:#6b7280;text-transform:uppercase">Empleados</th>
+                                <th class="text-end" style="font-size:.72rem;color:#6b7280;text-transform:uppercase">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="risk-badge badge-HIGH">ALTO</span></td>
+                                <td class="text-end fw-bold">{{ count_high }}</td>
+                                <td class="text-end text-muted">
+                                    {% if total %}{% widthratio count_high total 100 %}%{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><span class="risk-badge badge-MEDIUM">MEDIO</span></td>
+                                <td class="text-end fw-bold">{{ count_medium }}</td>
+                                <td class="text-end text-muted">
+                                    {% if total %}{% widthratio count_medium total 100 %}%{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><span class="risk-badge badge-LOW">BAJO</span></td>
+                                <td class="text-end fw-bold">{{ count_low }}</td>
+                                <td class="text-end text-muted">
+                                    {% if total %}{% widthratio count_low total 100 %}%{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <hr class="my-2">
+                    <p class="text-muted mb-0" style="font-size:.78rem">
+                        <i class="fas fa-lightbulb me-1 text-warning"></i>
+                        Los empleados con riesgo alto requieren atención prioritaria de RRHH.
+                        Revise los factores específicos de cada caso.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de empleados -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-table me-2 text-muted"></i>Detalle por Empleado
+            <span class="badge bg-secondary ms-1" style="font-size:.7rem">{{ total }}</span>
+        </h6>
+        <div class="d-flex gap-2">
+            <span class="text-muted" style="font-size:.78rem">Ordenado: Alto riesgo primero</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table risk-table mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Empleado</th>
+                    <th>Área</th>
+                    <th>Cargo</th>
+                    <th class="text-end">Sueldo</th>
+                    <th>Contrato</th>
+                    <th class="text-center">Score</th>
+                    <th class="text-center">Riesgo</th>
+                    <th>Factores</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr class="row-{{ r.nivel }}">
+                    <td class="text-muted" style="font-size:.75rem">{{ forloop.counter }}</td>
+                    <td>
+                        <span class="fw-semibold" style="font-size:.82rem">{{ r.emp.apellidos_nombres }}</span>
+                        <div class="text-muted" style="font-size:.72rem">{{ r.emp.nro_doc }}</div>
+                    </td>
+                    <td style="font-size:.8rem">{{ r.area }}</td>
+                    <td style="font-size:.8rem">{{ r.emp.cargo|truncatechars:28 }}</td>
+                    <td class="text-end" style="font-size:.82rem">
+                        {% if r.emp.sueldo_base %}
+                            S/ {{ r.emp.sueldo_base|floatformat:2|intcomma }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:.78rem">
+                        {{ r.emp.get_tipo_contrato_display|default:"—"|truncatechars:20 }}
+                        {% if r.emp.fecha_fin_contrato %}
+                            <div class="text-muted" style="font-size:.7rem">
+                                vence {{ r.emp.fecha_fin_contrato|date:"d M Y" }}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span class="score-badge
+                            {% if r.nivel == 'HIGH' %}badge-HIGH
+                            {% elif r.nivel == 'MEDIUM' %}badge-MEDIUM
+                            {% else %}badge-LOW{% endif %}">
+                            {{ r.score }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <span class="risk-badge badge-{{ r.nivel }}">
+                            {% if r.nivel == 'HIGH' %}ALTO
+                            {% elif r.nivel == 'MEDIUM' %}MEDIO
+                            {% else %}BAJO{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% for f in r.factores %}
+                            <span class="factor-pill">{{ f }}</span>
+                        {% empty %}
+                            <span class="text-muted" style="font-size:.75rem">Sin factores</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-4 text-muted">
+                        <i class="fas fa-check-circle fa-2x d-block mb-2 opacity-50" style="color:#10b981"></i>
+                        No hay empleados activos para analizar.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const defaultFont = { family: "'Inter','Segoe UI',sans-serif", size: 11 };
+    Chart.defaults.font = defaultFont;
+    Chart.defaults.color = '#6b7280';
+
+    // ── Horizontal Bar: Top 10 ──
+    const attrLabels = {{ chart_labels|safe }};
+    const attrScores = {{ chart_scores|safe }};
+    const attrColors = {{ chart_colors|safe }};
+
+    if (attrLabels.length) {
+        new Chart(document.getElementById('chartAttrition'), {
+            type: 'bar',
+            data: {
+                labels: attrLabels,
+                datasets: [{
+                    label: 'Score de Riesgo',
+                    data: attrScores,
+                    backgroundColor: attrColors.map(c => c + 'cc'),
+                    borderColor: attrColors,
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` Score: ${ctx.parsed.x} pts`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: '#f3f4f6' },
+                        ticks: { font: { size: 10 } },
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: function(val, idx) {
+                                const label = this.getLabelForValue(val);
+                                return label.length > 20 ? label.substring(0, 18) + '…' : label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Donut: Distribución por nivel ──
+    const highCnt  = {{ count_high }};
+    const medCnt   = {{ count_medium }};
+    const lowCnt   = {{ count_low }};
+
+    if (highCnt + medCnt + lowCnt > 0) {
+        new Chart(document.getElementById('chartRiskDist'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Riesgo Alto', 'Riesgo Medio', 'Riesgo Bajo'],
+                datasets: [{
+                    data: [highCnt, medCnt, lowCnt],
+                    backgroundColor: ['#dc2626cc', '#f59e0bcc', '#16a34acc'],
+                    borderColor: ['#dc2626', '#f59e0b', '#16a34a'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '60%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.label}: ${ctx.parsed} empleados`
+                        }
+                    }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

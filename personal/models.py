@@ -4,6 +4,7 @@ Modelos de datos para el sistema de gestión de personal.
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.utils.functional import cached_property
 from decimal import Decimal
 from .user_models import UserProfile
 
@@ -11,22 +12,34 @@ from .user_models import UserProfile
 class Area(models.Model):
     """
     Áreas o departamentos de alto nivel.
-    Cada área puede tener uno o varios responsables.
+    Cada área puede tener uno o varios responsables y un jefe principal.
     """
     nombre = models.CharField(max_length=150, unique=True, verbose_name="Nombre de Área")
+    codigo = models.CharField(
+        max_length=20, blank=True, verbose_name="Código / Centro de Costo",
+        help_text="Código interno o de centro de costo (ej: ADM, OPS-01, GG)"
+    )
+    jefe_area = models.ForeignKey(
+        'Personal',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='area_jefatura',
+        verbose_name="Jefe de Área",
+        help_text="Responsable principal del área (jefe inmediato SUNAT)"
+    )
     responsables = models.ManyToManyField(
         'Personal',
         blank=True,
         related_name='areas_responsable',
-        verbose_name="Responsables",
-        help_text="Personas responsables de esta área"
+        verbose_name="Responsables adicionales",
+        help_text="Personas con acceso de gestión al área (además del jefe)"
     )
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     activa = models.BooleanField(default=True, verbose_name="Activa")
-    
+
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         verbose_name = "Área"
         verbose_name_plural = "Áreas"
@@ -35,10 +48,17 @@ class Area(models.Model):
             models.Index(fields=['nombre']),
             models.Index(fields=['activa']),
         ]
-    
+
     def __str__(self):
         return self.nombre
-    
+
+    @property
+    def display_nombre(self):
+        """Muestra código + nombre si el código existe."""
+        if self.codigo:
+            return f"[{self.codigo}] {self.nombre}"
+        return self.nombre
+
     def clean(self):
         """Validación del modelo usando validadores centralizados."""
         super().clean()
@@ -104,7 +124,25 @@ class Personal(models.Model):
         ('Suspendido', 'Suspendido'),
         ('Cesado', 'Cesado'),
     ]
-    
+
+    MOTIVO_CESE_CHOICES = [
+        # Voluntarios
+        ('RENUNCIA',        'Renuncia voluntaria'),
+        ('MUTUO_ACUERDO',   'Mutuo acuerdo'),
+        ('JUBILACION',      'Jubilacion'),
+        # Por el empleador (DS 003-97-TR)
+        ('VENCIMIENTO',     'Vencimiento de contrato'),
+        ('NO_RENOVACION',   'No renovacion'),
+        ('DESPIDO_CAUSA',   'Despido con causa justificada'),
+        ('CESE_COLECTIVO',  'Cese colectivo'),
+        ('LIQUIDACION',     'Liquidacion / Disolucion empresa'),
+        # Especiales
+        ('FALLECIMIENTO',   'Fallecimiento'),
+        ('INVALIDEZ',       'Invalidez permanente'),
+        ('ABANDONO',        'Abandono de trabajo'),
+        ('OTRO',            'Otro'),
+    ]
+
     AFP_CHOICES = [
         ('Habitat', 'Habitat'),
         ('Integra', 'Integra'),
@@ -121,6 +159,16 @@ class Personal(models.Model):
         ('Falabella', 'Falabella'),
     ]
     
+    # --- Multi-empresa ---
+    empresa = models.ForeignKey(
+        'empresas.Empresa',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='personal',
+        verbose_name='Empresa',
+        db_index=True,
+    )
+
     # --- Vinculación con usuario del sistema ---
     usuario = models.OneToOneField(
         User,
@@ -162,6 +210,40 @@ class Personal(models.Model):
         choices=TIPO_TRAB_CHOICES,
         verbose_name="Tipo de Trabajador"
     )
+    CATEGORIA_CHOICES = [
+        ('NORMAL', 'Normal'),
+        ('CONFIANZA', 'Personal de Confianza'),
+        ('DIRECCION', 'Personal de Dirección'),
+    ]
+    categoria = models.CharField(
+        max_length=12,
+        choices=CATEGORIA_CHOICES,
+        default='NORMAL',
+        verbose_name="Categoría",
+        help_text="Confianza/Dirección: excluidos de jornada máxima (D.Leg. 854 art.5). Sin HE ni control de faltas."
+    )
+    REGIMEN_PENSION_CHOICES = [
+        ('AFP', 'AFP'),
+        ('ONP', 'ONP'),
+        ('SIN_PENSION', 'Sin Régimen'),
+    ]
+    regimen_pension = models.CharField(
+        max_length=12,
+        choices=REGIMEN_PENSION_CHOICES,
+        default='AFP',
+        verbose_name="Régimen Pensionario"
+    )
+    cuspp = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="CUSPP",
+        help_text="Código Único del SPP (solo AFP)"
+    )
+    asignacion_familiar = models.BooleanField(
+        default=False,
+        verbose_name="Asignación Familiar",
+        help_text="Percibe 10% RMV por hijo(s) menor(es)"
+    )
     subarea = models.ForeignKey(
         SubArea,
         on_delete=models.SET_NULL,
@@ -180,13 +262,20 @@ class Personal(models.Model):
         blank=True,
         verbose_name="Fecha de Cese"
     )
+    motivo_cese = models.CharField(
+        max_length=20,
+        choices=MOTIVO_CESE_CHOICES,
+        blank=True,
+        verbose_name="Motivo de Cese",
+        help_text="Causa del cese laboral (DS 003-97-TR). Requerido al cesar al trabajador.",
+    )
     estado = models.CharField(
         max_length=20,
         choices=ESTADO_CHOICES,
         default='Activo',
         verbose_name="Estado"
     )
-    
+
     # --- Datos personales ---
     fecha_nacimiento = models.DateField(
         null=True,
@@ -314,6 +403,51 @@ class Personal(models.Model):
         blank=True,
         verbose_name="Régimen de Turno",
         help_text="Ej: 14x7, 21x7, etc."
+    )
+
+    # --- Contrato laboral (D.Leg. 728) ---
+    TIPO_CONTRATO_CHOICES = [
+        ('INDEFINIDO', 'Contrato Indefinido'),
+        ('PLAZO_FIJO', 'Contrato a Plazo Fijo (Modal)'),
+        ('INICIO_ACTIVIDAD', 'Inicio de Actividad'),
+        ('NECESIDAD_MERCADO', 'Necesidad de Mercado'),
+        ('RECONVERSION_EMPRESARIAL', 'Reconversión Empresarial'),
+        ('OBRA_SERVICIO', 'Para Obra o Servicio'),
+        ('DISCONTINUO', 'Intermitente / Discontinuo'),
+        ('TEMPORADA', 'De Temporada'),
+        ('SUPLENCIA', 'De Suplencia'),
+        ('EMERGENCIA', 'Emergencia Accidental'),
+        ('SNP', 'Locación de Servicios (SNP)'),
+        ('PRACTICANTE', 'Practicante Pre/Profesional'),
+        ('OTRO', 'Otro'),
+    ]
+    tipo_contrato = models.CharField(
+        max_length=25,
+        choices=TIPO_CONTRATO_CHOICES,
+        blank=True,
+        verbose_name="Modalidad de Contrato",
+        help_text="Modalidad contractual según D.Leg. 728"
+    )
+    fecha_inicio_contrato = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Inicio del contrato vigente",
+        help_text="Fecha de inicio del contrato actual"
+    )
+    fecha_fin_contrato = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Vencimiento del contrato",
+        help_text="Fecha de vencimiento. Vacío = indefinido o sin fecha pactada."
+    )
+    renovacion_automatica = models.BooleanField(
+        default=False,
+        verbose_name="Renovación automática",
+        help_text="Marcar si el contrato se renueva automáticamente al vencer"
+    )
+    observaciones_contrato = models.TextField(
+        blank=True,
+        verbose_name="Observaciones del contrato"
     )
     
     # --- Roster ---
@@ -450,25 +584,27 @@ class Personal(models.Model):
         
         return True, "", dias_pendientes
 
-    @property
+    @cached_property
     def dias_libres_ganados(self):
-        """Propiedad para obtener días libres ganados."""
+        """
+        Días libres ganados desde el roster (T y TR).
+        cached_property: se calcula una sola vez por instancia en el request.
+        """
         return self.calcular_dias_libres_ganados()
-    
-    @property
+
+    @cached_property
     def dias_libres_pendientes(self):
         """
         Días Libres Pendientes = (Días Libres al 31/12/25 + Días Libres Ganados) - Días DL usados - Días DLA usados
         DLA descuenta del saldo al 31/12/25, no de los ganados.
+
+        cached_property: evita re-calcular en cada acceso del template.
+        Antes generaba 3 SELECT COUNT por acceso; ahora: 0 si ya fue calculado.
         """
-        dias_ganados = self.calcular_dias_libres_ganados()
-        dias_dl_usados = self.calcular_dias_dl_usados()
+        dias_ganados    = self.calcular_dias_libres_ganados()
+        dias_dl_usados  = self.calcular_dias_dl_usados()
         dias_dla_usados = self.calcular_dias_dla_usados()
-        
-        # DLA descuenta del corte 2025
         saldo_corte_2025 = float(self.dias_libres_corte_2025) - dias_dla_usados
-        
-        # Días pendientes = saldo del corte + ganados - DL usados
         return saldo_corte_2025 + dias_ganados - dias_dl_usados
     
     # --- Observaciones ---
@@ -483,9 +619,20 @@ class Personal(models.Model):
         verbose_name_plural = "Personal"
         ordering = ['apellidos_nombres']
         indexes = [
+            # Lookups básicos
             models.Index(fields=['nro_doc']),
             models.Index(fields=['estado']),
             models.Index(fields=['subarea']),
+            # Filtros compuestos más usados en vistas y services
+            models.Index(fields=['estado', 'grupo_tareo'],
+                         name='personal_estado_grupo_idx'),
+            models.Index(fields=['estado', 'condicion'],
+                         name='personal_estado_condicion_idx'),
+            models.Index(fields=['estado', 'categoria'],
+                         name='personal_estado_categoria_idx'),
+            # Búsquedas de contratos próximos a vencer
+            models.Index(fields=['fecha_fin_contrato'],
+                         name='personal_fin_contrato_idx'),
         ]
     
     def __str__(self):
@@ -531,6 +678,52 @@ class Personal(models.Model):
     @property
     def esta_activo(self):
         return self.estado == 'Activo'
+
+    @property
+    def es_confianza_o_direccion(self):
+        """D.Leg. 854 art. 5: excluidos de jornada máxima, sin HE ni faltas."""
+        return self.categoria in ('CONFIANZA', 'DIRECCION')
+
+    @property
+    def fecha_ingreso(self):
+        """Alias para fecha_alta (terminología estándar planilla)."""
+        return self.fecha_alta
+
+    @property
+    def periodo_prueba_meses(self):
+        """Meses de período de prueba según categoría (D.Leg. 728 art. 10).
+        Normal: 3 meses | Confianza: 6 meses | Dirección: 12 meses."""
+        if self.categoria == 'DIRECCION':
+            return 12
+        elif self.categoria == 'CONFIANZA':
+            return 6
+        return 3
+
+    @property
+    def fecha_fin_periodo_prueba(self):
+        """Fecha de fin del período de prueba calculada desde fecha_alta."""
+        from dateutil.relativedelta import relativedelta
+        if not self.fecha_alta:
+            return None
+        return self.fecha_alta + relativedelta(months=self.periodo_prueba_meses)
+
+    @property
+    def en_periodo_prueba(self):
+        """True si hoy está dentro del período de prueba."""
+        from django.utils import timezone
+        fin = self.fecha_fin_periodo_prueba
+        if not fin or self.estado != 'Activo':
+            return False
+        return timezone.localdate() <= fin
+
+    @property
+    def dias_para_vencimiento_contrato(self):
+        """Días hasta el vencimiento del contrato. None si no hay fecha fin."""
+        if not self.fecha_fin_contrato:
+            return None
+        from django.utils import timezone
+        delta = self.fecha_fin_contrato - timezone.localdate()
+        return delta.days
 
 
 class Roster(models.Model):

@@ -1,0 +1,489 @@
+{% extends 'base.html' %}
+
+{% block title %}Cierre — {{ periodo }}{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1">
+    <i class="fas fa-tasks me-2 text-primary"></i>
+    Wizard de Cierre — {{ periodo.mes_nombre }} {{ periodo.anio }}
+</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Pasos ───────────────────────────────────────────────── */
+.paso-item {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    transition: box-shadow .15s, border-color .15s;
+    overflow: hidden;
+}
+.paso-item:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.paso-item.paso--ok          { border-color: #bbf7d0; background: #f0fdf4; }
+.paso-item.paso--error       { border-color: #fecaca; background: #fff5f5; }
+.paso-item.paso--advertencia { border-color: #fef08a; background: #fefce8; }
+.paso-item.paso--ejecutando  { border-color: #fde68a; background: #fffbeb; }
+.paso-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+.paso-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 700;
+    background: #e2e8f0; color: #64748b;
+    flex-shrink: 0;
+}
+.paso-num--ok    { background: #bbf7d0; color: #15803d; }
+.paso-num--error { background: #fecaca; color: #b91c1c; }
+.paso-num--warn  { background: #fef08a; color: #a16207; }
+.paso-body {
+    padding: 0 16px 14px 56px;
+    display: none;
+}
+.paso-body.show { display: block; }
+.detalle-line {
+    font-size: .82rem;
+    color: #475569;
+    padding: 2px 0;
+}
+.detalle-line::before { content: '›  '; color: #94a3b8; }
+.progress-cierre {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(0,0,0,.07);
+    overflow: hidden;
+}
+
+/* ── Resumen pre-cierre ──────────────────────────────────── */
+#resumen-panel .stat-box {
+    text-align: center;
+    padding: 12px 8px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+#resumen-panel .stat-box .stat-val {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #0f172a;
+}
+#resumen-panel .stat-box .stat-lbl {
+    font-size: .7rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+.alerta-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: .82rem;
+    margin-bottom: 4px;
+}
+.alerta-item.warning { background: #fefce8; color: #854d0e; }
+.alerta-item.danger  { background: #fff5f5; color: #991b1b; }
+.alerta-item.info    { background: #eff6ff; color: #1e40af; }
+.alerta-item.success { background: #f0fdf4; color: #166534; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Header del período ────────────────────────────────── -->
+<div class="dash-card mb-4">
+    <div class="dash-card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    {% if periodo.estado == 'CERRADO' %}
+                    <span class="badge bg-success fs-6" id="badge-periodo"><i class="fas fa-lock me-1"></i>Cerrado</span>
+                    {% elif periodo.estado == 'EN_CIERRE' %}
+                    <span class="badge bg-warning text-dark fs-6" id="badge-periodo"><i class="fas fa-spinner me-1"></i>En Cierre</span>
+                    {% elif periodo.estado == 'REABIERTO' %}
+                    <span class="badge bg-warning text-dark fs-6" id="badge-periodo"><i class="fas fa-lock-open me-1"></i>Reabierto</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6" id="badge-periodo"><i class="fas fa-folder-open me-1"></i>Abierto</span>
+                    {% endif %}
+                    <span class="text-muted" style="font-size:.9rem">{{ periodo.mes_nombre }} {{ periodo.anio }}</span>
+                </div>
+                <!-- Barra de progreso -->
+                <div class="d-flex align-items-center gap-2">
+                    <div class="progress-cierre" style="width:200px">
+                        <div class="bg-success h-100" id="barraAvance" style="width:{{ periodo.porcentaje_avance }}%;transition:width .4s"></div>
+                    </div>
+                    <span class="text-muted small" id="textoAvance">
+                        {{ periodo.pasos_completados }}/{{ periodo.total_pasos }} pasos completados
+                    </span>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                {% if puede_ejecutar %}
+                <button class="btn btn-outline-secondary btn-sm" onclick="cargarResumen()" id="btnResumen">
+                    <i class="fas fa-search me-1"></i>Ver resumen pre-cierre
+                </button>
+                <button class="btn btn-success btn-sm" id="btnEjecutarTodos" onclick="ejecutarTodos()">
+                    <i class="fas fa-play me-1"></i>Ejecutar todos los pasos
+                </button>
+                {% endif %}
+                {% if periodo.esta_cerrado %}
+                <a href="{% url 'cierre_rezagos' pk=periodo.pk %}" class="btn btn-info btn-sm text-white">
+                    <i class="fas fa-file-invoice me-1"></i>Rezagos Post-Cierre
+                </a>
+                <form method="post" action="{% url 'cierre_reabrir' pk=periodo.pk %}" onsubmit="return confirm('¿Reabrir este período?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="fas fa-lock-open me-1"></i>Reabrir
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{% url 'cierre_lista' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i>Lista
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Resumen pre-cierre (AJAX, colapsable) ─────────────── -->
+<div id="resumen-panel" class="dash-card mb-4" style="display:none">
+    <div class="dash-card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-clipboard-check me-2 text-primary"></i>Resumen pre-cierre</span>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="document.getElementById('resumen-panel').style.display='none'">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="dash-card-body" id="resumen-body">
+        <div class="text-center text-muted py-3">
+            <i class="fas fa-spinner fa-spin me-1"></i> Cargando resumen...
+        </div>
+    </div>
+</div>
+
+<!-- ── Pasos del wizard ──────────────────────────────────── -->
+<div class="d-flex flex-column gap-3" id="listaPasos">
+    {% for paso in pasos %}
+    <div class="paso-item paso--{{ paso.estado|lower }}"
+         id="paso-{{ paso.codigo }}" data-codigo="{{ paso.codigo }}">
+        <div class="paso-header" onclick="togglePaso('{{ paso.codigo }}')">
+            <!-- Número / ícono -->
+            <div class="paso-num paso-num--{% if paso.estado == 'OK' %}ok{% elif paso.estado == 'ERROR' %}error{% elif paso.estado == 'ADVERTENCIA' %}warn{% endif %}"
+                 id="num-{{ paso.codigo }}">
+                {% if paso.estado == 'OK' %}
+                    <i class="fas fa-check"></i>
+                {% elif paso.estado == 'ERROR' %}
+                    <i class="fas fa-times"></i>
+                {% elif paso.estado == 'ADVERTENCIA' %}
+                    <i class="fas fa-exclamation"></i>
+                {% elif paso.estado == 'EJECUTANDO' %}
+                    <i class="fas fa-spinner fa-spin"></i>
+                {% else %}
+                    {{ paso.orden }}
+                {% endif %}
+            </div>
+
+            <!-- Descripción -->
+            <div class="flex-grow-1">
+                <div class="fw-medium" style="font-size:.9rem">{{ paso.get_codigo_display }}</div>
+                {% if paso.resultado.mensaje %}
+                <div class="text-muted" style="font-size:.78rem" id="msg-{{ paso.codigo }}">
+                    {{ paso.resultado.mensaje }}
+                </div>
+                {% else %}
+                <div class="text-muted" style="font-size:.78rem" id="msg-{{ paso.codigo }}">
+                    {% if paso.estado == 'PENDIENTE' %}Pendiente de ejecución{% else %}{{ paso.get_estado_display }}{% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Badge estado + botón ejecutar -->
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge {{ paso.badge_class }}" style="font-size:.68rem" id="badge-{{ paso.codigo }}">
+                    {{ paso.get_estado_display }}
+                </span>
+                {% if puede_ejecutar and paso.estado != 'OK' %}
+                <button class="btn btn-sm btn-outline-primary py-0 px-2"
+                        style="font-size:.75rem"
+                        onclick="event.stopPropagation(); ejecutarPaso('{{ paso.codigo }}')"
+                        id="btn-{{ paso.codigo }}"
+                        title="Ejecutar este paso">
+                    <i class="fas fa-play"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Detalles colapsables -->
+        {% if paso.resultado.detalles %}
+        <div class="paso-body show" id="body-{{ paso.codigo }}">
+            {% for linea in paso.resultado.detalles %}
+            <div class="detalle-line">{{ linea }}</div>
+            {% endfor %}
+            {% if paso.ejecutado_en %}
+            <div class="text-muted mt-1" style="font-size:.72rem">
+                <i class="fas fa-clock me-1"></i>Ejecutado: {{ paso.ejecutado_en|date:"d/m/Y H:i:s" }}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="paso-body" id="body-{{ paso.codigo }}"></div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+const PERIODO_PK = {{ periodo.pk }};
+
+/* ── Toggle cuerpo del paso ─────────────────────────────── */
+function togglePaso(codigo) {
+    const body = document.getElementById('body-' + codigo);
+    body.classList.toggle('show');
+}
+
+/* ── Actualizar UI de un paso tras AJAX ─────────────────── */
+function actualizarPasoUI(codigo, data) {
+    const item  = document.getElementById('paso-' + codigo);
+    const num   = document.getElementById('num-' + codigo);
+    const badge = document.getElementById('badge-' + codigo);
+    const msg   = document.getElementById('msg-' + codigo);
+    const body  = document.getElementById('body-' + codigo);
+    const btn   = document.getElementById('btn-' + codigo);
+
+    // Clases del contenedor
+    item.className = 'paso-item';
+    if (data.estado === 'OK')               item.classList.add('paso--ok');
+    else if (data.estado === 'ERROR')       item.classList.add('paso--error');
+    else if (data.estado === 'ADVERTENCIA') item.classList.add('paso--advertencia');
+
+    // Número
+    num.className = 'paso-num';
+    if (data.estado === 'OK') {
+        num.classList.add('paso-num--ok');    num.innerHTML = '<i class="fas fa-check"></i>';
+    } else if (data.estado === 'ERROR') {
+        num.classList.add('paso-num--error'); num.innerHTML = '<i class="fas fa-times"></i>';
+    } else if (data.estado === 'ADVERTENCIA') {
+        num.classList.add('paso-num--warn');  num.innerHTML = '<i class="fas fa-exclamation"></i>';
+    }
+
+    // Badge
+    const badgeMap = {
+        OK: 'bg-success',
+        ERROR: 'bg-danger',
+        ADVERTENCIA: 'bg-warning text-dark',
+        EJECUTANDO:  'bg-warning text-dark',
+    };
+    badge.className = 'badge ' + (badgeMap[data.estado] || 'bg-secondary');
+    const labelMap = {
+        OK: 'Completado', ERROR: 'Error', ADVERTENCIA: 'Advertencia',
+        EJECUTANDO: 'Ejecutando...', PENDIENTE: 'Pendiente',
+    };
+    badge.textContent = labelMap[data.estado] || data.estado;
+
+    // Mensaje
+    if (msg) msg.textContent = data.mensaje || '';
+
+    // Detalles
+    if (data.detalles && data.detalles.length) {
+        const html = data.detalles.map(d => `<div class="detalle-line">${d}</div>`).join('');
+        body.innerHTML = html;
+        body.classList.add('show');
+    }
+
+    // Ocultar botón si OK
+    if (btn && data.estado === 'OK') btn.style.display = 'none';
+
+    // Actualizar barra de progreso
+    if (data.avance !== undefined) {
+        document.getElementById('barraAvance').style.width = data.avance + '%';
+        document.getElementById('textoAvance').textContent =
+            data.avance + '% — ' + data.avance + ' completado';
+    }
+
+    // Actualizar conteo de pasos (paso completado)
+    actualizarConteoAvance(data);
+
+    // Actualizar badge de estado del período
+    if (data.periodo_estado) {
+        const pb = document.getElementById('badge-periodo');
+        if (pb) {
+            const estadoMap = {
+                CERRADO:   { cls: 'badge bg-success fs-6',          html: '<i class="fas fa-lock me-1"></i>Cerrado' },
+                EN_CIERRE: { cls: 'badge bg-warning text-dark fs-6', html: '<i class="fas fa-spinner me-1"></i>En Cierre' },
+                REABIERTO: { cls: 'badge bg-warning text-dark fs-6', html: '<i class="fas fa-lock-open me-1"></i>Reabierto' },
+            };
+            const mapped = estadoMap[data.periodo_estado];
+            if (mapped) { pb.className = mapped.cls; pb.innerHTML = mapped.html; }
+        }
+        if (data.periodo_estado === 'CERRADO') {
+            const btnTodos = document.getElementById('btnEjecutarTodos');
+            if (btnTodos) btnTodos.style.display = 'none';
+            const btnRes = document.getElementById('btnResumen');
+            if (btnRes) btnRes.style.display = 'none';
+        }
+    }
+}
+
+function actualizarConteoAvance(data) {
+    if (data.avance === undefined) return;
+    // Recalcular texto del avance desde los pasos actuales visibles
+    const total = document.querySelectorAll('[id^="paso-"]').length;
+    const ok    = document.querySelectorAll('.paso-item.paso--ok').length;
+    document.getElementById('textoAvance').textContent = `${ok}/${total} pasos completados`;
+    document.getElementById('barraAvance').style.width = data.avance + '%';
+}
+
+/* ── Ejecutar paso individual ───────────────────────────── */
+async function ejecutarPaso(codigo) {
+    const btn = document.getElementById('btn-' + codigo);
+    const num = document.getElementById('num-' + codigo);
+    const msg = document.getElementById('msg-' + codigo);
+    if (btn) btn.disabled = true;
+    num.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    if (msg) msg.textContent = 'Ejecutando...';
+
+    try {
+        const resp = await fetch(
+            `/cierre/${PERIODO_PK}/ejecutar/${codigo}/`,
+            { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } }
+        );
+        if (!resp.ok) {
+            const txt = await resp.text();
+            actualizarPasoUI(codigo, { estado: 'ERROR', mensaje: `Error HTTP ${resp.status}`, detalles: [txt.substring(0, 200)] });
+            return;
+        }
+        const data = await resp.json();
+        actualizarPasoUI(codigo, data);
+    } catch (e) {
+        actualizarPasoUI(codigo, { estado: 'ERROR', mensaje: 'Error de conexión', detalles: [e.message] });
+    }
+}
+
+/* ── Ejecutar todos los pasos ───────────────────────────── */
+async function ejecutarTodos() {
+    const btn = document.getElementById('btnEjecutarTodos');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Ejecutando...';
+
+    try {
+        const resp = await fetch(
+            `/cierre/${PERIODO_PK}/ejecutar-todos/`,
+            { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } }
+        );
+        const data = await resp.json();
+
+        // Actualizar cada paso
+        (data.resultados || []).forEach(r => {
+            if (!r.omitido) actualizarPasoUI(r.codigo, r);
+        });
+
+        // Actualizar barra global
+        if (data.avance !== undefined) {
+            document.getElementById('barraAvance').style.width = data.avance + '%';
+        }
+        if (data.periodo_estado) {
+            // Re-use single-step handler for period badge
+            actualizarPasoUI('', { avance: data.avance, periodo_estado: data.periodo_estado });
+        }
+
+    } catch (e) {
+        console.error(e);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play me-1"></i>Ejecutar todos los pasos';
+    }
+}
+
+/* ── Resumen pre-cierre ─────────────────────────────────── */
+async function cargarResumen() {
+    const panel = document.getElementById('resumen-panel');
+    const body  = document.getElementById('resumen-body');
+    panel.style.display = '';
+
+    body.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin me-1"></i> Cargando resumen...</div>';
+
+    try {
+        const resp = await fetch(`/cierre/${PERIODO_PK}/resumen/`);
+        const d = await resp.json();
+        if (!d.ok) { body.innerHTML = '<div class="text-danger">Error al cargar resumen.</div>'; return; }
+
+        const nivelClass = { warning: 'warning', danger: 'danger', info: 'info', success: 'success' };
+
+        const alertasHtml = (d.alertas || []).map(a => `
+            <div class="alerta-item ${nivelClass[a.nivel] || 'info'}">
+                <i class="${a.icono} mt-1 flex-shrink-0"></i>
+                <span>${a.mensaje}</span>
+            </div>`).join('');
+
+        body.innerHTML = `
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="stat-box">
+                        <div class="stat-val">${d.headcount.total}</div>
+                        <div class="stat-lbl">Trabajadores activos</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box">
+                        <div class="stat-val">${d.headcount.con_registro}</div>
+                        <div class="stat-lbl">Con marcación</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box">
+                        <div class="stat-val text-primary">${d.headcount.staff}</div>
+                        <div class="stat-lbl">STAFF activos</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box">
+                        <div class="stat-val text-warning">${d.headcount.rco}</div>
+                        <div class="stat-lbl">RCO activos</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="stat-box">
+                        <div class="stat-val text-muted">${d.registros.toLocaleString()}</div>
+                        <div class="stat-lbl">Registros en el período</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box">
+                        <div class="stat-val text-info">${parseFloat(d.he_total).toFixed(1)}h</div>
+                        <div class="stat-lbl">HE totales</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="stat-box text-start" style="padding:10px 14px">
+                        <div class="stat-lbl mb-1">Período de asistencia</div>
+                        <div style="font-size:.9rem;font-weight:600;color:#0f172a">${d.rango}</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="fw-medium mb-2" style="font-size:.82rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em">
+                    Alertas previas al cierre
+                </div>
+                ${alertasHtml}
+            </div>`;
+
+    } catch (e) {
+        body.innerHTML = `<div class="text-danger small">Error: ${e.message}</div>`;
+    }
+}
+</script>
+{% endblock %}

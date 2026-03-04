@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mi Historia — {{ empleado.apellidos_nombres|default:"Portal" }}{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-stream me-2 text-primary"></i>Mi Historia</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Header ─────────────────────────────────────────────── */
+.tl-header {
+    background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 22px 28px;
+    margin-bottom: 20px;
+}
+.tl-header .tl-name { font-size: 1.35rem; font-weight: 700; margin-bottom: 2px; }
+.tl-header .tl-meta { font-size: .82rem; opacity: .85; }
+.tl-stat { text-align: center; min-width: 80px; }
+.tl-stat .tl-stat-num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.tl-stat .tl-stat-label { font-size: .65rem; text-transform: uppercase; opacity: .75; letter-spacing: .6px; margin-top: 3px; }
+
+/* ── Filter Pills ───────────────────────────────────────── */
+.tl-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.tl-filter-btn {
+    font-size: .72rem; padding: 4px 12px; border-radius: 20px;
+    border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+    transition: all .15s; display: flex; align-items: center; gap: 5px;
+    color: #374151; font-weight: 500;
+}
+.tl-filter-btn:hover { border-color: #0f766e; color: #0f766e; }
+.tl-filter-btn.active { background: #0f766e; color: #fff; border-color: #0f766e; }
+.tl-filter-btn .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── Timeline Wrapper ───────────────────────────────────── */
+.tl-wrap { position: relative; padding-left: 36px; }
+.tl-wrap::before {
+    content: ''; position: absolute; left: 15px; top: 0; bottom: 0;
+    width: 2px; background: #e5e7eb; border-radius: 2px;
+}
+
+/* ── Month label ────────────────────────────────────────── */
+.tl-month {
+    font-size: .78rem; font-weight: 700; color: #0f766e;
+    text-transform: uppercase; letter-spacing: .5px;
+    margin-top: 24px; margin-bottom: 10px;
+    padding: 3px 10px; background: #f0fdf9;
+    border-radius: 20px; display: inline-block;
+    position: relative; z-index: 2;
+}
+.tl-month:first-child { margin-top: 4px; }
+
+/* ── Event Card ─────────────────────────────────────────── */
+.tl-event {
+    position: relative; margin-bottom: 8px;
+    padding: 10px 14px; background: #fff;
+    border: 1px solid #f3f4f6; border-radius: 8px;
+    transition: all .15s;
+}
+.tl-event:hover { border-color: #d1d5db; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+
+.tl-dot {
+    position: absolute; left: -28px; top: 13px;
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .52rem; color: #fff; z-index: 2;
+    border: 2px solid #fff; box-shadow: 0 0 0 2px #e5e7eb;
+}
+
+.tl-event .tl-title { font-weight: 600; font-size: .85rem; line-height: 1.3; }
+.tl-event .tl-detail { font-size: .75rem; color: #6b7280; margin-top: 2px; }
+.tl-event .tl-date { font-size: .7rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
+
+/* ── Type Badges ─────────────────────────────────────────── */
+.tipo-badge {
+    font-size: .6rem; padding: 1px 5px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .3px; font-weight: 700;
+    vertical-align: middle;
+}
+.tipo-ingreso       { background: #dcfce7; color: #166534; }
+.tipo-cese          { background: #fee2e2; color: #991b1b; }
+.tipo-papeleta      { background: #dbeafe; color: #1e40af; }
+.tipo-solicitud_he  { background: #fef3c7; color: #92400e; }
+.tipo-justificacion { background: #ede9fe; color: #5b21b6; }
+.tipo-documento     { background: #ccfbf1; color: #115e59; }
+.tipo-banco_horas   { background: #fce7f3; color: #9d174d; }
+.tipo-salario       { background: #dcfce7; color: #14532d; }
+.tipo-vacacion      { background: #fef9c3; color: #713f12; }
+.tipo-capacitacion  { background: #f3e8ff; color: #581c87; }
+.tipo-evaluacion    { background: #e0f2fe; color: #0c4a6e; }
+.tipo-prestamo      { background: #ede9fe; color: #4c1d95; }
+
+/* ── Empty State ─────────────────────────────────────────── */
+.tl-empty {
+    text-align: center; padding: 56px 20px; color: #9ca3af;
+}
+.tl-empty i { font-size: 2.5rem; opacity: .25; display: block; margin-bottom: 12px; }
+
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (max-width: 576px) {
+    .tl-header { padding: 16px 18px; }
+    .tl-header .tl-name { font-size: 1.1rem; }
+    .tl-wrap { padding-left: 28px; }
+    .tl-dot { left: -22px; width: 14px; height: 14px; font-size: .45rem; top: 12px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-lg flex-shrink-0"></i>
+    <div>
+        <strong>Cuenta no vinculada.</strong>
+        Tu usuario no está asociado a un registro de empleado.
+        Contacta a RRHH o TI.
+    </div>
+</div>
+{% else %}
+
+<!-- Header -->
+<div class="tl-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <div class="tl-name">
+            <i class="fas fa-stream me-2" style="opacity:.75"></i>Mi Historia en la Empresa
+        </div>
+        <div class="tl-meta">
+            {{ empleado.cargo|default:"Sin cargo" }} &middot; {{ empleado.grupo_tareo }}
+            {% if empleado.subarea %} &middot; {{ empleado.subarea.area.nombre }}{% endif %}
+            {% if empleado.fecha_alta %} &middot; Desde {{ empleado.fecha_alta|date:"d/m/Y" }}{% endif %}
+        </div>
+    </div>
+    <div class="d-flex gap-4 align-items-center">
+        {% if antiguedad %}
+        <div class="tl-stat">
+            <div class="tl-stat-num" style="font-size:1rem;opacity:.9">
+                <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="tl-stat-label">{{ antiguedad }}</div>
+        </div>
+        {% endif %}
+        <div class="tl-stat">
+            <div class="tl-stat-num">{{ total_eventos }}</div>
+            <div class="tl-stat-label">Eventos</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Pills -->
+<div class="tl-filters" id="filtros">
+    <button class="tl-filter-btn active" data-tipo="all">
+        <i class="fas fa-list" style="font-size:.65rem"></i> Todos
+    </button>
+    <button class="tl-filter-btn" data-tipo="ingreso">
+        <span class="dot" style="background:#059669"></span> Ingreso/Cese
+    </button>
+    <button class="tl-filter-btn" data-tipo="salario">
+        <span class="dot" style="background:#16a34a"></span> Salario
+    </button>
+    <button class="tl-filter-btn" data-tipo="vacacion">
+        <span class="dot" style="background:#f59e0b"></span> Vacaciones
+    </button>
+    <button class="tl-filter-btn" data-tipo="papeleta">
+        <span class="dot" style="background:#0ea5e9"></span> Papeletas
+    </button>
+    <button class="tl-filter-btn" data-tipo="solicitud_he">
+        <span class="dot" style="background:#d97706"></span> Horas Extra
+    </button>
+    <button class="tl-filter-btn" data-tipo="capacitacion">
+        <span class="dot" style="background:#8b5cf6"></span> Capacitaciones
+    </button>
+    <button class="tl-filter-btn" data-tipo="evaluacion">
+        <span class="dot" style="background:#0891b2"></span> Evaluaciones
+    </button>
+    <button class="tl-filter-btn" data-tipo="prestamo">
+        <span class="dot" style="background:#7c3aed"></span> Préstamos
+    </button>
+    <button class="tl-filter-btn" data-tipo="justificacion">
+        <span class="dot" style="background:#6366f1"></span> Justificaciones
+    </button>
+    <button class="tl-filter-btn" data-tipo="documento">
+        <span class="dot" style="background:#0f766e"></span> Documentos
+    </button>
+    <button class="tl-filter-btn" data-tipo="banco_horas">
+        <span class="dot" style="background:#db2777"></span> Banco Horas
+    </button>
+</div>
+
+<!-- Timeline -->
+{% if meses %}
+<div class="tl-wrap" id="timeline">
+    {% for key, mes in meses.items %}
+    <div class="tl-month" data-month="{{ key }}">
+        <i class="fas fa-calendar-alt me-1"></i>{{ mes.label }}
+    </div>
+    {% for ev in mes.eventos %}
+    <div class="tl-event" data-tipo="{{ ev.tipo }}">
+        <div class="tl-dot" style="background:{{ ev.color }}">
+            <i class="fas {{ ev.icono }}"></i>
+        </div>
+        <div class="d-flex justify-content-between align-items-start gap-2">
+            <div style="min-width:0">
+                <div class="tl-title">
+                    {{ ev.titulo }}
+                    <span class="tipo-badge tipo-{{ ev.tipo }} ms-1">{{ ev.tipo|cut:"_" }}</span>
+                </div>
+                {% if ev.detalle %}
+                <div class="tl-detail">{{ ev.detalle }}</div>
+                {% endif %}
+            </div>
+            <div class="tl-date">{{ ev.fecha|date:"d M Y" }}</div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="tl-empty">
+    <i class="fas fa-stream"></i>
+    <p class="mb-0">Aún no hay eventos registrados en tu historial.</p>
+    <p class="small mt-1">Los eventos aparecerán aquí a medida que se registren.</p>
+</div>
+{% endif %}
+
+<!-- Back Link -->
+<div class="mt-4 pt-2 border-top">
+    <a href="{% url 'portal_home' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Volver al Portal
+    </a>
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const filtros = document.getElementById('filtros');
+    const timeline = document.getElementById('timeline');
+    if (!filtros || !timeline) return;
+
+    filtros.addEventListener('click', function (e) {
+        const btn = e.target.closest('.tl-filter-btn');
+        if (!btn) return;
+
+        filtros.querySelectorAll('.tl-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const tipo = btn.dataset.tipo;
+        const events = timeline.querySelectorAll('.tl-event');
+        const months = timeline.querySelectorAll('.tl-month');
+
+        if (tipo === 'all') {
+            events.forEach(ev => ev.style.display = '');
+            months.forEach(m => m.style.display = '');
+            return;
+        }
+
+        // Show/hide events
+        events.forEach(ev => {
+            ev.style.display = ev.dataset.tipo === tipo ? '' : 'none';
+        });
+
+        // Show month label only if it has visible events
+        months.forEach(function (m) {
+            let sibling = m.nextElementSibling;
+            let hasVisible = false;
+            while (sibling && !sibling.classList.contains('tl-month')) {
+                if (sibling.classList.contains('tl-event') && sibling.style.display !== 'none') {
+                    hasVisible = true;
+                    break;
+                }
+                sibling = sibling.nextElementSibling;
+            }
+            m.style.display = hasVisible ? '' : 'none';
+        });
+
+        // Show empty state if nothing visible
+        const anyVisible = Array.from(events).some(ev => ev.style.display !== 'none');
+        let emptyMsg = timeline.querySelector('.tl-filter-empty');
+        if (!anyVisible) {
+            if (!emptyMsg) {
+                emptyMsg = document.createElement('div');
+                emptyMsg.className = 'tl-filter-empty tl-empty';
+                emptyMsg.innerHTML = '<i class="fas fa-filter"></i><p class="mb-0">No hay eventos de este tipo en tu historial.</p>';
+                timeline.appendChild(emptyMsg);
+            }
+        } else if (emptyMsg) {
+            emptyMsg.remove();
+        }
+    });
+})();
+</script>
+{% endblock %}

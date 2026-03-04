@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Préstamo{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'prestamos_panel' %}" class="text-muted text-decoration-none small">
+        <i class="fas fa-arrow-left me-1"></i>Préstamos
+    </a>
+    <h2 class="mb-0 mt-1"><i class="fas fa-plus-circle text-secondary me-2"></i>{{ titulo }}</h2>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post" class="card shadow-sm">
+            {% csrf_token %}
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Trabajador <span class="text-danger">*</span></label>
+                    <select name="personal_id" class="form-select" required id="selPersonal">
+                        <option value="">Seleccionar trabajador...</option>
+                        {% for e in personal_list %}
+                        <option value="{{ e.pk }}">{{ e.apellidos_nombres }} — {{ e.nro_doc }} · {{ e.cargo|default:"" }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tipo de Préstamo <span class="text-danger">*</span></label>
+                        <select name="tipo_id" class="form-select" required id="selTipo">
+                            {% for t in tipos %}
+                            <option value="{{ t.pk }}" data-max-cuotas="{{ t.max_cuotas }}" data-max-monto="{{ t.monto_maximo|default:'' }}" data-tasa="{{ t.tasa_interes_mensual }}">
+                                {{ t.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Monto (S/) <span class="text-danger">*</span></label>
+                        <input type="number" name="monto" class="form-control" step="0.01" min="1" required id="inpMonto">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">N° Cuotas <span class="text-danger">*</span></label>
+                        <input type="number" name="num_cuotas" class="form-control" min="1" max="60" value="1" required id="inpCuotas">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Inicio Descuento</label>
+                        <input type="date" name="fecha_descuento" class="form-control">
+                        <small class="text-muted">Período desde el cual se descuenta en nómina</small>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="previewCuota" class="mt-4 p-3 bg-light rounded text-center" style="display:none">
+                            <div style="font-size:.75rem; text-transform:uppercase; color:#6b7280;">Cuota mensual estimada</div>
+                            <div style="font-size:1.5rem; font-weight:700; color:#0f766e;" id="cuotaEstimada">S/ 0.00</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label fw-semibold">Motivo / Justificación</label>
+                    <textarea name="motivo" class="form-control" rows="2" placeholder="Motivo del préstamo..."></textarea>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="{% url 'prestamos_panel' %}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>Registrar Préstamo</button>
+            </div>
+        </form>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Tipos disponibles</h6></div>
+            <div class="card-body py-2" style="font-size:.82rem;">
+                {% for t in tipos %}
+                <div class="mb-2 pb-2 {% if not forloop.last %}border-bottom{% endif %}">
+                    <div class="fw-semibold">{{ t.nombre }}</div>
+                    <div class="text-muted">
+                        Máx. {{ t.max_cuotas }} cuotas
+                        {% if t.monto_maximo %} · Tope S/ {{ t.monto_maximo|floatformat:2 }}{% endif %}
+                        {% if t.tasa_interes_mensual > 0 %} · {{ t.tasa_interes_mensual }}% mensual{% else %} · Sin interés{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const monto = document.getElementById('inpMonto');
+    const cuotas = document.getElementById('inpCuotas');
+    const preview = document.getElementById('previewCuota');
+    const cuotaEst = document.getElementById('cuotaEstimada');
+
+    function calcular() {
+        const m = parseFloat(monto.value) || 0;
+        const c = parseInt(cuotas.value) || 1;
+        if (m > 0 && c > 0) {
+            const cuota = (m / c).toFixed(2);
+            cuotaEst.textContent = 'S/ ' + parseFloat(cuota).toLocaleString('es-PE', {minimumFractionDigits:2});
+            preview.style.display = '';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+    monto.addEventListener('input', calcular);
+    cuotas.addEventListener('input', calcular);
+
+    // Update max cuotas based on tipo
+    document.getElementById('selTipo').addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        const maxC = opt.dataset.maxCuotas;
+        if (maxC) cuotas.max = maxC;
+    });
+});
+</script>
+{% endblock %}

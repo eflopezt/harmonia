@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluar: {{ evaluacion.evaluado.apellidos_nombres }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-edit text-secondary me-2"></i>{{ titulo }}</h2>
+    <small class="text-muted">{{ evaluacion.ciclo.nombre }} — {{ evaluacion.get_relacion_display }}</small>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <!-- Info del evaluado -->
+    <div class="card shadow-sm mb-3 border-info">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <div class="fw-semibold">{{ evaluacion.evaluado.apellidos_nombres }}</div>
+                    <small class="text-muted">{{ evaluacion.evaluado.cargo|default:"—" }} — {{ evaluacion.evaluado.grupo_tareo }}</small>
+                </div>
+                <div class="ms-auto">
+                    <span class="badge bg-info">Escala 1-{{ escala_max }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Competencias -->
+    {% for item in items %}
+    <div class="card shadow-sm mb-2">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-start">
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ item.competencia.nombre }}</div>
+                    {% if item.competencia.descripcion %}
+                    <small class="text-muted">{{ item.competencia.descripcion }}</small>
+                    {% endif %}
+                    <span class="badge bg-light text-dark ms-2">Peso: {{ item.peso }}x</span>
+                </div>
+                <div class="ms-3" style="min-width:200px;">
+                    <label class="form-label small mb-0">Puntaje *</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" name="puntaje_{{ item.pk }}" min="1" max="{{ escala_max }}" step="0.5" value="3" class="form-range" style="width:120px;" oninput="this.nextElementSibling.textContent=this.value">
+                        <span class="badge bg-primary">3</span>
+                    </div>
+                    <input type="text" name="comentario_{{ item.pk }}" class="form-control form-control-sm mt-1" placeholder="Comentario (opcional)">
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Comentarios generales -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Fortalezas</label>
+                <textarea name="fortalezas" class="form-control" rows="2" placeholder="Principales fortalezas observadas..."></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Áreas de Mejora</label>
+                <textarea name="areas_mejora" class="form-control" rows="2" placeholder="Oportunidades de mejora identificadas..."></textarea>
+            </div>
+            <div>
+                <label class="form-label">Comentarios Generales</label>
+                <textarea name="comentario_general" class="form-control" rows="2"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i>Completar Evaluación</button>
+        <a href="javascript:history.back()" class="btn btn-secondary">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

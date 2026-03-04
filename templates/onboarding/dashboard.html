@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard Onboarding{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI cards ── */
+.kpi-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-left: 4px solid var(--bs-primary);
+    transition: transform .15s;
+}
+.kpi-card:hover { transform: translateY(-2px); }
+.kpi-card .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+.kpi-card .kpi-label { font-size: .78rem; color: #64748b; margin-top: .25rem; text-transform: uppercase; letter-spacing: .04em; }
+
+/* ── KPI strip nuevo (brand Harmoni) ── */
+.kpi-strip-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1.1rem 1.4rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-top: 3px solid #0f766e;
+    transition: transform .15s, box-shadow .15s;
+}
+.kpi-strip-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,118,110,.12); }
+.kpi-strip-card .kpi-strip-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f766e;
+    line-height: 1.1;
+}
+.kpi-strip-card .kpi-strip-label {
+    font-size: .73rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-top: .2rem;
+}
+.kpi-strip-card.kpi-strip-purple { border-top-color: #7c3aed; }
+.kpi-strip-card.kpi-strip-purple .kpi-strip-value { color: #7c3aed; }
+.kpi-strip-card.kpi-strip-red { border-top-color: #dc2626; }
+.kpi-strip-card.kpi-strip-red .kpi-strip-value { color: #dc2626; }
+.kpi-strip-card.kpi-strip-blue { border-top-color: #0369a1; }
+.kpi-strip-card.kpi-strip-blue .kpi-strip-value { color: #0369a1; }
+
+/* Colores por tipo */
+.kpi-on   { border-left-color: #0f766e; }
+.kpi-off  { border-left-color: #dc2626; }
+.kpi-mes  { border-left-color: #7c3aed; }
+.kpi-pct  { border-left-color: #0369a1; }
+.kpi-risk { border-left-color: #f59e0b; }
+
+/* ── Tabla de activos ── */
+.proceso-row-riesgo td { background: #fffbeb !important; }
+.proceso-row-vencido td { background: #fff1f2 !important; }
+
+/* ── Barra de progreso inline ── */
+.prog-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+}
+.prog-bar-wrap .progress { flex: 1; height: 6px; margin: 0; }
+.prog-bar-wrap .prog-pct { font-size: .75rem; color: #475569; min-width: 34px; text-align: right; }
+
+/* ── Segunda fila KPI ── */
+.kpi-avg   { border-left-color: #0f766e; }
+.kpi-critico { border-left-color: #dc2626; }
+
+/* ── Timeline ── */
+.timeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: .75rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.timeline-item:last-child { border-bottom: none; }
+.tl-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: .7rem;
+    font-weight: 700;
+    color: #fff;
+}
+.tl-dot-on  { background: #0f766e; }
+.tl-dot-off { background: #64748b; }
+.tl-body { flex: 1; min-width: 0; }
+.tl-name { font-size: .85rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-meta { font-size: .75rem; color: #64748b; margin-top: .1rem; }
+.tl-prog { margin-top: .35rem; }
+.tl-prog .progress { height: 5px; }
+.tl-estado { flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Cabecera -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-chart-line me-2" style="color:#0f766e;"></i>{{ titulo }}</h2>
+        <small class="text-muted">Resumen ejecutivo · Onboarding & Offboarding</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'onboarding_panel' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-user-plus me-1"></i>Onboarding
+        </a>
+        <a href="{% url 'offboarding_panel' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-user-minus me-1"></i>Offboarding
+        </a>
+    </div>
+</div>
+
+<!-- ── KPI Strip: Metricas clave ─────────────────────────────── -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-card">
+            <div class="kpi-strip-value">{{ en_proceso }}</div>
+            <div class="kpi-strip-label">
+                <i class="fas fa-spinner me-1"></i>En Proceso
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-card kpi-strip-purple">
+            <div class="kpi-strip-value">{{ completados_mes }}</div>
+            <div class="kpi-strip-label">
+                <i class="fas fa-check-double me-1"></i>Completados este mes
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-card kpi-strip-blue">
+            <div class="kpi-strip-value">{{ tasa_completitud }}%</div>
+            <div class="kpi-strip-label">
+                <i class="fas fa-percent me-1"></i>Tasa de Completitud
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-strip-card kpi-strip-red">
+            <div class="kpi-strip-value">{{ offboarding_activos }}</div>
+            <div class="kpi-strip-label">
+                <i class="fas fa-user-minus me-1"></i>Offboarding Activos
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Fila secundaria: promedio dias completitud ────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="kpi-strip-card" style="border-top-color:#134e4a; display:flex; align-items:center; gap:1rem; padding:.9rem 1.2rem;">
+            <div style="width:44px; height:44px; border-radius:50%; background:#0d2b27; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <i class="fas fa-clock" style="color:#5eead4; font-size:1.1rem;"></i>
+            </div>
+            <div>
+                <div style="font-size:1.4rem; font-weight:800; color:#0f766e; line-height:1.1;">
+                    {{ promedio_dias_completitud }}
+                    <span style="font-size:.85rem; font-weight:500; color:#64748b;">dias</span>
+                </div>
+                <div style="font-size:.72rem; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em;">
+                    Promedio para completar
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-on">
+            <div class="kpi-value text-success">{{ activos_onboarding }}</div>
+            <div class="kpi-label"><i class="fas fa-user-plus me-1"></i>Onboarding activos</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-off">
+            <div class="kpi-value text-danger">{{ activos_offboarding }}</div>
+            <div class="kpi-label"><i class="fas fa-user-minus me-1"></i>Offboarding activos</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-mes">
+            <div class="kpi-value" style="color:#7c3aed;">{{ completados_mes }}</div>
+            <div class="kpi-label"><i class="fas fa-check-circle me-1"></i>Completados este mes</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-pct">
+            <div class="kpi-value text-info">{{ porcentaje_completado }}%</div>
+            <div class="kpi-label"><i class="fas fa-percent me-1"></i>% global completado</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-risk">
+            <div class="kpi-value text-warning">{{ en_riesgo_count }}</div>
+            <div class="kpi-label"><i class="fas fa-exclamation-triangle me-1"></i>En riesgo (≤7 días)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Segunda fila KPI: progreso promedio, desglose por tipo, tareas críticas -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-avg">
+            <div class="d-flex align-items-end gap-2">
+                <div class="kpi-value" style="color:#0f766e;">{{ progreso_promedio }}%</div>
+                <div style="font-size:.75rem; color:#64748b; padding-bottom:.25rem;">promedio</div>
+            </div>
+            <div class="kpi-label"><i class="fas fa-tasks me-1"></i>Avance procesos activos</div>
+            <div class="progress mt-2" style="height:4px;">
+                <div class="progress-bar" style="width:{{ progreso_promedio }}%; background:#0f766e;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-on">
+            <div class="kpi-value" style="color:#0f766e;">{{ procesos_por_tipo.ONBOARDING }}</div>
+            <div class="kpi-label"><i class="fas fa-user-plus me-1"></i>Onboarding en curso</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-off">
+            <div class="kpi-value text-danger">{{ procesos_por_tipo.OFFBOARDING }}</div>
+            <div class="kpi-label"><i class="fas fa-user-minus me-1"></i>Offboarding en curso</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="kpi-card kpi-critico">
+            <div class="kpi-value {% if tareas_pendientes_criticas > 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ tareas_pendientes_criticas }}
+            </div>
+            <div class="kpi-label">
+                <i class="fas fa-{% if tareas_pendientes_criticas > 0 %}bomb{% else %}check-circle{% endif %} me-1"></i>
+                Tareas vencidas críticas
+            </div>
+            {% if tareas_pendientes_criticas > 0 %}
+            <div class="mt-1" style="font-size:.72rem; color:#dc2626;">
+                <i class="fas fa-exclamation-circle me-1"></i>Requieren atención inmediata
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Tabla de procesos activos -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:#0d2b27; color:#fff;">
+                <span><i class="fas fa-list-check me-2"></i>Procesos Activos</span>
+                <small class="opacity-75">Ordenados por días restantes</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" style="font-size:.82rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Trabajador</th>
+                                <th>Plantilla</th>
+                                <th class="text-center">Días Rest.</th>
+                                <th>Avance</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in todos_activos %}
+                            <tr class="{% if p.vencido %}proceso-row-vencido{% elif p.en_riesgo %}proceso-row-riesgo{% endif %}">
+                                <td>
+                                    {% if p.tipo == 'ONBOARDING' %}
+                                    <span class="badge" style="background:#0f766e;">
+                                        <i class="fas fa-user-plus me-1"></i>ON
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-user-minus me-1"></i>OFF
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ p.trabajador }}</strong>
+                                    <br><small class="text-muted">{{ p.doc }}</small>
+                                </td>
+                                <td><small>{{ p.plantilla }}</small></td>
+                                <td class="text-center">
+                                    {% if p.vencido %}
+                                    <span class="badge bg-danger">{{ p.dias_restantes }}d</span>
+                                    {% elif p.en_riesgo %}
+                                    <span class="badge bg-warning text-dark">{{ p.dias_restantes }}d</span>
+                                    {% else %}
+                                    <span class="text-muted">{{ p.dias_restantes }}d</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="prog-bar-wrap">
+                                        <div class="progress">
+                                            <div class="progress-bar {% if p.porcentaje >= 100 %}bg-success{% elif p.porcentaje >= 50 %}bg-info{% else %}bg-primary{% endif %}"
+                                                 style="width:{{ p.porcentaje }}%"></div>
+                                        </div>
+                                        <span class="prog-pct">{{ p.porcentaje }}%</span>
+                                    </div>
+                                    <small class="text-muted">{{ p.pasos_completados }}/{{ p.total_pasos }} pasos</small>
+                                </td>
+                                <td class="text-center">
+                                    {% if p.tipo == 'ONBOARDING' %}
+                                    <a href="{% url 'proceso_progreso' pk=p.pk %}" class="btn btn-sm btn-outline-primary" title="Ver progreso">
+                                        <i class="fas fa-tasks"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="{{ p.url }}" class="btn btn-sm btn-outline-secondary" title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    No hay procesos activos en este momento.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graficos Chart.js -->
+    <div class="col-lg-4">
+        <div class="row g-3 h-100">
+            <!-- Grafico barras: completados ultimos 6 meses -->
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header" style="background:#0d2b27; color:#fff;">
+                        <i class="fas fa-chart-bar me-2"></i>Completados — ultimos 6 meses
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <canvas id="graficoCompletados" style="max-height:200px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- Grafico doughnut: distribucion activos por tipo -->
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header" style="background:#134e4a; color:#fff;">
+                        <i class="fas fa-chart-pie me-2"></i>Activos por tipo
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center" style="min-height:160px;">
+                        <canvas id="graficoDoughnut" style="max-height:160px; max-width:160px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline: últimos 8 procesos -->
+{% if timeline_reciente %}
+<div class="row g-4 mt-1">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:#0d2b27; color:#fff;">
+                <span><i class="fas fa-stream me-2"></i>Actividad Reciente — Últimos 8 Procesos</span>
+                <small class="opacity-75">Onboarding &amp; Offboarding combinados</small>
+            </div>
+            <div class="card-body py-2">
+                <div class="row g-3">
+                    {% for item in timeline_reciente %}
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="timeline-item rounded px-3 py-2" style="background:#f8fafc; border: 1px solid #e2e8f0;">
+                            <!-- Cabecera: dot + nombre -->
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div class="tl-dot {% if item.tipo == 'ONBOARDING' %}tl-dot-on{% else %}tl-dot-off{% endif %}">
+                                    {% if item.tipo == 'ONBOARDING' %}ON{% else %}OFF{% endif %}
+                                </div>
+                                <div class="tl-body">
+                                    <div class="tl-name" title="{{ item.trabajador }}">{{ item.trabajador }}</div>
+                                    <div class="tl-meta">
+                                        <i class="fas fa-calendar-alt me-1"></i>{{ item.fecha_inicio|date:"d/m/Y" }}
+                                    </div>
+                                </div>
+                                <!-- Tipo badge -->
+                                <div class="tl-estado ms-auto">
+                                    {% if item.tipo == 'ONBOARDING' %}
+                                    <span class="badge" style="background:#0f766e; font-size:.65rem;">Onboarding</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary" style="font-size:.65rem;">Offboarding</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <!-- Barra de progreso -->
+                            <div class="tl-prog">
+                                <div class="d-flex justify-content-between mb-1" style="font-size:.72rem; color:#64748b;">
+                                    <span>Avance</span>
+                                    <strong>{{ item.porcentaje }}%</strong>
+                                </div>
+                                <div class="progress" style="height:6px;">
+                                    <div class="progress-bar
+                                        {% if item.porcentaje >= 100 %}bg-success
+                                        {% elif item.porcentaje >= 50 %}
+                                        {% else %}bg-primary{% endif %}"
+                                        style="width:{{ item.porcentaje }}%;
+                                               {% if item.porcentaje >= 50 and item.porcentaje < 100 %}background:#0f766e !important;{% endif %}">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Estado -->
+                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                <span class="badge
+                                    {% if item.estado_raw == 'EN_CURSO' %}bg-primary
+                                    {% elif item.estado_raw == 'COMPLETADO' %}bg-success
+                                    {% else %}bg-secondary{% endif %}"
+                                    style="font-size:.67rem;">
+                                    {{ item.estado }}
+                                </span>
+                                <a href="{{ item.url }}" class="btn btn-sm py-0 px-2"
+                                   style="font-size:.72rem; color:#0f766e; border: 1px solid #0f766e;"
+                                   title="Ver proceso">
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // ── Grafico barras: completados ultimos 6 meses ──────────────
+    const labels = {{ chart_labels|safe }};
+    const dataOn = {{ chart_on|safe }};
+    const dataOff = {{ chart_off|safe }};
+
+    // Formato abreviado mes (ej. "2026-03" -> "Mar 26")
+    const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const labelsFormat = labels.map(function(l) {
+        const parts = l.split('-');
+        return MESES[parseInt(parts[1]) - 1] + ' ' + String(parts[0]).slice(2);
+    });
+
+    new Chart(document.getElementById('graficoCompletados'), {
+        type: 'bar',
+        data: {
+            labels: labelsFormat,
+            datasets: [
+                {
+                    label: 'Onboarding',
+                    data: dataOn,
+                    backgroundColor: '#0f766e',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Offboarding',
+                    data: dataOff,
+                    backgroundColor: '#dc2626',
+                    borderRadius: 4,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                tooltip: { mode: 'index', intersect: false },
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, font: { size: 11 } },
+                    grid: { color: '#f1f5f9' },
+                },
+            },
+        },
+    });
+
+    // ── Grafico doughnut: activos por tipo ───────────────────────
+    var porTipoRaw = {{ por_tipo_json|safe }};
+    var doughnutLabels = porTipoRaw.map(function(d) { return d.label; });
+    var doughnutData   = porTipoRaw.map(function(d) { return d.count; });
+    var totalActivos   = doughnutData.reduce(function(a, b) { return a + b; }, 0);
+
+    new Chart(document.getElementById('graficoDoughnut'), {
+        type: 'doughnut',
+        data: {
+            labels: doughnutLabels,
+            datasets: [{
+                data: doughnutData,
+                backgroundColor: ['#0f766e', '#dc2626'],
+                borderColor: ['#fff', '#fff'],
+                borderWidth: 3,
+                hoverOffset: 6,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 11 }, padding: 10 },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            var pct = totalActivos > 0
+                                ? Math.round(ctx.parsed * 100 / totalActivos)
+                                : 0;
+                            return ' ' + ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+                        },
+                    },
+                },
+            },
+        },
+        plugins: [{
+            id: 'centerText',
+            afterDraw: function(chart) {
+                var ctx2 = chart.ctx;
+                var cx = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                var cy = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
+                ctx2.save();
+                ctx2.font = 'bold 18px sans-serif';
+                ctx2.fillStyle = '#0f766e';
+                ctx2.textAlign = 'center';
+                ctx2.textBaseline = 'middle';
+                ctx2.fillText(totalActivos, cx, cy - 6);
+                ctx2.font = '11px sans-serif';
+                ctx2.fillStyle = '#94a3b8';
+                ctx2.fillText('activos', cx, cy + 12);
+                ctx2.restore();
+            },
+        }],
+    });
+})();
+</script>
+{% endblock %}

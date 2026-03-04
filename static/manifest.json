@@ -1,0 +1,50 @@
+{
+  "name": "Harmoni ERP",
+  "short_name": "Harmoni",
+  "description": "Sistema de Gestión de Recursos Humanos",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d2b27",
+  "theme_color": "#0d2b27",
+  "orientation": "portrait-primary",
+  "lang": "es",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/static/images/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/",
+      "description": "Panel principal"
+    },
+    {
+      "name": "Asistencia",
+      "url": "/tareo/",
+      "description": "Control de asistencia"
+    },
+    {
+      "name": "Personal",
+      "url": "/personal/",
+      "description": "Gestión de personal"
+    }
+  ]
+}

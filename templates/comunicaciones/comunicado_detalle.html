@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ comunicado.titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-bullhorn text-secondary me-2"></i>{{ titulo|truncatechars:60 }}</h2>
+        <small class="text-muted">
+            {{ comunicado.get_tipo_display }} &middot;
+            Creado {{ comunicado.creado_en|date:"d/m/Y H:i" }}
+            {% if comunicado.creado_por %}
+            por {{ comunicado.creado_por.get_full_name|default:comunicado.creado_por.username }}
+            {% endif %}
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        {% if comunicado.estado != 'ENVIADO' %}
+        <form method="post" action="{% url 'com_comunicado_enviar' comunicado.pk %}"
+              onsubmit="return confirm('Enviar comunicado a todos los destinatarios?')">
+            {% csrf_token %}
+            <button class="btn btn-success btn-sm">
+                <i class="fas fa-paper-plane me-1"></i>Enviar ahora
+            </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'com_comunicados_panel' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ total_dest }}</div>
+            <div class="stat-label">Destinatarios</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ confirmados }}</div>
+            <div class="stat-label">Confirmaciones</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ tasa }}%</div>
+            <div class="stat-label">Tasa de lectura</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-value">
+                {% if comunicado.estado == 'ENVIADO' %}<span class="text-success">Enviado</span>
+                {% elif comunicado.estado == 'BORRADOR' %}<span class="text-warning">Borrador</span>
+                {% elif comunicado.estado == 'PROGRAMADO' %}<span class="text-info">Programado</span>
+                {% else %}<span class="text-secondary">{{ comunicado.get_estado_display }}</span>{% endif %}
+            </div>
+            <div class="stat-label">Estado</div>
+        </div>
+    </div>
+</div>
+
+<!-- Progreso -->
+{% if comunicado.requiere_confirmacion and total_dest > 0 %}
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong>Progreso de confirmaciones</strong>
+            <span>{{ confirmados }} / {{ total_dest }}</span>
+        </div>
+        <div class="progress" style="height:12px;">
+            <div class="progress-bar bg-success" style="width:{{ tasa }}%">
+                {% if tasa > 10 %}{{ tasa }}%{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Detalles -->
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light"><strong>Contenido</strong></div>
+            <div class="card-body" style="font-size:.85rem;">
+                {{ comunicado.cuerpo|safe }}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light"><strong>Informaci&oacute;n</strong></div>
+            <div class="card-body" style="font-size:.85rem;">
+                <dl class="mb-0">
+                    <dt>Tipo</dt>
+                    <dd>{{ comunicado.get_tipo_display }}</dd>
+                    <dt>Destinatarios</dt>
+                    <dd>{{ comunicado.get_destinatarios_tipo_display }}
+                        {% if comunicado.destinatarios_tipo == 'GRUPO' and comunicado.grupo %}({{ comunicado.grupo }}){% endif %}
+                    </dd>
+                    {% if comunicado.areas.exists %}
+                    <dt>&Aacute;reas</dt>
+                    <dd>{% for a in comunicado.areas.all %}{{ a.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>
+                    {% endif %}
+                    {% if comunicado.adjunto %}
+                    <dt>Adjunto</dt>
+                    <dd><a href="{{ comunicado.adjunto.url }}" target="_blank"><i class="fas fa-paperclip me-1"></i>Descargar</a></dd>
+                    {% endif %}
+                    <dt>Confirmaci&oacute;n</dt>
+                    <dd>{% if comunicado.requiere_confirmacion %}<span class="badge bg-info">Requerida</span>{% else %}<span class="text-muted">No requerida</span>{% endif %}</dd>
+                    {% if comunicado.enviado_en %}
+                    <dt>Enviado</dt>
+                    <dd>{{ comunicado.enviado_en|date:"d/m/Y H:i" }}</dd>
+                    {% endif %}
+                    {% if comunicado.programado_para %}
+                    <dt>Programado</dt>
+                    <dd>{{ comunicado.programado_para|date:"d/m/Y H:i" }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmaciones -->
+{% if comunicado.requiere_confirmacion and confirmaciones %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <strong>Confirmaciones de lectura</strong>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Personal</th>
+                    <th>Fecha</th>
+                    <th>IP</th>
+                    <th class="text-center">Confirmado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in confirmaciones %}
+                <tr>
+                    <td>{{ c.personal.apellidos_nombres }}</td>
+                    <td>{{ c.fecha_lectura|date:"d/m/Y H:i" }}</td>
+                    <td><small class="text-muted">{{ c.ip|default:"--" }}</small></td>
+                    <td class="text-center">
+                        {% if c.confirmado %}
+                        <i class="fas fa-check-circle text-success"></i>
+                        {% else %}
+                        <i class="fas fa-clock text-warning"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

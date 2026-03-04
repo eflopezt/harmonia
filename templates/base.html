@@ -4,663 +4,1288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistema de Gestión Personal{% endblock %}</title>
-    
-    <!-- Favicon -->
+    <title>{% block title %}Harmoni ERP{% endblock %} — Harmoni</title>
+
+    <!-- Favicon & PWA -->
     <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
-    <link rel="alternate icon" href="{% static 'images/favicon.svg' %}">
-    
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <meta name="theme-color" content="#0d2b27">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Harmoni">
+    <link rel="apple-touch-icon" href="{% static 'images/favicon.svg' %}">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
+
+    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
+
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/custom.css' %}">
-    
-    <!-- Custom Responsive CSS -->
-    <link rel="stylesheet" href="{% static 'css/responsive-mobile.css' %}">
-    
+
+    <!-- Harmoni ERP CSS -->
+    <link rel="stylesheet" href="{% static 'css/harmoni.css' %}?v=4">
+    <link rel="stylesheet" href="{% static 'css/harmoni-ai.css' %}?v=2">
+
     {% block extra_css %}{% endblock %}
-    
-    <style>
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-        }
-        
-        * {
-            box-sizing: border-box;
-        }
-        
-        html, body {
-            height: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 14px;
-            background-color: #ffffff !important;
-            color: #212529 !important;
-            color-scheme: light !important;
-        }
-        
-        .navbar {
-            background-color: var(--primary-color) !important;
-            padding: 0.5rem 0;
-            min-height: 56px;
-        }
-        
-        .navbar-brand {
-            font-size: 1.25rem !important;
-            font-weight: 600;
-        }
-        
-        .navbar-brand i {
-            margin-right: 0.5rem;
-        }
-        
-        /* Mejora de visibilidad en móvil */
-        .navbar .dropdown-toggle::after {
-            margin-left: 0.5rem;
-        }
-        
-        .navbar .badge {
-            font-size: 0.7rem;
-            padding: 0.25rem 0.5rem;
-        }
-        
-        .sidebar {
-            background-color: #f8f9fa;
-            border-right: 1px solid #dee2e6;
-            position: relative;
-            z-index: 100;
-        }
-        
-        /* En escritorio, el sidebar siempre está visible */
-        @media (min-width: 992px) {
-            .sidebar {
-                display: block !important;
-                visibility: visible !important;
-                border-right: 1px solid #dee2e6;
-                border-bottom: none;
-            }
-        }
-        
-        .sidebar .nav-link {
-            color: #495057;
-            padding: 0.75rem 1rem;
-            font-size: 0.95rem;
-            border-left: 3px solid transparent;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-        }
-        
-        .sidebar .nav-link i {
-            margin-right: 0.75rem;
-            min-width: 20px;
-            text-align: center;
-        }
-        
-        .sidebar .nav-link:hover {
-            background-color: #e9ecef;
-            border-left-color: var(--secondary-color);
-        }
-        
-        .sidebar .nav-link.active {
-            background-color: var(--secondary-color);
-            color: white;
-            border-left-color: var(--secondary-color);
-            font-weight: 600;
-        }
-        
-        .sidebar .badge {
-            margin-left: auto;
-            font-size: 0.75rem;
-        }
-        
-        .content-wrapper {
-            padding: 1.5rem;
-            min-height: calc(100vh - 56px);
-            width: 100%;
-            overflow-x: hidden;
-        }
-        
-        .stat-card {
-            border-left: 4px solid var(--secondary-color);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        
-        /* Tabla responsiva */
-        .table-responsive {
-            font-size: 0.9rem;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        .table {
-            margin-bottom: 1rem;
-            min-width: 100%;
-        }
-        
-        .table thead th {
-            white-space: nowrap;
-            padding: 0.75rem;
-            font-weight: 600;
-            background-color: #f8f9fa;
-        }
-        
-        .table td {
-            padding: 0.75rem;
-            word-break: break-word;
-        }
-        
-        /* Mejoras de formularios */
-        .form-label {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            font-size: 0.95rem;
-        }
-        
-        .form-control, .form-select {
-            border-radius: 0.375rem;
-            border: 1px solid #ced4da;
-            font-size: 0.95rem;
-        }
-        
-        .form-control:focus, .form-select:focus {
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
-        }
-        
-        /* Botones responsivos */
-        .btn {
-            padding: 0.5rem 1rem;
-            font-size: 0.95rem;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        
-        .btn-sm {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
-        }
-        
-        /* Cards responsivas */
-        .card {
-            border-radius: 0.375rem;
-            border: 1px solid #dee2e6;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-        }
-        
-        .card-header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            padding: 1rem;
-            font-weight: 600;
-        }
-        
-        .card-body {
-            padding: 1.25rem;
-        }
-        
-        /* Alertas */
-        .alert {
-            border-radius: 0.375rem;
-            border: none;
-            margin-bottom: 1.5rem;
-            padding: 0.75rem 1rem;
-        }
-        
-        .alert i {
-            margin-right: 0.5rem;
-        }
-        
-        /* Dropdown menus */
-        .dropdown-menu {
-            border-radius: 0.375rem;
-            border: 1px solid #dee2e6;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            padding: 0.5rem 0;
-        }
-        
-        .dropdown-item {
-            padding: 0.75rem 1.25rem;
-            font-size: 0.95rem;
-        }
-        
-        .dropdown-header {
-            padding: 0.75rem 1.25rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: #6c757d;
-        }
-        
-        /* Media queries para dispositivos pequeños */
-        @media (max-width: 768px) {
-            html, body {
-                font-size: 14px;
-            }
-            
-            .navbar {
-                padding: 0.5rem 0;
-            }
-            
-            .navbar-brand {
-                font-size: 1.1rem !important;
-            }
-            
-            .navbar .nav-link {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.9rem;
-            }
-            
-            .sidebar {
-                border-right: none;
-                border-bottom: 1px solid #dee2e6;
-                margin-bottom: 1rem;
-            }
-            
-            /* Asegurar que el collapse funcione correctamente */
-            .sidebar:not(.show) {
-                display: none;
-            }
-            
-            .sidebar.show {
-                display: block;
-            }
-            
-            .sidebar .nav-link {
-                padding: 0.65rem 1rem;
-                font-size: 0.9rem;
-            }
-            
-            .content-wrapper {
-                padding: 1rem;
-                margin-top: 0;
-            }
-            
-            .col-md-2, .col-md-10 {
-                width: 100% !important;
-            }
-            
-            .container-fluid > .row {
-                margin-left: -0.5rem;
-                margin-right: -0.5rem;
-            }
-            
-            .card {
-                margin-bottom: 1rem;
-            }
-            
-            .card-body {
-                padding: 1rem;
-            }
-            
-            .btn {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.9rem;
-                width: 100%;
-                margin-bottom: 0.5rem;
-            }
-            
-            .btn-group {
-                display: flex;
-                gap: 0.25rem;
-            }
-            
-            .btn-group .btn {
-                flex: 1;
-                width: auto;
-                margin-bottom: 0;
-            }
-            
-            .table {
-                font-size: 0.85rem;
-            }
-            
-            .table thead th, .table td {
-                padding: 0.5rem;
-            }
-            
-            .table thead th {
-                white-space: normal;
-            }
-            
-            .form-label {
-                font-size: 0.9rem;
-                margin-bottom: 0.35rem;
-            }
-            
-            .form-control, .form-select {
-                font-size: 16px; /* Previene zoom en iOS */
-                padding: 0.75rem;
-            }
-            
-            .form-check {
-                margin-bottom: 0.75rem;
-            }
-            
-            .row {
-                margin-left: -0.5rem;
-                margin-right: -0.5rem;
-            }
-            
-            .col-sm-6, .col-md-6 {
-                padding-left: 0.5rem;
-                padding-right: 0.5rem;
-                width: 100%;
-                margin-bottom: 1rem;
-            }
-            
-            .dropdown-menu {
-                min-width: 100%;
-                left: 0 !important;
-                right: 0 !important;
-            }
-            
-            .alert {
-                padding: 0.75rem;
-                font-size: 0.9rem;
-                margin-bottom: 1rem;
-            }
-            
-            h1 { font-size: 1.5rem; margin-bottom: 1rem; }
-            h2 { font-size: 1.25rem; margin-bottom: 0.9rem; }
-            h3 { font-size: 1.1rem; margin-bottom: 0.8rem; }
-            h4 { font-size: 1rem; margin-bottom: 0.7rem; }
-            h5 { font-size: 0.95rem; }
-            h6 { font-size: 0.9rem; }
-            
-            .badge {
-                font-size: 0.7rem;
-                padding: 0.25rem 0.4rem;
-            }
-            
-            .position-sticky {
-                position: static;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            body {
-                font-size: 13px;
-            }
-            
-            .navbar-brand {
-                font-size: 1rem !important;
-            }
-            
-            .navbar-brand i {
-                margin-right: 0.25rem;
-            }
-            
-            .content-wrapper {
-                padding: 0.75rem;
-            }
-            
-            .card {
-                margin-bottom: 0.75rem;
-                border-radius: 0.25rem;
-            }
-            
-            .card-header {
-                padding: 0.75rem;
-                font-size: 0.95rem;
-            }
-            
-            .card-body {
-                padding: 0.75rem;
-            }
-            
-            .btn {
-                padding: 0.5rem 0.5rem;
-                font-size: 0.85rem;
-            }
-            
-            .table {
-                font-size: 0.8rem;
-            }
-            
-            .table thead th, .table td {
-                padding: 0.4rem;
-            }
-            
-            .form-control, .form-select {
-                font-size: 16px;
-                padding: 0.6rem 0.5rem;
-            }
-            
-            .form-label {
-                font-size: 0.85rem;
-            }
-            
-            .dropdown-item {
-                padding: 0.5rem 1rem;
-                font-size: 0.9rem;
-            }
-            
-            h1 { font-size: 1.35rem; }
-            h2 { font-size: 1.15rem; }
-            h3 { font-size: 1rem; }
-            h4 { font-size: 0.95rem; }
-        }
-    </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'home' %}">
-                <i class="fas fa-users"></i><span class="d-none d-sm-inline"> Gestión Personal</span>
-            </a>
-            
-            {% if user.is_authenticated %}
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            {% endif %}
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-circle"></i> <span class="d-none d-sm-inline">{{ user.username }}</span>
-                                {% if es_responsable %}
-                                    <span class="badge bg-info ms-1">Responsable</span>
-                                {% elif user.is_superuser %}
-                                    <span class="badge bg-danger ms-1">Admin</span>
-                                {% endif %}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                {% if es_responsable and areas_responsable %}
-                                <li><h6 class="dropdown-header">
-                                    <i class="fas fa-building"></i>
-                                    {% for area in areas_responsable %}
-                                        {{ area.nombre }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </h6></li>
-                                <li><hr class="dropdown-divider"></li>
-                                {% endif %}
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">
-                                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                                </a></li>
-                            </ul>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">
-                                <i class="fas fa-sign-in-alt"></i> <span class="d-none d-sm-inline">Iniciar Sesión</span>
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
+
+{% if user.is_authenticated %}
+<!-- ═══════════════════════════════════════════ SIDEBAR ═══ -->
+<aside class="harmoni-sidebar" id="harmoniSidebar">
+
+    <!-- Brand -->
+    <div class="sidebar-header">
+        <a href="{% url 'home' %}" class="sidebar-brand-link d-flex align-items-center text-decoration-none">
+            <div class="sidebar-logo">
+                <svg width="26" height="26" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+                    <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="11.5" cy="5.28"  r="2.2" fill="#5eead4"/>
+                    <circle cx="28.5" cy="5.28"  r="2.2" fill="#5eead4"/>
+                    <circle cx="11.5" cy="34.72" r="2.2" fill="#5eead4"/>
+                    <circle cx="28.5" cy="34.72" r="2.2" fill="#5eead4"/>
+                </svg>
             </div>
-        </div>
-    </nav>
-
-    <div class="container-fluid">
-        <div class="row g-0">
-            <!-- Sidebar -->
-            {% if user.is_authenticated %}
-            <nav class="col-lg-2 sidebar collapse" id="mobileSidebar">
-                <div class="position-sticky pt-2">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'home' %}">
-                                <i class="fas fa-home"></i> <span class="nav-text">Inicio</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'area_list' %}">
-                                <i class="fas fa-building"></i> <span class="nav-text">Áreas</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'subarea_list' %}">
-                                <i class="fas fa-sitemap"></i> <span class="nav-text">SubÁreas</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'personal_list' %}">
-                                <i class="fas fa-users"></i> <span class="nav-text">Personal</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'roster_matricial' %}">
-                                <i class="fas fa-table"></i> <span class="nav-text">Roster Matricial</span>
-                            </a>
-                        </li>
-                        {% comment %}
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'roster_list' %}">
-                                <i class="fas fa-list"></i> Roster Lista
-                            </a>
-                        </li>
-                        {% endcomment %}
-                        {% if user.is_superuser or es_responsable %}
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'dashboard_aprobaciones' %}">
-                                <i class="fas fa-tasks"></i> <span class="nav-text">Aprobaciones</span>
-                                {% if cambios_pendientes > 0 %}
-                                <span class="badge bg-warning text-dark ms-auto">{{ cambios_pendientes }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if user.is_superuser %}
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'tareo_dashboard' %}">
-                                <i class="fas fa-clock"></i> <span class="nav-text">Tareo</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if user.is_superuser %}
-                        <li class="nav-item">
-                            <a class="nav-link sidebar-link" href="{% url 'usuario_list' %}">
-                                <i class="fas fa-users-cog"></i> <span class="nav-text">Gestión de Usuarios</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="/api/" target="_blank">
-                                <i class="fas fa-code"></i> <span class="nav-text">API</span>
-                            </a>
-                        </li>
-                    </ul>
+            <div class="ms-2">
+                <div class="sidebar-brand-text">Harmoni</div>
+                <div class="sidebar-brand-subtitle">
+                    {% if empresa_actual %}{{ empresa_actual.nombre_display|truncatechars:22 }}
+                    {% elif harmoni_config and harmoni_config.empresa_nombre %}{{ harmoni_config.empresa_nombre|truncatechars:22 }}
+                    {% else %}Sistema RRHH{% endif %}
                 </div>
-            </nav>
+            </div>
+        </a>
+    </div>
+
+    <!-- ── Empresa selector (multi-empresa) ── -->
+    {% if empresas_disponibles|length > 1 %}
+    <div class="px-3 pb-2" style="border-bottom:1px solid rgba(255,255,255,0.1);">
+      <form method="post" action="{% url 'empresa_seleccionar' %}" id="empresaSelectorForm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <select name="empresa_id" class="form-select form-select-sm"
+          style="background:#1a3d38;color:#fff;border-color:rgba(255,255,255,0.2);font-size:11px;"
+          onchange="this.form.submit()" title="Empresa activa">
+          {% for emp in empresas_disponibles %}
+          <option value="{{ emp.pk }}"
+            {% if empresa_actual.pk == emp.pk %}selected{% endif %}>
+            {{ emp.nombre_comercial|default:emp.razon_social|truncatechars:25 }}
+          </option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- ── Category tabs (admin only) ── -->
+    {% if user.is_superuser or es_responsable %}
+    <div class="sidebar-tabs" id="sidebarTabs">
+        <button class="sidebar-tab" data-tab="portal" title="Mi Portal">
+            <i class="fas fa-user-circle"></i>
+            <span>Portal</span>
+        </button>
+        <button class="sidebar-tab" data-tab="personal" title="Personal & Asistencia">
+            <i class="fas fa-id-badge"></i>
+            <span>Personal</span>
+        </button>
+        <button class="sidebar-tab" data-tab="talento" title="Talento & Desarrollo">
+            <i class="fas fa-star"></i>
+            <span>Talento</span>
+        </button>
+        <button class="sidebar-tab" data-tab="nominas" title="Nóminas & Compensaciones">
+            <i class="fas fa-coins"></i>
+            <span>Nóminas</span>
+        </button>
+        <button class="sidebar-tab" data-tab="gestion" title="Analytics & Administración">
+            <i class="fas fa-chart-bar"></i>
+            <span>Gestión</span>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Nav -->
+    <div class="sidebar-body">
+        <nav>
+
+            <!-- ══ PRINCIPAL (no collapsible) ══ -->
+            <div class="nav-section">
+                <a href="{% url 'home' %}" class="nav-item" data-match="^/$">
+                    <i class="fas fa-th-large"></i><span>Dashboard</span>
+                </a>
+            </div>
+
+            <!-- ══ MI PORTAL ══ -->
+            <div class="nav-section" data-section="miportal" data-group="portal">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-user-circle section-icon"></i>
+                    <span>Mi Portal</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'portal_home' %}" class="nav-item" data-match="^/mi-portal/$">
+                        <i class="fas fa-user-circle"></i><span>Mi Resumen</span>
+                    </a>
+                    <a href="{% url 'mi_perfil' %}" class="nav-item" data-match="/mi-portal/perfil">
+                        <i class="fas fa-id-card"></i><span>Mi Perfil</span>
+                    </a>
+                    <a href="{% url 'mi_asistencia' %}" class="nav-item" data-match="/mi-portal/asistencia">
+                        <i class="fas fa-clock"></i><span>Mi Asistencia</span>
+                    </a>
+                    <a href="{% url 'mi_banco_horas' %}" class="nav-item" data-match="/mi-portal/banco-horas">
+                        <i class="fas fa-piggy-bank"></i><span>Banco de Horas</span>
+                    </a>
+                    <a href="{% url 'mi_roster' %}" class="nav-item" data-match="/mi-portal/roster">
+                        <i class="fas fa-calendar-alt"></i><span>Mi Roster</span>
+                    </a>
+                    <a href="{% url 'mis_vacaciones' %}" class="nav-item" data-match="/vacaciones/mis">
+                        <i class="fas fa-umbrella-beach"></i><span>Mis Vacaciones</span>
+                    </a>
+                    <a href="{% url 'mis_permisos' %}" class="nav-item" data-match="/vacaciones/mis-permisos">
+                        <i class="fas fa-calendar-check"></i><span>Mis Permisos</span>
+                    </a>
+                    <a href="{% url 'mis_justificaciones' %}" class="nav-item" data-match="/mi-portal/justificaciones">
+                        <i class="fas fa-pen-square"></i><span>Mis Justificaciones</span>
+                    </a>
+                    <a href="{% url 'mis_solicitudes_he' %}" class="nav-item" data-match="/mi-portal/solicitudes-he">
+                        <i class="fas fa-hourglass-half"></i><span>Solicitudes HE</span>
+                    </a>
+                    <a href="{% url 'mis_papeletas' %}" class="nav-item" data-match="/mi-portal/papeletas">
+                        <i class="fas fa-file-alt"></i><span>Mis Papeletas</span>
+                    </a>
+                    {% if mod_documentos %}
+                    <a href="{% url 'mis_documentos' %}" class="nav-item" data-match="/mi-portal/documentos">
+                        <i class="fas fa-folder-open"></i><span>Mis Documentos</span>
+                    </a>
+                    <a href="{% url 'mis_boletas' %}" class="nav-item" data-match="/documentos/boletas/mis">
+                        <i class="fas fa-file-invoice-dollar"></i><span>Mis Boletas</span>
+                    </a>
+                    <a href="{% url 'mis_documentos_laborales' %}" class="nav-item" data-match="/documentos/laborales/mis">
+                        <i class="fas fa-file-contract"></i><span>Mis Docs. Laborales</span>
+                    </a>
+                    <a href="{% url 'mis_constancias' %}" class="nav-item" data-match="/documentos/constancias/mis">
+                        <i class="fas fa-file-signature"></i><span>Mis Constancias</span>
+                    </a>
+                    {% endif %}
+                    {% if mod_prestamos %}
+                    <a href="{% url 'mis_prestamos' %}" class="nav-item" data-match="/prestamos/mis">
+                        <i class="fas fa-hand-holding-usd"></i><span>Mis Préstamos</span>
+                    </a>
+                    {% endif %}
+                    {% if mod_viaticos %}
+                    <a href="{% url 'mis_viaticos' %}" class="nav-item" data-match="/viaticos/mis">
+                        <i class="fas fa-route"></i><span>Mis Viáticos</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'mis_recibos' %}" class="nav-item" data-match="/nominas/mis-recibos">
+                        <i class="fas fa-receipt"></i><span>Mis Recibos Nómina</span>
+                    </a>
+                    {% if mod_capacitaciones %}
+                    <a href="{% url 'mis_capacitaciones' %}" class="nav-item" data-match="/capacitaciones/mis">
+                        <i class="fas fa-graduation-cap"></i><span>Mis Capacitaciones</span>
+                    </a>
+                    {% endif %}
+                    {% if mod_evaluaciones %}
+                    <a href="{% url 'mis_evaluaciones' %}" class="nav-item" data-match="/evaluaciones/mis-evaluaciones">
+                        <i class="fas fa-star-half-alt"></i><span>Mis Evaluaciones</span>
+                    </a>
+                    <a href="{% url 'mis_okrs' %}" class="nav-item" data-match="/evaluaciones/mis-okrs">
+                        <i class="fas fa-bullseye"></i><span>Mis OKRs</span>
+                    </a>
+                    {% endif %}
+                    {% if mod_encuestas %}
+                    <a href="{% url 'mis_encuestas' %}" class="nav-item" data-match="/encuestas/mis">
+                        <i class="fas fa-poll"></i><span>Mis Encuestas</span>
+                        {% if encuestas_badge > 0 %}
+                        <span class="badge ms-auto" style="background:#0f766e;color:#fff;font-size:.6rem;padding:2px 6px;border-radius:8px;">{{ encuestas_badge }}</span>
+                        {% endif %}
+                    </a>
+                    {% endif %}
+                    {% if mod_salarios %}
+                    <a href="{% url 'mi_historial_salarial' %}" class="nav-item" data-match="/mi-portal/historial-salarial">
+                        <i class="fas fa-money-check-alt"></i><span>Mi Historial Salarial</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'organigrama' %}" class="nav-item" data-match="/mi-portal/organigrama">
+                        <i class="fas fa-sitemap"></i><span>Organigrama</span>
+                    </a>
+                    <a href="{% url 'directorio' %}" class="nav-item" data-match="/mi-portal/directorio">
+                        <i class="fas fa-address-book"></i><span>Directorio</span>
+                    </a>
+                    <a href="{% url 'mi_timeline' %}" class="nav-item" data-match="/mi-portal/timeline">
+                        <i class="fas fa-stream"></i><span>Mi Timeline</span>
+                    </a>
+                    <a href="{% url 'mi_calendario' %}" class="nav-item" data-match="/mi-portal/mi-calendario">
+                        <i class="fas fa-calendar-day"></i><span>Mi Calendario</span>
+                    </a>
+                    <a href="{% url 'mi_onboarding_portal' %}" class="nav-item" data-match="/mi-portal/mi-onboarding">
+                        <i class="fas fa-user-plus"></i><span>Mi Onboarding</span>
+                    </a>
+                    <a href="{% url 'mis_notificaciones_com' %}" class="nav-item" data-match="/comunicaciones/mis-notificaciones">
+                        <i class="fas fa-bell"></i><span>Mis Notificaciones</span>
+                    </a>
+                    <a href="{% url 'mis_comunicados_com' %}" class="nav-item" data-match="/comunicaciones/mis-comunicados">
+                        <i class="fas fa-bullhorn"></i><span>Mis Comunicados</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ══ PERSONAL ══ -->
+            <div class="nav-section" data-section="personal" data-group="personal">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-users section-icon"></i>
+                    <span>Personal</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'personal_list' %}" class="nav-item" data-match="/personal/">
+                        <i class="fas fa-users"></i><span>Empleados</span>
+                    </a>
+                    <a href="{% url 'area_list' %}" class="nav-item" data-match="/areas">
+                        <i class="fas fa-building"></i><span>Áreas / Gerencias</span>
+                    </a>
+                    <a href="{% url 'subarea_list' %}" class="nav-item" data-match="/subareas">
+                        <i class="fas fa-sitemap"></i><span>SubÁreas</span>
+                    </a>
+                    <a href="{% url 'roster_matricial' %}" class="nav-item" data-match="/roster">
+                        <i class="fas fa-calendar-alt"></i><span>Roster Matricial</span>
+                    </a>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'calendario_view' %}" class="nav-item" data-match="/calendario">
+                        <i class="fas fa-calendar-day"></i><span>Calendario Laboral</span>
+                    </a>
+                    <a href="{% url 'contratos_panel' %}" class="nav-item" data-match="/contratos">
+                        <i class="fas fa-file-contract"></i><span>Contratos</span>
+                    </a>
+                    <a href="{% url 'reportes_panel' %}" class="nav-item" data-match="/reportes">
+                        <i class="fas fa-chart-bar"></i><span>Reportes RRHH</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ══ ASISTENCIA (solo admin) ══ -->
+            {% if user.is_superuser %}
+            <div class="nav-section" data-section="asistencia" data-group="personal">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-fingerprint section-icon"></i>
+                    <span>Asistencia</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'asistencia_dashboard' %}" class="nav-item" data-match="^/asistencia/$">
+                        <i class="fas fa-chart-pie"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'asistencia_vista' %}" class="nav-item" data-match="/asistencia/vista">
+                        <i class="fas fa-table"></i><span>Vista Unificada</span>
+                    </a>
+                    <a href="{% url 'asistencia_staff' %}" class="nav-item" data-match="/asistencia/staff">
+                        <i class="fas fa-user-tie"></i><span>Vista STAFF</span>
+                    </a>
+                    <a href="{% url 'asistencia_rco' %}" class="nav-item" data-match="/asistencia/rco">
+                        <i class="fas fa-hard-hat"></i><span>Vista RCO</span>
+                    </a>
+                    <a href="{% url 'asistencia_importar' %}" class="nav-item" data-match="/asistencia/importar">
+                        <i class="fas fa-file-import"></i><span>Importaciones</span>
+                    </a>
+                    <a href="{% url 'asistencia_banco_horas' %}" class="nav-item" data-match="/asistencia/banco">
+                        <i class="fas fa-piggy-bank"></i><span>Banco de Horas</span>
+                    </a>
+                    <a href="{% url 'asistencia_papeletas' %}" class="nav-item" data-match="/asistencia/papeletas">
+                        <i class="fas fa-file-contract"></i><span>Papeletas</span>
+                    </a>
+                    <a href="{% url 'asistencia_solicitudes_he' %}" class="nav-item" data-match="/asistencia/solicitudes-he">
+                        <i class="fas fa-hourglass-half"></i><span>Solicitudes HE</span>
+                    </a>
+                    <a href="{% url 'asistencia_justificaciones' %}" class="nav-item" data-match="/asistencia/justificaciones">
+                        <i class="fas fa-pen-square"></i><span>Justificaciones</span>
+                    </a>
+                    <a href="{% url 'asistencia_kpis' %}" class="nav-item" data-match="/asistencia/kpis">
+                        <i class="fas fa-chart-bar"></i><span>KPIs</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}{# /is_superuser asistencia #}
+
+            <!-- ══ NÓMINAS ══ -->
+            <div class="nav-section" data-section="nominas" data-group="nominas">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-file-invoice-dollar section-icon"></i>
+                    <span>Nóminas</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'nominas_panel' %}" class="nav-item" data-match="^/nominas/$">
+                        <i class="fas fa-list-alt"></i><span>Períodos</span>
+                    </a>
+                    <a href="{% url 'nominas_periodo_crear' %}" class="nav-item" data-match="/nominas/periodos/nuevo">
+                        <i class="fas fa-plus-circle"></i><span>Nuevo Período</span>
+                    </a>
+                    <a href="{% url 'nominas_conceptos' %}" class="nav-item" data-match="/nominas/conceptos">
+                        <i class="fas fa-tags"></i><span>Conceptos</span>
+                    </a>
+                    <a href="{% url 'nominas_gratificaciones' %}" class="nav-item" data-match="/nominas/gratificaciones">
+                        <i class="fas fa-gift"></i><span>Gratificaciones</span>
+                    </a>
+                    <a href="{% url 'nominas_ir5ta' %}" class="nav-item" data-match="/nominas/ir5ta">
+                        <i class="fas fa-percent"></i><span>IR 5ta Categoría</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ══ VACACIONES ══ -->
+            {% with vac_total=vacaciones_badge|add:permisos_badge %}
+            <div class="nav-section" data-section="vacaciones" data-group="personal">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-umbrella-beach section-icon"></i>
+                    <span>Vacaciones</span>
+                    {% if vac_total > 0 %}
+                    <span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;padding:2px 6px;border-radius:8px;">{{ vac_total }}</span>
+                    {% endif %}
+                    <i class="fas fa-chevron-right toggle-chevron{% if vac_total > 0 %} ms-1{% endif %}"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'vacaciones_panel' %}" class="nav-item" data-match="^/vacaciones/$">
+                        <i class="fas fa-umbrella-beach"></i><span>Solicitudes</span>
+                        {% if vacaciones_badge > 0 %}
+                        <span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">{{ vacaciones_badge }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'permisos_panel' %}" class="nav-item" data-match="/vacaciones/permisos">
+                        <i class="fas fa-calendar-check"></i><span>Permisos / Licencias</span>
+                        {% if permisos_badge > 0 %}
+                        <span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">{{ permisos_badge }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'saldos_panel' %}" class="nav-item" data-match="/vacaciones/saldos">
+                        <i class="fas fa-wallet"></i><span>Saldos</span>
+                    </a>
+                </div>
+            </div>
+            {% endwith %}
+
+            <!-- ══ DOCUMENTOS ══ -->
+            {% if mod_documentos %}
+            <div class="nav-section" data-section="documentos" data-group="personal">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-folder-open section-icon"></i>
+                    <span>Documentos</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'documentos_panel' %}" class="nav-item" data-match="^/documentos/$">
+                        <i class="fas fa-folder-open"></i><span>Legajo Digital</span>
+                    </a>
+                    <a href="{% url 'documentos_tipos' %}" class="nav-item" data-match="/documentos/tipos">
+                        <i class="fas fa-file-alt"></i><span>Tipos de Documento</span>
+                    </a>
+                    <a href="{% url 'constancias_panel' %}" class="nav-item" data-match="/documentos/constancias">
+                        <i class="fas fa-file-signature"></i><span>Constancias</span>
+                    </a>
+                    <a href="{% url 'boletas_panel' %}" class="nav-item" data-match="/documentos/boletas">
+                        <i class="fas fa-file-invoice-dollar"></i><span>Boletas de Pago</span>
+                    </a>
+                    <a href="{% url 'docs_laborales_panel' %}" class="nav-item" data-match="/documentos/laborales">
+                        <i class="fas fa-file-contract"></i><span>Docs. Laborales</span>
+                    </a>
+                    <a href="{% url 'documentos_faltantes' %}" class="nav-item" data-match="/documentos/faltantes">
+                        <i class="fas fa-exclamation-triangle"></i><span>Faltantes</span>
+                    </a>
+                    <a href="{% url 'dossier_list' %}" class="nav-item" data-match="/documentos/dossier">
+                        <i class="fas fa-archive"></i><span>Dossier</span>
+                    </a>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'firma_panel' %}" class="nav-item" data-match="/documentos/firma">
+                        <i class="fas fa-pen-nib"></i><span>Firma Digital</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
             {% endif %}
 
-            <!-- Main content -->
-            <main class="col-lg-{% if user.is_authenticated %}10{% else %}12{% endif %} ms-0 px-2 px-md-4">
-                <div class="content-wrapper">
-                    <!-- Messages -->
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
+            <!-- ══ RECLUTAMIENTO ══ -->
+            {% if mod_reclutamiento %}
+            <div class="nav-section" data-section="reclutamiento" data-group="talento">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-briefcase section-icon"></i>
+                    <span>Reclutamiento</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'vacantes_panel' %}" class="nav-item" data-match="^/reclutamiento/$">
+                        <i class="fas fa-briefcase"></i><span>Vacantes</span>
+                    </a>
+                    <a href="{% url 'pipeline_panel' %}" class="nav-item" data-match="/reclutamiento/pipeline">
+                        <i class="fas fa-columns"></i><span>Pipeline Kanban</span>
+                    </a>
+                    <a href="{% url 'reclutamiento_dashboard' %}" class="nav-item" data-match="/reclutamiento/dashboard">
+                        <i class="fas fa-chart-bar"></i><span>Dashboard Recruiter</span>
+                    </a>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'etapas_config' %}" class="nav-item" data-match="/reclutamiento/etapas">
+                        <i class="fas fa-layer-group"></i><span>Etapas</span>
+                    </a>
                     {% endif %}
-
-                    <!-- Page content -->
-                    {% block content %}{% endblock %}
                 </div>
-            </main>
+            </div>
+            {% endif %}
+
+            <!-- ══ ONBOARDING ══ -->
+            <div class="nav-section" data-section="onboarding" data-group="talento">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-user-plus section-icon"></i>
+                    <span>Onboarding</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'onboarding_dashboard' %}" class="nav-item" data-match="/onboarding/dashboard">
+                        <i class="fas fa-chart-pie"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'onboarding_panel' %}" class="nav-item" data-match="^/onboarding/$">
+                        <i class="fas fa-user-plus"></i><span>Onboarding</span>
+                    </a>
+                    <a href="{% url 'offboarding_panel' %}" class="nav-item" data-match="/onboarding/offboarding">
+                        <i class="fas fa-user-minus"></i><span>Offboarding</span>
+                    </a>
+                    <a href="{% url 'plantillas_onboarding' %}" class="nav-item" data-match="/onboarding/plantillas">
+                        <i class="fas fa-clipboard-list"></i><span>Plantillas</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ══ EVALUACIONES ══ -->
+            {% if mod_evaluaciones %}
+            <div class="nav-section" data-section="evaluaciones" data-group="talento">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-star section-icon"></i>
+                    <span>Evaluaciones</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'evaluaciones_dashboard' %}" class="nav-item" data-match="/evaluaciones/dashboard">
+                        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'ninebox_grid' %}" class="nav-item" data-match="/evaluaciones/ninebox">
+                        <i class="fas fa-th"></i><span>9-Box Grid</span>
+                    </a>
+                    <a href="{% url 'comparativa_competencias' %}" class="nav-item" data-match="/evaluaciones/comparativa">
+                        <i class="fas fa-chart-radar"></i><span>Comparativa</span>
+                    </a>
+                    <a href="{% url 'ciclos_panel' %}" class="nav-item" data-match="^/evaluaciones/$">
+                        <i class="fas fa-star-half-alt"></i><span>Ciclos</span>
+                    </a>
+                    <a href="{% url 'competencias_panel' %}" class="nav-item" data-match="/evaluaciones/competencias">
+                        <i class="fas fa-puzzle-piece"></i><span>Competencias</span>
+                    </a>
+                    <a href="{% url 'plantillas_panel' %}" class="nav-item" data-match="/evaluaciones/plantillas">
+                        <i class="fas fa-clipboard-list"></i><span>Plantillas</span>
+                    </a>
+                    <a href="{% url 'planes_panel' %}" class="nav-item" data-match="/evaluaciones/planes">
+                        <i class="fas fa-route"></i><span>Planes Desarrollo</span>
+                    </a>
+                    <a href="{% url 'okr_panel' %}" class="nav-item" data-match="/evaluaciones/okrs">
+                        <i class="fas fa-bullseye"></i><span>OKRs</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ CAPACITACIONES ══ -->
+            {% if mod_capacitaciones %}
+            <div class="nav-section" data-section="capacitaciones" data-group="talento">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-graduation-cap section-icon"></i>
+                    <span>Capacitaciones</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'capacitaciones_panel' %}" class="nav-item" data-match="^/capacitaciones/$">
+                        <i class="fas fa-chalkboard-teacher"></i><span>Capacitaciones</span>
+                    </a>
+                    <a href="{% url 'requerimientos_panel' %}" class="nav-item" data-match="/capacitaciones/requerimientos">
+                        <i class="fas fa-tasks"></i><span>Requerimientos</span>
+                    </a>
+                    <a href="{% url 'incumplimientos_panel' %}" class="nav-item" data-match="/capacitaciones/incumplimientos">
+                        <i class="fas fa-exclamation-circle"></i><span>Incumplimientos</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ ENCUESTAS ══ -->
+            {% if mod_encuestas %}
+            <div class="nav-section" data-section="encuestas" data-group="talento">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-poll section-icon"></i>
+                    <span>Encuestas</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'encuestas_panel' %}" class="nav-item" data-match="^/encuestas/$">
+                        <i class="fas fa-poll"></i><span>Encuestas</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ DISCIPLINARIA ══ -->
+            <div class="nav-section" data-section="disciplinaria" data-group="personal">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-gavel section-icon"></i>
+                    <span>Disciplinaria</span>
+                    {% if disciplinaria_badge > 0 %}
+                    <span class="badge bg-danger ms-auto" style="font-size:.6rem;padding:2px 6px;border-radius:8px;">{{ disciplinaria_badge }}</span>
+                    {% endif %}
+                    <i class="fas fa-chevron-right toggle-chevron{% if disciplinaria_badge > 0 %} ms-1{% endif %}"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'disciplinaria_dashboard' %}" class="nav-item" data-match="/disciplinaria/dashboard">
+                        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'disciplinaria_panel' %}" class="nav-item" data-match="^/disciplinaria/$">
+                        <i class="fas fa-gavel"></i><span>Medidas</span>
+                    </a>
+                    <a href="{% url 'tipos_falta' %}" class="nav-item" data-match="/disciplinaria/tipos-falta">
+                        <i class="fas fa-list-ul"></i><span>Tipos de Falta</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ══ COMUNICACIONES ══ -->
+            <div class="nav-section" data-section="comunicaciones" data-group="talento">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-bell section-icon"></i>
+                    <span>Comunicaciones</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'com_notificaciones_panel' %}" class="nav-item" data-match="^/comunicaciones/$">
+                        <i class="fas fa-bell"></i><span>Notificaciones</span>
+                    </a>
+                    <a href="{% url 'com_comunicados_panel' %}" class="nav-item" data-match="/comunicaciones/comunicados">
+                        <i class="fas fa-bullhorn"></i><span>Comunicados</span>
+                    </a>
+                    <a href="{% url 'com_plantillas_panel' %}" class="nav-item" data-match="/comunicaciones/plantillas">
+                        <i class="fas fa-file-code"></i><span>Plantillas</span>
+                    </a>
+                    <a href="{% url 'com_config_smtp' %}" class="nav-item" data-match="/comunicaciones/config-smtp">
+                        <i class="fas fa-server"></i><span>Config SMTP</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ══ SALARIOS ══ -->
+            {% if mod_salarios %}
+            <div class="nav-section" data-section="salarios" data-group="nominas">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-money-bill-wave section-icon"></i>
+                    <span>Salarios</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'bandas_panel' %}" class="nav-item" data-match="/salarios/bandas">
+                        <i class="fas fa-layer-group"></i><span>Bandas Salariales</span>
+                    </a>
+                    <a href="{% url 'bandas_grafico' %}" class="nav-item" data-match="/salarios/bandas/grafico">
+                        <i class="fas fa-chart-bar"></i><span>Gráfico Bandas</span>
+                    </a>
+                    <a href="{% url 'simulacion_comparativa' %}" class="nav-item" data-match="/salarios/simulador-comparativo">
+                        <i class="fas fa-balance-scale"></i><span>Simulador Comparativo</span>
+                    </a>
+                    <a href="{% url 'equidad_salarial' %}" class="nav-item" data-match="/salarios/equidad">
+                        <i class="fas fa-venus-mars"></i><span>Equidad Salarial</span>
+                    </a>
+                    <a href="{% url 'historial_salarial_panel' %}" class="nav-item" data-match="/salarios/historial">
+                        <i class="fas fa-chart-line"></i><span>Historial Salarial</span>
+                    </a>
+                    <a href="{% url 'simulacion_panel' %}" class="nav-item" data-match="/salarios/simulaciones">
+                        <i class="fas fa-calculator"></i><span>Simulaciones</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ PRÉSTAMOS ══ -->
+            {% if mod_prestamos %}
+            <div class="nav-section" data-section="prestamos" data-group="nominas">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-hand-holding-usd section-icon"></i>
+                    <span>Préstamos</span>
+                    {% if prestamos_badge > 0 %}
+                    <span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;padding:2px 6px;border-radius:8px;">{{ prestamos_badge }}</span>
+                    {% endif %}
+                    <i class="fas fa-chevron-right toggle-chevron{% if prestamos_badge > 0 %} ms-1{% endif %}"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'prestamos_panel' %}" class="nav-item" data-match="^/prestamos/$">
+                        <i class="fas fa-hand-holding-usd"></i><span>Panel</span>
+                    </a>
+                    <a href="{% url 'prestamo_crear' %}" class="nav-item" data-match="/prestamos/nuevo">
+                        <i class="fas fa-plus-circle"></i><span>Nuevo Préstamo</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ VIÁTICOS ══ -->
+            {% if mod_viaticos %}
+            <div class="nav-section" data-section="viaticos" data-group="nominas">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-route section-icon"></i>
+                    <span>Viáticos CDT</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'viaticos_dashboard' %}" class="nav-item" data-match="/viaticos/dashboard">
+                        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'viaticos_panel' %}" class="nav-item" data-match="^/viaticos/$">
+                        <i class="fas fa-route"></i><span>Panel CDT</span>
+                    </a>
+                    <a href="{% url 'viatico_crear' %}" class="nav-item" data-match="/viaticos/crear">
+                        <i class="fas fa-plus-circle"></i><span>Nuevo CDT</span>
+                    </a>
+                    <a href="{% url 'viaticos_reporte_excel' %}" class="nav-item" data-match="/viaticos/reporte/excel">
+                        <i class="fas fa-file-excel"></i><span>Reporte Excel</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ ANALYTICS ══ -->
+            <div class="nav-section" data-section="analytics" data-group="gestion">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-chart-line section-icon"></i>
+                    <span>Analytics</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'analytics_dashboard' %}" class="nav-item" data-match="^/analytics/$">
+                        <i class="fas fa-chart-line"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'analytics_headcount' %}" class="nav-item" data-match="/analytics/headcount">
+                        <i class="fas fa-users"></i><span>Headcount</span>
+                    </a>
+                    <a href="{% url 'analytics_snapshots' %}" class="nav-item" data-match="/analytics/snapshots">
+                        <i class="fas fa-camera"></i><span>Snapshots KPI</span>
+                    </a>
+                    <a href="{% url 'analytics_alertas' %}" class="nav-item" data-match="/analytics/alertas">
+                        <i class="fas fa-exclamation-triangle"></i><span>Alertas RRHH</span>
+                    </a>
+                    <a href="{% url 'analytics_attrition' %}" class="nav-item" data-match="/analytics/attrition">
+                        <i class="fas fa-user-slash"></i><span>Riesgo de Fuga</span>
+                    </a>
+                    <a href="{% url 'analytics_salarios' %}" class="nav-item" data-match="/analytics/salarios">
+                        <i class="fas fa-coins"></i><span>Análisis Salarial</span>
+                    </a>
+                    <a href="{% url 'analytics_ai_dashboard' %}" class="nav-item" data-match="/analytics/ia">
+                        <i class="fas fa-brain"></i><span>Dashboard IA</span>
+                        <span class="badge ms-auto" style="background:#5eead4;color:#0d2b27;font-size:.55rem;padding:2px 6px;border-radius:8px;">IA</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ══ ADMINISTRACIÓN ══ -->
+            {% if user.is_superuser or es_responsable %}
+            <div class="nav-section" data-section="admin" data-group="gestion">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-shield-alt section-icon"></i>
+                    <span>Administración</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'dashboard_aprobaciones' %}" class="nav-item" data-match="/aprobaciones">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Aprobaciones</span>
+                        {% if cambios_pendientes > 0 %}
+                        <span class="badge bg-warning text-dark ms-auto">{{ cambios_pendientes }}</span>
+                        {% endif %}
+                    </a>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'workflow_bandeja' %}" class="nav-item" data-match="^/workflows/">
+                        <i class="fas fa-code-branch"></i>
+                        <span>Bandeja Workflows</span>
+                        {% if pendientes_workflow > 0 %}
+                        <span class="badge bg-danger ms-auto">{{ pendientes_workflow }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'workflow_config' %}" class="nav-item" data-match="/workflows/config">
+                        <i class="fas fa-project-diagram"></i><span>Config. Workflows</span>
+                    </a>
+                    <a href="{% url 'empresas_panel' %}" class="nav-item" data-match="/empresas">
+                        <i class="fas fa-building"></i><span>Empresas</span>
+                    </a>
+                    <a href="{% url 'usuario_list' %}" class="nav-item" data-match="/usuarios">
+                        <i class="fas fa-users-cog"></i><span>Usuarios</span>
+                    </a>
+                    <a href="{% url 'permisos_modulos_panel' %}" class="nav-item" data-match="/sistema/permisos-modulos">
+                        <i class="fas fa-user-shield"></i><span>Permisos Módulos</span>
+                    </a>
+                    <a href="{% url 'asistencia_configuracion' %}" class="nav-item" data-match="/asistencia/configuracion">
+                        <i class="fas fa-sliders-h"></i><span>Configuración</span>
+                    </a>
+                    <a href="{% url 'asistencia_parametros' %}" class="nav-item" data-match="/asistencia/parametros">
+                        <i class="fas fa-cog"></i><span>Parámetros</span>
+                    </a>
+                    <a href="{% url 'audit_log' %}" class="nav-item" data-match="/sistema/auditoria">
+                        <i class="fas fa-history"></i><span>Auditoría</span>
+                    </a>
+                    <a href="{% url 'configuracion_sistema' %}" class="nav-item" data-match="/integraciones/configuracion">
+                        <i class="fas fa-sliders-h"></i><span>Configuración Sistema</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ══ CIERRE / OPERACIONES ══ -->
+            {% if user.is_superuser %}
+            <div class="nav-section" data-section="cierre" data-group="gestion">
+                <button class="nav-section-toggle" type="button">
+                    <i class="fas fa-lock section-icon"></i>
+                    <span>Cierre</span>
+                    <i class="fas fa-chevron-right toggle-chevron"></i>
+                </button>
+                <div class="nav-section-body">
+                    <a href="{% url 'cierre_dashboard' %}" class="nav-item" data-match="/cierre/dashboard">
+                        <i class="fas fa-chart-pie"></i><span>Dashboard Cierre</span>
+                    </a>
+                    <a href="{% url 'cierre_lista' %}" class="nav-item" data-match="/cierre/">
+                        <i class="fas fa-lock"></i><span>Cierre Mensual</span>
+                    </a>
+                    <a href="{% url 'integ_plame_preview' %}" class="nav-item" data-match="/integraciones/plame">
+                        <i class="fas fa-file-invoice"></i><span>Preview PLAME</span>
+                    </a>
+                    <a href="{% url 'integ_afp_net_panel' %}" class="nav-item" data-match="/integraciones/afp">
+                        <i class="fas fa-piggy-bank"></i><span>Panel AFP Net</span>
+                    </a>
+                    <a href="{% url 'integraciones_panel' %}" class="nav-item" data-match="^/integraciones/$">
+                        <i class="fas fa-plug"></i><span>Exportaciones SUNAT</span>
+                    </a>
+                    <a href="{% url 'integ_contable_panel' %}" class="nav-item" data-match="/integraciones/contable">
+                        <i class="fas fa-book"></i><span>Contabilidad</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+        </nav>
+    </div>
+    <!-- User footer -->
+    <div class="sidebar-footer">
+        <div class="dropdown dropup">
+            <a href="#" class="user-card-link" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="user-avatar">{{ user.username|slice:":1"|upper }}</div>
+                <div class="user-info">
+                    <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                    <span class="user-role">
+                        {% if user.is_superuser %}Administrador
+                        {% elif es_responsable %}Responsable de Área
+                        {% else %}Colaborador{% endif %}
+                    </span>
+                </div>
+                <i class="fas fa-chevron-up" style="font-size:0.7rem;color:var(--sidebar-section-title);margin-left:auto;flex-shrink:0"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width:220px">
+                <li class="px-3 py-2">
+                    <div class="fw-semibold text-dark" style="font-size:.875rem">{{ user.get_full_name|default:user.username }}</div>
+                    <small class="text-muted">{{ user.email|default:"Sin email registrado" }}</small>
+                </li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'preferencias_usuario' %}">
+                        <i class="fas fa-sliders-h me-2 text-muted"></i>Mis Preferencias
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'password_change' %}">
+                        <i class="fas fa-key me-2 text-muted"></i>Cambiar Contraseña
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                    <a class="dropdown-item text-danger" href="{% url 'logout' %}">
+                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                    </a>
+                </li>
+            </ul>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    
-    <!-- DataTables -->
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-    
-    <script>
-        // Manejo del sidebar en móvil y escritorio
-        (function() {
-            'use strict';
-            
-            document.addEventListener('DOMContentLoaded', function() {
-                const sidebar = document.getElementById('mobileSidebar');
-                const sidebarLinks = document.querySelectorAll('.sidebar-link');
-                
-                if (!sidebar) return;
-                
-                // Verificar si estamos en modo móvil
-                function esMobil() {
-                    return window.innerWidth < 992;
-                }
-                
-                // Cerrar sidebar en móvil al hacer clic en un enlace
-                sidebarLinks.forEach(function(link) {
-                    link.addEventListener('click', function() {
-                        if (esMobil()) {
-                            setTimeout(function() {
-                                const bsCollapse = bootstrap.Collapse.getInstance(sidebar);
-                                if (bsCollapse) {
-                                    bsCollapse.hide();
-                                }
-                            }, 200);
-                        }
-                    });
-                });
-                
-                // Asegurar que el sidebar esté visible en escritorio después de resize
-                let resizeTimeout;
-                window.addEventListener('resize', function() {
-                    clearTimeout(resizeTimeout);
-                    resizeTimeout = setTimeout(function() {
-                        if (!esMobil() && sidebar.classList.contains('collapse')) {
-                            sidebar.classList.add('show');
-                        }
-                    }, 250);
-                });
+</aside>
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+{% endif %}
+
+
+<!-- ═══════════════════════════════════════════ MAIN ═══ -->
+<div class="harmoni-main{% if not user.is_authenticated %} harmoni-main--no-sidebar{% endif %}">
+
+    <!-- Top bar -->
+    {% if user.is_authenticated %}
+    <header class="harmoni-topbar">
+        <button class="sidebar-toggle d-lg-none" id="sidebarToggle" aria-label="Menú">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="topbar-title">
+            {% block page_title %}{% endblock %}
+        </div>
+        <!-- Global Search -->
+        <div class="global-search" id="globalSearch">
+            <div class="global-search-input-wrap">
+                <i class="fas fa-search global-search-icon"></i>
+                <input type="text" id="globalSearchInput" class="global-search-input"
+                       placeholder="Buscar empleado, papeleta, documento…"
+                       autocomplete="off" spellcheck="false">
+                <kbd class="global-search-kbd d-none d-md-inline">Ctrl+K</kbd>
+            </div>
+            <div class="global-search-results" id="globalSearchResults" style="display:none"></div>
+        </div>
+        <div class="topbar-actions">
+            {% if cambios_pendientes > 0 %}
+            <a href="{% url 'dashboard_aprobaciones' %}" class="topbar-notification" title="{{ cambios_pendientes }} aprobación(es) pendiente(s)">
+                <i class="fas fa-bell"></i>
+                <span class="notification-badge">{{ cambios_pendientes }}</span>
+            </a>
+            {% endif %}
+            {# Notificaciones in-app #}
+            <div class="notif-widget position-relative me-2" id="notifWidget">
+              <button class="btn btn-link p-1 text-muted position-relative" id="notifBtn"
+                      title="Notificaciones" style="font-size:1.1rem;">
+                <i class="fas fa-bell"></i>
+                <span class="notif-badge badge bg-danger rounded-pill position-absolute"
+                      id="notifBadge" style="top:-2px;right:-4px;font-size:.6rem;display:none;">0</span>
+              </button>
+              <div class="notif-dropdown shadow-lg" id="notifDropdown" style="display:none;
+                   position:absolute;right:0;top:calc(100% + 8px);width:340px;
+                   background:#fff;border:1px solid #e2e8f0;border-radius:10px;z-index:1050;overflow:hidden;">
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                  <span class="fw-semibold" style="font-size:.9rem;">Notificaciones</span>
+                  <button class="btn btn-link btn-sm p-0 text-muted" id="btnMarcarTodas"
+                          style="font-size:.75rem;">Marcar todas le&#237;das</button>
+                </div>
+                <div id="notifList" style="max-height:340px;overflow-y:auto;">
+                  <div class="text-center py-4 text-muted" style="font-size:.85rem;" id="notifEmpty">
+                    <i class="fas fa-bell-slash opacity-25 fa-2x mb-2 d-block"></i>Sin notificaciones
+                  </div>
+                </div>
+                <div class="border-top text-center py-2">
+                  <a href="{% url 'mis_comunicados_com' %}" style="font-size:.8rem;" class="text-muted text-decoration-none">
+                    Ver todas las comunicaciones
+                  </a>
+                </div>
+              </div>
+            </div>
+            <!-- User Menu -->
+            <div class="dropdown">
+                <button class="topbar-user-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="topbar-avatar">{{ user.get_full_name|default:user.username|make_list|first }}</span>
+                    <span class="topbar-username d-none d-md-inline">{{ user.first_name|default:user.username }}</span>
+                    <i class="fas fa-chevron-down" style="font-size:.55rem; opacity:.6"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li class="dropdown-header small text-muted">
+                        {{ user.get_full_name|default:user.username }}<br>
+                        <span style="font-size:.72rem">{{ user.email|default:"Sin email" }}</span>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'mi_perfil' %}"><i class="fas fa-user me-2 text-muted"></i>Mi Perfil</a></li>
+                    <li><a class="dropdown-item" href="{% url 'preferencias_usuario' %}"><i class="fas fa-sliders-h me-2 text-muted"></i>Mis Preferencias</a></li>
+                    <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="fas fa-key me-2 text-muted"></i>Cambiar Contraseña</a></li>
+                    {% if user.is_superuser %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'admin:index' %}"><i class="fas fa-cog me-2 text-muted"></i>Admin Django</a></li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    <!-- Content -->
+    <main class="harmoni-content">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {% if message.tags == 'success' %}<i class="fas fa-check-circle me-2"></i>
+                {% elif message.tags == 'error' or message.tags == 'danger' %}<i class="fas fa-exclamation-circle me-2"></i>
+                {% elif message.tags == 'warning' %}<i class="fas fa-exclamation-triangle me-2"></i>
+                {% else %}<i class="fas fa-info-circle me-2"></i>{% endif %}
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+
+<!-- ═══════════════════════════════════════════ SCRIPTS ═══ -->
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- DataTables -->
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+(function () {
+    'use strict';
+
+    const sidebar   = document.getElementById('harmoniSidebar');
+    const overlay   = document.getElementById('sidebarOverlay');
+    const toggleBtn = document.getElementById('sidebarToggle');
+
+    // ── Mobile sidebar toggle ──────────────────────────────
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function () {
+            sidebar.classList.toggle('show');
+            if (overlay) overlay.classList.toggle('show');
+        });
+    }
+    if (overlay) {
+        overlay.addEventListener('click', function () {
+            if (sidebar) sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        });
+    }
+
+    // ── Auto-fill topbar title from <title> tag if empty ────
+    const topbarTitle = document.querySelector('.topbar-title');
+    if (topbarTitle && !topbarTitle.textContent.trim()) {
+        const pageTitle = document.title.replace(/\s*[—–|]\s*Harmoni$/i, '').trim();
+        if (pageTitle) {
+            const h1 = document.createElement('h1');
+            h1.textContent = pageTitle;
+            topbarTitle.appendChild(h1);
+        }
+    }
+
+    // ── Active nav-item based on current URL ────────────────
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.nav-item[data-match]').forEach(function (link) {
+        const pattern = link.getAttribute('data-match');
+        try {
+            if (new RegExp(pattern).test(currentPath)) {
+                link.classList.add('active');
+            }
+        } catch (e) {}
+    });
+
+    // ── Close sidebar on nav-item click (mobile) ────────────
+    document.querySelectorAll('.nav-item').forEach(function (link) {
+        link.addEventListener('click', function () {
+            if (window.innerWidth < 992 && sidebar) {
+                sidebar.classList.remove('show');
+                if (overlay) overlay.classList.remove('show');
+            }
+        });
+    });
+
+    // ── Sidebar category tabs ────────────────────────────────
+    (function initSidebarTabs() {
+        var TAB_KEY   = 'harmoni_tab_v1';
+        var DEFAULT   = 'portal';
+        var tabsEl    = document.getElementById('sidebarTabs');
+        if (!tabsEl) return; // non-admin users have no tabs
+
+        function loadTab() {
+            try { return localStorage.getItem(TAB_KEY) || DEFAULT; } catch(e) { return DEFAULT; }
+        }
+        function saveTab(t) {
+            try { localStorage.setItem(TAB_KEY, t); } catch(e) {}
+        }
+
+        // Auto-detect tab from active nav-item
+        var autoGroup = null;
+        document.querySelectorAll('.nav-item.active').forEach(function(item) {
+            var sec = item.closest('.nav-section[data-group]');
+            if (sec) autoGroup = sec.getAttribute('data-group');
+        });
+
+        function showTab(group) {
+            // Show/hide grouped sections
+            document.querySelectorAll('.nav-section[data-group]').forEach(function(sec) {
+                sec.classList.toggle('group-visible', sec.getAttribute('data-group') === group);
             });
-        })();
-    </script>
-    
-    {% block extra_js %}{% endblock %}
+            // Update tab buttons
+            document.querySelectorAll('.sidebar-tab[data-tab]').forEach(function(btn) {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === group);
+            });
+            saveTab(group);
+        }
+
+        // Bind clicks
+        document.querySelectorAll('.sidebar-tab[data-tab]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                showTab(btn.getAttribute('data-tab'));
+            });
+        });
+
+        // Initial render: active-page group wins, else saved, else default
+        showTab(autoGroup || loadTab());
+    })();
+
+    // ── Collapsible nav sections ─────────────────────────────
+    (function initCollapsibleSections() {
+        var STORAGE_KEY = 'harmoni_nav_v1';
+
+        function loadState() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+            catch (e) { return {}; }
+        }
+        function saveState(state) {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+        }
+
+        // Find which sections contain the active link
+        var activeSections = new Set();
+        document.querySelectorAll('.nav-item.active').forEach(function (item) {
+            var sec = item.closest('.nav-section[data-section]');
+            if (sec) activeSections.add(sec.getAttribute('data-section'));
+        });
+
+        var state = loadState();
+
+        document.querySelectorAll('.nav-section[data-section]').forEach(function (section) {
+            var key    = section.getAttribute('data-section');
+            var toggle = section.querySelector('.nav-section-toggle');
+            var body   = section.querySelector('.nav-section-body');
+            if (!toggle || !body) return;
+
+            // Active section always open.
+            // Others: use saved state. Default: 'miportal' open, rest closed.
+            var defaultOpen = (key === 'miportal');
+            var isOpen;
+            if (activeSections.has(key)) {
+                isOpen = true;
+            } else if (state.hasOwnProperty(key)) {
+                isOpen = state[key];
+            } else {
+                isOpen = defaultOpen;
+            }
+
+            if (isOpen) {
+                toggle.classList.add('is-open');
+                body.classList.add('is-open');
+            }
+
+            toggle.addEventListener('click', function () {
+                var nowOpen = toggle.classList.toggle('is-open');
+                body.classList.toggle('is-open', nowOpen);
+                var s = loadState();
+                s[key] = nowOpen;
+                saveState(s);
+            });
+        });
+    })();
+})();
+
+// ── Global Search ───────────────────────────────────────
+(function () {
+    'use strict';
+    const input   = document.getElementById('globalSearchInput');
+    const results = document.getElementById('globalSearchResults');
+    if (!input || !results) return;
+
+    let timer = null;
+    let activeIdx = -1;
+
+    function doSearch() {
+        const q = input.value.trim();
+        if (q.length < 2) { results.style.display = 'none'; return; }
+        fetch(`/buscar/?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(data => {
+                activeIdx = -1;
+                if (!data.results || data.results.length === 0) {
+                    results.innerHTML = '<div class="gs-empty"><i class="fas fa-search me-1"></i>Sin resultados para "' + q.replace(/</g,'&lt;') + '"</div>'
+                        + '<div class="gs-ver-todos"><a href="/buscar/pagina/?q=' + encodeURIComponent(q) + '" class="text-muted small">Buscar en toda la plataforma &rarr;</a></div>';
+                    results.style.display = '';
+                    return;
+                }
+                let html = '';
+                data.results.forEach(function (r) {
+                    html += '<a class="gs-item" href="' + r.url + '">'
+                        + '<div class="gs-icon" style="background:' + r.color + '"><i class="fas ' + r.icono + '"></i></div>'
+                        + '<div class="gs-info"><div class="gs-title">' + r.titulo + '</div>'
+                        + '<div class="gs-detail">' + r.detalle + '</div></div></a>';
+                });
+                html += '<div class="gs-ver-todos" style="border-top:1px solid #f1f5f9;"><a href="/buscar/pagina/?q=' + encodeURIComponent(q) + '" class="text-muted small"><i class="fas fa-list me-1"></i>Ver todos los resultados</a></div>';
+                html += '<div class="gs-hint"><kbd>&uarr;&darr;</kbd> navegar &middot; <kbd>Enter</kbd> abrir &middot; <kbd>Esc</kbd> cerrar</div>';
+                results.innerHTML = html;
+                results.style.display = '';
+            })
+            .catch(function () { results.style.display = 'none'; });
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(doSearch, 250);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        const items = results.querySelectorAll('.gs-item');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIdx = Math.min(activeIdx + 1, items.length - 1);
+            items.forEach(function (it, i) { it.classList.toggle('gs-active', i === activeIdx); });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIdx = Math.max(activeIdx - 1, 0);
+            items.forEach(function (it, i) { it.classList.toggle('gs-active', i === activeIdx); });
+        } else if (e.key === 'Enter' && activeIdx >= 0) {
+            e.preventDefault();
+            items[activeIdx].click();
+        } else if (e.key === 'Escape') {
+            results.style.display = 'none';
+            input.blur();
+        }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#globalSearch')) results.style.display = 'none';
+    });
+
+    // Ctrl+K shortcut
+    document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            input.focus();
+            input.select();
+        }
+    });
+})();
+</script>
+
+<script>
+// ── Notificaciones in-app ──────────────────────────────────────────
+(function() {
+  const btn = document.getElementById('notifBtn');
+  const dropdown = document.getElementById('notifDropdown');
+  const badge = document.getElementById('notifBadge');
+  const list = document.getElementById('notifList');
+  const empty = document.getElementById('notifEmpty');
+
+  if (!btn) return;
+
+  function renderNotif(items, count) {
+    if (count > 0) {
+      badge.textContent = count > 9 ? '9+' : count;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    if (!items || items.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = items.map(n => `
+      <a href="${n.url}" class="notif-item d-flex align-items-start gap-2 px-3 py-2 text-decoration-none
+         ${n.leida ? 'opacity-75' : ''}" style="border-bottom:1px solid #f1f5f9;"
+         onclick="marcarLeida(${n.id}, event, '${n.url}')">
+        <div class="notif-icon flex-shrink-0 rounded-circle d-flex align-items-center justify-content-center"
+             style="width:32px;height:32px;background:${n.color}20;color:${n.color};font-size:.8rem;margin-top:2px;">
+          <i class="fas ${n.icono}"></i>
+        </div>
+        <div class="flex-grow-1">
+          <div style="font-size:.82rem;line-height:1.3;color:#1e293b;font-weight:${n.leida ? 400 : 600};">
+            ${n.asunto}
+          </div>
+          <div style="font-size:.72rem;color:#94a3b8;margin-top:2px;">${n.tiempo}</div>
+        </div>
+        ${!n.leida ? '<div class="flex-shrink-0"><div style="width:8px;height:8px;border-radius:50%;background:#0f766e;margin-top:6px;"></div></div>' : ''}
+      </a>
+    `).join('');
+  }
+
+  function loadNotif() {
+    fetch('{% url "notificaciones_json" %}')
+      .then(r => r.json())
+      .then(d => renderNotif(d.items, d.count))
+      .catch(() => {});
+  }
+
+  function marcarLeida(id, e, url) {
+    e.preventDefault();
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    fetch(`/comunicaciones/notificaciones/${id}/leer/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrf ? csrf.value : ''},
+    }).then(() => {
+      loadNotif();
+      if (url && url !== '#') window.location.href = url;
+    }).catch(() => {});
+  }
+  window.marcarLeida = marcarLeida;
+
+  document.getElementById('btnMarcarTodas').addEventListener('click', function() {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    fetch('{% url "notificaciones_marcar_todas" %}', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrf ? csrf.value : ''},
+    }).then(() => loadNotif()).catch(() => {});
+  });
+
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const visible = dropdown.style.display !== 'none';
+    dropdown.style.display = visible ? 'none' : 'block';
+    if (!visible) loadNotif();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('notifWidget').contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // Cargar al inicio + polling cada 60s
+  loadNotif();
+  setInterval(loadNotif, 60000);
+})();
+</script>
+
+{% if user.is_authenticated %}
+{% include "includes/ai_chat_widget.html" %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/harmoni-ai-chat.js' %}?v=2"></script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
+
+<!-- PWA Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('{% static "js/sw.js" %}', { scope: '/' })
+      .then(function(reg) { console.log('[SW] Registered, scope:', reg.scope); })
+      .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+  });
+}
+</script>
 </body>
 </html>

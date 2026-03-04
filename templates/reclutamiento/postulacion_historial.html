@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Historial — {{ postulacion.nombre_completo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline-item {
+    display: flex;
+    gap: 14px;
+    padding: 10px 0;
+    border-left: 2px solid #e2e8f0;
+    margin-left: 10px;
+    padding-left: 20px;
+    position: relative;
+}
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #5eead4;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #5eead4;
+}
+.timeline-item .tl-meta {
+    font-size: .73rem;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+.timeline-item .tl-text {
+    font-size: .82rem;
+    color: #334155;
+    white-space: pre-line;
+}
+.hist-card {
+    border-left: 3px solid #5eead4;
+    background: #f8f9fa;
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: .82rem;
+    margin-bottom: 8px;
+}
+.hist-card.descartada { border-left-color: #dc2626; }
+.hist-card.contratada { border-left-color: #16a34a; }
+.section-sep {
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #94a3b8;
+    margin-bottom: 10px;
+    margin-top: 16px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">
+            <i class="fas fa-history me-2 text-secondary"></i>{{ postulacion.nombre_completo }}
+        </h2>
+        <small class="text-muted">
+            Historial completo del candidato &middot;
+            {{ total_postulaciones }} postulacion{{ total_postulaciones|pluralize:"es" }} en total
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'postulacion_detalle' postulacion.pk %}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver al detalle
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+
+    <!-- Columna izquierda: info candidato + postulaciones -->
+    <div class="col-md-4">
+
+        <!-- Datos del candidato -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2 d-flex align-items-center gap-2" style="background:#0d2b27; color:#fff">
+                <i class="fas fa-user-circle"></i>
+                <strong style="font-size:.9rem">Datos del Candidato</strong>
+            </div>
+            <div class="card-body" style="font-size:.83rem">
+                <div class="mb-2">
+                    <div class="text-muted small">Correo</div>
+                    <div class="fw-semibold">{{ postulacion.email|default:"No registrado" }}</div>
+                </div>
+                <div class="mb-2">
+                    <div class="text-muted small">Telefono</div>
+                    <div>{{ postulacion.telefono|default:"—" }}</div>
+                </div>
+                <div class="mb-2 d-flex gap-4">
+                    <div>
+                        <div class="text-muted small">Experiencia</div>
+                        <div class="fw-semibold">{{ postulacion.experiencia_anos }} anio{{ postulacion.experiencia_anos|pluralize:"s" }}</div>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Educacion</div>
+                        <div>{{ postulacion.get_educacion_display }}</div>
+                    </div>
+                </div>
+                {% if postulacion.salario_pretendido %}
+                <div class="mb-2">
+                    <div class="text-muted small">Pretension Salarial</div>
+                    <div>S/ {{ postulacion.salario_pretendido|floatformat:0|intcomma }}</div>
+                </div>
+                {% endif %}
+                <div class="mb-2">
+                    <div class="text-muted small">Fuente</div>
+                    <span class="badge bg-light text-dark border">{{ postulacion.get_fuente_display }}</span>
+                </div>
+                <!-- Estado actual -->
+                <hr class="my-2">
+                <div class="mb-1">
+                    <div class="text-muted small">Postulacion actual</div>
+                    <a href="{% url 'vacante_detalle' postulacion.vacante.pk %}" class="fw-semibold text-decoration-none" style="color:#0f766e">
+                        {{ postulacion.vacante.titulo }}
+                    </a>
+                </div>
+                {% if postulacion.etapa %}
+                <span class="badge px-2 py-1" style="background:{{ postulacion.etapa.color }}">{{ postulacion.etapa.nombre }}</span>
+                {% endif %}
+                <span class="ms-1 badge
+                    {% if postulacion.estado == 'ACTIVA' %}bg-success
+                    {% elif postulacion.estado == 'DESCARTADA' %}bg-danger
+                    {% else %}bg-info{% endif %}">
+                    {{ postulacion.get_estado_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Documentos -->
+        {% if documentos %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2"><strong style="font-size:.85rem">Documentos</strong></div>
+            <div class="card-body p-2">
+                {% for doc in documentos %}
+                <a href="{{ doc.url }}" target="_blank" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" style="font-size:.8rem">
+                    <i class="{{ doc.icono }} me-2"></i>{{ doc.nombre }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Otras postulaciones del mismo candidato -->
+        {% if otras_postulaciones %}
+        <div class="card shadow-sm">
+            <div class="card-header py-2">
+                <strong style="font-size:.85rem">Otras Postulaciones</strong>
+                <span class="badge bg-secondary ms-1">{{ otras_postulaciones.count }}</span>
+            </div>
+            <div class="card-body p-2">
+                {% for op in otras_postulaciones %}
+                <div class="hist-card {% if op.estado == 'DESCARTADA' %}descartada{% elif op.estado == 'CONTRATADA' %}contratada{% endif %}">
+                    <div class="fw-semibold">
+                        <a href="{% url 'postulacion_detalle' op.pk %}" class="text-decoration-none text-dark">
+                            {{ op.vacante.titulo|truncatechars:30 }}
+                        </a>
+                    </div>
+                    <div class="text-muted mt-1 d-flex gap-1 flex-wrap">
+                        {% if op.etapa %}
+                        <span class="badge" style="background:{{ op.etapa.color }};font-size:.65rem">{{ op.etapa.nombre }}</span>
+                        {% endif %}
+                        <span class="badge
+                            {% if op.estado == 'ACTIVA' %}bg-success
+                            {% elif op.estado == 'DESCARTADA' %}bg-danger
+                            {% else %}bg-info{% endif %}
+                            bg-opacity-75" style="font-size:.65rem">
+                            {{ op.get_estado_display }}
+                        </span>
+                        <span style="font-size:.7rem">{{ op.fecha_postulacion|date:"d/m/Y" }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Columna derecha: timeline + entrevistas -->
+    <div class="col-md-8">
+
+        <!-- Entrevistas -->
+        {% if entrevistas %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-calendar-alt" style="color:#0f766e"></i>
+                <strong style="font-size:.85rem">Entrevistas ({{ entrevistas.count }})</strong>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0" style="font-size:.82rem">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">Tipo</th>
+                            <th>Fecha</th>
+                            <th>Entrevistador</th>
+                            <th>Modalidad</th>
+                            <th class="text-center">Resultado</th>
+                            <th class="text-center">Calif.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ent in entrevistas %}
+                        <tr>
+                            <td class="ps-3">{{ ent.get_tipo_display }}</td>
+                            <td>{{ ent.fecha_hora|date:"d/m/Y H:i" }}</td>
+                            <td>{{ ent.entrevistador.get_full_name|default:ent.entrevistador.username|default:"—" }}</td>
+                            <td>
+                                {{ ent.get_modalidad_display }}
+                                {% if ent.enlace_virtual %}
+                                <a href="{{ ent.enlace_virtual }}" target="_blank" class="ms-1 text-info"><i class="fas fa-video"></i></a>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if ent.resultado == 'APROBADO' %}<span class="badge bg-success">Aprobado</span>
+                                {% elif ent.resultado == 'RECHAZADO' %}<span class="badge bg-danger">Rechazado</span>
+                                {% elif ent.resultado == 'REPROGRAMAR' %}<span class="badge bg-warning text-dark">Reprogramar</span>
+                                {% else %}<span class="badge bg-secondary">Pendiente</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if ent.calificacion %}
+                                <span class="badge {% if ent.calificacion >= 8 %}bg-success{% elif ent.calificacion >= 6 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                    {{ ent.calificacion }}/10
+                                </span>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% if ent.notas_post %}
+                        <tr>
+                            <td colspan="6" class="text-muted ps-4 py-1" style="font-size:.75rem;border-top:0">
+                                <i class="fas fa-comment me-1"></i>{{ ent.notas_post }}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Timeline de notas -->
+        <div class="card shadow-sm">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <i class="fas fa-stream" style="color:#0f766e"></i>
+                <strong style="font-size:.85rem">Timeline de Actividad</strong>
+                <span class="badge bg-secondary ms-1">{{ notas.count }}</span>
+            </div>
+            <div class="card-body">
+                {% if notas %}
+                <div style="padding-top:4px">
+                    {% for nota in notas %}
+                    <div class="timeline-item">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                                <div>
+                                    <span class="badge bg-light text-dark border me-1" style="font-size:.7rem">{{ nota.get_tipo_display }}</span>
+                                    <strong style="font-size:.82rem">{{ nota.autor.get_full_name|default:nota.autor.username }}</strong>
+                                </div>
+                                <span class="tl-meta">{{ nota.fecha|date:"d/m/Y H:i" }}</span>
+                            </div>
+                            <div class="tl-text mt-1">{{ nota.texto }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">Sin notas ni actividad registrada.</p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

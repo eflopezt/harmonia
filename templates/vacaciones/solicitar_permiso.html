@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitar Permiso{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+    <small class="text-muted">Selecciona el tipo de permiso y las fechas</small>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Permiso *</label>
+                        <select name="tipo_id" class="form-select" required id="selectTipo">
+                            <option value="">Seleccionar...</option>
+                            {% for t in tipos %}
+                            <option value="{{ t.pk }}" data-dias="{{ t.dias_max }}" data-pagado="{{ t.pagado }}" data-sustento="{{ t.requiere_sustento }}">{{ t.nombre }}{% if t.dias_max %} (máx. {{ t.dias_max }} días){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Inicio *</label>
+                            <input type="date" name="fecha_inicio" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Fin *</label>
+                            <input type="date" name="fecha_fin" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo</label>
+                        <textarea name="motivo" class="form-control" rows="3" placeholder="Detalle el motivo del permiso..."></textarea>
+                    </div>
+                    <div class="mb-3" id="divSustento" style="display:none">
+                        <label class="form-label">Documento Sustento</label>
+                        <input type="file" name="sustento" class="form-control form-control-sm" accept=".pdf,.jpg,.png">
+                        <small class="text-muted">Adjunte certificado, constancia u otro documento de respaldo.</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Enviar Solicitud</button>
+                        <a href="{% url 'mis_permisos' %}" class="btn btn-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-info">
+            <div class="card-header bg-info bg-opacity-10"><i class="fas fa-info-circle text-info me-1"></i> Información</div>
+            <div class="card-body" style="font-size:.85rem;">
+                <p class="mb-2">Los permisos requieren aprobación de su jefatura directa.</p>
+                <p class="mb-2">Si el tipo de permiso requiere sustento, adjunte el documento correspondiente.</p>
+                <p class="mb-0">Permisos con goce: su remuneración no se ve afectada. Sin goce: se descuenta proporcionalmente.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('selectTipo').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const sustento = opt.dataset.sustento === 'True';
+    document.getElementById('divSustento').style.display = sustento ? 'block' : 'none';
+});
+</script>
+{% endblock %}

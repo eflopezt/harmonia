@@ -1,0 +1,796 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-chart-line me-2 text-primary"></i>{{ titulo }}</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --teal:       #0f766e;
+  --teal-light: rgba(15,118,110,.12);
+  --teal-mid:   #14b8a6;
+  --teal-pale:  #5eead4;
+  --amber:      #f59e0b;
+  --amber-light:rgba(245,158,11,.13);
+}
+.kpi-bar-wrap {
+  height: 8px;
+  background: rgba(0,0,0,.07);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.kpi-bar-fill { height: 100%; border-radius: 4px; }
+.chart-box { position: relative; height: 220px; }
+.group-panel {
+  border-radius: 10px;
+  padding: 14px;
+}
+.group-panel--staff {
+  background: var(--teal-light);
+  border: 1px solid rgba(15,118,110,.2);
+}
+.group-panel--rco {
+  background: rgba(14,165,233,.08);
+  border: 1px solid rgba(14,165,233,.18);
+}
+.mini-stat-val { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+.mini-stat-lbl { font-size: .68rem; color: #6c757d; margin-top: 2px; }
+
+/* ── Nuevos estilos ─── */
+.section-divider {
+  border: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--teal-light), transparent);
+  margin: 1.5rem 0;
+}
+.area-bar-row { margin-bottom: 10px; }
+.area-bar-label {
+  font-size: .8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.area-bar-track {
+  height: 10px;
+  background: rgba(0,0,0,.06);
+  border-radius: 5px;
+  overflow: hidden;
+  flex: 1;
+}
+.area-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--teal), var(--teal-pale));
+  transition: width .5s ease;
+}
+.grupo-badge {
+  border-radius: 14px;
+  padding: 18px 24px;
+  text-align: center;
+  flex: 1;
+}
+.grupo-badge--staff {
+  background: var(--teal-light);
+  border: 2px solid var(--teal);
+}
+.grupo-badge--rco {
+  background: rgba(14,165,233,.1);
+  border: 2px solid #0ea5e9;
+}
+.grupo-badge .badge-pct {
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.grupo-badge .badge-label {
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  margin-top: 4px;
+}
+.grupo-badge .badge-sub {
+  font-size: .68rem;
+  color: #6c757d;
+  margin-top: 6px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Selectores + período ──────────────────────────────── -->
+<div class="dash-card mb-4">
+  <div class="dash-card-body">
+    <div class="d-flex flex-wrap gap-2 align-items-end justify-content-between">
+      <div class="text-muted small">
+        <i class="fas fa-calendar me-1"></i>Asistencia: <strong>{{ periodo_asist }}</strong>
+        &nbsp;&nbsp;
+        <i class="fas fa-clock me-1"></i>HE: <strong>{{ periodo_he }}</strong>
+      </div>
+      <form method="get" class="d-flex gap-2 align-items-center">
+        <select name="mes" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+          {% for num, nombre in meses %}
+          <option value="{{ num }}" {% if num == mes %}selected{% endif %}>{{ nombre }}</option>
+          {% endfor %}
+        </select>
+        <select name="anio" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+          {% for a in anios %}<option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 1: KPI principales ───────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-card--success">
+      <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+      <div class="stat-value">{{ tasa_asistencia }}%</div>
+      <div class="stat-label">Tasa asistencia</div>
+      <div class="kpi-bar-wrap"><div class="kpi-bar-fill bg-success" style="width:{{ tasa_asistencia }}%"></div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-card--danger">
+      <div class="stat-icon"><i class="fas fa-user-times"></i></div>
+      <div class="stat-value">{{ tasa_absentismo }}%</div>
+      <div class="stat-label">Absentismo (FA)</div>
+      <div class="kpi-bar-wrap"><div class="kpi-bar-fill bg-danger" style="width:{{ tasa_absentismo }}%"></div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-card--warning">
+      <div class="stat-icon"><i class="fas fa-business-time"></i></div>
+      <div class="stat-value">{{ he_total|floatformat:0 }}h</div>
+      <div class="stat-label">HE totales</div>
+      <div class="mt-2 d-flex gap-1 flex-wrap">
+        <span class="badge bg-warning text-dark" style="font-size:.68rem">25%: {{ he_25_total|floatformat:0 }}h</span>
+        <span class="badge text-white" style="background:#f97316;font-size:.68rem">35%: {{ he_35_total|floatformat:0 }}h</span>
+        <span class="badge bg-danger" style="font-size:.68rem">100%: {{ he_100_total|floatformat:0 }}h</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-card--primary">
+      <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+      <div class="stat-value">{{ dias_trabajados }}</div>
+      <div class="stat-label">Días trabajados</div>
+      <div class="mt-2 text-muted" style="font-size:.75rem">
+        <i class="fas fa-times text-danger me-1"></i>{{ faltas }} faltas &nbsp;
+        <i class="fas fa-umbrella-beach text-warning me-1"></i>{{ vacaciones }} vac.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 2: Distribución + Stats por grupo ─────────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Donut distribución días -->
+  <div class="col-md-4">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-chart-pie me-2" style="color:var(--teal)"></i>Distribución de días</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="chart-box"><canvas id="chartDonut"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats por grupo + HE breakdown -->
+  <div class="col-md-8">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-users me-2" style="color:var(--teal)"></i>Resumen por grupo</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="row g-3 mb-3">
+          <!-- STAFF -->
+          <div class="col-md-6">
+            <div class="group-panel group-panel--staff">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold" style="color:var(--teal)"><i class="fas fa-id-badge me-1"></i>STAFF</span>
+                <span class="badge text-white" style="background:var(--teal);font-size:.68rem">Banco horas</span>
+              </div>
+              <div class="row text-center g-1">
+                <div class="col-4">
+                  <div class="mini-stat-val">{{ staff_stats.dias|default:0 }}</div>
+                  <div class="mini-stat-lbl">Días prog.</div>
+                </div>
+                <div class="col-4">
+                  <div class="mini-stat-val text-danger">{{ staff_stats.faltas|default:0 }}</div>
+                  <div class="mini-stat-lbl">Faltas</div>
+                </div>
+                <div class="col-4">
+                  <div class="mini-stat-val text-warning">{{ staff_stats.he25|default:"0"|floatformat:0 }}</div>
+                  <div class="mini-stat-lbl">HE 25% h</div>
+                </div>
+              </div>
+              {% if banco_mes.saldo %}
+              <div class="mt-2 pt-2 border-top small" style="border-color:rgba(15,118,110,.2)!important">
+                <i class="fas fa-piggy-bank text-success me-1"></i>
+                Banco: <strong class="text-success">{{ banco_mes.saldo|floatformat:1 }}h</strong>
+                · {{ banco_mes.personas }} personas
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <!-- RCO -->
+          <div class="col-md-6">
+            <div class="group-panel group-panel--rco">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold text-info"><i class="fas fa-hard-hat me-1"></i>RCO</span>
+                <span class="badge bg-info text-white" style="font-size:.68rem">HE pagadas</span>
+              </div>
+              <div class="row text-center g-1">
+                <div class="col-3">
+                  <div class="mini-stat-val">{{ rco_stats.dias|default:0 }}</div>
+                  <div class="mini-stat-lbl">Días</div>
+                </div>
+                <div class="col-3">
+                  <div class="mini-stat-val text-danger">{{ rco_stats.faltas|default:0 }}</div>
+                  <div class="mini-stat-lbl">Faltas</div>
+                </div>
+                <div class="col-3">
+                  <div class="mini-stat-val text-warning">{{ rco_stats.he25|default:"0"|floatformat:0 }}</div>
+                  <div class="mini-stat-lbl">HE 25%</div>
+                </div>
+                <div class="col-3">
+                  <div class="mini-stat-val text-danger">{{ rco_stats.he100|default:"0"|floatformat:0 }}</div>
+                  <div class="mini-stat-lbl">HE 100%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Otros indicadores -->
+        <div class="row g-2">
+          <div class="col-4">
+            <div class="text-center p-2 rounded-2" style="background:rgba(15,118,110,.06)">
+              <div class="fw-bold" style="color:var(--teal)">{{ vacaciones }}</div>
+              <div class="text-muted" style="font-size:.72rem">Vacaciones</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="text-center p-2 rounded-2" style="background:rgba(249,115,22,.07)">
+              <div class="fw-bold text-warning">{{ dm }}</div>
+              <div class="text-muted" style="font-size:.72rem">Desc. Médico</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="text-center p-2 rounded-2 bg-light">
+              <div class="fw-bold text-secondary">{{ dl_bajadas }}</div>
+              <div class="text-muted" style="font-size:.72rem">Bajadas (DL/B)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Row 3: Tendencia diaria + HE por tipo ─────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <span><i class="fas fa-chart-line me-2" style="color:var(--teal)"></i>Tendencia diaria — {{ mes_nombre }} {{ anio }}</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="chart-box" style="height:240px"><canvas id="chartTendencia"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HE desglose visual -->
+  <div class="col-md-4">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-business-time me-2" style="color:var(--teal)"></i>Desglose HE</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="chart-box" style="height:240px"><canvas id="chartHE"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  SECCIÓN DE ANÁLISIS ADICIONAL (nuevos KPIs)            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<hr class="section-divider">
+<div class="d-flex align-items-center mb-3 gap-2">
+  <i class="fas fa-microscope" style="color:var(--teal)"></i>
+  <h6 class="mb-0 fw-bold text-secondary text-uppercase" style="letter-spacing:.06em;font-size:.78rem">Análisis de los últimos 7 días</h6>
+</div>
+
+<!-- ── Row 4: Tendencia 7 días + HE semanal ───────────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Línea: presentes / faltas / permisos últimos 7 días -->
+  <div class="col-md-7">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-chart-area me-2" style="color:var(--teal)"></i>Asistencia — últimos 7 días</span>
+        <span class="badge text-white" style="background:var(--teal);font-size:.68rem">Personal activo</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="chart-box" style="height:230px"><canvas id="chartTendencia7d"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barras horizontales: HE por semana del mes -->
+  <div class="col-md-5">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-layer-group me-2" style="color:var(--amber)"></i>HE por semana — {{ mes_nombre }}</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="chart-box" style="height:230px"><canvas id="chartHESemanal"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Row 5: Top faltas por área + STAFF vs RCO ─────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Top 5 áreas con más faltas -->
+  <div class="col-md-6">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Top áreas con más faltas — {{ mes_nombre }}</span>
+      </div>
+      <div class="dash-card-body">
+        {% if top_faltas_area %}
+          {% for item in top_faltas_area %}
+          <div class="area-bar-row">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="area-bar-label" title="{{ item.area }}">
+                <span class="text-muted me-1" style="font-size:.72rem">{{ forloop.counter }}.</span>
+                {{ item.area }}
+              </span>
+              <span class="badge bg-danger ms-2" style="font-size:.7rem;min-width:36px">{{ item.total }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <div class="area-bar-track">
+                <div class="area-bar-fill" style="width:{{ item.pct }}%"></div>
+              </div>
+              <span class="text-muted" style="font-size:.68rem;min-width:30px">{{ item.pct }}%</span>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-check-circle fa-2x mb-2 d-block text-success opacity-50"></i>
+            Sin datos de áreas para este período
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Tasa de asistencia STAFF vs RCO -->
+  <div class="col-md-6">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <span><i class="fas fa-balance-scale me-2" style="color:var(--teal)"></i>Tasa de asistencia — {{ mes_nombre }}</span>
+      </div>
+      <div class="dash-card-body">
+        {% if asistencia_por_grupo %}
+        <div class="d-flex gap-3 mb-4">
+          {% for grp in asistencia_por_grupo %}
+          <div class="grupo-badge {% if grp.grupo == 'STAFF' %}grupo-badge--staff{% else %}grupo-badge--rco{% endif %}">
+            <div class="badge-pct {% if grp.grupo == 'STAFF' %}text-teal{% else %}text-info{% endif %}"
+                 style="color:{% if grp.grupo == 'STAFF' %}var(--teal){% else %}#0ea5e9{% endif %}">
+              {{ grp.tasa }}%
+            </div>
+            <div class="badge-label {% if grp.grupo == 'STAFF' %}text-teal{% else %}text-info{% endif %}"
+                 style="color:{% if grp.grupo == 'STAFF' %}var(--teal){% else %}#0ea5e9{% endif %}">
+              {{ grp.grupo }}
+            </div>
+            <div class="badge-sub">
+              <i class="fas fa-user-check me-1"></i>{{ grp.presentes }} presentes
+              <br><i class="fas fa-times me-1 text-danger"></i>{{ grp.faltas }} faltas
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <!-- Mini gráfica de barras comparativa -->
+        <div class="chart-box" style="height:120px"><canvas id="chartGrupoComp"></canvas></div>
+        {% else %}
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-info-circle fa-2x mb-2 d-block opacity-50"></i>
+            Sin datos de grupos para este período
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Row 6: Top ausentes ────────────────────────────────── -->
+<div class="row g-3">
+  <div class="col-12">
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <span><i class="fas fa-user-slash me-2 text-danger"></i>Top ausentes del período (FA)</span>
+        {% if top_ausentes %}
+        <span class="badge bg-danger">{{ top_ausentes|length }} personas</span>
+        {% endif %}
+      </div>
+      <div class="dash-card-body p-0">
+        {% if top_ausentes %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3" style="width:40px">#</th>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Grupo</th>
+                <th class="text-end pe-3">Días FA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in top_ausentes %}
+              <tr>
+                <td class="ps-3 text-muted">{{ forloop.counter }}</td>
+                <td class="fw-medium" style="font-size:.875rem">{{ p.personal__apellidos_nombres|truncatechars:38 }}</td>
+                <td class="text-muted" style="font-size:.82rem">{{ p.personal__nro_doc }}</td>
+                <td>
+                  <span class="badge" style="font-size:.7rem;background:{% if p.grupo == 'STAFF' %}var(--teal){% else %}#0ea5e9{% endif %}">
+                    {{ p.grupo }}
+                  </span>
+                </td>
+                <td class="text-end pe-3">
+                  <span class="badge bg-danger">{{ p.total_faltas }} días</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="fas fa-check-circle fa-2x mb-2 d-block text-success opacity-50"></i>
+          Sin faltas registradas en este período
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Datos desde Django ──────────────────────────────────────
+const tendenciaData    = {{ tendencia_json|safe }};
+const tendencia7dData  = {{ tendencia_7d_json|safe }};
+const heSemanalData    = {{ he_por_semana_json|safe }};
+const grupoData        = {{ asistencia_por_grupo_json|safe }};
+
+const dias_trabajados = {{ dias_trabajados }};
+const faltas          = {{ faltas }};
+const vacaciones      = {{ vacaciones }};
+const dm              = {{ dm }};
+const dl_bajadas      = {{ dl_bajadas }};
+const total_prog      = {{ total_dias_prog }};
+const he25            = {{ he_25_total|stringformat:"f" }};
+const he35            = {{ he_35_total|stringformat:"f" }};
+const he100           = {{ he_100_total|stringformat:"f" }};
+const otros = Math.max(0, total_prog - dias_trabajados - faltas - vacaciones - dm - dl_bajadas);
+
+// Paleta teal
+const TEAL       = '#0f766e';
+const TEAL_LIGHT = 'rgba(15,118,110,.15)';
+const TEAL_MID   = '#14b8a6';
+const TEAL_PALE  = '#5eead4';
+const AMBER      = '#f59e0b';
+const AMBER_LIGHT= 'rgba(245,158,11,.15)';
+const RED        = '#dc3545';
+const RED_LIGHT  = 'rgba(220,53,69,.10)';
+const BLUE       = '#0ea5e9';
+const BLUE_LIGHT = 'rgba(14,165,233,.15)';
+const PURPLE     = '#8b5cf6';
+const PURPLE_LIGHT='rgba(139,92,246,.15)';
+
+// Opciones de fuente comunes
+const FONT_SM = { size: 10 };
+const FONT_MD = { size: 11 };
+
+// ── Donut: distribución días ────────────────────────────────
+new Chart(document.getElementById('chartDonut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Trabajados', 'Faltas', 'Vacaciones', 'Desc.Médico', 'Bajadas', 'Otros'],
+    datasets: [{
+      data: [dias_trabajados, faltas, vacaciones, dm, dl_bajadas, otros],
+      backgroundColor: [TEAL, RED, TEAL_MID, '#f97316', '#6c757d', '#cbd5e1'],
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: FONT_MD, boxWidth: 12 } }
+    }
+  }
+});
+
+// ── Línea: tendencia diaria del ciclo ───────────────────────
+const labels     = tendenciaData.map(d => d.fecha);
+const trabajados = tendenciaData.map(d => d.trabajados);
+const ausentes   = tendenciaData.map(d => d.ausentes);
+
+new Chart(document.getElementById('chartTendencia'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      {
+        label: 'Trabajaron',
+        data: trabajados,
+        borderColor: TEAL,
+        backgroundColor: TEAL_LIGHT,
+        tension: .3,
+        fill: true,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'Faltas (FA)',
+        data: ausentes,
+        borderColor: RED,
+        backgroundColor: RED_LIGHT,
+        tension: .3,
+        fill: true,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'top', labels: { font: FONT_MD, boxWidth: 12 } }
+    },
+    scales: {
+      x: { ticks: { font: FONT_SM, maxRotation: 45 } },
+      y: { beginAtZero: true, ticks: { precision: 0, font: FONT_SM } }
+    }
+  }
+});
+
+// ── Barras horizontales: desglose HE ───────────────────────
+new Chart(document.getElementById('chartHE'), {
+  type: 'bar',
+  data: {
+    labels: ['HE 25%', 'HE 35%', 'HE 100%'],
+    datasets: [{
+      label: 'Horas extra',
+      data: [he25, he35, he100],
+      backgroundColor: ['#eab308', '#f97316', RED],
+      borderRadius: 6,
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(1)} horas` }
+      }
+    },
+    scales: {
+      x: { beginAtZero: true, ticks: { font: FONT_SM } },
+      y: { ticks: { font: { size: 12, weight: '600' } } }
+    }
+  }
+});
+
+// ── Línea: Tendencia últimos 7 días ────────────────────────
+if (tendencia7dData.length > 0) {
+  const labels7d    = tendencia7dData.map(d => d.fecha);
+  const presentes7d = tendencia7dData.map(d => d.presentes);
+  const faltas7d    = tendencia7dData.map(d => d.faltas);
+  const permisos7d  = tendencia7dData.map(d => d.permisos);
+
+  new Chart(document.getElementById('chartTendencia7d'), {
+    type: 'line',
+    data: {
+      labels: labels7d,
+      datasets: [
+        {
+          label: 'Presentes',
+          data: presentes7d,
+          borderColor: TEAL,
+          backgroundColor: TEAL_LIGHT,
+          tension: .35,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: TEAL,
+          borderWidth: 2.5,
+        },
+        {
+          label: 'Faltas',
+          data: faltas7d,
+          borderColor: RED,
+          backgroundColor: RED_LIGHT,
+          tension: .35,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: RED,
+          borderWidth: 2.5,
+        },
+        {
+          label: 'Permisos/Licencias',
+          data: permisos7d,
+          borderColor: PURPLE,
+          backgroundColor: PURPLE_LIGHT,
+          tension: .35,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: PURPLE,
+          borderWidth: 2,
+          borderDash: [4, 3],
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { font: FONT_MD, boxWidth: 14, padding: 12 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} personas`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: FONT_SM } },
+        y: { beginAtZero: true, ticks: { precision: 0, font: FONT_SM } }
+      }
+    }
+  });
+} else {
+  const cvs = document.getElementById('chartTendencia7d');
+  if (cvs) {
+    const ctx = cvs.getContext('2d');
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = '#adb5bd';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sin datos para los últimos 7 días', cvs.width / 2, cvs.height / 2);
+  }
+}
+
+// ── Barras horizontales: HE por semana del mes ─────────────
+if (heSemanalData.length > 0) {
+  new Chart(document.getElementById('chartHESemanal'), {
+    type: 'bar',
+    data: {
+      labels: heSemanalData.map(d => d.semana),
+      datasets: [{
+        label: 'Total HE (h)',
+        data: heSemanalData.map(d => d.total_he),
+        backgroundColor: [
+          'rgba(245,158,11,.85)',
+          'rgba(245,158,11,.70)',
+          'rgba(245,158,11,.55)',
+          'rgba(245,158,11,.40)',
+          'rgba(245,158,11,.28)',
+        ],
+        borderColor: AMBER,
+        borderWidth: 1.5,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(1)} horas` }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { font: FONT_SM },
+          grid: { color: 'rgba(0,0,0,.05)' }
+        },
+        y: {
+          ticks: { font: { size: 13, weight: '700' }, color: '#374151' }
+        }
+      }
+    }
+  });
+} else {
+  const cvs = document.getElementById('chartHESemanal');
+  if (cvs) {
+    const ctx = cvs.getContext('2d');
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = '#adb5bd';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sin horas extra registradas este mes', cvs.width / 2, cvs.height / 2);
+  }
+}
+
+// ── Barras: comparativa tasa de asistencia STAFF vs RCO ────
+if (grupoData.length > 0) {
+  const grupoLabels = grupoData.map(g => g.grupo);
+  const grupoTasas  = grupoData.map(g => g.tasa);
+  const grupoColors = grupoData.map(g => g.grupo === 'STAFF' ? TEAL : BLUE);
+  const grupoBg     = grupoData.map(g => g.grupo === 'STAFF' ? TEAL_LIGHT : BLUE_LIGHT);
+
+  new Chart(document.getElementById('chartGrupoComp'), {
+    type: 'bar',
+    data: {
+      labels: grupoLabels,
+      datasets: [
+        {
+          label: 'Tasa asistencia (%)',
+          data: grupoTasas,
+          backgroundColor: grupoColors.map(c => c === TEAL ? 'rgba(15,118,110,.75)' : 'rgba(14,165,233,.75)'),
+          borderColor: grupoColors,
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(1)}% de asistencia` }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 13, weight: '700' } } },
+        y: {
+          beginAtZero: false,
+          min: Math.max(0, Math.min(...grupoTasas) - 10),
+          max: 100,
+          ticks: { font: FONT_SM, callback: v => v + '%' },
+          grid: { color: 'rgba(0,0,0,.05)' }
+        }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

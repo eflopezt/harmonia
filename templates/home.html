@@ -1,143 +1,660 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Inicio - Sistema de Gestión Personal{% endblock %}
+{% block title %}Inicio — Harmoni{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1">
+    <i class="fas fa-th-large me-2 text-primary"></i>Inicio
+</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ═══════════════════════════════════════════
+   HARMONI HOME — comando diario, sin ruido
+   ═══════════════════════════════════════════ */
+
+/* Welcome */
+.hw-welcome {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+.hw-greeting { font-size: 1.2rem; font-weight: 700; margin: 0; color: #0d2b27; }
+.hw-sub      { font-size: .8rem; color: #64748b; margin: 3px 0 0; }
+.hw-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 13px; border-radius: 20px; font-size: .75rem; font-weight: 600;
+  text-decoration: none; white-space: nowrap; cursor: pointer; transition: filter .15s;
+}
+.hw-chip:hover { filter: brightness(.93); }
+.hw-chip-warn   { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.hw-chip-danger { background: #fff1f2; color: #991b1b; border: 1px solid #fca5a5; }
+.hw-chip-ok     { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; cursor: default; }
+
+/* Hero */
+.hw-hero {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 14px; margin-bottom: 1.25rem; align-items: start;
+}
+@media(max-width: 820px) { .hw-hero { grid-template-columns: 1fr; } }
+
+/* Donut */
+.hw-donut-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 22px 16px 18px; display: flex; flex-direction: column; align-items: center;
+}
+.hw-donut-wrap  { position: relative; width: 168px; height: 168px; margin: 0 auto 14px; }
+.hw-donut-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
+}
+.hw-donut-num { font-size: 2.1rem; font-weight: 800; color: #0d2b27; line-height: 1; }
+.hw-donut-lbl { font-size: .66rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .07em; margin-top: 3px; }
+.hw-donut-legend { display: flex; gap: 8px; }
+.hw-legend-pill  {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600;
+}
+.hw-legend-staff { background: rgba(15,118,110,.1);  color: #0f766e; }
+.hw-legend-rco   { background: rgba(94,234,212,.18); color: #0d9488; }
+
+/* Hoy panel */
+.hw-hoy {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 22px 22px 18px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+}
+.hw-hoy-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media(max-width:540px) { .hw-hoy-stats { grid-template-columns: repeat(2, 1fr); } }
+.hw-stat {
+  background: #f8fafc; border-radius: 10px;
+  padding: 14px 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.hw-stat-icon { font-size: .75rem; margin-bottom: 2px; }
+.hw-stat-val  { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+.hw-stat-lbl  { font-size: .7rem; color: #64748b; }
+.hw-stat-sub  { font-size: .65rem; color: #f59e0b; margin-top: 2px; }
+
+/* CTA pendientes */
+.hw-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+  padding: 12px 16px; gap: 10px;
+}
+.hw-cta-ok {
+  background: #f0fdf4; border-color: #bbf7d0;
+}
+.hw-cta-text { font-size: .84rem; font-weight: 600; color: #92400e; flex: 1; }
+.hw-cta-ok .hw-cta-text { color: #166534; }
+
+/* Modules */
+.hw-modules {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px; margin-bottom: 1.25rem;
+}
+@media(max-width: 1100px) { .hw-modules { grid-template-columns: repeat(4, 1fr); } }
+@media(max-width:  768px) { .hw-modules { grid-template-columns: repeat(3, 1fr); } }
+@media(max-width:  480px) { .hw-modules { grid-template-columns: repeat(2, 1fr); } }
+.hw-mod {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 11px;
+  padding: 14px 10px; display: flex; flex-direction: column; align-items: center;
+  text-decoration: none; color: #475569; transition: all .14s; gap: 7px; text-align: center;
+}
+.hw-mod:hover {
+  background: #f0fdfa; border-color: #99f6e4; color: #0f766e;
+  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.06);
+}
+.hw-mod-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .88rem; }
+.hw-mod-name { font-size: .78rem; font-weight: 600; line-height: 1.2; }
+
+/* Activity */
+.hw-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.hw-card-hdr {
+  padding: 11px 16px; border-bottom: 1px solid #f1f5f9;
+  font-weight: 600; font-size: .83rem; display: flex; align-items: center; gap: 8px; color: #334155;
+}
+.hw-card-body { padding: 4px 14px; }
+.act-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f8fafc; }
+.act-row:last-child { border-bottom: none; }
+.act-ico  { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .62rem; flex-shrink: 0; }
+.act-txt  { font-size: .79rem; color: #334155; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.act-meta { font-size: .66rem; color: #94a3b8; flex-shrink: 0; }
+.act-pill { font-size: .63rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; flex-shrink: 0; }
+.pill-PENDIENTE            { background: #fff3cd; color: #856404; }
+.pill-APROBADA,.pill-APROBADO { background: #d1e7dd; color: #0f5132; }
+.pill-RECHAZADA,.pill-RECHAZADO { background: #f8d7da; color: #842029; }
+.pill-EN_CURSO             { background: #dbeafe; color: #1e40af; }
+.pill-EJECUTADA            { background: #cfe2ff; color: #084298; }
+.pill-PAGADO               { background: #d1e7dd; color: #0f5132; }
+.pill-ANULADA              { background: #e9ecef; color: #6c757d; }
+
+/* AI Insights */
+.hw-ai-hdr {
+  background: linear-gradient(135deg, #0d2b27, #134e4a);
+  color: #fff; border-radius: 12px 12px 0 0; padding: 11px 16px;
+  display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .83rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2"><i class="fas fa-home"></i> Inicio</h1>
+
+{# ── Welcome ─────────────────────────────────────────────────────── #}
+<div class="hw-welcome">
+  <div>
+    <div class="hw-greeting" id="greetingText">Bienvenido, {{ user.get_full_name|default:user.username }}</div>
+    <div class="hw-sub">
+      <i class="fas fa-calendar-alt me-1 opacity-50"></i>{% now "l, d \d\e F \d\e Y" %}
+      &nbsp;·&nbsp;<strong>{{ total_personal }}</strong> colaboradores activos
+    </div>
+  </div>
+  {% if user.is_superuser %}
+  <a href="{% url 'personal_create' %}" class="btn btn-primary btn-sm">
+    <i class="fas fa-user-plus me-1"></i>Nuevo Empleado
+  </a>
+  {% endif %}
 </div>
 
-<div class="row g-4 mb-4">
-    <!-- Tarjetas de estadísticas -->
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Áreas</h6>
-                        <h2 class="mb-0">{{ total_gerencias }}</h2>
-                    </div>
-                    <div class="text-primary">
-                        <i class="fas fa-building fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+{# ── Frase del día ────────────────────────────────────────────────── #}
+{% if frase_dia %}
+<div style="
+  display:flex; align-items:center; gap:14px;
+  background:#fff; border:1px solid #e2e8f0; border-left:4px solid {{ frase_dia.color }};
+  border-radius:10px; padding:12px 18px; margin-bottom:1.25rem;
+">
+  <div style="
+    width:36px; height:36px; border-radius:10px; flex-shrink:0;
+    background:{{ frase_dia.color }}18; color:{{ frase_dia.color }};
+    display:flex; align-items:center; justify-content:center; font-size:.9rem;
+  ">
+    <i class="fas {{ frase_dia.icono }}"></i>
+  </div>
+  <div style="flex:1; min-width:0;">
+    <div style="font-size:.72rem; font-weight:700; color:{{ frase_dia.color }}; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px;">
+      {{ frase_dia.comentario }}
     </div>
-
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">SubÁreas</h6>
-                        <h2 class="mb-0">{{ total_areas }}</h2>
-                    </div>
-                    <div class="text-success">
-                        <i class="fas fa-sitemap fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div style="font-size:.84rem; color:#334155; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+      "{{ frase_dia.frase }}"
     </div>
-
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Personal Activo</h6>
-                        <h2 class="mb-0">{{ total_personal }}</h2>
-                    </div>
-                    <div class="text-info">
-                        <i class="fas fa-users fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Roster Hoy</h6>
-                        <h2 class="mb-0">{{ total_roster_hoy }}</h2>
-                    </div>
-                    <div class="text-warning">
-                        <i class="fas fa-calendar-check fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% if cambios_pendientes > 0 %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="alert alert-warning shadow-sm d-flex justify-content-between align-items-center">
-            <div>
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Tiene {{ cambios_pendientes }} cambio(s) pendiente(s) de aprobación</strong>
-            </div>
-            <a href="{% url 'dashboard_aprobaciones' %}" class="btn btn-warning btn-sm">
-                <i class="fas fa-tasks me-1"></i> Ver Dashboard
-            </a>
-        </div>
-    </div>
+  </div>
 </div>
 {% endif %}
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Accesos Rápidos</h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    <a href="{% url 'personal_list' %}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-users text-primary"></i> Ver Personal
-                    </a>
-                    <a href="{% url 'personal_create' %}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-user-plus text-success"></i> Agregar Personal
-                    </a>
-                    <a href="{% url 'roster_matricial' %}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-table text-success"></i> Roster Matricial
-                    </a>
-                    <a href="{% url 'roster_import' %}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-file-upload text-primary"></i> Importar Roster
-                    </a>
-                    {% comment %}
-                    <a href="{% url 'roster_list' %}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-calendar-alt text-info"></i> Roster Lista
-                    </a>
-                    {% endcomment %}
-                    <a href="{% url 'roster_create' %}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-calendar-plus text-warning"></i> Agregar Registro
-                    </a>
-                </div>
-            </div>
-        </div>
+{# ── Hero: Donut + Panel de Hoy ───────────────────────────────────── #}
+<div class="hw-hero">
+
+  {# Donut STAFF / RCO #}
+  <div class="hw-donut-card">
+    <div class="hw-donut-wrap">
+      <canvas id="donutChart" width="168" height="168"></canvas>
+      <div class="hw-donut-center">
+        <span class="hw-donut-num">{{ total_personal }}</span>
+        <span class="hw-donut-lbl">colaboradores</span>
+      </div>
+    </div>
+    <div class="hw-donut-legend">
+      <div class="hw-legend-pill hw-legend-staff">
+        <span style="width:7px;height:7px;border-radius:50%;background:#0f766e;display:inline-block"></span>
+        STAFF {{ staff_count }}
+      </div>
+      <div class="hw-legend-pill hw-legend-rco">
+        <span style="width:7px;height:7px;border-radius:50%;background:#5eead4;display:inline-block"></span>
+        RCO {{ rco_count }}
+      </div>
+    </div>
+  </div>
+
+  {# Panel de hoy #}
+  <div class="hw-hoy">
+
+    {# Stats de asistencia hoy #}
+    <div class="hw-hoy-stats">
+      {% if asistencia_hoy %}
+      {% with t=asistencia_hoy.trabajando|default:0 f=asistencia_hoy.faltas|default:0 p=asistencia_hoy.permisos|default:0 ss=asistencia_hoy.ss|default:0 %}
+      <div class="hw-stat">
+        <div class="hw-stat-icon" style="color:#10b981"><i class="fas fa-user-check"></i></div>
+        <div class="hw-stat-val" style="color:#10b981">{{ t }}</div>
+        <div class="hw-stat-lbl">Presentes</div>
+        {% if ss > 0 %}<div class="hw-stat-sub text-warning" title="Sin marcaje de salida">{{ ss }} <i class="fas fa-sign-out-alt fa-xs"></i></div>{% endif %}
+      </div>
+      <div class="hw-stat">
+        <div class="hw-stat-icon" style="color:#ef4444"><i class="fas fa-user-times"></i></div>
+        <div class="hw-stat-val" style="color:{% if f > 0 %}#ef4444{% else %}#94a3b8{% endif %}">{{ f }}</div>
+        <div class="hw-stat-lbl">Faltas</div>
+      </div>
+      <div class="hw-stat">
+        <div class="hw-stat-icon" style="color:#3b82f6"><i class="fas fa-file-alt"></i></div>
+        <div class="hw-stat-val" style="color:#3b82f6">{{ p }}</div>
+        <div class="hw-stat-lbl">Permisos</div>
+      </div>
+      {% endwith %}
+      {% else %}
+      <div class="hw-stat">
+        <div class="hw-stat-icon" style="color:#0891b2"><i class="fas fa-building"></i></div>
+        <div class="hw-stat-val" style="color:#0891b2">{{ total_gerencias }}</div>
+        <div class="hw-stat-lbl">Áreas</div>
+      </div>
+      <div class="hw-stat">
+        <div class="hw-stat-icon" style="color:#8b5cf6"><i class="fas fa-layer-group"></i></div>
+        <div class="hw-stat-val" style="color:#8b5cf6">{{ total_areas }}</div>
+        <div class="hw-stat-lbl">Sub-áreas</div>
+      </div>
+      <div class="hw-stat">
+        <div class="hw-stat-icon" style="color:#d97706"><i class="fas fa-calendar-check"></i></div>
+        <div class="hw-stat-val" style="color:#d97706">{{ total_roster_hoy }}</div>
+        <div class="hw-stat-lbl">Roster hoy</div>
+      </div>
+      {% endif %}
     </div>
 
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información del Sistema</h5>
-            </div>
-            <div class="card-body">
-                <p><strong>Usuario:</strong> {{ user.username }}</p>
-                <p><strong>Nivel de acceso:</strong> {% if user.is_superuser %}Administrador{% else %}Usuario{% endif %}</p>
-                <p><strong>Última conexión:</strong> {{ user.last_login|date:"d/m/Y H:i" }}</p>
-                <hr>
-                <p class="text-muted mb-0">
-                    <i class="fas fa-info-circle"></i> Sistema de Gestión de Personal v1.0
-                </p>
-            </div>
+    {# CTA: pendientes o todo OK #}
+    {% if cambios_pendientes > 0 %}
+    <div class="hw-cta">
+      <div>
+        <div class="hw-cta-text"><i class="fas fa-bell me-2"></i>{{ cambios_pendientes }} aprobación{{ cambios_pendientes|pluralize:"es" }} esperando revisión</div>
+        {% if contratos_vencen %}
+        <div style="font-size:.74rem;color:#92400e;margin-top:3px;opacity:.8">
+          <i class="fas fa-file-contract me-1"></i>{{ contratos_vencen }} contrato{{ contratos_vencen|pluralize:"s" }} por vencer en 30 días
         </div>
+        {% endif %}
+      </div>
+      <a href="{% url 'dashboard_aprobaciones' %}" class="btn btn-warning btn-sm flex-shrink-0">
+        <i class="fas fa-tasks me-1"></i>Revisar
+      </a>
     </div>
+    {% elif contratos_vencen %}
+    <div class="hw-cta" style="background:#fff1f2;border-color:#fca5a5;">
+      <div class="hw-cta-text" style="color:#991b1b;">
+        <i class="fas fa-file-contract me-2"></i>{{ contratos_vencen }} contrato{{ contratos_vencen|pluralize:"s" }} vence{{ contratos_vencen|pluralize:"n" }} en los próximos 30 días
+      </div>
+      <a href="{% url 'personal_list' %}" class="btn btn-sm btn-outline-danger flex-shrink-0">Ver</a>
+    </div>
+    {% elif alertas_rrhh_critical and alertas_rrhh_critical > 0 %}
+    <div class="hw-cta" style="background:#fef2f2;border-color:#fca5a5;">
+      <div>
+        <div class="hw-cta-text" style="color:#991b1b;">
+          <i class="fas fa-exclamation-triangle me-2"></i>{{ alertas_rrhh_critical }} alerta{{ alertas_rrhh_critical|pluralize:"s" }} crítica{{ alertas_rrhh_critical|pluralize:"s" }} activa{{ alertas_rrhh_critical|pluralize:"s" }}
+        </div>
+        {% if alertas_rrhh_total > alertas_rrhh_critical %}
+        <div style="font-size:.74rem;color:#b45309;margin-top:3px;opacity:.85">
+          <i class="fas fa-bell me-1"></i>{{ alertas_rrhh_total }} alertas en total
+        </div>
+        {% endif %}
+      </div>
+      <a href="{% url 'analytics_alertas' %}" class="btn btn-sm btn-outline-danger flex-shrink-0">Ver alertas</a>
+    </div>
+    {% elif workflows_pendientes and workflows_pendientes > 0 %}
+    <div class="hw-cta" style="background:#eff6ff;border-color:#93c5fd;">
+      <div class="hw-cta-text" style="color:#1e40af;">
+        <i class="fas fa-code-branch me-2"></i>{{ workflows_pendientes }} aprobación{{ workflows_pendientes|pluralize:"es" }} de workflow pendiente{{ workflows_pendientes|pluralize:"s" }}
+      </div>
+      <a href="{% url 'workflow_bandeja' %}" class="btn btn-sm btn-outline-primary flex-shrink-0">Revisar</a>
+    </div>
+    {% else %}
+    <div class="hw-cta hw-cta-ok">
+      <div class="hw-cta-text"><i class="fas fa-check-circle me-2"></i>Todo al día — sin pendientes urgentes</div>
+    </div>
+    {% endif %}
+
+  </div>{# /hw-hoy #}
+</div>{# /hw-hero #}
+
+{# ── Módulos — sólo navegación, sin métricas ─────────────────────── #}
+<div class="hw-modules">
+  <a href="{% url 'personal_list' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-users"></i></div>
+    <div class="hw-mod-name">Personal</div>
+  </a>
+  <a href="{% url 'asistencia_dashboard' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(20,184,166,.1);color:#14b8a6"><i class="fas fa-fingerprint"></i></div>
+    <div class="hw-mod-name">Asistencia</div>
+  </a>
+  <a href="{% url 'vacaciones_panel' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(245,158,11,.1);color:#f59e0b"><i class="fas fa-umbrella-beach"></i></div>
+    <div class="hw-mod-name">Vacaciones</div>
+  </a>
+  <a href="{% url 'nominas_panel' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(5,150,105,.1);color:#059669"><i class="fas fa-file-invoice-dollar"></i></div>
+    <div class="hw-mod-name">Nóminas</div>
+  </a>
+  <a href="{% url 'analytics_dashboard' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(8,145,178,.1);color:#0891b2"><i class="fas fa-chart-line"></i></div>
+    <div class="hw-mod-name">Analytics</div>
+  </a>
+  <a href="{% url 'dashboard_aprobaciones' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(245,158,11,.1);color:#f59e0b"><i class="fas fa-tasks"></i></div>
+    <div class="hw-mod-name">Aprobaciones</div>
+  </a>
+  {% if user.is_superuser %}
+  <a href="{% url 'roster_matricial' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(139,92,246,.1);color:#8b5cf6"><i class="fas fa-calendar-alt"></i></div>
+    <div class="hw-mod-name">Roster</div>
+  </a>
+  {% if mod_prestamos %}
+  <a href="{% url 'prestamos_panel' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(124,58,237,.1);color:#7c3aed"><i class="fas fa-hand-holding-usd"></i></div>
+    <div class="hw-mod-name">Préstamos</div>
+  </a>
+  {% endif %}
+  {% if mod_documentos %}
+  <a href="{% url 'documentos_panel' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(13,148,136,.1);color:#0d9488"><i class="fas fa-folder-open"></i></div>
+    <div class="hw-mod-name">Documentos</div>
+  </a>
+  {% endif %}
+  {% if mod_reclutamiento %}
+  <a href="{% url 'vacantes_panel' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(244,63,94,.1);color:#f43f5e"><i class="fas fa-user-tie"></i></div>
+    <div class="hw-mod-name">Reclutamiento</div>
+  </a>
+  {% endif %}
+  <a href="{% url 'cierre_lista' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(99,102,241,.1);color:#6366f1"><i class="fas fa-lock"></i></div>
+    <div class="hw-mod-name">Cierre</div>
+  </a>
+  <a href="{% url 'asistencia_importar' %}" class="hw-mod">
+    <div class="hw-mod-icon" style="background:rgba(239,68,68,.1);color:#ef4444"><i class="fas fa-file-import"></i></div>
+    <div class="hw-mod-name">Importar</div>
+  </a>
+  {% endif %}
 </div>
+
+{# ── Señales clave del sistema (solo admin) ───────────────────────── #}
+{% if user.is_superuser %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:1.25rem;">
+
+  {# Vacaciones pendientes #}
+  {% if vacaciones_stats.total > 0 %}
+  <a href="{% url 'vacaciones_panel' %}" style="text-decoration:none;">
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,.12);color:#d97706;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-umbrella-beach"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#92400e">{{ vacaciones_stats.total }}</div>
+        <div style="font-size:.68rem;color:#b45309;margin-top:2px">Vac./Permisos pend.</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Contratos por vencer #}
+  {% if contratos_vencen > 0 %}
+  <a href="{% url 'personal_list' %}?contratos=vencen" style="text-decoration:none;">
+    <div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(239,68,68,.1);color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-file-contract"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#991b1b">{{ contratos_vencen }}</div>
+        <div style="font-size:.68rem;color:#b91c1c;margin-top:2px">Contratos vencen 30d</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Onboarding activos #}
+  {% if onboarding_activos > 0 or offboarding_activos > 0 %}
+  <a href="{% url 'onboarding_dashboard' %}" style="text-decoration:none;">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(22,163,74,.1);color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-user-plus"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#166534">{{ onboarding_activos|default:0 }}<span style="font-size:.75rem;font-weight:500;color:#4ade80;margin-left:3px">/ {{ offboarding_activos|default:0 }}↓</span></div>
+        <div style="font-size:.68rem;color:#15803d;margin-top:2px">On/Offboarding</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Encuestas activas #}
+  {% if encuestas_activas > 0 %}
+  <a href="{% url 'encuestas_panel' %}" style="text-decoration:none;">
+    <div style="background:#f0fdfa;border:1px solid #5eead4;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(15,118,110,.1);color:#0f766e;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-poll"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#0d2b27">{{ encuestas_activas }}</div>
+        <div style="font-size:.68rem;color:#0f766e;margin-top:2px">Encuestas activas</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Reclutamiento #}
+  {% if reclutamiento_stats.vacantes_activas > 0 %}
+  <a href="{% url 'vacantes_panel' %}" style="text-decoration:none;">
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(124,58,237,.1);color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-user-tie"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#5b21b6">{{ reclutamiento_stats.vacantes_activas }}<span style="font-size:.72rem;font-weight:400;color:#8b5cf6;margin-left:3px">vacantes</span></div>
+        <div style="font-size:.68rem;color:#7c3aed;margin-top:2px">{{ reclutamiento_stats.candidatos_mes }} candidatos/mes</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Disciplinaria activa #}
+  {% if disciplinaria_activos > 0 %}
+  <a href="{% url 'disciplinaria_panel' %}" style="text-decoration:none;">
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,88,12,.1);color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-gavel"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#c2410c">{{ disciplinaria_activos }}</div>
+        <div style="font-size:.68rem;color:#c2410c;margin-top:2px">Procesos discipl. activos</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Attrition risk #}
+  {% if attrition_riesgo > 0 %}
+  <a href="{% url 'analytics_attrition' %}" style="text-decoration:none;">
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(220,38,38,.1);color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-user-slash"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#b91c1c">{{ attrition_riesgo }}</div>
+        <div style="font-size:.68rem;color:#dc2626;margin-top:2px">En riesgo de fuga</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Nómina último período #}
+  {% if nominas_stats.periodo %}
+  <a href="{% url 'nominas_panel' %}" style="text-decoration:none;">
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(5,150,105,.1);color:#059669;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-coins"></i></div>
+      <div>
+        <div style="font-size:.9rem;font-weight:800;line-height:1;color:#065f46">S/ {{ nominas_stats.neto|floatformat:0|intcomma }}</div>
+        <div style="font-size:.68rem;color:#059669;margin-top:2px">Neto · {{ nominas_stats.estado }}</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Viáticos por conciliar #}
+  {% if viaticos_por_conciliar > 0 %}
+  <a href="{% url 'viaticos_dashboard' %}" style="text-decoration:none;">
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,88,12,.1);color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-route"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#c2410c">{{ viaticos_por_conciliar }}</div>
+        <div style="font-size:.68rem;color:#c2410c;margin-top:2px">CDT por conciliar</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Headcount tendencia del mes #}
+  {% if headcount_tendencia %}
+  <a href="{% url 'analytics_headcount' %}" style="text-decoration:none;">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(22,163,74,.1);color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-users-cog"></i></div>
+      <div>
+        <div style="font-size:.88rem;font-weight:800;line-height:1;color:#166534">
+          +{{ headcount_tendencia.altas }}<span style="color:#dc2626;margin:0 3px">/</span>-{{ headcount_tendencia.bajas }}
+        </div>
+        <div style="font-size:.68rem;color:#15803d;margin-top:2px">Altas/Bajas del mes</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Evaluaciones pendientes #}
+  {% if evaluaciones_pendientes > 0 %}
+  <a href="{% url 'evaluaciones_panel' %}" style="text-decoration:none;">
+    <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,.1);color:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-star-half-alt"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#1e40af">{{ evaluaciones_pendientes }}</div>
+        <div style="font-size:.68rem;color:#2563eb;margin-top:2px">Evaluaciones en curso</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# Capacitaciones del mes #}
+  {% if capacitaciones_mes > 0 %}
+  <a href="{% url 'capacitaciones_panel' %}" style="text-decoration:none;">
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(139,92,246,.1);color:#8b5cf6;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0"><i class="fas fa-graduation-cap"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;line-height:1;color:#5b21b6">{{ capacitaciones_mes }}</div>
+        <div style="font-size:.68rem;color:#7c3aed;margin-top:2px">Capacitaciones este mes</div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+</div>
+{% endif %}{# /is_superuser #}
+
+{# ── Actividad reciente + Insights IA ─────────────────────────────── #}
+<div style="display:grid;grid-template-columns:1fr 340px;gap:16px;">
+  <div style="min-width:0">
+
+  {% if actividad_reciente %}
+  <div class="hw-card">
+    <div class="hw-card-hdr">
+      <i class="fas fa-stream" style="color:#f59e0b"></i>
+      Actividad Reciente
+      <span class="ms-auto text-muted" style="font-size:.7rem;font-weight:400">últimos 7 días</span>
+    </div>
+    <div class="hw-card-body">
+      {% for a in actividad_reciente %}
+      <div class="act-row">
+        <div class="act-ico" style="background:{{ a.color }}18;color:{{ a.color }}"><i class="fas {{ a.icono }}"></i></div>
+        <div class="act-txt">{{ a.texto }}</div>
+        <div class="act-meta me-2">{{ a.fecha|date:"d/m H:i" }}</div>
+        <span class="act-pill pill-{{ a.estado }}">{{ a.estado_display|default:a.estado }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="hw-card">
+    <div class="hw-card-hdr"><i class="fas fa-stream" style="color:#f59e0b"></i> Actividad Reciente</div>
+    <div class="hw-card-body text-center py-4 text-muted">
+      <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+      <div style="font-size:.83rem">Sin movimientos en los últimos 7 días</div>
+    </div>
+  </div>
+  {% endif %}
+
+  </div>
+
+  {# Insights IA — lateral #}
+  <div>
+    <div class="hw-card" id="aiInsightsCard" style="display:none;">
+      <div class="hw-ai-hdr">
+        <i class="fas fa-brain" style="color:#5eead4"></i>
+        Insights IA
+        <button id="aiInsightsRefresh" class="ms-auto btn btn-sm"
+                style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);font-size:.65rem;padding:2px 8px;">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+      <div class="hw-card-body" id="aiInsightsBody" style="padding-top:10px">
+        <div id="aiInsightsLoading" class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          <div class="text-muted mt-2" style="font-size:.8rem">Analizando datos…</div>
+        </div>
+        <div id="aiInsightsContent" style="display:none;font-size:.79rem;line-height:1.65;padding-bottom:8px"></div>
+        <div id="aiInsightsError" style="display:none;" class="text-center py-4 text-muted">
+          <i class="fas fa-robot fa-2x mb-2 d-block opacity-25"></i>
+          <div style="font-size:.79rem">IA no disponible. <a href="#" id="aiInsightsRetry">Reintentar</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>{# /bottom grid #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// ── Saludo dinámico ──────────────────────────────────
+(function () {
+  const h = new Date().getHours();
+  const name = '{{ user.get_full_name|default:user.username|escapejs }}';
+  const g = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+  document.getElementById('greetingText').textContent = g + ', ' + name;
+})();
+
+// ── Donut STAFF / RCO ────────────────────────────────
+(function () {
+  const c = document.getElementById('donutChart');
+  if (!c) return;
+  const s = {{ staff_count|default:0 }};
+  const r = {{ rco_count|default:0 }};
+  if (!s && !r) return;
+  new Chart(c.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['STAFF', 'RCO'],
+      datasets: [{ data: [s, r], backgroundColor: ['#0f766e','#5eead4'], hoverBackgroundColor: ['#0d5e59','#2dd4bf'], borderWidth: 0, hoverOffset: 5 }]
+    },
+    options: {
+      cutout: '74%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} colaboradores` } }
+      },
+      animation: { duration: 900, easing: 'easeInOutQuart' }
+    }
+  });
+})();
+
+// ── AI Insights ──────────────────────────────────────
+(async function () {
+  const card = document.getElementById('aiInsightsCard');
+  const loading = document.getElementById('aiInsightsLoading');
+  const content = document.getElementById('aiInsightsContent');
+  const err = document.getElementById('aiInsightsError');
+  if (!card) return;
+  try {
+    const s = await (await fetch('/asistencia/ia/status/')).json();
+    if (!s.available) return;
+  } catch { return; }
+  card.style.display = 'block';
+
+  async function load(force) {
+    loading.style.display = 'block'; content.style.display = 'none'; err.style.display = 'none';
+    try {
+      const d = await (await fetch('/asistencia/ia/insights/' + (force ? '?force=1' : ''))).json();
+      if (d.insights) {
+        content.innerHTML = d.insights.split('\n').filter(l => l.trim()).map(l => {
+          const t = l.replace(/^[-*•]\s*/, '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+          return `<div style="display:flex;gap:7px;padding:5px 0;border-bottom:1px solid #f8fafc"><i class="fas fa-lightbulb" style="color:#5eead4;margin-top:3px;font-size:.65rem;flex-shrink:0"></i><span>${t}</span></div>`;
+        }).join('');
+        content.style.display = 'block';
+      } else { err.style.display = 'block'; }
+    } catch { err.style.display = 'block'; }
+    loading.style.display = 'none';
+  }
+
+  load(false);
+  document.getElementById('aiInsightsRefresh')?.addEventListener('click', () => load(true));
+  document.getElementById('aiInsightsRetry')?.addEventListener('click', e => { e.preventDefault(); load(true); });
+})();
+</script>
 {% endblock %}

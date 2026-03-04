@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Préstamos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-hand-holding-usd text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} préstamo{{ total|pluralize:"s" }} registrado{{ total|pluralize:"s" }}</small>
+    </div>
+    <a href="{% url 'prestamo_crear' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Nuevo Préstamo
+    </a>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-primary">{{ stats.en_curso }}</div><div class="stat-label">En Curso</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-warning">{{ stats.pendientes_aprobacion }}</div><div class="stat-label">Pend. Aprobación</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-danger">S/ {{ stats.total_por_cobrar|floatformat:2|intcomma }}</div><div class="stat-label">Saldo Total</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card"><div class="stat-value text-info">S/ {{ stats.descuento_mes|floatformat:2|intcomma }}</div><div class="stat-label">Dscto. Este Mes</div></div>
+    </div>
+</div>
+
+<!-- KPI Strip -->
+<div class="row g-3 mb-4">
+    <!-- Prestamos activos -->
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #0f766e!important; border-left-width:4px; border-left-style:solid;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                          style="width:36px;height:36px;background:rgba(15,118,110,.12);">
+                        <i class="fas fa-file-invoice-dollar" style="color:#0f766e;font-size:.95rem;"></i>
+                    </span>
+                    <small class="text-muted" style="font-size:.75rem;line-height:1.2;">Prestamos Activos</small>
+                </div>
+                <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">
+                    {{ kpi_prestamos_activos }}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">en ejecucion</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monto pendiente -->
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #b45309!important; border-left-width:4px; border-left-style:solid;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                          style="width:36px;height:36px;background:rgba(180,83,9,.10);">
+                        <i class="fas fa-coins" style="color:#b45309;font-size:.95rem;"></i>
+                    </span>
+                    <small class="text-muted" style="font-size:.75rem;line-height:1.2;">Saldo por Cobrar</small>
+                </div>
+                <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">
+                    S/ {{ kpi_monto_pendiente|floatformat:2|intcomma }}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">prestamos en curso</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cuotas vencidas -->
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 border-0"
+             style="border-left:4px solid {% if kpi_cuotas_vencidas > 0 %}#dc2626{% else %}#16a34a{% endif %}!important; border-left-width:4px; border-left-style:solid;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                          style="width:36px;height:36px;background:rgba(220,38,38,.10);">
+                        <i class="fas fa-exclamation-triangle"
+                           style="color:{% if kpi_cuotas_vencidas > 0 %}#dc2626{% else %}#16a34a{% endif %};font-size:.95rem;"></i>
+                    </span>
+                    <small class="text-muted" style="font-size:.75rem;line-height:1.2;">Cuotas Vencidas</small>
+                </div>
+                <div style="font-size:1.4rem;font-weight:800;color:{% if kpi_cuotas_vencidas > 0 %}#dc2626{% else %}#0f766e{% endif %};line-height:1.1;">
+                    {{ kpi_cuotas_vencidas }}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">pendientes de meses anteriores</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desembolsado este mes -->
+    <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 border-0" style="border-left:4px solid #0891b2!important; border-left-width:4px; border-left-style:solid;">
+            <div class="card-body py-3 px-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                          style="width:36px;height:36px;background:rgba(8,145,178,.10);">
+                        <i class="fas fa-money-bill-wave" style="color:#0891b2;font-size:.95rem;"></i>
+                    </span>
+                    <small class="text-muted" style="font-size:.75rem;line-height:1.2;">Desembolsado Este Mes</small>
+                </div>
+                <div style="font-size:1.4rem;font-weight:800;color:#0f766e;line-height:1.1;">
+                    S/ {{ kpi_desembolsado_mes|floatformat:2|intcomma }}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">aprobados en {{ "now"|date:"F Y" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="estado" class="form-select form-select-sm" style="width:160px">
+                    <option value="">Todos</option>
+                    <option value="EN_CURSO" {% if filtro_estado == 'EN_CURSO' %}selected{% endif %}>En Curso</option>
+                    <option value="PENDIENTE" {% if filtro_estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                    <option value="PAGADO" {% if filtro_estado == 'PAGADO' %}selected{% endif %}>Pagado</option>
+                    <option value="CANCELADO" {% if filtro_estado == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm" style="width:180px">
+                    <option value="">Todos</option>
+                    {% for t in tipos %}
+                    <option value="{{ t.pk }}" {% if filtro_tipo == t.pk|stringformat:"d" %}selected{% endif %}>{{ t.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar</label>
+                <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Nombre o DNI..." style="width:180px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Tipo</th>
+                    <th class="text-end">Monto</th>
+                    <th class="text-center">Cuotas</th>
+                    <th class="text-center">Avance</th>
+                    <th class="text-end">Saldo</th>
+                    <th class="text-center">Estado</th>
+                    <th>Fecha</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in prestamos %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ p.personal.apellidos_nombres|truncatechars:35 }}</div>
+                        <small class="text-muted">{{ p.personal.nro_doc }}</small>
+                    </td>
+                    <td>{{ p.tipo.nombre }}</td>
+                    <td class="text-end fw-semibold">S/ {{ p.monto_efectivo|floatformat:2|intcomma }}</td>
+                    <td class="text-center">{{ p.cuotas_pagadas }}/{{ p.num_cuotas }}</td>
+                    <td class="text-center">
+                        <div class="progress" style="height:6px; width:60px; display:inline-block;">
+                            <div class="progress-bar bg-success" style="width:{{ p.porcentaje_avance }}%"></div>
+                        </div>
+                        <span style="font-size:.7rem;">{{ p.porcentaje_avance }}%</span>
+                    </td>
+                    <td class="text-end">S/ {{ p.saldo_pendiente|floatformat:2|intcomma }}</td>
+                    <td class="text-center">
+                        {% if p.estado == 'EN_CURSO' %}<span class="badge bg-primary">En Curso</span>
+                        {% elif p.estado == 'PENDIENTE' %}<span class="badge bg-warning text-dark">Pendiente</span>
+                        {% elif p.estado == 'PAGADO' %}<span class="badge bg-success">Pagado</span>
+                        {% elif p.estado == 'CANCELADO' %}<span class="badge bg-secondary">Cancelado</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ p.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td style="font-size:.78rem;">{{ p.fecha_solicitud|date:"d/m/Y" }}</td>
+                    <td><a href="{% url 'prestamo_detalle' p.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2"><i class="fas fa-eye"></i></a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No hay préstamos registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Analytics Row -->
+<div class="row g-3 mb-4">
+
+    <!-- Cuotas del mes por semana (bar chart) -->
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2" style="color:#f59e0b;"></i>Cuotas Pendientes por Semana — {{ "now"|date:"F Y" }}</h6>
+            </div>
+            <div class="card-body" style="min-height:220px; position:relative;">
+                <canvas id="chartCuotasSemana" style="max-height:200px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 préstamos activos -->
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex align-items-center gap-2">
+                <h6 class="mb-0"><i class="fas fa-trophy me-2" style="color:#5eead4;"></i>Top 5 Préstamos Activos</h6>
+                <span class="badge bg-secondary ms-auto" style="font-size:.7rem;">por monto</span>
+            </div>
+            <div class="card-body p-0">
+                {% if top_prestamos %}
+                <ul class="list-group list-group-flush">
+                    {% for p in top_prestamos %}
+                    <li class="list-group-item d-flex align-items-center gap-2 py-2 px-3">
+                        <span class="badge rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:26px;height:26px;font-size:.75rem;background:#134e4a;color:#5eead4;flex-shrink:0;">
+                            {{ forloop.counter }}
+                        </span>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-semibold text-truncate" style="font-size:.82rem; max-width:28ch;" title="{{ p.personal.apellidos_nombres }}">
+                                {{ p.personal.apellidos_nombres|truncatechars:28 }}
+                            </div>
+                            <small class="text-muted">{{ p.tipo.nombre }}</small>
+                        </div>
+                        <div class="text-end flex-shrink-0">
+                            <span class="fw-bold" style="color:#0f766e; font-size:.88rem;">
+                                S/ {{ p.monto_efectivo|floatformat:2|intcomma }}
+                            </span>
+                            <br>
+                            <small class="text-muted">Saldo: S/ {{ p.saldo_pendiente|floatformat:2|intcomma }}</small>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center text-muted py-4" style="font-size:.85rem;">
+                    <i class="fas fa-info-circle me-1"></i>Sin préstamos activos
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var raw = {{ cuotas_mes_json|safe }};
+    if (!raw || raw.length === 0) {
+        var canvas = document.getElementById('chartCuotasSemana');
+        if (canvas) {
+            var p = document.createElement('p');
+            p.className = 'text-center text-muted mt-4';
+            p.style.fontSize = '.85rem';
+            p.textContent = 'Sin cuotas registradas para este mes.';
+            canvas.parentNode.replaceChild(p, canvas);
+        }
+        return;
+    }
+    var labels   = raw.map(function (d) { return d.label; });
+    var pendiente = raw.map(function (d) { return d.pendiente; });
+    var pagado    = raw.map(function (d) { return d.pagado; });
+
+    var ctx = document.getElementById('chartCuotasSemana');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Pendiente',
+                    data: pendiente,
+                    backgroundColor: 'rgba(245,158,11,0.80)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Pagado',
+                    data: pagado,
+                    backgroundColor: 'rgba(94,234,212,0.65)',
+                    borderColor: '#5eead4',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            return ctx.dataset.label + ': S/ ' + ctx.parsed.y.toLocaleString('es-PE', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: { size: 10 },
+                        callback: function (val) { return 'S/ ' + val.toLocaleString('es-PE'); }
+                    },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                }
+            }
+        }
+    });
+}());
+</script>
+
+<!-- Estado de cuenta por empleado -->
+{% if resumen_empleados %}
+<div class="card shadow-sm">
+    <div class="card-header py-2 d-flex align-items-center gap-2">
+        <h6 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Estado de Cuenta por Empleado</h6>
+        <span class="badge bg-secondary" style="font-size:.75rem;">Préstamos activos</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Empleado</th>
+                        <th class="text-center">Préstamos</th>
+                        <th class="text-end">Total Prestado</th>
+                        <th class="text-end">Amortizado</th>
+                        <th class="text-end">Saldo Pendiente</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in resumen_empleados %}
+                    <tr>
+                        <td class="ps-3">
+                            <div class="fw-semibold">{{ emp.nombre|truncatechars:35 }}</div>
+                            <small class="text-muted">{{ emp.nro_doc }}</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary rounded-pill">{{ emp.num_prestamos }}</span>
+                        </td>
+                        <td class="text-end fw-semibold">S/ {{ emp.total_prestado|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-success">S/ {{ emp.amortizado|floatformat:2|intcomma }}</td>
+                        <td class="text-end">
+                            <span class="fw-bold {% if emp.saldo > 0 %}text-danger{% else %}text-success{% endif %}">
+                                S/ {{ emp.saldo|floatformat:2|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'personal_detail' emp.pk %}"
+                               class="btn btn-xs btn-outline-secondary py-0 px-2" title="Ver empleado">
+                                <i class="fas fa-user"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

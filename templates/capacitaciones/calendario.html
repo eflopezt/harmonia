@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Calendario de Capacitaciones{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-calendar-alt text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Vista mensual — {{ mes_nombre }} {{ anio }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        {% if request.user.is_superuser %}
+        <a href="{% url 'capacitacion_crear' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>Nueva
+        </a>
+        <a href="{% url 'capacitacion_asignacion' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-users-cog me-1"></i>Asignación Masiva
+        </a>
+        {% endif %}
+        <a href="{% url 'capacitaciones_panel' %}" class="btn btn-sm btn-secondary">Panel</a>
+    </div>
+</div>
+
+<!-- Navegación mes -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between">
+        <a href="?mes={{ mes_prev }}&anio={{ anio_prev }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-chevron-left"></i> {{ mes_prev }}/{{ anio_prev }}
+        </a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="fw-bold" style="font-size:1.1rem; color:#0D2B27;">{{ mes_nombre }} {{ anio }}</span>
+            <a href="?mes={{ hoy.month }}&anio={{ hoy.year }}" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size:.8rem;">Hoy</a>
+        </div>
+        <a href="?mes={{ mes_next }}&anio={{ anio_next }}" class="btn btn-sm btn-outline-secondary">
+            {{ mes_next }}/{{ anio_next }} <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
+</div>
+
+{% if not caps_mes %}
+<div class="card shadow-sm">
+    <div class="card-body text-center text-muted py-5">
+        <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+        No hay capacitaciones programadas para {{ mes_nombre }} {{ anio }}.
+        {% if request.user.is_superuser %}
+        <div class="mt-2">
+            <a href="{% url 'capacitacion_crear' %}" class="btn btn-sm btn-primary">Crear capacitación</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+
+<!-- Resumen del mes -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0" style="border-left:3px solid #0F766E !important;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
+                <i class="fas fa-graduation-cap text-success"></i>
+                <div>
+                    <div class="fw-bold" style="font-size:1.2rem;">{{ caps_mes.count }}</div>
+                    <div style="font-size:.72rem; color:#64748B;">Total mes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% for c in caps_mes %}{% if forloop.first %}
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0" style="border-left:3px solid #059669 !important;">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
+                <i class="fas fa-check-circle text-success"></i>
+                <div>
+                    <div class="fw-bold" style="font-size:1.2rem;">{{ caps_mes|length|add:0 }}</div>
+                    <div style="font-size:.72rem; color:#64748B;">En mes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}{% endfor %}
+</div>
+
+<!-- Leyenda de colores por tipo -->
+<div class="d-flex gap-3 mb-3 flex-wrap" style="font-size:.82rem;">
+    <span><span class="badge" style="background:#059669;">INTERNA</span></span>
+    <span><span class="badge" style="background:#0284C7;">EXTERNA</span></span>
+    <span><span class="badge" style="background:#7C3AED;">E-LEARNING</span></span>
+    <span><span class="badge" style="background:#D97706;">SSOMA</span></span>
+    <span><span class="badge" style="background:#DC2626;">INDUCCIÓN</span></span>
+</div>
+
+<!-- Semanas -->
+{% if semanas_data %}
+    {% for semana in semanas_data %}
+    <div class="mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div style="height:2px; width:20px; background:#5EEAD4;"></div>
+            <span class="text-muted" style="font-size:.8rem;">
+                Semana del {{ semana.inicio|date:"d/m" }} al {{ semana.fin|date:"d/m/Y" }}
+            </span>
+            <div style="flex:1; height:1px; background:#E2E8F0;"></div>
+        </div>
+        <div class="row g-2">
+            {% for c in semana.caps %}
+            {% with tipo=c.tipo %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-sm h-100" style="border-left: 4px solid {% if tipo == 'INTERNA' %}#059669{% elif tipo == 'EXTERNA' %}#0284C7{% elif tipo == 'ELEARNING' %}#7C3AED{% elif tipo == 'SSOMA' %}#D97706{% else %}#DC2626{% endif %};">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <span class="badge" style="font-size:.7rem; background:{% if tipo == 'INTERNA' %}#059669{% elif tipo == 'EXTERNA' %}#0284C7{% elif tipo == 'ELEARNING' %}#7C3AED{% elif tipo == 'SSOMA' %}#D97706{% else %}#DC2626{% endif %};">
+                                {{ c.get_tipo_display }}
+                            </span>
+                            {% if c.estado == 'COMPLETADA' %}
+                            <span class="badge bg-success" style="font-size:.7rem;">Completada</span>
+                            {% elif c.estado == 'EN_CURSO' %}
+                            <span class="badge bg-primary" style="font-size:.7rem;">En Curso</span>
+                            {% elif c.estado == 'PROGRAMADA' %}
+                            <span class="badge bg-warning text-dark" style="font-size:.7rem;">Programada</span>
+                            {% endif %}
+                        </div>
+                        <div class="fw-semibold mb-1" style="font-size:.9rem; color:#0D2B27;">
+                            {% if request.user.is_superuser %}
+                            <a href="{% url 'capacitacion_detalle' c.pk %}" style="text-decoration:none; color:inherit;">{{ c.titulo|truncatechars:50 }}</a>
+                            {% else %}
+                            {{ c.titulo|truncatechars:50 }}
+                            {% endif %}
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-1" style="font-size:.78rem; color:#64748B;">
+                            <span><i class="fas fa-calendar-day me-1"></i>{{ c.fecha_inicio|date:"d/m/Y" }}{% if c.fecha_fin and c.fecha_fin != c.fecha_inicio %} – {{ c.fecha_fin|date:"d/m" }}{% endif %}</span>
+                            <span><i class="fas fa-clock me-1"></i>{{ c.horas }}h</span>
+                        </div>
+                        {% if c.instructor %}
+                        <div style="font-size:.78rem; color:#64748B;"><i class="fas fa-user-tie me-1"></i>{{ c.instructor }}</div>
+                        {% endif %}
+                        {% if c.lugar %}
+                        <div style="font-size:.78rem; color:#64748B;"><i class="fas fa-map-marker-alt me-1"></i>{{ c.lugar|truncatechars:30 }}</div>
+                        {% endif %}
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <span style="font-size:.78rem;"><i class="fas fa-users me-1"></i>{{ c.num_inscritos }}{% if c.max_participantes %}/{{ c.max_participantes }}{% endif %} inscritos</span>
+                            {% if c.max_participantes and c.num_inscritos >= c.max_participantes %}
+                            <span class="badge bg-danger" style="font-size:.68rem;">Cupos agotados</span>
+                            {% endif %}
+                        </div>
+                        {% if c.num_inscritos %}
+                        <div class="progress mt-1" style="height:4px;">
+                            <div class="progress-bar"
+                                 style="width:{{ c.tasa_aprobacion }}%; background:{% if tipo == 'INTERNA' %}#059669{% elif tipo == 'EXTERNA' %}#0284C7{% elif tipo == 'ELEARNING' %}#7C3AED{% elif tipo == 'SSOMA' %}#D97706{% else %}#DC2626{% endif %};">
+                            </div>
+                        </div>
+                        <div style="font-size:.7rem; color:#64748B;">{{ c.tasa_aprobacion }}% aprobación</div>
+                        {% endif %}
+                        {% if request.user.is_superuser %}
+                        <div class="mt-2 d-flex gap-1">
+                            <a href="{% url 'capacitacion_detalle' c.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size:.75rem;">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'capacitacion_estadisticas' c.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.75rem;">
+                                <i class="fas fa-chart-bar"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<!-- Caps sin semanas agrupadas (todas en mismo día o sin semanas) -->
+<div class="row g-2">
+    {% for c in caps_mes %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm" style="border-left:4px solid #0F766E;">
+            <div class="card-body py-2 px-3">
+                <div class="fw-semibold">{{ c.titulo|truncatechars:45 }}</div>
+                <small class="text-muted">{{ c.fecha_inicio|date:"d/m/Y" }} — {{ c.horas }}h</small>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
+
+<!-- Sidebar proximas -->
+{% if proximas %}
+<div class="card shadow-sm mt-4">
+    <div class="card-header py-2 px-3" style="background:#F0FFFE;">
+        <span class="fw-semibold" style="color:#0D2B27;"><i class="fas fa-forward me-1"></i>Próximas Capacitaciones</span>
+    </div>
+    <div class="list-group list-group-flush" style="font-size:.83rem;">
+        {% for c in proximas %}
+        <div class="list-group-item py-2">
+            <div class="d-flex justify-content-between">
+                <span class="fw-semibold">{{ c.titulo|truncatechars:40 }}</span>
+                <small class="text-muted ms-2">{{ c.fecha_inicio|date:"d/m/Y" }}</small>
+            </div>
+            <small class="text-muted">{{ c.get_tipo_display }} — {{ c.horas }}h{% if c.instructor %} — {{ c.instructor }}{% endif %}</small>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

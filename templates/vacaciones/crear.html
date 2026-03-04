@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Vacaciones{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-umbrella-beach text-secondary me-2"></i>{{ titulo }}</h2>
+
+<div class="card shadow-sm" style="max-width:600px;">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Trabajador</label>
+                <select name="personal_id" class="form-select" required>
+                    <option value="">Seleccionar...</option>
+                    {% for p in personal_list %}
+                    <option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" name="fecha_inicio" class="form-control" required>
+                </div>
+                <div class="col-6 mb-3">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" name="fecha_fin" class="form-control" required>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Motivo / Observaciones</label>
+                <textarea name="motivo" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Registrar</button>
+                <a href="{% url 'vacaciones_panel' %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="mt-3">
+    <small class="text-muted"><i class="fas fa-balance-scale me-1"></i>Base legal: DL 713 — 30 días calendario por año de servicio, mínimo 7 días consecutivos.</small>
+</div>
+{% endblock %}

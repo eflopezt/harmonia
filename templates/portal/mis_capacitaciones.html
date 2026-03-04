@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Mis Capacitaciones{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-chalkboard-teacher me-2 text-primary"></i>Mis Capacitaciones</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.cap-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #fff;
+    margin-bottom: 24px;
+}
+.kpi-cap {
+    text-align: center;
+    padding: 14px 18px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 8px;
+}
+.kpi-cap-num { font-size: 1.5rem; font-weight: 700; color: #5eead4; line-height: 1.1; }
+.kpi-cap-lbl { font-size: .72rem; opacity: .75; margin-top: 4px; }
+
+.cap-item {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: box-shadow .12s;
+}
+.cap-item:hover { box-shadow: 0 4px 14px rgba(0,0,0,.07); }
+
+.cap-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+
+.cert-card {
+    border-radius: 10px;
+    border: 1px solid #d1fae5;
+    background: #f0fdf4;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-lg flex-shrink-0"></i>
+    <div><strong>Cuenta no vinculada.</strong> Contacta a RRHH o TI.</div>
+</div>
+{% else %}
+
+<!-- Encabezado con KPIs -->
+<div class="cap-header">
+    <div class="row align-items-center g-3">
+        <div class="col">
+            <div style="font-size:.8rem;opacity:.7;margin-bottom:4px">HISTORIAL DE CAPACITACIONES</div>
+            <h2 class="mb-0 fw-bold" style="font-size:1.15rem">{{ empleado.apellidos_nombres }}</h2>
+            <p class="mb-0 mt-1" style="font-size:.82rem;opacity:.8">{{ empleado.cargo }}{% if empleado.subarea %} · {{ empleado.subarea.area.nombre }}{% endif %}</p>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <div class="kpi-cap">
+                    <div class="kpi-cap-num">{{ asistencias|length }}</div>
+                    <div class="kpi-cap-lbl">Cursos</div>
+                </div>
+                <div class="kpi-cap">
+                    <div class="kpi-cap-num">{{ total_horas|floatformat:0 }}h</div>
+                    <div class="kpi-cap-lbl">Horas</div>
+                </div>
+                <div class="kpi-cap">
+                    <div class="kpi-cap-num">{{ total_aprobados }}</div>
+                    <div class="kpi-cap-lbl">Aprobados</div>
+                </div>
+                <div class="kpi-cap">
+                    <div class="kpi-cap-num">{{ total_certificados }}</div>
+                    <div class="kpi-cap-lbl">Certificados</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not asistencias and not certificaciones %}
+<!-- Estado vacío -->
+<div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-chalkboard-teacher fa-3x mb-3" style="color:#cbd5e1"></i>
+        <h5 class="text-muted fw-semibold">Sin capacitaciones registradas</h5>
+        <p class="text-muted small mb-0">Aún no tienes participaciones en capacitaciones registradas.<br>Aparecerán aquí una vez que seas inscrito a una capacitación.</p>
+    </div>
+</div>
+
+{% else %}
+
+<div class="row g-4">
+
+    <!-- Capacitaciones (izquierda) -->
+    <div class="{% if certificaciones %}col-lg-8{% else %}col-12{% endif %}">
+        {% if asistencias %}
+        <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+            <i class="fas fa-list me-2 text-primary"></i>Mis Participaciones
+        </h6>
+        <div class="d-flex flex-column gap-3">
+            {% for a in asistencias %}
+            <div class="cap-item">
+                <!-- Icono categoría -->
+                <div class="cap-icon"
+                     style="background:rgba(15,118,110,.1);color:#0f766e">
+                    <i class="fas {% if a.capacitacion.categoria %}{{ a.capacitacion.categoria.icono }}{% else %}fa-chalkboard-teacher{% endif %}"></i>
+                </div>
+
+                <div style="flex:1;min-width:0">
+                    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+                        <div>
+                            <div class="fw-semibold" style="font-size:.92rem;color:#1e293b">{{ a.capacitacion.titulo }}</div>
+                            <div class="text-muted" style="font-size:.76rem">
+                                {{ a.capacitacion.get_tipo_display }}
+                                {% if a.capacitacion.categoria %} · {{ a.capacitacion.categoria.nombre }}{% endif %}
+                                {% if a.capacitacion.instructor %} · {{ a.capacitacion.instructor }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            {% if a.aprobado %}
+                            <span class="badge bg-success" style="font-size:.68rem"><i class="fas fa-check me-1"></i>Aprobado</span>
+                            {% endif %}
+                            <span class="badge
+                                {% if a.estado == 'ASISTIO' %}bg-primary
+                                {% elif a.estado == 'NO_ASISTIO' %}bg-danger
+                                {% elif a.estado == 'PARCIAL' %}bg-warning text-dark
+                                {% else %}bg-light text-dark border{% endif %}"
+                                style="font-size:.68rem">
+                                {{ a.get_estado_display }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 d-flex align-items-center gap-3 flex-wrap" style="font-size:.78rem;color:#64748b">
+                        <span><i class="fas fa-calendar me-1"></i>{{ a.capacitacion.fecha_inicio|date:"d/m/Y" }}</span>
+                        <span><i class="fas fa-clock me-1"></i>{{ a.capacitacion.horas }}h</span>
+                        {% if a.capacitacion.lugar %}<span><i class="fas fa-map-marker-alt me-1"></i>{{ a.capacitacion.lugar }}</span>{% endif %}
+                        {% if a.nota %}<span class="fw-semibold" style="color:#0f766e"><i class="fas fa-star me-1"></i>Nota: {{ a.nota|floatformat:1 }}</span>{% endif %}
+                    </div>
+                </div>
+
+                <!-- Certificado -->
+                {% if a.certificado %}
+                <div class="flex-shrink-0">
+                    <a href="{{ a.certificado.url }}" target="_blank" rel="noopener"
+                       class="btn btn-outline-success btn-sm" style="font-size:.75rem">
+                        <i class="fas fa-certificate me-1"></i>Ver
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Certificaciones (derecha) -->
+    {% if certificaciones %}
+    <div class="col-lg-4">
+        <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+            <i class="fas fa-certificate me-2" style="color:#059669"></i>Mis Certificaciones
+        </h6>
+        <div class="d-flex flex-column gap-3">
+            {% for cert in certificaciones %}
+            <div class="cert-card">
+                <div style="width:36px;height:36px;border-radius:50%;background:#d1fae5;color:#065f46;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <i class="fas fa-certificate"></i>
+                </div>
+                <div style="flex:1;min-width:0">
+                    <div class="fw-semibold" style="font-size:.85rem;color:#065f46">{{ cert.requerimiento.nombre }}</div>
+                    <div class="text-muted" style="font-size:.75rem">Obtenido: {{ cert.fecha_obtencion|date:"d/m/Y" }}</div>
+                    {% if cert.fecha_vencimiento %}
+                    <div style="font-size:.74rem;color:{% if cert.estado == 'VENCIDA' %}#dc2626{% elif cert.estado == 'POR_VENCER' %}#d97706{% else %}#059669{% endif %}">
+                        Vence: {{ cert.fecha_vencimiento|date:"d/m/Y" }}
+                        <span class="badge ms-1
+                            {% if cert.estado == 'VIGENTE' %}bg-success
+                            {% elif cert.estado == 'POR_VENCER' %}bg-warning text-dark
+                            {% elif cert.estado == 'VENCIDA' %}bg-danger
+                            {% else %}bg-secondary{% endif %}"
+                            style="font-size:.62rem">
+                            {{ cert.get_estado_display }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% if cert.archivo %}
+                    <a href="{{ cert.archivo.url }}" target="_blank" rel="noopener" class="btn btn-outline-success btn-sm mt-1 py-0 px-2" style="font-size:.72rem">
+                        <i class="fas fa-download me-1"></i>Certificado
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

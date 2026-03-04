@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Directorio{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-address-book me-2 text-primary"></i>Directorio de Colaboradores</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.persona-card {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    padding: 18px;
+    transition: box-shadow .15s, transform .12s;
+    height: 100%;
+}
+.persona-card:hover {
+    box-shadow: 0 4px 20px rgba(15,118,110,.12);
+    transform: translateY(-2px);
+}
+.persona-avatar-lg {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+}
+.persona-nombre-lg { font-size: .9rem; font-weight: 700; line-height: 1.3; }
+.persona-cargo-lg  { font-size: .76rem; color: #64748b; }
+.persona-info-row {
+    display: flex; align-items: center; gap: 7px;
+    font-size: .78rem; color: #475569;
+    padding: 3px 0;
+}
+.persona-info-row i { width: 14px; color: #94a3b8; flex-shrink: 0; }
+.persona-info-row a { color: #0f766e; text-decoration: none; }
+.persona-info-row a:hover { text-decoration: underline; }
+.search-highlight { background: rgba(94,234,212,.35); border-radius: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Buscador -->
+<div class="dash-card mb-4">
+    <div class="dash-card-body">
+        <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+            <div class="input-group" style="max-width:320px">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" name="q" class="form-control"
+                       placeholder="Nombre, cargo o correo..."
+                       value="{{ buscar }}" autofocus>
+                {% if buscar %}
+                <a href="{% url 'directorio' %}{% if area_id %}?area={{ area_id }}{% endif %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+
+            <select name="area" class="form-select form-select-sm" style="width:200px" onchange="this.form.submit()">
+                <option value="">Todas las áreas</option>
+                {% for a in areas %}
+                <option value="{{ a.pk }}" {% if area_id == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Filtrar
+            </button>
+
+            <a href="{% url 'organigrama' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-sitemap me-1"></i>Ver Organigrama
+            </a>
+        </form>
+    </div>
+</div>
+
+<!-- Resultado -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <span class="text-muted small">
+        <strong>{{ total }}</strong> colaborador{{ total|pluralize:"es" }}
+        {% if buscar %} — búsqueda: "<strong>{{ buscar }}</strong>"{% endif %}
+        {% if area_id %} — área filtrada{% endif %}
+    </span>
+</div>
+
+{% if personas %}
+<div class="row g-3">
+    {% for p in personas %}
+    <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="persona-card">
+            <div class="d-flex gap-3 align-items-start mb-3">
+                <div class="persona-avatar-lg">{{ p.apellidos_nombres|slice:":1" }}</div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="persona-nombre-lg">{{ p.apellidos_nombres|truncatechars:38 }}</div>
+                    <div class="persona-cargo-lg">{{ p.cargo|default:"Sin cargo asignado" }}</div>
+                </div>
+            </div>
+
+            <!-- Área / SubÁrea -->
+            {% if p.subarea %}
+            <div class="persona-info-row">
+                <i class="fas fa-building"></i>
+                <span class="text-truncate">{{ p.subarea.area.nombre }}</span>
+            </div>
+            <div class="persona-info-row">
+                <i class="fas fa-layer-group"></i>
+                <span class="text-truncate">{{ p.subarea.nombre }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Correo corporativo -->
+            {% if p.correo_corporativo %}
+            <div class="persona-info-row">
+                <i class="fas fa-envelope"></i>
+                <a href="mailto:{{ p.correo_corporativo }}" class="text-truncate">{{ p.correo_corporativo }}</a>
+            </div>
+            {% endif %}
+
+            <!-- Celular -->
+            {% if p.celular %}
+            <div class="persona-info-row">
+                <i class="fas fa-phone"></i>
+                <a href="tel:{{ p.celular }}">{{ p.celular }}</a>
+            </div>
+            {% endif %}
+
+            <!-- Badges grupo / condición -->
+            <div class="mt-2 d-flex gap-1 flex-wrap">
+                {% if p.grupo_tareo %}
+                <span class="badge" style="font-size:.65rem;background:{% if p.grupo_tareo == 'STAFF' %}#0f766e{% else %}#0ea5e9{% endif %}">
+                    {{ p.grupo_tareo }}
+                </span>
+                {% endif %}
+                {% if p.condicion %}
+                <span class="badge bg-light text-dark border" style="font-size:.65rem">{{ p.condicion }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="dash-card">
+    <div class="dash-card-body text-center text-muted py-5">
+        <i class="fas fa-user-slash fa-2x mb-2 d-block opacity-25"></i>
+        Sin resultados
+        {% if buscar %}<p class="mt-1 small">Prueba con otro término: nombre, cargo o correo</p>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

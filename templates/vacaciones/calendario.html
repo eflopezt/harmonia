@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Calendario de Vacaciones{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-calendar-alt text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} vacacion{{ total|pluralize:"es" }} aprobada{{ total|pluralize:"s" }} en el período</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'saldos_exportar_excel' %}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Exportar Excel</a>
+        <a href="{% url 'vacaciones_panel' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-list me-1"></i>Panel</a>
+    </div>
+</div>
+
+<!-- Navegación de mes -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <a href="?anio={{ anio_ant }}&mes={{ mes_ant }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-left me-1"></i>Anterior
+            </a>
+            <span class="fw-bold fs-5 text-capitalize" style="color:#0f766e;">{{ nombre_mes }}</span>
+            <a href="?anio={{ anio_sig }}&mes={{ mes_sig }}" class="btn btn-sm btn-outline-secondary">
+                Siguiente <i class="fas fa-chevron-right ms-1"></i>
+            </a>
+            <div class="ms-auto d-flex gap-2 align-items-center">
+                <form method="get" class="d-flex gap-2 align-items-end">
+                    <div>
+                        <label class="form-label small mb-0">Mes</label>
+                        <select name="mes" class="form-select form-select-sm" style="width:120px">
+                            {% for m_num, m_nombre in meses_lista %}
+                            <option value="{{ m_num }}" {% if m_num == mes %}selected{% endif %}>{{ m_nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-0">Año</label>
+                        <input type="number" name="anio" value="{{ anio }}" class="form-control form-control-sm" style="width:80px">
+                    </div>
+                    <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de vacaciones aprobadas -->
+<div class="card shadow-sm">
+    <div class="card-header py-2" style="background:#134e4a;color:#fff;border-radius:8px 8px 0 0;">
+        <i class="fas fa-check-circle me-2"></i>Vacaciones Aprobadas
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Área</th>
+                    <th class="text-center">Fecha Inicio</th>
+                    <th class="text-center">Fecha Fin</th>
+                    <th class="text-center">Días Cal.</th>
+                    <th class="text-center">Estado</th>
+                    <th>Motivo / Obs.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vac_aprobadas %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ v.personal.apellidos_nombres|truncatechars:35 }}</div>
+                        <small class="text-muted">{{ v.personal.nro_doc }}</small>
+                    </td>
+                    <td>
+                        <small>
+                            {% if v.personal.subarea and v.personal.subarea.area %}
+                                {{ v.personal.subarea.area.nombre|truncatechars:25 }}
+                            {% elif v.personal.subarea %}
+                                {{ v.personal.subarea.nombre|truncatechars:25 }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </small>
+                    </td>
+                    <td class="text-center">{{ v.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td class="text-center">{{ v.fecha_fin|date:"d/m/Y" }}</td>
+                    <td class="text-center fw-bold">{{ v.dias_calendario }}</td>
+                    <td class="text-center">
+                        {% if v.estado == 'EN_GOCE' %}<span class="badge bg-info">En Goce</span>
+                        {% elif v.estado == 'APROBADA' %}<span class="badge bg-success">Aprobada</span>
+                        {% elif v.estado == 'COMPLETADA' %}<span class="badge bg-secondary">Completada</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ v.get_estado_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if v.motivo %}
+                        <small class="text-muted">{{ v.motivo|truncatechars:50 }}</small>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-calendar-times fa-2x mb-2 d-block opacity-25"></i>
+                        No hay vacaciones aprobadas para {{ nombre_mes }}.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if vac_aprobadas %}
+    <div class="card-footer text-end text-muted small py-2">
+        Total: <strong>{{ total }}</strong> solicitud{{ total|pluralize:"es" }} —
+        {% with total_dias=vac_aprobadas|length %}
+        período {{ nombre_mes }}
+        {% endwith %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% load humanize harmoni_tags %}
+
+{% block title %}Mi Portal{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-user-circle me-2 text-primary"></i>Mi Portal</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.portal-avatar {
+    width:52px; height:52px; border-radius:50%; background:var(--primary);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:1.4rem; font-weight:700; flex-shrink:0;
+}
+.portal-kpi { text-align:center; padding:16px 10px; border-radius:10px; background:#fff; border:1px solid #e2e8f0; }
+.portal-kpi-num { font-size:1.5rem; font-weight:700; line-height:1.1; }
+.portal-kpi-lbl { font-size:.72rem; color:#64748b; margin-top:4px; }
+.portal-kpi-icon { font-size:.9rem; margin-bottom:6px; }
+
+.portal-card { border-radius:10px; border:1px solid #e2e8f0; background:#fff; overflow:hidden; }
+.portal-card-hdr { padding:12px 16px; border-bottom:1px solid #f1f5f9; font-weight:600; font-size:.88rem; display:flex; align-items:center; gap:8px; }
+.portal-card-body { padding:14px 16px; }
+
+.alert-pending {
+    border-radius:10px; padding:12px 16px; display:flex; align-items:center; gap:12px;
+    background:#fffbeb; border:1px solid #fde68a; margin-bottom:16px;
+}
+
+.pap-prox { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f8fafc; }
+.pap-prox:last-child { border-bottom:none; }
+
+.portal-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:768px) { .portal-grid { grid-template-columns:1fr; } }
+
+.qa-mini { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+@media(max-width:576px) { .qa-mini { grid-template-columns:repeat(2,1fr); } }
+.qa-mini-btn {
+    display:flex; flex-direction:column; align-items:center; gap:5px; padding:12px 6px;
+    border-radius:8px; border:1px solid #e2e8f0; background:#fff;
+    text-decoration:none; color:#334155; font-size:.75rem; font-weight:500;
+    transition:all .15s; text-align:center;
+}
+.qa-mini-btn:hover { background:#f0fdfa; border-color:#99f6e4; color:#0f766e; }
+.qa-mini-icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-lg flex-shrink-0"></i>
+    <div>
+        <strong>Cuenta no vinculada.</strong>
+        Tu usuario aún no está vinculado a un registro de empleado.
+        Contacta al área de RRHH o TI para que lo vinculen.
+    </div>
+</div>
+{% else %}
+
+<!-- Bienvenida -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div class="portal-avatar">
+        {{ empleado.apellidos_nombres|slice:":1"|upper }}
+    </div>
+    <div style="flex:1">
+        <h2 class="fw-semibold mb-0" style="font-size:1.2rem">{{ empleado.apellidos_nombres }}</h2>
+        <p class="text-muted mb-0" style="font-size:.85rem">
+            {{ empleado.cargo }}
+            {% if empleado.subarea %}· {{ empleado.subarea.nombre }} / {{ empleado.subarea.area.nombre }}{% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- Alerta de encuestas pendientes -->
+{% if encuestas_badge > 0 %}
+<div class="alert-pending" style="background:#f0fdfa;border-color:#5eead4;margin-bottom:12px;">
+    <i class="fas fa-poll" style="color:#0f766e"></i>
+    <div style="flex:1;font-size:.85rem">
+        Tienes <strong>{{ encuestas_badge }}</strong> encuesta{{ encuestas_badge|pluralize:"s" }} pendiente{{ encuestas_badge|pluralize:"s" }} de responder.
+    </div>
+    <a href="{% url 'mis_encuestas' %}" class="btn btn-sm" style="background:#0f766e;color:#fff;font-size:.75rem;padding:4px 12px;">Responder</a>
+</div>
+{% endif %}
+
+<!-- Alerta de solicitudes pendientes -->
+{% if total_pendientes > 0 %}
+<div class="alert-pending">
+    <i class="fas fa-hourglass-half text-warning"></i>
+    <div style="flex:1;font-size:.85rem">
+        Tienes <strong>{{ total_pendientes }}</strong> solicitud{{ total_pendientes|pluralize:"es" }} pendiente{{ total_pendientes|pluralize:"s" }}:
+        {% if pap_pendientes > 0 %}<span class="badge bg-info text-white ms-1">{{ pap_pendientes }} papeleta{{ pap_pendientes|pluralize:"s" }}</span>{% endif %}
+        {% if sol_pendientes > 0 %}<span class="badge text-white ms-1" style="background:#7c3aed">{{ sol_pendientes }} HE</span>{% endif %}
+        {% if just_pendientes > 0 %}<span class="badge bg-warning text-dark ms-1">{{ just_pendientes }} justif.</span>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <a href="{% url 'mi_asistencia' %}" class="text-decoration-none">
+            <div class="portal-kpi">
+                <div class="portal-kpi-icon text-primary"><i class="fas fa-calendar-check"></i></div>
+                <div class="portal-kpi-num text-primary">{{ dias_trabajados_mes }}</div>
+                <div class="portal-kpi-lbl">Días trabajados</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{% url 'mi_banco_horas' %}" class="text-decoration-none">
+            <div class="portal-kpi">
+                <div class="portal-kpi-icon text-success"><i class="fas fa-piggy-bank"></i></div>
+                <div class="portal-kpi-num text-success">
+                    {% if banco_actual %}{{ banco_actual.saldo_horas|floatformat:1 }}h{% else %}—{% endif %}
+                </div>
+                <div class="portal-kpi-lbl">Saldo banco horas</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{% url 'portal_mis_vacaciones' %}" class="text-decoration-none">
+            <div class="portal-kpi">
+                <div class="portal-kpi-icon" style="color:#0891b2"><i class="fas fa-umbrella-beach"></i></div>
+                <div class="portal-kpi-num" style="color:#0891b2;">
+                    {% if dias_vac_disponibles is not None %}{{ dias_vac_disponibles|floatformat:0 }}d{% else %}—{% endif %}
+                </div>
+                <div class="portal-kpi-lbl">Vacaciones disp.</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="portal-kpi">
+            <div class="portal-kpi-icon" style="color:#7c3aed"><i class="fas fa-clock"></i></div>
+            <div class="portal-kpi-num" style="color:#7c3aed">{{ he_total_mes|floatformat:1 }}h</div>
+            <div class="portal-kpi-lbl">HE este mes</div>
+        </div>
+    </div>
+</div>
+
+{# ── Fila secundaria: roster hoy + próxima vacación + notificaciones ── #}
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="portal-kpi" style="padding:10px;">
+            <div class="portal-kpi-icon text-warning" style="font-size:.8rem;margin-bottom:3px;"><i class="fas fa-calendar-day"></i></div>
+            <div class="portal-kpi-num text-warning" style="font-size:1.1rem;">{% if roster_hoy %}{{ roster_hoy.codigo|default:"—" }}{% else %}—{% endif %}</div>
+            <div class="portal-kpi-lbl">Roster hoy</div>
+        </div>
+    </div>
+    {% if vac_proxima %}
+    <div class="col-6 col-md-3">
+        <a href="{% url 'portal_mis_vacaciones' %}" class="text-decoration-none">
+        <div class="portal-kpi" style="padding:10px;border-color:#99f6e4;background:#f0fdfa;">
+            <div class="portal-kpi-icon" style="font-size:.8rem;margin-bottom:3px;color:#0891b2;"><i class="fas fa-plane-departure"></i></div>
+            <div class="portal-kpi-num" style="font-size:.95rem;color:#0f766e;">{{ vac_proxima.fecha_inicio|date:"d/m" }}</div>
+            <div class="portal-kpi-lbl">Próximas vacaciones</div>
+        </div>
+        </a>
+    </div>
+    {% endif %}
+    {% if antiguedad %}
+    <div class="col-6 col-md-3">
+        <div class="portal-kpi" style="padding:10px;">
+            <div class="portal-kpi-icon" style="font-size:.8rem;margin-bottom:3px;color:#6366f1;"><i class="fas fa-medal"></i></div>
+            <div class="portal-kpi-num" style="font-size:.95rem;color:#6366f1;">
+                {{ antiguedad.anios }}a {{ antiguedad.meses }}m
+            </div>
+            <div class="portal-kpi-lbl">Antigüedad</div>
+        </div>
+    </div>
+    {% endif %}
+    {% if notif_recientes %}
+    <div class="col-6 col-md-3">
+        <a href="{% url 'mis_notificaciones' %}" class="text-decoration-none">
+        <div class="portal-kpi" style="padding:10px;border-color:#fde68a;background:#fffbeb;">
+            <div class="portal-kpi-icon" style="font-size:.8rem;margin-bottom:3px;color:#d97706;"><i class="fas fa-bell"></i></div>
+            <div class="portal-kpi-num" style="font-size:1.1rem;color:#d97706;">{{ notif_recientes|length }}</div>
+            <div class="portal-kpi-lbl">Sin leer</div>
+        </div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Main grid -->
+<div class="portal-grid">
+
+    <!-- LEFT: Asistencia + Papeletas próximas -->
+    <div class="d-flex flex-column gap-3">
+        <div class="portal-card">
+            <div class="portal-card-hdr">
+                <i class="fas fa-fingerprint text-primary"></i> Asistencia Reciente
+                <a href="{% url 'mi_asistencia' %}" class="btn btn-outline-secondary btn-sm ms-auto" style="font-size:.72rem">Ver todo</a>
+            </div>
+            {% if registros_recientes %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Fecha</th>
+                            <th>Código</th>
+                            <th class="text-end">H. Efect.</th>
+                            <th class="text-end pe-3">HE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in registros_recientes %}
+                        <tr>
+                            <td class="ps-3 small">{{ r.fecha|date:"d/m" }} <span class="text-muted">{{ r.fecha|date:"D" }}</span></td>
+                            <td>
+                                <span class="badge {% if r.codigo_dia == 'T' or r.codigo_dia == 'NOR' %}bg-success{% elif r.codigo_dia == 'FA' %}bg-danger{% elif r.codigo_dia == 'SS' %}bg-warning text-dark{% elif r.codigo_dia == 'V' or r.codigo_dia == 'DL' %}bg-info{% else %}bg-light text-dark border{% endif %}" style="font-size:.7rem">
+                                    {{ r.codigo_dia|default:"—" }}
+                                </span>
+                            </td>
+                            <td class="text-end small">{{ r.horas_efectivas|floatformat:1 }}h</td>
+                            <td class="text-end pe-3 small text-muted">
+                                {# sum_he tag handles Decimal safely — builtin |add silently fails on Decimal fields #}
+                                {% with he_total=r|sum_he %}
+                                    {% if he_total %}{{ he_total|floatformat:1 }}h{% else %}—{% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+                Sin registros este mes
+            </div>
+            {% endif %}
+        </div>
+
+        {% if papeletas_prox %}
+        <div class="portal-card">
+            <div class="portal-card-hdr">
+                <i class="fas fa-calendar-alt text-info"></i> Papeletas Próximas
+            </div>
+            <div class="portal-card-body" style="padding:8px 16px">
+                {% for p in papeletas_prox %}
+                <div class="pap-prox">
+                    <div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0;background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-file-alt"></i></div>
+                    <div style="flex:1">
+                        <div style="font-size:.82rem;font-weight:500">{{ p.get_tipo_permiso_display|truncatechars:30 }}</div>
+                        <div style="font-size:.72rem;color:#94a3b8">{{ p.fecha_inicio|date:"d/m" }} → {{ p.fecha_fin|date:"d/m/Y" }} · {{ p.dias_habiles }} día{{ p.dias_habiles|pluralize:"s" }}</div>
+                    </div>
+                    <span class="badge bg-success" style="font-size:.68rem">Aprobada</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT: Quick Actions + Info -->
+    <div class="d-flex flex-column gap-3">
+        <div class="portal-card">
+            <div class="portal-card-hdr">
+                <i class="fas fa-bolt text-warning"></i> Acciones Rápidas
+            </div>
+            <div class="portal-card-body">
+                <div class="qa-mini">
+                    <a href="{% url 'mis_papeletas' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-file-alt"></i></div>
+                        Papeletas
+                    </a>
+                    <a href="{% url 'mis_solicitudes_he' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(124,58,237,.1);color:#7c3aed"><i class="fas fa-clock"></i></div>
+                        Solicitudes HE
+                    </a>
+                    <a href="{% url 'mis_justificaciones' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(234,88,12,.1);color:#ea580c"><i class="fas fa-clipboard-check"></i></div>
+                        Justificaciones
+                    </a>
+                    <a href="{% url 'mi_perfil' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(99,102,241,.1);color:#6366f1"><i class="fas fa-user"></i></div>
+                        Mi Perfil
+                    </a>
+                    <a href="{% url 'mi_roster' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(217,119,6,.1);color:#d97706"><i class="fas fa-calendar-alt"></i></div>
+                        Mi Roster
+                    </a>
+                    <a href="{% url 'organigrama' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(20,184,166,.1);color:#14b8a6"><i class="fas fa-sitemap"></i></div>
+                        Organigrama
+                    </a>
+                    {% if mod_documentos %}
+                    <a href="{% url 'mis_constancias' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(239,68,68,.1);color:#dc2626"><i class="fas fa-file-signature"></i></div>
+                        Constancias
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'mis_boletas' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(16,185,129,.1);color:#059669"><i class="fas fa-file-invoice-dollar"></i></div>
+                        Mis Boletas
+                    </a>
+                    <a href="{% url 'portal_mi_nomina' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-file-invoice"></i></div>
+                        Mis Recibos
+                    </a>
+                    <a href="{% url 'portal_mis_evaluaciones' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(99,102,241,.1);color:#6366f1"><i class="fas fa-star"></i></div>
+                        Evaluaciones
+                    </a>
+                    <a href="{% url 'portal_mis_capacitaciones' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(245,158,11,.1);color:#d97706"><i class="fas fa-chalkboard-teacher"></i></div>
+                        Capacitaciones
+                    </a>
+                    <a href="{% url 'portal_mis_vacaciones' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(6,182,212,.1);color:#0891b2"><i class="fas fa-umbrella-beach"></i></div>
+                        Vacaciones
+                    </a>
+                    {% if mod_encuestas %}
+                    <a href="{% url 'mis_encuestas' %}" class="qa-mini-btn" style="{% if encuestas_badge > 0 %}border-color:#5eead4;background:#f0fdfa;{% endif %}">
+                        <div class="qa-mini-icon" style="background:rgba(15,118,110,.1);color:#0f766e;position:relative">
+                            <i class="fas fa-poll"></i>
+                            {% if encuestas_badge > 0 %}
+                            <span style="position:absolute;top:-4px;right:-6px;background:#dc2626;color:#fff;border-radius:8px;font-size:.55rem;padding:1px 4px;font-weight:700;line-height:1.2;">{{ encuestas_badge }}</span>
+                            {% endif %}
+                        </div>
+                        Encuestas
+                    </a>
+                    {% endif %}
+                    {% if mod_prestamos %}
+                    <a href="{% url 'mis_prestamos' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-hand-holding-usd"></i></div>
+                        Mis Préstamos
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'mis_permisos' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(20,184,166,.1);color:#0d9488"><i class="fas fa-calendar-check"></i></div>
+                        Mis Permisos
+                    </a>
+                    <a href="{% url 'mi_timeline' %}" class="qa-mini-btn">
+                        <div class="qa-mini-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-stream"></i></div>
+                        Mi Historia
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info card -->
+        <div class="portal-card">
+            <div class="portal-card-hdr">
+                <i class="fas fa-id-badge text-info"></i> Mi Información
+            </div>
+            <div class="portal-card-body" style="padding:10px 16px">
+                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:.82rem">
+                    <span class="text-muted">DNI</span>
+                    <span class="fw-semibold">{{ empleado.nro_doc }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:.82rem">
+                    <span class="text-muted">Grupo</span>
+                    <span class="badge {% if empleado.grupo_tareo == 'STAFF' %}bg-primary{% else %}bg-secondary{% endif %}" style="font-size:.7rem">{{ empleado.grupo_tareo }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:.82rem">
+                    <span class="text-muted">Estado</span>
+                    <span class="badge {% if empleado.estado == 'Activo' %}bg-success{% else %}bg-secondary{% endif %}" style="font-size:.7rem">{{ empleado.estado }}</span>
+                </div>
+                {% if empleado.fecha_alta %}
+                <div class="d-flex justify-content-between py-1 {% if antiguedad %}border-bottom{% endif %}" style="font-size:.82rem">
+                    <span class="text-muted">Ingreso</span>
+                    <span class="fw-semibold">{{ empleado.fecha_alta|date:"d/m/Y" }}</span>
+                </div>
+                {% endif %}
+                {% if antiguedad %}
+                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:.82rem">
+                    <span class="text-muted">Antigüedad</span>
+                    <span class="fw-semibold" style="color:#6366f1;">
+                        {{ antiguedad.anios }} año{{ antiguedad.anios|pluralize:"s" }}
+                        {% if antiguedad.meses > 0 %} {{ antiguedad.meses }} mes{{ antiguedad.meses|pluralize:"es" }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+                {% if empleado.email %}
+                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size:.82rem">
+                    <span class="text-muted">Email</span>
+                    <span class="text-truncate ms-2" style="max-width:160px;font-size:.78rem;">{{ empleado.email }}</span>
+                </div>
+                {% endif %}
+                {% if empleado.fecha_fin_contrato %}
+                <div class="d-flex justify-content-between py-1" style="font-size:.82rem">
+                    <span class="text-muted">Fin contrato</span>
+                    {% with dias=empleado.dias_para_vencimiento_contrato %}
+                    <span class="fw-semibold {% if dias is not None and dias <= 30 %}text-danger{% endif %}">
+                        {{ empleado.fecha_fin_contrato|date:"d/m/Y" }}
+                        {% if dias is not None and dias <= 30 %}
+                            <i class="fas fa-exclamation-circle ms-1"></i>
+                        {% endif %}
+                    </span>
+                    {% endwith %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Capacitaciones próximas #}
+        {% if caps_proximas %}
+        <div class="portal-card">
+            <div class="portal-card-hdr">
+                <i class="fas fa-graduation-cap" style="color:#d97706"></i> Próximas Capacitaciones
+                <a href="{% url 'portal_mis_capacitaciones' %}" class="btn btn-outline-secondary btn-sm ms-auto" style="font-size:.72rem">Ver todo</a>
+            </div>
+            <div class="portal-card-body" style="padding:8px 16px;">
+                {% for ac in caps_proximas %}
+                <div class="pap-prox">
+                    <div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0;background:rgba(217,119,6,.1);color:#d97706"><i class="fas fa-chalkboard-teacher"></i></div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:.82rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ac.capacitacion.nombre|truncatechars:32 }}</div>
+                        <div style="font-size:.72rem;color:#94a3b8;">{{ ac.capacitacion.fecha_inicio|date:"d/m/Y" }} · {{ ac.capacitacion.horas }} h</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endif %}
+{% endblock %}

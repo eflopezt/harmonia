@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Mis Evaluaciones{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-star me-2 text-primary"></i>Mis Evaluaciones de Desempeño</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.eval-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #fff;
+    margin-bottom: 24px;
+}
+.score-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    font-size: 1.1rem; font-weight: 700;
+}
+.score-high   { background: #d1fae5; color: #065f46; }
+.score-mid    { background: #fef3c7; color: #92400e; }
+.score-low    { background: #fee2e2; color: #991b1b; }
+.score-none   { background: #f1f5f9; color: #64748b; }
+
+.eval-card {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    overflow: hidden;
+    transition: box-shadow .15s;
+}
+.eval-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.eval-card-hdr {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex; align-items: center; gap: 12px;
+}
+
+.pdi-card {
+    border-radius: 10px;
+    border-left: 4px solid #5eead4;
+    background: #f0fdfa;
+    padding: 14px 18px;
+}
+.progress-bar-teal { background-color: #0f766e !important; }
+
+.relacion-badge {
+    font-size: .68rem;
+    border-radius: 20px;
+    padding: 3px 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-lg flex-shrink-0"></i>
+    <div><strong>Cuenta no vinculada.</strong> Contacta a RRHH o TI.</div>
+</div>
+{% else %}
+
+<!-- Encabezado -->
+<div class="eval-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <div style="font-size:.8rem;opacity:.7;margin-bottom:4px">EVALUACIONES DE DESEMPEÑO</div>
+            <h2 class="mb-0 fw-bold" style="font-size:1.15rem">{{ empleado.apellidos_nombres }}</h2>
+            <p class="mb-0 mt-1" style="font-size:.82rem;opacity:.8">{{ empleado.cargo }}{% if empleado.subarea %} · {{ empleado.subarea.area.nombre }}{% endif %}</p>
+        </div>
+        <div class="col-auto d-flex gap-3">
+            <div class="text-center" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:12px 18px">
+                <div style="font-size:1.5rem;font-weight:700;color:#5eead4">{{ evaluaciones|length }}</div>
+                <div style="font-size:.72rem;opacity:.7">Evaluaciones</div>
+            </div>
+            <div class="text-center" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:12px 18px">
+                <div style="font-size:1.5rem;font-weight:700;color:#5eead4">{{ planes|length }}</div>
+                <div style="font-size:.72rem;opacity:.7">Planes PDI</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not evaluaciones and not planes and not resultados %}
+<!-- Estado vacío -->
+<div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-star fa-3x mb-3" style="color:#cbd5e1"></i>
+        <h5 class="text-muted fw-semibold">Sin evaluaciones registradas</h5>
+        <p class="text-muted small mb-0">Aún no tienes evaluaciones de desempeño en el sistema.<br>Estas aparecerán aquí cuando sean completadas por tu equipo.</p>
+    </div>
+</div>
+
+{% else %}
+
+<!-- Resultados Consolidados (9-Box / resumen ciclo) -->
+{% if resultados %}
+<div class="mb-4">
+    <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+        <i class="fas fa-chart-bar me-2 text-primary"></i>Resultados por Ciclo
+    </h6>
+    <div class="row g-3">
+        {% for r in resultados %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="score-pill {% if r.puntaje_promedio >= 4 %}score-high{% elif r.puntaje_promedio >= 2.5 %}score-mid{% elif r.puntaje_promedio %}score-low{% else %}score-none{% endif %}">
+                            {% if r.puntaje_promedio %}{{ r.puntaje_promedio|floatformat:1 }}{% else %}—{% endif %}
+                        </div>
+                        <div style="flex:1">
+                            <div class="fw-semibold" style="font-size:.9rem;color:#1e293b">{{ r.ciclo.nombre }}</div>
+                            <div class="text-muted" style="font-size:.78rem">{{ r.ciclo.get_tipo_display }}</div>
+                            <div class="mt-2 d-flex gap-2 flex-wrap">
+                                {% if r.clasificacion_desempeno %}
+                                <span class="badge bg-light text-dark border" style="font-size:.68rem">
+                                    Desempeño: <strong>{{ r.get_clasificacion_desempeno_display }}</strong>
+                                </span>
+                                {% endif %}
+                                {% if r.clasificacion_potencial %}
+                                <span class="badge bg-light text-dark border" style="font-size:.68rem">
+                                    Potencial: <strong>{{ r.get_clasificacion_potencial_display }}</strong>
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% if r.puntaje_jefe or r.puntaje_auto or r.puntaje_pares %}
+                            <div class="mt-2 d-flex gap-3" style="font-size:.75rem;color:#64748b">
+                                {% if r.puntaje_jefe %}<span>Jefe: <strong>{{ r.puntaje_jefe|floatformat:1 }}</strong></span>{% endif %}
+                                {% if r.puntaje_auto %}<span>Auto: <strong>{{ r.puntaje_auto|floatformat:1 }}</strong></span>{% endif %}
+                                {% if r.puntaje_pares %}<span>Pares: <strong>{{ r.puntaje_pares|floatformat:1 }}</strong></span>{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Historial de Evaluaciones individuales -->
+{% if evaluaciones %}
+<div class="mb-4">
+    <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+        <i class="fas fa-list me-2 text-primary"></i>Historial de Evaluaciones
+    </h6>
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Ciclo</th>
+                        <th>Tipo Ciclo</th>
+                        <th>Relación</th>
+                        <th>Evaluador</th>
+                        <th class="text-center">Puntaje</th>
+                        <th class="text-center pe-3">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ev in evaluaciones %}
+                    <tr>
+                        <td class="ps-3 small fw-semibold">{{ ev.ciclo.nombre }}</td>
+                        <td class="small text-muted">{{ ev.ciclo.get_tipo_display }}</td>
+                        <td>
+                            <span class="relacion-badge badge
+                                {% if ev.relacion == 'JEFE' %}bg-primary
+                                {% elif ev.relacion == 'AUTO' %}bg-info
+                                {% elif ev.relacion == 'PAR' %}bg-secondary
+                                {% else %}bg-light text-dark border{% endif %}">
+                                {{ ev.get_relacion_display }}
+                            </span>
+                        </td>
+                        <td class="small">
+                            {% if ev.evaluador %}{{ ev.evaluador.apellidos_nombres }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% with pf=ev.puntaje_final %}
+                            {% if pf %}
+                            <span class="fw-bold" style="color:{% if pf >= 4 %}#059669{% elif pf >= 2.5 %}#d97706{% else %}#dc2626{% endif %}">
+                                {{ pf|floatformat:1 }}
+                            </span>
+                            {% else %}<span class="text-muted small">—</span>{% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-center pe-3">
+                            <span class="badge
+                                {% if ev.estado == 'COMPLETADA' %}bg-success
+                                {% elif ev.estado == 'CALIBRADA' %}bg-primary
+                                {% elif ev.estado == 'EN_PROGRESO' %}bg-warning text-dark
+                                {% else %}bg-light text-dark border{% endif %}"
+                                style="font-size:.68rem">
+                                {{ ev.get_estado_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Planes de Desarrollo Individual -->
+{% if planes %}
+<div>
+    <h6 class="fw-semibold mb-3" style="color:#374151;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">
+        <i class="fas fa-rocket me-2" style="color:#0f766e"></i>Planes de Desarrollo Individual (PDI)
+    </h6>
+    <div class="row g-3">
+        {% for plan in planes %}
+        <div class="col-md-6">
+            <div class="pdi-card">
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                    <div>
+                        <div class="fw-semibold" style="font-size:.92rem;color:#134e4a">{{ plan.titulo }}</div>
+                        {% if plan.ciclo %}
+                        <div class="text-muted" style="font-size:.76rem">{{ plan.ciclo.nombre }}</div>
+                        {% endif %}
+                    </div>
+                    <span class="badge
+                        {% if plan.estado == 'ACTIVO' %}bg-success
+                        {% elif plan.estado == 'COMPLETADO' %}bg-primary
+                        {% elif plan.estado == 'CANCELADO' %}bg-secondary
+                        {% else %}bg-light text-dark border{% endif %}"
+                        style="font-size:.68rem;flex-shrink:0">
+                        {{ plan.get_estado_display }}
+                    </span>
+                </div>
+                <p class="small mb-2" style="color:#374151">{{ plan.objetivo|truncatechars:120 }}</p>
+
+                <!-- Barra de avance -->
+                {% with avance=plan.porcentaje_avance %}
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="progress flex-grow-1" style="height:6px;border-radius:3px">
+                        <div class="progress-bar progress-bar-teal"
+                             role="progressbar"
+                             style="width:{{ avance }}%"
+                             aria-valuenow="{{ avance }}"
+                             aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <span style="font-size:.75rem;font-weight:600;color:#0f766e;min-width:30px">{{ avance }}%</span>
+                </div>
+                {% endwith %}
+
+                <div class="d-flex justify-content-between" style="font-size:.75rem;color:#64748b">
+                    <span><i class="fas fa-calendar me-1"></i>{{ plan.fecha_inicio|date:"d/m/Y" }} → {{ plan.fecha_fin|date:"d/m/Y" }}</span>
+                    <span>{{ plan.acciones.count }} acción{{ plan.acciones.count|pluralize:"es" }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endif %}
+{% endblock %}

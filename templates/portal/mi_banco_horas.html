@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Banco de Horas{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-piggy-bank me-2 text-success"></i>Banco de Horas</h1>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning">Tu usuario no está vinculado a un empleado. Contacta a RRHH o TI.</div>
+{% else %}
+
+<!-- Saldo total destacado -->
+<div class="stat-card stat-card--success mb-4" style="max-width:320px">
+    <div class="stat-icon"><i class="fas fa-piggy-bank"></i></div>
+    <div class="stat-value">{{ saldo_total|floatformat:1 }}h</div>
+    <div class="stat-label">Saldo total acumulado</div>
+</div>
+
+<!-- Historial por período -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <span><i class="fas fa-history me-2 text-success"></i>Historial por período</span>
+    </div>
+    <div class="dash-card-body p-0">
+        {% if registros %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Período</th>
+                        <th class="text-end">HE 25%</th>
+                        <th class="text-end">HE 35%</th>
+                        <th class="text-end">HE 100%</th>
+                        <th class="text-end">Compensadas</th>
+                        <th class="text-end pe-3">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registros %}
+                    <tr>
+                        <td class="ps-3 fw-medium">
+                            {% with meses="Ene Feb Mar Abr May Jun Jul Ago Sep Oct Nov Dic" %}
+                            {{ r.periodo_anio }} /
+                            {% for m in meses.split %}{% if forloop.counter == r.periodo_mes %}{{ m }}{% endif %}{% endfor %}
+                            {% endwith %}
+                            {% if r.cerrado %}<span class="badge bg-secondary ms-1" style="font-size:.65rem">Cerrado</span>{% endif %}
+                        </td>
+                        <td class="text-end">{{ r.he_25_acumuladas|floatformat:2 }}h</td>
+                        <td class="text-end">{{ r.he_35_acumuladas|floatformat:2 }}h</td>
+                        <td class="text-end">{{ r.he_100_acumuladas|floatformat:2 }}h</td>
+                        <td class="text-end text-danger">{{ r.he_compensadas|floatformat:2 }}h</td>
+                        <td class="text-end pe-3 fw-semibold {% if r.saldo_horas > 0 %}text-success{% elif r.saldo_horas < 0 %}text-danger{% endif %}">
+                            {{ r.saldo_horas|floatformat:2 }}h
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+            Sin registros de banco de horas
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

@@ -14,6 +14,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://localhost:8000',
     'http://127.0.0.1:8000',
     'https://127.0.0.1:8000',
+    'http://localhost:8001',
+    'http://127.0.0.1:8001',
     'https://*.app.github.dev',
     'https://*.githubpreview.dev',
 ]
@@ -50,10 +52,7 @@ MIDDLEWARE.insert(
     'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
-INTERNAL_IPS = [
-    '127.0.0.1',
-    'localhost',
-]
+INTERNAL_IPS = []  # Toolbar desactivado temporalmente para demo
 
 # Email backend for development (console)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

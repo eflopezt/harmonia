@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+#id_contenido_html {
+    font-family: 'Courier New', monospace;
+    font-size: .82rem;
+    min-height: 460px;
+    resize: vertical;
+    tab-size: 2;
+}
+.var-group { margin-bottom: 12px; }
+.var-group-title {
+    font-size: .67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.var-chip {
+    display: inline-block;
+    background: #f0fdfa;
+    border: 1px solid #99f6e4;
+    color: #0f766e;
+    font-family: 'Courier New', monospace;
+    font-size: .72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin: 2px 2px;
+    cursor: pointer;
+    transition: background .1s, border-color .1s;
+    user-select: none;
+}
+.var-chip:hover {
+    background: #ccfbf1;
+    border-color: #5eead4;
+}
+.var-chip:active { transform: scale(.97); }
+.var-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+    max-height: 580px;
+    overflow-y: auto;
+    position: sticky;
+    top: 80px;
+}
+.var-panel-title {
+    font-size: .82rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.insert-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #0f766e;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: .82rem;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity .25s;
+    pointer-events: none;
+}
+.insert-toast.show { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="mb-3">
+    <a href="{% url 'plantilla_list' %}" class="text-muted text-decoration-none small">
+        <i class="fas fa-arrow-left me-1"></i>Plantillas
+    </a>
+    <h2 class="mb-0 mt-1"><i class="fas fa-file-code text-secondary me-2"></i>{{ titulo }}</h2>
+</div>
+
+{% if error %}
+<div class="alert alert-danger py-2 small">
+    <i class="fas fa-exclamation-triangle me-1"></i>{{ error }}
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <!-- ── Formulario ── -->
+    <div class="col-lg-8">
+        <form method="POST" id="plantilla-form">
+            {% csrf_token %}
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre" class="form-control form-control-sm" required
+                                   value="{{ plantilla.nombre|default:'' }}" placeholder="Ej: Constancia de Trabajo">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+                            <input type="text" name="codigo" class="form-control form-control-sm" required
+                                   value="{{ plantilla.codigo|default:'' }}" placeholder="constancia-trabajo">
+                            <small class="text-muted">Slug único, sin espacios.</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Categoría</label>
+                            <select name="categoria" class="form-select form-select-sm">
+                                <option value="CONSTANCIA"  {% if plantilla.categoria == 'CONSTANCIA' %}selected{% endif %}>Constancia</option>
+                                <option value="CERTIFICADO" {% if plantilla.categoria == 'CERTIFICADO' %}selected{% endif %}>Certificado</option>
+                                <option value="CARTA"       {% if plantilla.categoria == 'CARTA' %}selected{% endif %}>Carta</option>
+                                <option value="MEMO"        {% if plantilla.categoria == 'MEMO' %}selected{% endif %}>Memorándum</option>
+                                <option value="OTRO"        {% if plantilla.categoria == 'OTRO' %}selected{% endif %}>Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label fw-semibold">Descripción</label>
+                            <textarea name="descripcion" class="form-control form-control-sm" rows="2"
+                                      placeholder="Descripción de uso...">{{ plantilla.descripcion|default:'' }}</textarea>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Orden</label>
+                            <input type="number" name="orden" class="form-control form-control-sm"
+                                   value="{{ plantilla.orden|default:0 }}">
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end pb-1">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="activa" id="id_activa"
+                                       {% if plantilla.activa or not plantilla %}checked{% endif %}>
+                                <label class="form-check-label small" for="id_activa">Activa</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                    <span class="fw-semibold" style="font-size:.88rem;">
+                        <i class="fas fa-code me-1 text-muted"></i>Contenido HTML
+                        <span class="text-danger ms-1">*</span>
+                    </span>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="insertarEjemplo()"
+                                title="Insertar plantilla de ejemplo">
+                            <i class="fas fa-magic me-1"></i>Ejemplo
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-2">
+                    <textarea name="contenido_html" id="id_contenido_html"
+                              class="form-control border-0" required>{{ plantilla.contenido_html|default:'' }}</textarea>
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-save me-1"></i>Guardar
+                </button>
+                <a href="{% url 'plantilla_list' %}" class="btn btn-secondary btn-sm">Cancelar</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- ── Panel de variables ── -->
+    <div class="col-lg-4">
+        <div class="var-panel">
+            <div class="var-panel-title">
+                <i class="fas fa-tags text-primary"></i>Variables disponibles
+            </div>
+            <p style="font-size:.73rem; color:#64748b; margin-bottom:12px;">
+                Haz clic en una variable para insertarla en el cursor del editor.
+            </p>
+
+{% verbatim %}
+            <div class="var-group">
+                <div class="var-group-title"><i class="fas fa-user me-1"></i>Trabajador</div>
+                <span class="var-chip" onclick="insertVar('{{ personal.apellidos_nombres }}')">apellidos_nombres</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.nro_doc }}')">nro_doc</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.cargo }}')">cargo</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.subarea.area.nombre }}')">área</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.subarea.nombre }}')">subárea</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.tipo_trab }}')">tipo_trab</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.get_tipo_contrato_display }}')">tipo_contrato</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.regimen_laboral }}')">regimen_laboral</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.sueldo_base }}')">sueldo_base</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.celular }}')">celular</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.correo_corporativo }}')">correo_corporativo</span>
+            </div>
+
+            <div class="var-group">
+                <div class="var-group-title"><i class="fas fa-calendar me-1"></i>Fechas</div>
+                <span class="var-chip" onclick="insertVar('{{ fecha_alta_texto }}')">fecha_alta_texto</span>
+                <span class="var-chip" onclick="insertVar('{{ fecha_cese_texto }}')">fecha_cese_texto</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.fecha_alta|date:"d/m/Y" }}')">fecha_alta</span>
+                <span class="var-chip" onclick="insertVar('{{ hoy_texto }}')">hoy_texto</span>
+                <span class="var-chip" onclick="insertVar('{{ hoy|date:"d/m/Y" }}')">hoy</span>
+                <span class="var-chip" onclick="insertVar('{{ antiguedad }}')">antigüedad</span>
+            </div>
+
+            <div class="var-group">
+                <div class="var-group-title"><i class="fas fa-building me-1"></i>Empresa</div>
+                <span class="var-chip" onclick="insertVar('{{ empresa.nombre }}')">empresa.nombre</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.ruc }}')">empresa.ruc</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.direccion }}')">empresa.direccion</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.telefono }}')">empresa.telefono</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.email }}')">empresa.email</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.web }}')">empresa.web</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.firma_nombre }}')">firma_nombre</span>
+                <span class="var-chip" onclick="insertVar('{{ empresa.firma_cargo }}')">firma_cargo</span>
+            </div>
+{% endverbatim %}
+
+{% verbatim %}
+            <div class="var-group">
+                <div class="var-group-title"><i class="fas fa-university me-1"></i>AFP / Banco</div>
+                <span class="var-chip" onclick="insertVar('{{ personal.get_regimen_pension_display }}')">régimen pensión</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.afp }}')">afp</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.banco }}')">banco</span>
+                <span class="var-chip" onclick="insertVar('{{ personal.cuenta_ahorros }}')">cuenta_ahorros</span>
+            </div>
+{% endverbatim %}
+
+            <div class="var-group">
+                <div class="var-group-title"><i class="fas fa-info-circle me-1"></i>Condicionales</div>
+                <div style="font-size:.72rem; color:#64748b; margin-bottom:6px;">Ejemplos de uso con lógica Django:</div>
+{% verbatim %}
+                <div style="font-family:'Courier New',monospace; font-size:.7rem; background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:8px; color:#334155; margin-bottom:6px; white-space:pre;">{% if personal.sueldo_base %}
+  S/ {{ personal.sueldo_base }}
+{% endif %}</div>
+                <div style="font-family:'Courier New',monospace; font-size:.7rem; background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:8px; color:#334155;">{{ personal.fecha_alta|date:"d/m/Y" }}</div>
+{% endverbatim %}
+            </div>
+
+            <div class="alert alert-info py-2 mt-2" style="font-size:.73rem;">
+                <i class="fas fa-lightbulb me-1"></i>
+                El <strong>membrete</strong> (logo + dirección) y la <strong>firma</strong> se agregan
+                automáticamente si están configurados en <em>Configuración → Identidad Visual</em>.
+                No necesitas incluirlos en la plantilla.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast de inserción -->
+<div class="insert-toast" id="insertToast">Variable insertada ✓</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Referencia al textarea
+const textarea = document.getElementById('id_contenido_html');
+let _selStart = 0, _selEnd = 0;
+
+// Guardar posición del cursor al perder foco
+textarea.addEventListener('blur', function() {
+    _selStart = this.selectionStart;
+    _selEnd   = this.selectionEnd;
+});
+textarea.addEventListener('keyup', function() {
+    _selStart = this.selectionStart;
+    _selEnd   = this.selectionEnd;
+});
+textarea.addEventListener('click', function() {
+    _selStart = this.selectionStart;
+    _selEnd   = this.selectionEnd;
+});
+
+function insertVar(variable) {
+    const ta = textarea;
+    ta.focus();
+    const start = _selStart;
+    const end   = _selEnd;
+    const before = ta.value.substring(0, start);
+    const after  = ta.value.substring(end);
+    ta.value = before + variable + after;
+    // Mover cursor después de la variable insertada
+    const newPos = start + variable.length;
+    ta.selectionStart = ta.selectionEnd = newPos;
+    _selStart = _selEnd = newPos;
+    // Toast
+    showToast();
+}
+
+function showToast() {
+    const t = document.getElementById('insertToast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function insertarEjemplo() {
+    if (textarea.value.trim() && !confirm('Esto reemplazará el contenido actual. ¿Continuar?')) return;
+    textarea.value = `<h1>CONSTANCIA DE TRABAJO</h1>
+
+<p class="body-text">
+La empresa <strong>{{ empresa.nombre }}</strong>, identificada con RUC {{ empresa.ruc }},
+con domicilio en {{ empresa.direccion }}, <strong>HACE CONSTAR</strong> que:
+</p>
+
+<table>
+    <tr>
+        <td class="label">Apellidos y Nombres:</td>
+        <td>{{ personal.apellidos_nombres }}</td>
+    </tr>
+    <tr>
+        <td class="label">N° Documento:</td>
+        <td>{{ personal.nro_doc }}</td>
+    </tr>
+    <tr>
+        <td class="label">Cargo:</td>
+        <td>{{ personal.cargo }}</td>
+    </tr>
+    <tr>
+        <td class="label">Área / SubÁrea:</td>
+        <td>{{ personal.subarea.area.nombre }} / {{ personal.subarea.nombre }}</td>
+    </tr>
+    <tr>
+        <td class="label">Fecha de Ingreso:</td>
+        <td>{{ fecha_alta_texto }}</td>
+    </tr>
+    <tr>
+        <td class="label">Tiempo de Servicios:</td>
+        <td>{{ antiguedad }}</td>
+    </tr>
+</table>
+
+<p class="body-text">
+Se expide la presente constancia a solicitud del interesado, para los fines que
+estime conveniente. Lima, {{ hoy_texto }}.
+</p>`;
+    showToast();
+}
+</script>
+{% endblock %}

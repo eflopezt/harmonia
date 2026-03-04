@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Encuesta{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-poll text-secondary me-2"></i>{{ titulo }}</h2>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Título *</label>
+                        <input type="text" name="titulo" class="form-control" required placeholder="Ej: Encuesta de Clima Laboral Q1 2026">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tipo *</label>
+                            <select name="tipo" class="form-select" required>
+                                <option value="CLIMA">Clima Laboral</option>
+                                <option value="PULSO">Pulso Rápido</option>
+                                <option value="ENPS">eNPS</option>
+                                <option value="SATISFACCION">Satisfacción</option>
+                                <option value="SALIDA">Encuesta de Salida</option>
+                                <option value="ONBOARDING">Encuesta Onboarding</option>
+                                <option value="CUSTOM">Personalizada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Grupo</label>
+                            <select name="aplica_grupos" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="STAFF">Solo STAFF</option>
+                                <option value="RCO">Solo RCO</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Inicio *</label>
+                            <input type="date" name="fecha_inicio" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Fin *</label>
+                            <input type="date" name="fecha_fin" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea name="descripcion" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="anonima" class="form-check-input" id="chkAnonima" checked>
+                        <label class="form-check-label" for="chkAnonima">Encuesta anónima (no se vincula respuesta con trabajador)</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Crear Encuesta</button>
+                        <a href="{% url 'encuestas_panel' %}" class="btn btn-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

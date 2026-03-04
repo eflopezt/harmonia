@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — Harmoni</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:#f9fafb; color:#111827; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+        .error-card { text-align:center; max-width:440px; }
+        .error-code { font-size:7rem; font-weight:700; line-height:1; color:#0f766e; opacity:.15; }
+        .error-title { font-size:1.5rem; font-weight:700; margin:8px 0 12px; color:#111827; }
+        .error-desc { font-size:.92rem; color:#6b7280; margin-bottom:24px; line-height:1.6; }
+        .error-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+        .error-btn { display:inline-flex; align-items:center; gap:6px; padding:10px 20px; border-radius:8px; font-size:.85rem; font-weight:600; text-decoration:none; transition:all .15s; }
+        .error-btn-primary { background:#0f766e; color:#fff; }
+        .error-btn-primary:hover { background:#115e59; }
+        .error-btn-secondary { background:#fff; color:#374151; border:1px solid #d1d5db; }
+        .error-btn-secondary:hover { background:#f3f4f6; }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-code">404</div>
+        <div class="error-title">Página no encontrada</div>
+        <div class="error-desc">
+            La página que buscas no existe o fue movida.
+            Verifica la URL o regresa al inicio.
+        </div>
+        <div class="error-actions">
+            <a href="/" class="error-btn error-btn-primary">Ir al Inicio</a>
+            <a href="javascript:history.back()" class="error-btn error-btn-secondary">Volver Atrás</a>
+        </div>
+    </div>
+</body>
+</html>

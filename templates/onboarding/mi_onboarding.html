@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Onboarding{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Progress hero ───────────────────────────────────────── */
+.ob-hero {
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+    color: #fff;
+}
+.ob-hero .ob-pct {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.ob-hero .ob-sub {
+    font-size: .85rem;
+    opacity: .85;
+}
+.ob-bar-track {
+    height: 12px;
+    border-radius: 6px;
+    background: rgba(255,255,255,.25);
+    overflow: hidden;
+    margin-top: 10px;
+}
+.ob-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: #5eead4;
+    transition: width .5s ease;
+}
+
+/* ── Lista de pasos ──────────────────────────────────────── */
+.paso-ob {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: box-shadow .12s;
+}
+.paso-ob:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+.paso-ob.completado { background: #f0fdf4; border-color: #bbf7d0; }
+.paso-ob.omitido    { background: #f8fafc; border-color: #e2e8f0; opacity: .8; }
+.paso-ob.vencido    { background: #fff5f5; border-color: #fecaca; }
+
+.paso-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.paso-icon.ok   { background: #dcfce7; color: #15803d; }
+.paso-icon.pend { background: #f1f5f9; color: #94a3b8; }
+.paso-icon.venc { background: #fee2e2; color: #b91c1c; }
+.paso-icon.omit { background: #f1f5f9; color: #94a3b8; }
+
+.paso-ob-meta {
+    font-size: .73rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+.paso-ob-fecha {
+    font-size: .75rem;
+    color: #64748b;
+    margin-top: 4px;
+}
+.paso-ob-fecha.vencida { color: #b91c1c; font-weight: 600; }
+
+/* ── Botón completar ─────────────────────────────────────── */
+.btn-completar {
+    white-space: nowrap;
+    font-size: .75rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-user-plus text-secondary me-2"></i>{{ titulo }}</h2>
+    <small class="text-muted">Tu proceso de incorporacion o desvinculacion</small>
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-1"></i>
+    No se encontro un perfil de personal vinculado a tu usuario.
+</div>
+{% elif not proceso_on and not proceso_off %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-1"></i>
+    No tienes un proceso de onboarding ni offboarding activo en este momento.
+</div>
+{% endif %}
+
+<!-- ══ ONBOARDING ══════════════════════════════════════════════ -->
+{% if proceso_on %}
+<div id="card-onboarding">
+    <!-- Hero de progreso -->
+    <div class="ob-hero" id="hero-on">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="ob-pct" id="pct-on">{{ proceso_on.porcentaje_avance }}%</div>
+                <div class="ob-sub" id="sub-on">
+                    {{ proceso_on.pasos_completados }} de {{ proceso_on.total_pasos }} pasos completados
+                </div>
+                <div class="ob-sub mt-1">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Ingreso: {{ proceso_on.fecha_ingreso|date:"d/m/Y" }}
+                    &nbsp;&bull;&nbsp; Plantilla: {{ proceso_on.plantilla.nombre }}
+                </div>
+            </div>
+            {% if proceso_on.estado == 'COMPLETADO' %}
+            <span class="badge bg-success fs-6 align-self-start">
+                <i class="fas fa-check-circle me-1"></i>Completado
+            </span>
+            {% endif %}
+        </div>
+        <div class="ob-bar-track mt-2">
+            <div class="ob-bar-fill" id="bar-on" style="width:{{ proceso_on.porcentaje_avance }}%"></div>
+        </div>
+    </div>
+
+    <!-- Alerta de proceso completo (oculta inicialmente) -->
+    <div id="alerta-completado-on" class="alert alert-success d-none mb-3">
+        <i class="fas fa-party-horn me-1"></i>
+        <strong>Onboarding completado.</strong> Tu proceso de incorporacion ha finalizado.
+        Tu responsable de area ha sido notificado.
+    </div>
+
+    <!-- Lista de pasos -->
+    <div class="dash-card mb-4">
+        <div class="dash-card-header">
+            <span><i class="fas fa-list-check me-2 text-primary"></i>Mis pasos de onboarding</span>
+        </div>
+        <div class="dash-card-body" id="lista-pasos-on">
+            {% for paso in pasos_on %}
+            <div class="paso-ob {% if paso.estado == 'COMPLETADO' %}completado{% elif paso.estado == 'OMITIDO' %}omitido{% elif paso.esta_vencido %}vencido{% endif %}"
+                 id="paso-on-{{ paso.pk }}">
+                <!-- Ícono de estado -->
+                <div class="paso-icon {% if paso.estado == 'COMPLETADO' %}ok{% elif paso.estado == 'OMITIDO' %}omit{% elif paso.esta_vencido %}venc{% else %}pend{% endif %}">
+                    {% if paso.estado == 'COMPLETADO' %}
+                        <i class="fas fa-check"></i>
+                    {% elif paso.estado == 'OMITIDO' %}
+                        <i class="fas fa-forward"></i>
+                    {% elif paso.esta_vencido %}
+                        <i class="fas fa-exclamation"></i>
+                    {% else %}
+                        <i class="far fa-circle"></i>
+                    {% endif %}
+                </div>
+
+                <!-- Contenido principal -->
+                <div class="flex-grow-1 min-width-0">
+                    <div class="fw-medium" style="font-size:.88rem">
+                        {{ paso.orden }}. {{ paso.titulo }}
+                    </div>
+                    {% if paso.paso_plantilla %}
+                    <div class="paso-ob-meta">
+                        {{ paso.paso_plantilla.get_tipo_display }}
+                        &bull; Responsable: {{ paso.paso_plantilla.get_responsable_tipo_display }}
+                    </div>
+                    {% endif %}
+
+                    {% if paso.estado == 'COMPLETADO' and paso.fecha_completado %}
+                    <div class="paso-ob-fecha">
+                        <i class="fas fa-check-circle text-success me-1"></i>
+                        Completado el {{ paso.fecha_completado|date:"d/m/Y H:i" }}
+                        {% if paso.completado_por %}
+                        por {{ paso.completado_por.get_full_name|default:paso.completado_por.username }}
+                        {% endif %}
+                    </div>
+                    {% elif paso.fecha_limite %}
+                    <div class="paso-ob-fecha {% if paso.esta_vencido %}vencida{% endif %}">
+                        <i class="fas fa-calendar-times me-1"></i>
+                        Limite: {{ paso.fecha_limite|date:"d/m/Y" }}
+                        {% if paso.esta_vencido %}<span class="ms-1">(Vencido)</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Acciones / badge -->
+                <div class="text-end flex-shrink-0">
+                    {% if paso.estado == 'COMPLETADO' %}
+                    <span class="badge bg-success">Completado</span>
+                    {% elif paso.estado == 'OMITIDO' %}
+                    <span class="badge bg-secondary">Omitido</span>
+                    {% elif paso.paso_plantilla and paso.paso_plantilla.responsable_tipo == 'TRABAJADOR' %}
+                    <button class="btn btn-sm btn-primary btn-completar"
+                            onclick="completarPasoPortal({{ paso.pk }}, 'on')"
+                            id="btn-on-{{ paso.pk }}">
+                        <i class="fas fa-check me-1"></i>Completar
+                    </button>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">Pendiente</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+                Sin pasos registrados
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ══ OFFBOARDING ════════════════════════════════════════════ -->
+{% if proceso_off %}
+<div class="dash-card">
+    <div class="dash-card-header">
+        <span><i class="fas fa-user-minus text-danger me-1"></i>Mi Offboarding</span>
+    </div>
+    <div class="dash-card-body">
+        <!-- Barra de progreso -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="text-muted">Avance</small>
+                <small class="fw-medium">
+                    {{ proceso_off.pasos_completados }}/{{ proceso_off.total_pasos }} pasos
+                    ({{ proceso_off.porcentaje_avance }}%)
+                </small>
+            </div>
+            <div class="progress mb-1" style="height:10px;">
+                <div class="progress-bar bg-danger" style="width:{{ proceso_off.porcentaje_avance }}%"></div>
+            </div>
+            <div class="row text-center mt-2" style="font-size:.75rem;color:#64748b">
+                <div class="col">Cese: <strong>{{ proceso_off.fecha_cese|date:"d/m/Y" }}</strong></div>
+                <div class="col">Plantilla: <strong>{{ proceso_off.plantilla.nombre }}</strong></div>
+            </div>
+        </div>
+
+        <!-- Lista pasos offboarding -->
+        {% for paso in pasos_off %}
+        <div class="paso-ob {% if paso.estado == 'COMPLETADO' %}completado{% elif paso.estado == 'OMITIDO' %}omitido{% elif paso.esta_vencido %}vencido{% endif %}">
+            <div class="paso-icon {% if paso.estado == 'COMPLETADO' %}ok{% elif paso.estado == 'OMITIDO' %}omit{% elif paso.esta_vencido %}venc{% else %}pend{% endif %}">
+                {% if paso.estado == 'COMPLETADO' %}<i class="fas fa-check"></i>
+                {% elif paso.estado == 'OMITIDO' %}<i class="fas fa-forward"></i>
+                {% elif paso.esta_vencido %}<i class="fas fa-exclamation"></i>
+                {% else %}<i class="far fa-circle"></i>{% endif %}
+            </div>
+            <div class="flex-grow-1 min-width-0">
+                <div class="fw-medium" style="font-size:.88rem">{{ paso.orden }}. {{ paso.titulo }}</div>
+                {% if paso.paso_plantilla %}
+                <div class="paso-ob-meta">
+                    {{ paso.paso_plantilla.get_tipo_display }}
+                    &bull; {{ paso.paso_plantilla.get_responsable_tipo_display }}
+                </div>
+                {% endif %}
+                {% if paso.estado == 'COMPLETADO' and paso.fecha_completado %}
+                <div class="paso-ob-fecha">
+                    <i class="fas fa-check-circle text-success me-1"></i>
+                    Completado el {{ paso.fecha_completado|date:"d/m/Y" }}
+                </div>
+                {% elif paso.fecha_limite %}
+                <div class="paso-ob-fecha {% if paso.esta_vencido %}vencida{% endif %}">
+                    <i class="fas fa-calendar-times me-1"></i>
+                    Limite: {{ paso.fecha_limite|date:"d/m/Y" }}
+                    {% if paso.esta_vencido %}<span class="ms-1">(Vencido)</span>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="text-end flex-shrink-0">
+                {% if paso.estado == 'COMPLETADO' %}
+                <span class="badge bg-success">Completado</span>
+                {% elif paso.estado == 'OMITIDO' %}
+                <span class="badge bg-secondary">Omitido</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">Pendiente</span>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-3 small">Sin pasos registrados</div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if proceso_on %}
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+async function completarPasoPortal(pasoId, tipo) {
+    const btn = document.getElementById(`btn-${tipo}-${pasoId}`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...'; }
+
+    try {
+        const url = tipo === 'on'
+            ? `/onboarding/paso/${pasoId}/completar/`
+            : `/onboarding/offboarding/paso/${pasoId}/completar/`;
+
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        const data = await resp.json();
+
+        if (!data.ok) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check me-1"></i>Completar'; }
+            return;
+        }
+
+        // Actualizar el paso visualmente
+        const pasoEl = document.getElementById(`paso-${tipo}-${pasoId}`);
+        if (pasoEl) {
+            pasoEl.classList.remove('vencido', 'omitido');
+            pasoEl.classList.add('completado');
+            // Ícono
+            const iconEl = pasoEl.querySelector('.paso-icon');
+            if (iconEl) {
+                iconEl.className = 'paso-icon ok';
+                iconEl.innerHTML = '<i class="fas fa-check"></i>';
+            }
+            // Badge / botón → reemplazar con badge completado + fecha
+            const accionEl = pasoEl.querySelector('.text-end.flex-shrink-0');
+            if (accionEl) {
+                accionEl.innerHTML = '<span class="badge bg-success">Completado</span>';
+            }
+            // Fecha
+            const metaEl = pasoEl.querySelector('.flex-grow-1');
+            if (metaEl && data.fecha_completado) {
+                const fechaDiv = document.createElement('div');
+                fechaDiv.className = 'paso-ob-fecha';
+                fechaDiv.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i>Completado el ${data.fecha_completado}`;
+                // Remover fecha límite anterior si existía
+                const existingFecha = metaEl.querySelector('.paso-ob-fecha');
+                if (existingFecha) existingFecha.replaceWith(fechaDiv);
+                else metaEl.appendChild(fechaDiv);
+            }
+        }
+
+        // Actualizar barra y porcentaje
+        if (data.porcentaje !== undefined) {
+            document.getElementById('pct-on').textContent = data.porcentaje + '%';
+            document.getElementById('bar-on').style.width = data.porcentaje + '%';
+            // Actualizar conteo
+            const total = document.querySelectorAll('[id^="paso-on-"]').length;
+            const completados = document.querySelectorAll('.paso-ob.completado').length;
+            document.getElementById('sub-on').textContent =
+                `${completados} de ${total} pasos completados`;
+        }
+
+        // Mostrar alerta si proceso recién completado
+        if (data.proceso_recien_completado) {
+            document.getElementById('alerta-completado-on').classList.remove('d-none');
+            document.getElementById('bar-on').style.width = '100%';
+            document.getElementById('pct-on').textContent = '100%';
+        }
+
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check me-1"></i>Completar'; }
+        console.error(e);
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

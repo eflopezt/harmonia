@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harmoni — Identidad de Marca</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal-900: #0d2b27;
+    --teal-800: #134e4a;
+    --teal-600: #0f766e;
+    --teal-400: #2dd4bf;
+    --teal-300: #5eead4;
+    --teal-100: #ccfbf1;
+    --white: #ffffff;
+    --slate-900: #0f172a;
+    --slate-600: #475569;
+    --slate-300: #cbd5e1;
+    --slate-100: #f1f5f9;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #f8fafc;
+    color: var(--slate-900);
+    line-height: 1.6;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: rgba(13,43,39,.97);
+    backdrop-filter: blur(12px);
+    padding: .9rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 100;
+  }
+  nav .logo { display: flex; align-items: center; gap: .6rem; }
+  nav .logo svg { width: 28px; height: 28px; }
+  nav .logo span { color: #fff; font-weight: 700; font-size: 1.1rem; letter-spacing: -.02em; }
+  nav ul { list-style: none; display: flex; gap: 1.5rem; }
+  nav ul a { color: var(--teal-300); font-size: .85rem; text-decoration: none; font-weight: 500; }
+  nav ul a:hover { color: #fff; }
+
+  /* ── SECTIONS ── */
+  section { padding: 80px 2rem; max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    text-transform: uppercase; font-size: .72rem; font-weight: 700;
+    letter-spacing: .14em; color: var(--teal-600); margin-bottom: .75rem;
+  }
+  h2 { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: .5rem; }
+  .lead { font-size: 1.05rem; color: var(--slate-600); max-width: 580px; line-height: 1.7; }
+
+  /* ── HERO ── */
+  #hero {
+    min-height: 100vh;
+    background: linear-gradient(145deg, var(--teal-900) 0%, #0a3d37 60%, #0d5c54 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 120px 2rem 80px; max-width: 100%;
+  }
+  .hero-logo {
+    display: flex; align-items: center; justify-content: center; gap: 1.2rem;
+    margin-bottom: 2.5rem;
+  }
+  .hero-icon {
+    width: 80px; height: 80px; border-radius: 22px;
+    background: var(--teal-600);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  }
+  .hero-icon svg { width: 52px; height: 52px; }
+  .hero-wordmark {
+    text-align: left;
+  }
+  .hero-wordmark .name {
+    font-size: 3rem; font-weight: 900; color: #fff;
+    letter-spacing: -.04em; line-height: 1;
+  }
+  .hero-wordmark .sub {
+    font-size: .9rem; color: var(--teal-300); font-weight: 500; letter-spacing: .04em;
+    margin-top: .3rem;
+  }
+  .hero-tagline {
+    font-size: 1.15rem; color: rgba(255,255,255,.7); max-width: 520px;
+    line-height: 1.7; margin-top: 1rem;
+  }
+  .hero-tagline em { color: var(--teal-300); font-style: normal; font-weight: 600; }
+
+  /* ── LOGO SECTION ── */
+  #logo { padding-top: 100px; }
+  .logo-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem; margin-top: 2.5rem;
+  }
+  .logo-card {
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0,0,0,.08);
+  }
+  .logo-card-preview {
+    display: flex; align-items: center; justify-content: center;
+    padding: 3rem 2rem; gap: 1rem;
+  }
+  .logo-card-preview.dark { background: var(--teal-900); }
+  .logo-card-preview.mid  { background: var(--teal-800); }
+  .logo-card-preview.light { background: #fff; border-bottom: 1px solid #e2e8f0; }
+  .logo-card-preview.teal-light { background: var(--teal-100); border-bottom: 1px solid #a7f3d0; }
+
+  .logo-pill {
+    display: flex; align-items: center; gap: .75rem;
+  }
+  .logo-pill-icon {
+    border-radius: 10px; background: var(--teal-600);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-pill-icon svg { display: block; }
+  .logo-pill-text .wordmark { font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+  .logo-pill-text .sub { font-weight: 400; letter-spacing: .03em; line-height: 1; }
+
+  .logo-card-meta {
+    padding: 1.25rem 1.5rem; background: #fff;
+    border-top: 1px solid #f1f5f9;
+  }
+  .logo-card-meta strong { font-size: .875rem; display: block; margin-bottom: .2rem; }
+  .logo-card-meta span { font-size: .8rem; color: var(--slate-600); }
+
+  /* ── ICON ONLY ── */
+  .icon-sizes {
+    display: flex; align-items: flex-end; gap: 2rem; flex-wrap: wrap;
+    margin-top: 2.5rem;
+  }
+  .icon-size-item { text-align: center; }
+  .icon-size-item span { display: block; font-size: .75rem; color: var(--slate-600); margin-top: .5rem; }
+  .icon-bg {
+    background: var(--teal-600); border-radius: 28%; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── PALETTE ── */
+  #palette .palette-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem; margin-top: 2.5rem;
+  }
+  .swatch {
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 8px rgba(0,0,0,.08);
+  }
+  .swatch-color { height: 90px; }
+  .swatch-info { padding: .8rem 1rem; background: #fff; }
+  .swatch-info strong { font-size: .85rem; display: block; }
+  .swatch-info span { font-size: .75rem; color: var(--slate-600); font-family: 'Courier New', monospace; }
+
+  /* ── NARRATIVE ── */
+  #narrative { background: var(--teal-900); border-radius: 24px; max-width: 100%; padding: 80px; }
+  #narrative .section-label { color: var(--teal-300); }
+  #narrative h2 { color: #fff; }
+  #narrative .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2.5rem; }
+  .narrative-card {
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px; padding: 2rem;
+  }
+  .narrative-card .card-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--teal-600); display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1.25rem; font-size: 1.3rem;
+  }
+  .narrative-card h3 { color: var(--teal-300); font-size: 1rem; font-weight: 700; margin-bottom: .75rem; }
+  .narrative-card p { color: rgba(255,255,255,.75); font-size: .9rem; line-height: 1.75; }
+  .narrative-card blockquote {
+    border-left: 3px solid var(--teal-400);
+    padding-left: 1rem; margin-top: 1rem;
+    color: rgba(255,255,255,.9); font-style: italic; font-size: .9rem; line-height: 1.7;
+  }
+
+  /* ── MOCKUP ── */
+  #mockup h2 { margin-bottom: 2rem; }
+  .mockup-shell {
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.15);
+    display: flex; height: 400px;
+  }
+  .mock-sidebar {
+    width: 220px; background: var(--teal-900); flex-shrink: 0;
+    padding: 1.25rem 0; display: flex; flex-direction: column;
+  }
+  .mock-brand {
+    display: flex; align-items: center; gap: .65rem;
+    padding: 0 1.25rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,.07);
+    margin-bottom: .5rem;
+  }
+  .mock-brand-icon {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--teal-600);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .mock-brand-icon svg { width: 22px; height: 22px; }
+  .mock-brand-text strong { color: #fff; font-size: .9rem; display: block; line-height: 1.2; }
+  .mock-brand-text small { color: #4a8c86; font-size: .65rem; }
+  .mock-nav-label {
+    color: #4a8c86; font-size: .65rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; padding: .6rem 1.25rem .3rem;
+  }
+  .mock-nav-item {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .45rem 1.25rem; font-size: .8rem; color: #7fb3ae; cursor: default;
+  }
+  .mock-nav-item.active {
+    color: #fff; background: var(--teal-800);
+    border-left: 3px solid var(--teal-300);
+  }
+  .mock-nav-item .dot { width: 14px; text-align: center; font-size: .75rem; }
+  .mock-main { flex: 1; background: #f0fafa; display: flex; flex-direction: column; }
+  .mock-topbar {
+    height: 52px; background: #fff; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; padding: 0 1.5rem;
+    font-size: .85rem; font-weight: 600; color: var(--slate-900);
+  }
+  .mock-content { padding: 1.5rem; flex: 1; }
+  .mock-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+  .mock-card {
+    background: #fff; border-radius: 10px; padding: .9rem;
+    border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  }
+  .mock-card .num { font-size: 1.4rem; font-weight: 700; color: var(--slate-900); line-height: 1; }
+  .mock-card .lbl { font-size: .65rem; color: #64748b; text-transform: uppercase; margin-top: .25rem; }
+  .mock-card .ico {
+    width: 28px; height: 28px; border-radius: 50%; margin-bottom: .5rem;
+    display: flex; align-items: center; justify-content: center; font-size: .75rem;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--teal-900); color: rgba(255,255,255,.5);
+    text-align: center; padding: 2.5rem 1rem; font-size: .8rem;
+  }
+  footer strong { color: var(--teal-300); }
+
+  @media (max-width: 640px) {
+    #narrative { padding: 40px 24px; }
+    #narrative .cards { grid-template-columns: 1fr; }
+    .mockup-shell { flex-direction: column; height: auto; }
+    .mock-sidebar { width: 100%; }
+    .mock-cards { grid-template-columns: repeat(2, 1fr); }
+    .hero-wordmark .name { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <svg viewBox="0 0 40 40" fill="none">
+      <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+      <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+      <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+      <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+      <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+    </svg>
+    <span>Harmoni</span>
+  </div>
+  <ul>
+    <li><a href="#logo">Logo</a></li>
+    <li><a href="#palette">Colores</a></li>
+    <li><a href="#narrative">Narrativa</a></li>
+    <li><a href="#mockup">Sistema</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-logo">
+    <div class="hero-icon">
+      <svg viewBox="0 0 40 40" fill="none">
+        <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+      </svg>
+    </div>
+    <div class="hero-wordmark">
+      <div class="name">Harmoni</div>
+      <div class="sub">SISTEMA DE GESTIÓN DE RECURSOS HUMANOS</div>
+    </div>
+  </div>
+  <p class="hero-tagline">
+    Un sistema que trabaja en armonía con su entorno.<br>
+    La letra que le falta al nombre no es un error —<br>
+    <em>siempre hay algo más que podemos hacer.</em>
+  </p>
+</section>
+
+<!-- LOGO -->
+<section id="logo" style="padding-top:100px">
+  <div class="section-label">Identidad visual</div>
+  <h2>El logo</h2>
+  <p class="lead">El Hexágono Vivo. La H no fue diseñada <em>dentro</em> del hexágono — emergió de sus propios vértices. Son una sola geometría.</p>
+
+  <div class="logo-grid">
+
+    <!-- Dark -->
+    <div class="logo-card">
+      <div class="logo-card-preview dark">
+        <div class="logo-pill">
+          <div class="logo-pill-icon" style="width:44px;height:44px;">
+            <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+              <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+              <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+              <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+              <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+              <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            </svg>
+          </div>
+          <div class="logo-pill-text">
+            <div class="wordmark" style="color:#fff;font-size:1.3rem">Harmoni</div>
+            <div class="sub" style="color:#4a8c86;font-size:.7rem;margin-top:.2rem">SISTEMA RRHH</div>
+          </div>
+        </div>
+      </div>
+      <div class="logo-card-meta">
+        <strong>Fondo oscuro teal</strong>
+        <span>Uso principal — sidebar, splash, presentaciones</span>
+      </div>
+    </div>
+
+    <!-- Light -->
+    <div class="logo-card">
+      <div class="logo-card-preview light">
+        <div class="logo-pill">
+          <div class="logo-pill-icon" style="width:44px;height:44px;">
+            <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+              <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+              <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+              <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+              <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+              <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            </svg>
+          </div>
+          <div class="logo-pill-text">
+            <div class="wordmark" style="color:#0f172a;font-size:1.3rem">Harmoni</div>
+            <div class="sub" style="color:#64748b;font-size:.7rem;margin-top:.2rem">SISTEMA RRHH</div>
+          </div>
+        </div>
+      </div>
+      <div class="logo-card-meta">
+        <strong>Fondo blanco</strong>
+        <span>Documentos, reportes, topbar de aplicación</span>
+      </div>
+    </div>
+
+    <!-- Teal light -->
+    <div class="logo-card">
+      <div class="logo-card-preview teal-light">
+        <div class="logo-pill">
+          <div class="logo-pill-icon" style="width:44px;height:44px;">
+            <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+              <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+              <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+              <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+              <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+              <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            </svg>
+          </div>
+          <div class="logo-pill-text">
+            <div class="wordmark" style="color:#134e4a;font-size:1.3rem">Harmoni</div>
+            <div class="sub" style="color:#0f766e;font-size:.7rem;margin-top:.2rem">SISTEMA RRHH</div>
+          </div>
+        </div>
+      </div>
+      <div class="logo-card-meta">
+        <strong>Fondo menta</strong>
+        <span>Login, onboarding, pantallas de bienvenida</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Icono solo (tamaños) -->
+  <div style="margin-top:3rem">
+    <p class="section-label">Ícono solo — tamaños</p>
+    <div class="icon-sizes">
+      <!-- 16px -->
+      <div class="icon-size-item">
+        <div class="icon-bg" style="width:24px;height:24px;border-radius:6px;">
+          <svg width="16" height="16" viewBox="0 0 40 40" fill="none">
+            <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+            <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+            <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+            <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+          </svg>
+        </div>
+        <span>Favicon</span>
+      </div>
+      <!-- 32px -->
+      <div class="icon-size-item">
+        <div class="icon-bg" style="width:44px;height:44px;border-radius:11px;">
+          <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+            <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+            <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+          </svg>
+        </div>
+        <span>Sidebar (36px)</span>
+      </div>
+      <!-- 56px -->
+      <div class="icon-size-item">
+        <div class="icon-bg" style="width:70px;height:70px;border-radius:18px;">
+          <svg width="46" height="46" viewBox="0 0 40 40" fill="none">
+            <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+            <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+          </svg>
+        </div>
+        <span>Login (56px)</span>
+      </div>
+      <!-- 96px -->
+      <div class="icon-size-item">
+        <div class="icon-bg" style="width:110px;height:110px;border-radius:26px;">
+          <svg width="72" height="72" viewBox="0 0 40 40" fill="none">
+            <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
+            <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+          </svg>
+        </div>
+        <span>App icon (96px)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PALETTE -->
+<section id="palette">
+  <div class="section-label">Paleta corporativa</div>
+  <h2>Colores</h2>
+  <p class="lead">Teal profundo — la naturaleza, la calma, la confianza. Sin los excesos del azul corporativo de siempre.</p>
+
+  <div class="palette-grid">
+    <div class="swatch">
+      <div class="swatch-color" style="background:#0d2b27"></div>
+      <div class="swatch-info"><strong>Teal Profundo</strong><span>#0d2b27</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#134e4a"></div>
+      <div class="swatch-info"><strong>Teal Activo</strong><span>#134e4a</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#0f766e"></div>
+      <div class="swatch-info"><strong>Primary</strong><span>#0f766e</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#2dd4bf"></div>
+      <div class="swatch-info"><strong>Teal Medio</strong><span>#2dd4bf</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#5eead4"></div>
+      <div class="swatch-info"><strong>Mint Accent</strong><span>#5eead4</span></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#ccfbf1;border:1px solid #e2e8f0"></div>
+      <div class="swatch-info"><strong>Teal Suave</strong><span>#ccfbf1</span></div>
+    </div>
+  </div>
+
+  <!-- Semantic colors -->
+  <div style="margin-top:2rem">
+    <p class="section-label" style="margin-bottom:1rem">Colores semánticos</p>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:.6rem;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.6rem 1rem">
+        <div style="width:14px;height:14px;border-radius:50%;background:#10b981"></div>
+        <span style="font-size:.82rem"><strong>Éxito</strong> · #10b981</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.6rem 1rem">
+        <div style="width:14px;height:14px;border-radius:50%;background:#f59e0b"></div>
+        <span style="font-size:.82rem"><strong>Advertencia</strong> · #f59e0b</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.6rem 1rem">
+        <div style="width:14px;height:14px;border-radius:50%;background:#ef4444"></div>
+        <span style="font-size:.82rem"><strong>Error</strong> · #ef4444</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NARRATIVE -->
+<section id="narrative" style="max-width:1100px;margin:0 auto 80px;border-radius:24px">
+  <div class="section-label">Historia de marca</div>
+  <h2>¿Por qué Harmoni?</h2>
+
+  <div class="cards">
+
+    <div class="narrative-card">
+      <div class="card-icon">⬡</div>
+      <h3>El logo — El Hexágono Vivo</h3>
+      <p>El hexágono es la estructura más eficiente que existe en la naturaleza. Las abejas lo descubrieron hace 30 millones de años: máxima resistencia, mínimo material.</p>
+      <blockquote>
+        "La H no fue diseñada dentro del hexágono.<br>
+        Emergió de sus propios vértices."<br><br>
+        Los cuatro puntos donde la H se une son exactamente los cuatro vértices del hexágono. Tecnología y personas — no son dos cosas separadas. Son la misma geometría.
+      </blockquote>
+    </div>
+
+    <div class="narrative-card">
+      <div class="card-icon">🎵</div>
+      <h3>El nombre — Harmoni sin la "a"</h3>
+      <p>Viene de <em>Harmonia</em> — diosa griega de la concordia, hija de Ares y Afrodita. La unión de la fuerza y la belleza. El equilibrio entre lo que se mide y lo que se siente.</p>
+      <blockquote>
+        "Harmoni trabaja en armonía con su entorno — con las personas, los procesos, los datos. Pero le falta una letra. Porque como el trabajo de RRHH: siempre hay algo más que podemos hacer."
+      </blockquote>
+      <p style="margin-top:.75rem">La "a" que falta no es un error. Es una declaración de principios.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- MOCKUP -->
+<section id="mockup" style="max-width:1100px;margin:0 auto 80px">
+  <div class="section-label">Sistema en uso</div>
+  <h2>El ERP en acción</h2>
+
+  <div class="mockup-shell">
+    <!-- Sidebar -->
+    <div class="mock-sidebar">
+      <div class="mock-brand">
+        <div class="mock-brand-icon">
+          <svg viewBox="0 0 40 40" fill="none">
+            <polygon points="37,20 28.5,34.72 11.5,34.72 3,20 11.5,5.28 28.5,5.28" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" fill="none"/>
+            <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="11.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="5.28" r="2.5" fill="#5eead4"/>
+            <circle cx="11.5" cy="34.72" r="2.5" fill="#5eead4"/>
+            <circle cx="28.5" cy="34.72" r="2.5" fill="#5eead4"/>
+          </svg>
+        </div>
+        <div class="mock-brand-text">
+          <strong>Harmoni</strong>
+          <small>SISTEMA RRHH</small>
+        </div>
+      </div>
+      <div class="mock-nav-label">Principal</div>
+      <div class="mock-nav-item active"><span class="dot">⊞</span> Dashboard</div>
+      <div class="mock-nav-label">Personal</div>
+      <div class="mock-nav-item"><span class="dot">👥</span> Empleados</div>
+      <div class="mock-nav-item"><span class="dot">🏢</span> Áreas</div>
+      <div class="mock-nav-item"><span class="dot">📅</span> Roster</div>
+      <div class="mock-nav-label">Asistencia</div>
+      <div class="mock-nav-item"><span class="dot">📊</span> Dashboard</div>
+      <div class="mock-nav-item"><span class="dot">⏱</span> Vista STAFF</div>
+    </div>
+    <!-- Main -->
+    <div class="mock-main">
+      <div class="mock-topbar">Dashboard</div>
+      <div class="mock-content">
+        <div class="mock-cards">
+          <div class="mock-card">
+            <div class="ico" style="background:rgba(15,118,110,.1);color:#0f766e">🏢</div>
+            <div class="num">20</div>
+            <div class="lbl">Áreas</div>
+          </div>
+          <div class="mock-card">
+            <div class="ico" style="background:rgba(16,185,129,.1);color:#10b981">👥</div>
+            <div class="num">224</div>
+            <div class="lbl">Personal</div>
+          </div>
+          <div class="mock-card">
+            <div class="ico" style="background:rgba(245,158,11,.1);color:#f59e0b">📅</div>
+            <div class="num">12</div>
+            <div class="lbl">Roster hoy</div>
+          </div>
+          <div class="mock-card">
+            <div class="ico" style="background:rgba(94,234,212,.15);color:#0f766e">⏱</div>
+            <div class="num">48h</div>
+            <div class="lbl">HE semana</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div style="margin-bottom:.5rem">
+    <strong>Harmoni</strong> · Sistema de Gestión de Recursos Humanos
+  </div>
+  <div>Identidad de Marca · 2026 · Confidencial</div>
+</footer>
+
+</body>
+</html>

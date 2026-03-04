@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Harmoni Dev Server",
+      "runtimeExecutable": "D:\\Harmoni\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["manage.py", "runserver", "8001"],
+      "cwd": "D:\\Harmoni",
+      "port": 8001
+    }
+  ]
+}

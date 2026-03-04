@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Incumplimientos de Capacitación{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-exclamation-triangle text-warning me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ matriz|length }} trabajador{{ matriz|length|pluralize:"es" }} con capacitaciones pendientes</small>
+    </div>
+</div>
+
+<!-- Filtro por grupo -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end">
+            <div>
+                <label class="form-label small mb-0">Grupo</label>
+                <select name="grupo" class="form-select form-select-sm" style="width:150px">
+                    <option value="">Todos</option>
+                    <option value="STAFF" {% if filtro_grupo == 'STAFF' %}selected{% endif %}>STAFF</option>
+                    <option value="RCO" {% if filtro_grupo == 'RCO' %}selected{% endif %}>RCO</option>
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- Requerimientos obligatorios -->
+<div class="card shadow-sm mb-3 border-warning">
+    <div class="card-header bg-warning bg-opacity-10">
+        <i class="fas fa-list-check me-1"></i> Requerimientos Obligatorios ({{ requerimientos|length }})
+    </div>
+    <div class="card-body p-2">
+        <div class="d-flex flex-wrap gap-2">
+            {% for r in requerimientos %}
+            <span class="badge bg-light text-dark border px-2 py-1" style="font-size:.78rem;">{{ r.nombre }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Matriz de incumplimientos -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Trabajador</th>
+                    <th>Grupo</th>
+                    <th class="text-center">Faltantes</th>
+                    <th>Capacitaciones Pendientes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in matriz %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ item.personal.apellidos_nombres|truncatechars:35 }}</div>
+                        <small class="text-muted">{{ item.personal.nro_doc }}</small>
+                    </td>
+                    <td><span class="badge {% if item.personal.grupo_tareo == 'STAFF' %}bg-info{% else %}bg-secondary{% endif %}">{{ item.personal.grupo_tareo }}</span></td>
+                    <td class="text-center">
+                        <span class="badge bg-danger rounded-pill">{{ item.total }}</span>
+                    </td>
+                    <td>
+                        {% for f in item.faltantes %}
+                        <span class="badge bg-warning text-dark me-1 mb-1" style="font-size:.72rem;">{{ f.nombre }}</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-success py-4"><i class="fas fa-check-circle me-2"></i>Todo el personal cumple con los requerimientos obligatorios.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

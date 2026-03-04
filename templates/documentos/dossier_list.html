@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Dossiers Documentarios — Harmoni{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="page-title"><i class="fas fa-archive me-2 text-primary"></i>Dossiers Documentarios</h1>
+    <p class="text-muted mb-0">Paquetes de documentación laboral para proyectos, licitaciones y auditorías</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'plantilla_dossier_list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-layer-group me-1"></i> Plantillas
+    </a>
+    <a href="{% url 'dossier_crear' %}" class="btn btn-primary">
+      <i class="fas fa-plus me-1"></i> Nuevo Dossier
+    </a>
+  </div>
+</div>
+
+{# KPI Cards #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-secondary">{{ total_borrador }}</div>
+      <div class="stat-label">Borrador</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-warning">{{ total_revision }}</div>
+      <div class="stat-label">En Revisión</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-success">{{ total_aprobado }}</div>
+      <div class="stat-label">Aprobados</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-primary">{{ total_entregado }}</div>
+      <div class="stat-label">Entregados</div>
+    </div>
+  </div>
+</div>
+
+{# Filtros #}
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-6">
+        <input type="text" name="buscar" value="{{ buscar }}" class="form-control"
+               placeholder="Buscar por nombre, proyecto o cliente...">
+      </div>
+      <div class="col-md-4">
+        <select name="estado" class="form-select">
+          <option value="">Todos los estados</option>
+          {% for val, label in ESTADO_CHOICES %}
+          <option value="{{ val }}" {% if val == estado_sel %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">
+          <i class="fas fa-search me-1"></i> Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Lista #}
+{% if dossiers %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Nombre / Proyecto</th>
+          <th>Plantilla</th>
+          <th class="text-center">Personal</th>
+          <th class="text-center">Progreso</th>
+          <th>Estado</th>
+          <th>F. Entrega Prev.</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dossiers %}
+        <tr>
+          <td>
+            <a href="{% url 'dossier_detalle' d.pk %}" class="fw-semibold text-decoration-none">
+              {{ d.nombre }}
+            </a>
+            {% if d.proyecto %}
+            <div class="text-muted small">{{ d.proyecto }}{% if d.cliente %} — {{ d.cliente }}{% endif %}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if d.plantilla %}
+              <span class="badge bg-light text-dark border">{{ d.plantilla.nombre|truncatechars:30 }}</span>
+            {% else %}
+              <span class="text-muted small">Ad-hoc</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary rounded-pill">{{ d.total_p }}</span>
+          </td>
+          <td style="min-width:120px;">
+            {% with prog=d.progreso %}
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:6px;">
+                <div class="progress-bar bg-{% if prog == 100 %}success{% elif prog >= 50 %}warning{% else %}danger{% endif %}"
+                     style="width:{{ prog }}%"></div>
+              </div>
+              <small class="text-muted">{{ prog }}%</small>
+            </div>
+            {% endwith %}
+          </td>
+          <td>
+            <span class="badge bg-{{ d.color_estado }}">{{ d.get_estado_display }}</span>
+          </td>
+          <td class="text-muted small">
+            {% if d.fecha_entrega_prevista %}{{ d.fecha_entrega_prevista|date:"d/m/Y" }}{% else %}—{% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'dossier_detalle' d.pk %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state text-center py-5">
+  <i class="fas fa-archive fa-3x text-muted mb-3"></i>
+  <h5 class="text-muted">No hay dossiers{% if buscar or estado_sel %} con esos filtros{% endif %}</h5>
+  {% if not buscar and not estado_sel %}
+  <p class="text-muted">Crea el primer dossier para empezar a gestionar paquetes documentarios de proyectos.</p>
+  <a href="{% url 'dossier_crear' %}" class="btn btn-primary mt-2">
+    <i class="fas fa-plus me-1"></i> Nuevo Dossier
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

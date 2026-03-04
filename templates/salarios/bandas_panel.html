@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+{% load humanize harmoni_tags %}
+
+{% block title %}Bandas Salariales{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Barra visual de banda salarial ─────────────────────────── */
+.banda-bar-wrap {
+    position: relative;
+    height: 14px;
+    background: #e5e7eb;
+    border-radius: 7px;
+    overflow: visible;
+    min-width: 120px;
+}
+.banda-bar-min {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 33.33%;
+    background: #93c5fd;   /* azul claro — MIN */
+    border-radius: 7px 0 0 7px;
+}
+.banda-bar-mid {
+    position: absolute;
+    left: 33.33%; top: 0; bottom: 0;
+    width: 33.33%;
+    background: #5eead4;   /* teal — MID */
+}
+.banda-bar-max {
+    position: absolute;
+    left: 66.66%; top: 0; bottom: 0;
+    width: 33.34%;
+    background: #1e40af;   /* azul oscuro — MAX */
+    border-radius: 0 7px 7px 0;
+}
+.banda-bar-label {
+    font-size: .65rem;
+    color: #6b7280;
+    margin-top: 2px;
+    display: flex;
+    justify-content: space-between;
+}
+/* ── Badge compa-ratio ──────────────────────────────────────── */
+.badge-compa-bajo   { background:#fd7e14; color:#fff; }
+.badge-compa-rango  { background:#198754; color:#fff; }
+.badge-compa-sobre  { background:#dc3545; color:#fff; }
+.badge-compa-nd     { background:#adb5bd; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-layer-group text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ total }} banda{{ total|pluralize:",s" }}</small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'bandas_grafico' %}" class="btn btn-info btn-sm text-white">
+            <i class="fas fa-chart-bar me-1"></i>Gráfico
+        </a>
+        <a href="{% url 'simulacion_comparativa' %}" class="btn btn-warning btn-sm text-dark">
+            <i class="fas fa-scale-balanced me-1"></i>Simulador
+        </a>
+        <a href="{% url 'equidad_salarial' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-balance-scale me-1"></i>Equidad
+        </a>
+        <a href="{% url 'salarios_exportar_analisis' %}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel me-1"></i>Exportar
+        </a>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalBanda">
+            <i class="fas fa-plus me-1"></i>Nueva Banda
+        </button>
+    </div>
+</div>
+
+<!-- KPI Strip -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#0f766e;">{{ total }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Bandas Activas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;color:#0f766e;">{{ total_empleados_cubiertos }}</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Empleados Cubiertos</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            <div style="font-size:1.4rem;font-weight:800;{% if pct_en_banda >= 70 %}color:#16a34a;{% elif pct_en_banda >= 50 %}color:#d97706;{% else %}color:#dc2626;{% endif %}">{{ pct_en_banda }}%</div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">En Rango de Banda</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 text-center py-2">
+            {% if compa_ratio_global %}
+            <div style="font-size:1.4rem;font-weight:800;{% if compa_ratio_global >= 0.85 and compa_ratio_global <= 1.15 %}color:#16a34a;{% else %}color:#d97706;{% endif %}">{{ compa_ratio_global }}</div>
+            {% else %}
+            <div style="font-size:1.4rem;font-weight:800;color:#94a3b8;">&#8212;</div>
+            {% endif %}
+            <div style="font-size:.72rem;color:#64748b;font-weight:600;">Compa-Ratio Global</div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart: Bandas por Nivel -->
+{% if bandas_niveles_json != '[]' %}
+<div class="card shadow-sm mb-3 border-0">
+    <div class="card-header py-2" style="background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;border-radius:8px 8px 0 0;font-size:.83rem;font-weight:600;">
+        <i class="fas fa-chart-bar me-2"></i>Rangos Salariales por Nivel (Promedio S/)
+    </div>
+    <div class="card-body" style="height:220px;position:relative;">
+        <canvas id="chartNiveles"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small mb-0">Nivel</label>
+                <select name="nivel" class="form-select form-select-sm" style="width:150px">
+                    <option value="">Todos</option>
+                    {% for val, label in niveles %}
+                    <option value="{{ val }}" {% if filtro_nivel == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Estado</label>
+                <select name="activa" class="form-select form-select-sm" style="width:120px">
+                    <option value="">Todos</option>
+                    <option value="1" {% if filtro_activa == '1' %}selected{% endif %}>Activa</option>
+                    <option value="0" {% if filtro_activa == '0' %}selected{% endif %}>Inactiva</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0">Buscar cargo</label>
+                <input type="text" name="cargo" value="{{ filtro_cargo }}"
+                       class="form-control form-control-sm" placeholder="Cargo..." style="width:200px">
+            </div>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+            {% if filtro_cargo or filtro_nivel or filtro_activa %}
+            <a href="{% url 'bandas_panel' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times"></i> Limpiar
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Leyenda de colores -->
+<div class="d-flex gap-3 mb-3 align-items-center flex-wrap" style="font-size:.78rem;">
+    <div class="d-flex align-items-center gap-1">
+        <div style="width:14px;height:14px;background:#93c5fd;border-radius:3px;"></div>
+        <span class="text-muted">Mínimo (bajo banda)</span>
+    </div>
+    <div class="d-flex align-items-center gap-1">
+        <div style="width:14px;height:14px;background:#5eead4;border-radius:3px;"></div>
+        <span class="text-muted">Medio (midpoint)</span>
+    </div>
+    <div class="d-flex align-items-center gap-1">
+        <div style="width:14px;height:14px;background:#1e40af;border-radius:3px;"></div>
+        <span class="text-muted">Máximo (sobre banda)</span>
+    </div>
+    <span class="text-muted ms-2">Compa-ratio:</span>
+    <span class="badge badge-compa-bajo px-2">BAJO &lt; 0.85</span>
+    <span class="badge badge-compa-rango px-2">EN RANGO 0.85–1.15</span>
+    <span class="badge badge-compa-sobre px-2">SOBRE &gt; 1.15</span>
+</div>
+
+<!-- Tabla enriquecida -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.84rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Cargo / Nivel</th>
+                    <th>Moneda</th>
+                    <th class="text-end">Mínimo</th>
+                    <th class="text-end">Medio</th>
+                    <th class="text-end">Máximo</th>
+                    <th style="min-width:150px;">Distribución banda</th>
+                    <th class="text-center">Empleados</th>
+                    <th class="text-center">Compa-ratio</th>
+                    <th class="text-center">Activa</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bandas_enriquecidas %}
+                {% with b=item.banda %}
+                <tr>
+                    <!-- Cargo + nivel -->
+                    <td>
+                        <div class="fw-semibold">{{ b.cargo }}</div>
+                        <small class="text-muted">{{ b.get_nivel_display }}</small>
+                    </td>
+                    <!-- Moneda -->
+                    <td><span class="badge bg-info text-dark">{{ b.moneda }}</span></td>
+                    <!-- Mínimo -->
+                    <td class="text-end text-primary fw-semibold">{{ b.minimo|floatformat:2|intcomma }}</td>
+                    <!-- Medio -->
+                    <td class="text-end fw-bold" style="color:#0f766e;">{{ b.medio|floatformat:2|intcomma }}</td>
+                    <!-- Máximo -->
+                    <td class="text-end" style="color:#1e40af;font-weight:600;">{{ b.maximo|floatformat:2|intcomma }}</td>
+
+                    <!-- Barra visual -->
+                    <td style="vertical-align:middle;">
+                        <div class="banda-bar-wrap" title="Min: {{ b.minimo }} | Mid: {{ b.medio }} | Max: {{ b.maximo }}">
+                            <div class="banda-bar-min" title="Mínimo"></div>
+                            <div class="banda-bar-mid" title="Medio"></div>
+                            <div class="banda-bar-max" title="Máximo"></div>
+                        </div>
+                        <div class="banda-bar-label">
+                            <span>{{ b.minimo|floatformat:0|intcomma }}</span>
+                            <span>{{ b.medio|floatformat:0|intcomma }}</span>
+                            <span>{{ b.maximo|floatformat:0|intcomma }}</span>
+                        </div>
+                    </td>
+
+                    <!-- Conteo de empleados por rango -->
+                    <td class="text-center">
+                        {% if item.total_empleados > 0 %}
+                        <div class="d-flex flex-column gap-1 align-items-center" style="font-size:.72rem;">
+                            {% if item.bajo_banda > 0 %}
+                            <span class="badge" style="background:#e9d5ff;color:#6b21a8;" title="Bajo banda">
+                                &#8595; {{ item.bajo_banda }}
+                            </span>
+                            {% endif %}
+                            {% if item.en_banda > 0 %}
+                            <span class="badge bg-success" title="En banda">
+                                &#10003; {{ item.en_banda }}
+                            </span>
+                            {% endif %}
+                            {% if item.sobre_banda > 0 %}
+                            <span class="badge bg-danger" title="Sobre banda">
+                                &#8593; {{ item.sobre_banda }}
+                            </span>
+                            {% endif %}
+                            <small class="text-muted">{{ item.total_empleados }} total</small>
+                        </div>
+                        {% else %}
+                        <small class="text-muted">—</small>
+                        {% endif %}
+                    </td>
+
+                    <!-- Compa-ratio promedio -->
+                    <td class="text-center">
+                        {% if item.compa_ratio_prom %}
+                            {% if item.compa_ratio_prom < 0.85 %}
+                            <span class="badge badge-compa-bajo">{{ item.compa_ratio_prom }}</span>
+                            {% elif item.compa_ratio_prom > 1.15 %}
+                            <span class="badge badge-compa-sobre">{{ item.compa_ratio_prom }}</span>
+                            {% else %}
+                            <span class="badge badge-compa-rango">{{ item.compa_ratio_prom }}</span>
+                            {% endif %}
+                            <br><small class="text-muted">promedio</small>
+                        {% else %}
+                        <span class="badge badge-compa-nd">N/D</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Activa -->
+                    <td class="text-center">
+                        {% if b.activa %}
+                        <i class="fas fa-check-circle text-success"></i>
+                        {% else %}
+                        <i class="fas fa-times-circle text-muted"></i>
+                        {% endif %}
+                    </td>
+
+                    <!-- Acciones -->
+                    <td>
+                        <div class="d-flex gap-1 flex-wrap">
+                            <a href="{% url 'personal_list' %}?cargo={{ b.cargo|urlencode }}"
+                               class="btn btn-xs btn-outline-info py-0 px-2"
+                               title="Ver empleados en esta banda">
+                                <i class="fas fa-users fa-xs"></i>
+                            </a>
+                            <button class="btn btn-xs btn-outline-secondary btn-editar-banda"
+                                    data-pk="{{ b.pk }}"
+                                    data-cargo="{{ b.cargo }}"
+                                    data-nivel="{{ b.nivel }}"
+                                    data-minimo="{{ b.minimo }}"
+                                    data-medio="{{ b.medio }}"
+                                    data-maximo="{{ b.maximo }}"
+                                    data-moneda="{{ b.moneda }}"
+                                    data-activa="{{ b.activa|yesno:'1,0' }}"
+                                    data-bs-toggle="modal" data-bs-target="#modalEditarBanda"
+                                    title="Editar banda">
+                                <i class="fas fa-pen fa-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-5">
+                        <i class="fas fa-layer-group fa-2x mb-2 d-block text-muted"></i>
+                        No hay bandas salariales configuradas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Crear Banda -->
+<div class="modal fade" id="modalBanda" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-plus me-1"></i>Nueva Banda Salarial</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formBanda">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Cargo <span class="text-danger">*</span></label>
+                        <input type="text" name="cargo" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nivel <span class="text-danger">*</span></label>
+                        <select name="nivel" class="form-select form-select-sm" required>
+                            {% for val, label in niveles %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-4 mb-2">
+                            <label class="form-label">Mínimo <span class="text-danger">*</span></label>
+                            <input type="number" name="minimo" class="form-control form-control-sm" step="0.01" required>
+                        </div>
+                        <div class="col-4 mb-2">
+                            <label class="form-label">Medio <span class="text-danger">*</span></label>
+                            <input type="number" name="medio" class="form-control form-control-sm" step="0.01" required>
+                        </div>
+                        <div class="col-4 mb-2">
+                            <label class="form-label">Máximo <span class="text-danger">*</span></label>
+                            <input type="number" name="maximo" class="form-control form-control-sm" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Moneda</label>
+                        <select name="moneda" class="form-select form-select-sm">
+                            <option value="PEN" selected>PEN (Sol)</option>
+                            <option value="USD">USD (Dólar)</option>
+                        </select>
+                    </div>
+                    <div id="banda-error" class="alert alert-danger d-none py-1" style="font-size:.85rem;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Banda -->
+<div class="modal fade" id="modalEditarBanda" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="fas fa-pen me-1"></i>Editar Banda Salarial</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarBanda">
+                {% csrf_token %}
+                <input type="hidden" id="edit-pk" name="pk">
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Cargo <span class="text-danger">*</span></label>
+                        <input type="text" name="cargo" id="edit-cargo" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nivel <span class="text-danger">*</span></label>
+                        <select name="nivel" id="edit-nivel" class="form-select form-select-sm" required>
+                            {% for val, label in niveles %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-4 mb-2">
+                            <label class="form-label">Mínimo</label>
+                            <input type="number" name="minimo" id="edit-minimo" class="form-control form-control-sm" step="0.01">
+                        </div>
+                        <div class="col-4 mb-2">
+                            <label class="form-label">Medio</label>
+                            <input type="number" name="medio" id="edit-medio" class="form-control form-control-sm" step="0.01">
+                        </div>
+                        <div class="col-4 mb-2">
+                            <label class="form-label">Máximo</label>
+                            <input type="number" name="maximo" id="edit-maximo" class="form-control form-control-sm" step="0.01">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label class="form-label">Moneda</label>
+                            <select name="moneda" id="edit-moneda" class="form-select form-select-sm">
+                                <option value="PEN">PEN (Sol)</option>
+                                <option value="USD">USD (Dólar)</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label">Activa</label>
+                            <select name="activa" id="edit-activa" class="form-select form-select-sm">
+                                <option value="1">Sí</option>
+                                <option value="0">No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="editar-error" class="alert alert-danger d-none py-1" style="font-size:.85rem;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="fas fa-save me-1"></i>Actualizar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart: Niveles
+(function() {
+    const raw = {{ bandas_niveles_json|safe }};
+    if (!raw.length) return;
+    const ctx = document.getElementById('chartNiveles');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: raw.map(r => r.label),
+            datasets: [
+                { label: 'Mínimo', data: raw.map(r => r.min), backgroundColor: '#93c5fd', borderRadius: 4 },
+                { label: 'Medio',  data: raw.map(r => r.mid), backgroundColor: '#5eead4', borderRadius: 4 },
+                { label: 'Máximo', data: raw.map(r => r.max), backgroundColor: '#1e40af', borderRadius: 4 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: v => 'S/ ' + v.toLocaleString() } }
+            }
+        }
+    });
+})();
+</script>
+<script>
+// ── Crear banda ──────────────────────────────────────────────
+document.getElementById('formBanda').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const errDiv = document.getElementById('banda-error');
+    errDiv.classList.add('d-none');
+    fetch('{% url "banda_crear" %}', {method: 'POST', body: new FormData(this)})
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                location.reload();
+            } else {
+                errDiv.textContent = d.error || 'Error desconocido';
+                errDiv.classList.remove('d-none');
+            }
+        });
+});
+
+// ── Editar banda: cargar datos en el modal ───────────────────
+document.querySelectorAll('.btn-editar-banda').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.getElementById('edit-pk').value     = this.dataset.pk;
+        document.getElementById('edit-cargo').value  = this.dataset.cargo;
+        document.getElementById('edit-nivel').value  = this.dataset.nivel;
+        document.getElementById('edit-minimo').value = this.dataset.minimo;
+        document.getElementById('edit-medio').value  = this.dataset.medio;
+        document.getElementById('edit-maximo').value = this.dataset.maximo;
+        document.getElementById('edit-moneda').value = this.dataset.moneda;
+        document.getElementById('edit-activa').value = this.dataset.activa;
+    });
+});
+
+document.getElementById('formEditarBanda').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const errDiv = document.getElementById('editar-error');
+    errDiv.classList.add('d-none');
+    const pk = document.getElementById('edit-pk').value;
+    fetch(`/salarios/bandas/${pk}/editar/`, {method: 'POST', body: new FormData(this)})
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                location.reload();
+            } else {
+                errDiv.textContent = d.error || 'Error desconocido';
+                errDiv.classList.remove('d-none');
+            }
+        });
+});
+</script>
+{% endblock %}

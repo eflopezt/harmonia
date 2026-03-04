@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-clipboard-list text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">Tipo: {{ tipo|capfirst }} | {{ pasos|length }} paso{{ pasos|length|pluralize:"s" }}</small>
+    </div>
+    <a href="{% url 'plantillas_onboarding' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver</a>
+</div>
+
+<!-- Info de la plantilla -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <small class="text-muted d-block">Nombre</small>
+                <strong>{{ plantilla.nombre }}</strong>
+            </div>
+            {% if tipo == 'onboarding' %}
+            <div class="col-md-3">
+                <small class="text-muted d-block">Grupo</small>
+                <strong>{{ plantilla.get_aplica_grupo_display }}</strong>
+            </div>
+            {% endif %}
+            <div class="col-md-3">
+                <small class="text-muted d-block">Estado</small>
+                {% if plantilla.activa %}
+                <span class="badge bg-success">Activa</span>
+                {% else %}
+                <span class="badge bg-secondary">Inactiva</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if plantilla.descripcion %}
+        <div class="mt-2">
+            <small class="text-muted d-block">Descripcion</small>
+            <p class="mb-0">{{ plantilla.descripcion }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pasos de la plantilla -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-list-ol me-1"></i>Pasos</h6>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAgregarPaso"><i class="fas fa-plus me-1"></i>Agregar Paso</button>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th style="width:50px">#</th>
+                    <th>Titulo</th>
+                    <th>Tipo</th>
+                    <th>Responsable</th>
+                    <th class="text-center">Plazo (dias)</th>
+                    <th class="text-center">Obligatorio</th>
+                    <th class="text-center" style="width:80px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="pasos-tbody">
+                {% for paso in pasos %}
+                <tr id="paso-row-{{ paso.pk }}">
+                    <td class="text-center">{{ paso.orden }}</td>
+                    <td>
+                        <strong>{{ paso.titulo }}</strong>
+                        {% if paso.descripcion %}<br><small class="text-muted">{{ paso.descripcion|truncatechars:60 }}</small>{% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ paso.get_tipo_display }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ paso.get_responsable_tipo_display }}</span></td>
+                    <td class="text-center">{{ paso.dias_plazo }}</td>
+                    <td class="text-center">
+                        {% if paso.obligatorio %}
+                        <i class="fas fa-check-circle text-success"></i>
+                        {% else %}
+                        <i class="fas fa-minus-circle text-muted"></i>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-outline-danger btn-sm" onclick="eliminarPaso({{ paso.pk }})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr id="sin-pasos"><td colspan="7" class="text-center text-muted py-3">No hay pasos configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Agregar Paso -->
+<div class="modal fade" id="modalAgregarPaso" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar Paso</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formAgregarPaso">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Titulo <span class="text-danger">*</span></label>
+                        <input type="text" name="titulo" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripcion</label>
+                        <textarea name="descripcion" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <select name="tipo" class="form-select">
+                                <option value="TAREA">Tarea</option>
+                                <option value="DOCUMENTO">Documento</option>
+                                <option value="CAPACITACION">Capacitacion</option>
+                                <option value="NOTIFICACION">Notificacion</option>
+                                <option value="APROBACION">Aprobacion</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Responsable</label>
+                            <select name="responsable_tipo" class="form-select">
+                                <option value="RRHH">RRHH</option>
+                                <option value="JEFE">Jefe Directo</option>
+                                <option value="TI">TI / Sistemas</option>
+                                <option value="TRABAJADOR">Trabajador</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Plazo (dias)</label>
+                            <input type="number" name="dias_plazo" class="form-control" value="1" min="1">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox" name="obligatorio" class="form-check-input" id="chkObligatorio" checked>
+                                <label class="form-check-label" for="chkObligatorio">Obligatorio</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('formAgregarPaso').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    fetch('{% url "paso_plantilla_agregar" tipo=tipo pk=plantilla.pk %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const sinPasos = document.getElementById('sin-pasos');
+            if (sinPasos) sinPasos.remove();
+
+            const tbody = document.getElementById('pasos-tbody');
+            const tipoLabels = { TAREA: 'Tarea', DOCUMENTO: 'Documento', CAPACITACION: 'Capacitacion', NOTIFICACION: 'Notificacion', APROBACION: 'Aprobacion' };
+            const respLabels = { RRHH: 'RRHH', JEFE: 'Jefe Directo', TI: 'TI / Sistemas', TRABAJADOR: 'Trabajador' };
+            const row = document.createElement('tr');
+            row.id = `paso-row-${data.paso_id}`;
+            row.innerHTML = `
+                <td class="text-center">${data.orden}</td>
+                <td><strong>${data.titulo}</strong></td>
+                <td><span class="badge bg-light text-dark border">${tipoLabels[data.tipo] || data.tipo}</span></td>
+                <td><span class="badge bg-light text-dark border">${respLabels[data.responsable_tipo] || data.responsable_tipo}</span></td>
+                <td class="text-center">${data.dias_plazo}</td>
+                <td class="text-center">${data.obligatorio ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-minus-circle text-muted"></i>'}</td>
+                <td class="text-center"><button class="btn btn-outline-danger btn-sm" onclick="eliminarPaso(${data.paso_id})"><i class="fas fa-trash"></i></button></td>
+            `;
+            tbody.appendChild(row);
+            form.reset();
+            bootstrap.Modal.getInstance(document.getElementById('modalAgregarPaso')).hide();
+        }
+    });
+});
+
+function eliminarPaso(pasoId) {
+    if (!confirm('Eliminar este paso de la plantilla?')) return;
+    fetch(`/onboarding/plantillas/{{ tipo }}/paso/${pasoId}/eliminar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            document.getElementById(`paso-row-${data.paso_id}`).remove();
+        }
+    });
+}
+</script>
+{% endblock %}

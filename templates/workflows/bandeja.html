@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Bandeja de Aprobaciones{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <!-- ── Header ────────────────────────────────────────────── -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 fw-bold mb-0">
+        <i class="fas fa-inbox me-2 text-teal"></i>Bandeja de Aprobaciones
+        {% if pendientes_total > 0 %}
+        <span class="badge bg-warning text-dark ms-2">{{ pendientes_total }}</span>
+        {% endif %}
+      </h1>
+      <p class="text-muted small mb-0">Solicitudes pendientes de tu aprobacion</p>
+    </div>
+    {% if user.is_superuser %}
+    <a href="{% url 'workflow_config' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-cog me-1"></i>Configurar flujos
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- ── Filter pills + Search ─────────────────────────────── -->
+  <div class="card mb-3 border-0 bg-light">
+    <div class="card-body py-2">
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <!-- Pills -->
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="?filtro=todos{% if buscar %}&q={{ buscar }}{% endif %}"
+             class="btn {% if filtro_activo == 'todos' %}btn-teal text-white{% else %}btn-outline-secondary{% endif %}">
+            Todos
+            {% if pendientes_total > 0 %}<span class="badge bg-white text-dark ms-1">{{ pendientes_total }}</span>{% endif %}
+          </a>
+          <a href="?filtro=urgentes{% if buscar %}&q={{ buscar }}{% endif %}"
+             class="btn {% if filtro_activo == 'urgentes' %}btn-danger text-white{% else %}btn-outline-danger{% endif %}">
+            <i class="fas fa-bolt me-1"></i>Urgentes
+            {% if urgentes_count > 0 %}<span class="badge bg-white text-danger ms-1">{{ urgentes_count }}</span>{% endif %}
+          </a>
+          <a href="?filtro=vencidos{% if buscar %}&q={{ buscar }}{% endif %}"
+             class="btn {% if filtro_activo == 'vencidos' %}btn-dark text-white{% else %}btn-outline-dark{% endif %}">
+            <i class="fas fa-calendar-times me-1"></i>Vencidos
+            {% if vencidos_count > 0 %}<span class="badge bg-white text-dark ms-1">{{ vencidos_count }}</span>{% endif %}
+          </a>
+          <a href="?filtro=resueltos_hoy{% if buscar %}&q={{ buscar }}{% endif %}"
+             class="btn {% if filtro_activo == 'resueltos_hoy' %}btn-success text-white{% else %}btn-outline-success{% endif %}">
+            <i class="fas fa-check-double me-1"></i>Resueltos hoy
+          </a>
+        </div>
+
+        <!-- Search -->
+        <form method="get" class="d-flex ms-auto gap-2" style="max-width:300px">
+          <input type="hidden" name="filtro" value="{{ filtro_activo }}">
+          <input type="search" name="q" value="{{ buscar }}" class="form-control form-control-sm"
+                 placeholder="Buscar empleado...">
+          <button type="submit" class="btn btn-sm btn-teal text-white">
+            <i class="fas fa-search"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Group summary chips -->
+      {% if grupos %}
+      <div class="mt-2 d-flex flex-wrap gap-2">
+        {% for nombre, info in grupos.items %}
+        <span class="badge bg-white border text-dark shadow-sm">
+          <i class="fas {{ info.icono }} me-1 text-teal"></i>{{ nombre }}
+          <span class="ms-1 fw-bold">{{ info.count }}</span>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Pendientes table ───────────────────────────────────── -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-warning bg-opacity-10 d-flex align-items-center">
+      <i class="fas fa-clock me-2 text-warning"></i>
+      <strong>
+        {% if filtro_activo == 'resueltos_hoy' %}Resueltos hoy
+        {% elif filtro_activo == 'urgentes' %}Urgentes (vencen &lt; 24 h)
+        {% elif filtro_activo == 'vencidos' %}Vencidos
+        {% else %}Pendientes de mi aprobacion{% endif %}
+      </strong>
+      <span class="badge bg-warning text-dark ms-2">{{ page_obj.paginator.count }}</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Empleado</th>
+            <th>Tipo de solicitud</th>
+            <th>Etapa actual</th>
+            <th class="text-center">Esperando</th>
+            <th>Vence</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inst in page_obj %}
+          <tr class="{% if inst.urgencia == 'vencido' %}table-danger{% elif inst.urgencia == 'urgente' %}table-warning{% endif %}">
+            <!-- Empleado -->
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-placeholder rounded-circle bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:36px;height:36px;font-size:0.85rem;">
+                  <i class="fas fa-user text-secondary"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">{{ inst.solicitante.get_full_name|default:inst.solicitante.username }}</div>
+                  <div class="text-muted small">{{ inst.solicitante.username }}</div>
+                </div>
+              </div>
+            </td>
+
+            <!-- Tipo -->
+            <td>
+              <span class="d-flex align-items-center gap-1">
+                <i class="fas {{ inst.flujo.icono }} text-teal"></i>
+                <span>{{ inst.flujo.nombre }}</span>
+              </span>
+            </td>
+
+            <!-- Etapa -->
+            <td>
+              {% if inst.etapa_actual %}
+              <span class="badge bg-warning text-dark">{{ inst.etapa_actual.nombre }}</span>
+              {% else %}
+              <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </td>
+
+            <!-- Días esperando -->
+            <td class="text-center">
+              {% with d=inst.dias_esperando %}
+              <span class="badge rounded-pill
+                {% if d <= 2 %}bg-success
+                {% elif d <= 5 %}bg-warning text-dark
+                {% else %}bg-danger{% endif %}
+                fw-normal">
+                {% if d == 0 %}Hoy{% elif d == 1 %}1 dia{% else %}{{ d }} dias{% endif %}
+              </span>
+              {% endwith %}
+            </td>
+
+            <!-- Vence -->
+            <td>
+              {% if inst.etapa_vence_en %}
+              <span class="small {% if inst.urgencia == 'vencido' %}text-danger fw-bold{% elif inst.urgencia == 'urgente' %}text-warning fw-semibold{% else %}text-muted{% endif %}">
+                {% if inst.urgencia == 'vencido' %}
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                {% elif inst.urgencia == 'urgente' %}
+                <i class="fas fa-bolt me-1"></i>
+                {% endif %}
+                {{ inst.etapa_vence_en|date:"d/m/Y H:i" }}
+              </span>
+              {% else %}
+              <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </td>
+
+            <!-- Acciones -->
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center">
+                <!-- Quick approve button (opens modal) -->
+                {% if filtro_activo != 'resueltos_hoy' %}
+                <button type="button"
+                        class="btn btn-sm btn-success btn-quickapprove"
+                        title="Aprobar rapido"
+                        data-pk="{{ inst.pk }}"
+                        data-flujo="{{ inst.flujo.nombre }}"
+                        data-solicita="{{ inst.solicitante.get_full_name|default:inst.solicitante.username }}"
+                        data-etapa="{{ inst.etapa_actual.nombre|default:'' }}"
+                        data-requiere="{{ inst.etapa_actual.requiere_comentario|yesno:'1,0' }}">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-sm btn-danger btn-quickreject"
+                        title="Rechazar"
+                        data-pk="{{ inst.pk }}"
+                        data-flujo="{{ inst.flujo.nombre }}"
+                        data-solicita="{{ inst.solicitante.get_full_name|default:inst.solicitante.username }}"
+                        data-etapa="{{ inst.etapa_actual.nombre|default:'' }}">
+                  <i class="fas fa-times"></i>
+                </button>
+                {% endif %}
+                <a href="{% url 'workflow_detalle' inst.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver detalle">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="fas fa-check-circle fa-2x mb-2 d-block text-success opacity-50"></i>
+              Sin solicitudes en esta categoria
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <span class="text-muted small">
+        Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ page_obj.paginator.count }}
+      </span>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?filtro={{ filtro_activo }}&q={{ buscar }}&page={{ page_obj.previous_page_number }}">
+              <i class="fas fa-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+          <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+            <a class="page-link" href="?filtro={{ filtro_activo }}&q={{ buscar }}&page={{ num }}">{{ num }}</a>
+          </li>
+          {% endfor %}
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?filtro={{ filtro_activo }}&q={{ buscar }}&page={{ page_obj.next_page_number }}">
+              <i class="fas fa-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Mis solicitudes ───────────────────────────────────── -->
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <i class="fas fa-list me-2"></i><strong>Mis solicitudes recientes</strong>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Flujo</th>
+            <th>Estado</th>
+            <th>Etapa actual</th>
+            <th>Iniciado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inst in mis_solicitudes %}
+          <tr>
+            <td>
+              <i class="fas {{ inst.flujo.icono }} me-1 text-teal"></i>
+              {{ inst.flujo.nombre }}
+            </td>
+            <td>
+              <span class="badge bg-{{ inst.color_estado }}">
+                <i class="fas {{ inst.icono_estado }} me-1"></i>{{ inst.get_estado_display }}
+              </span>
+            </td>
+            <td class="small">{{ inst.etapa_actual.nombre|default:"&mdash;" }}</td>
+            <td class="small text-muted">{{ inst.iniciado_en|date:"d/m/Y" }}</td>
+            <td>
+              <a href="{% url 'workflow_detalle' inst.pk %}" class="btn btn-sm btn-link text-teal p-0">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-3">Sin solicitudes</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Quick Approve/Reject Modal ───────────────────────── -->
+<div class="modal fade" id="modalDecision" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" id="modalDecisionHeader">
+        <h5 class="modal-title" id="modalDecisionTitle">Confirmar decision</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="formDecision" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3 small text-muted" id="modalDecisionInfo"></div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Comentario <span id="modalComentarioRequired" class="text-danger d-none">*</span>
+            </label>
+            <textarea name="comentario" id="modalComentario" class="form-control" rows="3"
+                      placeholder="Opcional (escribe si quieres agregar una nota)"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" id="modalDecisionBtn" name="decision" class="btn btn-sm">Confirmar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  const modal = new bootstrap.Modal(document.getElementById('modalDecision'));
+  const form = document.getElementById('formDecision');
+  const title = document.getElementById('modalDecisionTitle');
+  const info = document.getElementById('modalDecisionInfo');
+  const btn = document.getElementById('modalDecisionBtn');
+  const header = document.getElementById('modalDecisionHeader');
+  const reqMark = document.getElementById('modalComentarioRequired');
+  const comentario = document.getElementById('modalComentario');
+
+  function setupBtn(trigger, decision) {
+    document.querySelectorAll(trigger).forEach(el => {
+      el.addEventListener('click', () => {
+        const pk = el.dataset.pk;
+        const flujo = el.dataset.flujo;
+        const solicita = el.dataset.solicita;
+        const etapa = el.dataset.etapa;
+        const requiere = el.dataset.requiere === '1';
+
+        form.action = `/workflows/bandeja/${pk}/decidir/`;
+        btn.value = decision;
+        comentario.required = requiere;
+        reqMark.classList.toggle('d-none', !requiere);
+
+        if (decision === 'APROBADO') {
+          title.textContent = 'Aprobar solicitud';
+          btn.className = 'btn btn-sm btn-success';
+          btn.innerHTML = '<i class="fas fa-check me-1"></i>Aprobar';
+          header.className = 'modal-header bg-success bg-opacity-10';
+        } else {
+          title.textContent = 'Rechazar solicitud';
+          btn.className = 'btn btn-sm btn-danger';
+          btn.innerHTML = '<i class="fas fa-times me-1"></i>Rechazar';
+          header.className = 'modal-header bg-danger bg-opacity-10';
+        }
+
+        info.innerHTML = `
+          <strong>Flujo:</strong> ${flujo}<br>
+          <strong>Solicitante:</strong> ${solicita}<br>
+          <strong>Etapa:</strong> ${etapa}
+        `;
+        comentario.value = '';
+        modal.show();
+      });
+    });
+  }
+
+  setupBtn('.btn-quickapprove', 'APROBADO');
+  setupBtn('.btn-quickreject', 'RECHAZADO');
+
+  // Auto-refresh resumen badge every 5 min
+  function refreshResumen() {
+    fetch('/workflows/bandeja/resumen/')
+      .then(r => r.json())
+      .then(data => {
+        const bell = document.getElementById('wf-badge-pending');
+        if (bell && data.pendientes > 0) {
+          bell.textContent = data.pendientes;
+          bell.classList.remove('d-none');
+        }
+      })
+      .catch(() => {});
+  }
+  setInterval(refreshResumen, 5 * 60 * 1000);
+})();
+</script>
+{% endblock %}

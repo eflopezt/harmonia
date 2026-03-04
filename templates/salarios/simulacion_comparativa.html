@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% load humanize harmoni_tags %}
+
+{% block title %}Simulador Comparativo Salarial{% endblock %}
+
+{% block extra_css %}
+<style>
+.sim-header {
+    background: #0d2b27;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.sim-header h2 { margin: 0; font-size: 1.3rem; }
+.sim-header small { color: #5eead4; font-size: .82rem; }
+
+/* Tabla comparativa */
+.comp-table th {
+    background: #0d2b27;
+    color: #fff;
+    font-size: .8rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.comp-table td { font-size: .84rem; vertical-align: middle; }
+.inc-positivo { color: #065f46; font-weight: 600; }
+.inc-negativo { color: #991b1b; font-weight: 600; }
+.inc-neutro   { color: #6b7280; }
+
+/* Cards de resumen */
+.resumen-card {
+    border-left: 4px solid #0f766e;
+    background: #f0fdf4;
+    border-radius: 6px;
+    padding: .75rem 1rem;
+}
+.resumen-card.peligro { border-left-color: #dc2626; background: #fef2f2; }
+.resumen-card.info    { border-left-color: #0ea5e9; background: #f0f9ff; }
+.resumen-label { font-size: .75rem; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
+.resumen-value { font-size: 1.3rem; font-weight: 700; color: #0d2b27; }
+
+/* Select2-like multi-select */
+#id_empleados { min-height: 160px; }
+
+/* Badge posicion en banda */
+.badge-cr-bajo  { background:#fd7e14; color:#fff; }
+.badge-cr-rango { background:#198754; color:#fff; }
+.badge-cr-sobre { background:#dc3545; color:#fff; }
+.badge-cr-nd    { background:#adb5bd; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="sim-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h2><i class="fas fa-scale-balanced me-2" style="color:#5eead4;"></i>{{ titulo }}</h2>
+        <small>Compara el impacto salarial de mover empleados a una banda objetivo</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'bandas_panel' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-layer-group me-1"></i>Bandas
+        </a>
+        <a href="{% url 'bandas_grafico' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-chart-bar me-1"></i>Gráfico
+        </a>
+        <a href="{% url 'equidad_salarial' %}" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-balance-scale me-1"></i>Equidad
+        </a>
+    </div>
+</div>
+
+<!-- Formulario de simulación -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header py-2" style="background:#f8fafb;">
+        <strong><i class="fas fa-sliders-h me-1 text-secondary"></i>Parámetros de Simulación</strong>
+    </div>
+    <div class="card-body">
+        <form method="post" id="formSimComp">
+            {% csrf_token %}
+            <div class="row g-3">
+                <!-- Selección de empleados -->
+                <div class="col-lg-7">
+                    <label class="form-label fw-semibold">
+                        Empleados a comparar
+                        <small class="text-muted fw-normal">(mantén Ctrl/Cmd para selección múltiple)</small>
+                    </label>
+                    <!-- Filtro rápido por área -->
+                    <div class="d-flex gap-2 mb-2 flex-wrap">
+                        <select id="filtroArea" class="form-select form-select-sm" style="width:200px;">
+                            <option value="">Filtrar por área...</option>
+                            {% for area in areas %}
+                            <option value="{{ area.pk }}">{{ area.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnSelTodos">
+                            <i class="fas fa-check-double me-1"></i>Seleccionar filtrados
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="btnDeselTodos">
+                            <i class="fas fa-times me-1"></i>Limpiar selección
+                        </button>
+                    </div>
+                    <select name="empleados" id="id_empleados" multiple class="form-select" style="height:180px;">
+                        {% for emp in empleados %}
+                        <option value="{{ emp.pk }}"
+                                data-area="{{ emp.subarea.area_id|default:'' }}"
+                                {% if emp.pk in empleados_sel_pks %}selected{% endif %}>
+                            {{ emp.apellidos_nombres }} — {{ emp.cargo|default:"Sin cargo" }} (S/ {{ emp.sueldo_base|floatformat:2|intcomma }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">
+                        <span id="contadorSel">{{ empleados_sel_pks|length }}</span> empleado(s) seleccionado(s)
+                    </small>
+                </div>
+
+                <!-- Banda destino -->
+                <div class="col-lg-5">
+                    <label class="form-label fw-semibold">Banda Salarial Destino</label>
+                    <select name="banda_destino" class="form-select" required>
+                        <option value="">— Seleccionar banda —</option>
+                        {% for banda in bandas %}
+                        <option value="{{ banda.pk }}"
+                                {% if banda_destino and banda_destino.pk == banda.pk %}selected{% endif %}>
+                            {{ banda.cargo }} / {{ banda.get_nivel_display }}
+                            — S/ {{ banda.minimo|floatformat:0|intcomma }} – {{ banda.maximo|floatformat:0|intcomma }}
+                            (mid: {{ banda.medio|floatformat:0|intcomma }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">El sueldo propuesto será el midpoint de la banda destino.</small>
+
+                    <div class="mt-3">
+                        <button type="submit" name="simular" class="btn btn-primary w-100">
+                            <i class="fas fa-calculator me-1"></i>Simular Comparación
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if resultados %}
+<!-- Cards de resumen -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="resumen-card">
+            <div class="resumen-label">Empleados comparados</div>
+            <div class="resumen-value">{{ resultados|length }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="resumen-card info">
+            <div class="resumen-label">Masa salarial actual</div>
+            <div class="resumen-value" style="font-size:1.1rem;">S/ {{ masa_actual|floatformat:2|intcomma }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="resumen-card {% if costo_ajuste > 0 %}peligro{% endif %}">
+            <div class="resumen-label">Costo total del ajuste</div>
+            <div class="resumen-value" style="font-size:1.1rem;{% if costo_ajuste > 0 %}color:#dc2626;{% elif costo_ajuste < 0 %}color:#065f46;{% endif %}">
+                S/ {{ costo_ajuste|floatformat:2|intcomma }}
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="resumen-card">
+            <div class="resumen-label">% sobre masa total empresa</div>
+            <div class="resumen-value">{{ pct_sobre_masa }}%</div>
+            <small class="text-muted">Masa total: S/ {{ masa_total_empresa|floatformat:0|intcomma }}</small>
+        </div>
+    </div>
+</div>
+
+<!-- Banda destino info -->
+{% if banda_destino %}
+<div class="alert alert-info py-2 mb-3" style="font-size:.86rem;">
+    <strong><i class="fas fa-info-circle me-1"></i>Banda destino:</strong>
+    {{ banda_destino.cargo }} / {{ banda_destino.get_nivel_display }} —
+    S/ {{ banda_destino.minimo|floatformat:2|intcomma }} (mín) |
+    <strong>S/ {{ banda_destino.medio|floatformat:2|intcomma }} (mid)</strong> |
+    S/ {{ banda_destino.maximo|floatformat:2|intcomma }} (máx)
+    &nbsp;·&nbsp; Amplitud: {{ banda_destino.amplitud }}%
+</div>
+{% endif %}
+
+<!-- Tabla comparativa -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center py-2" style="background:#0d2b27;">
+        <span class="text-white fw-semibold">
+            <i class="fas fa-table me-1" style="color:#5eead4;"></i>
+            Tabla Comparativa ({{ resultados|length }} empleados)
+        </span>
+        <form method="post" class="d-inline" id="formExportar">
+            {% csrf_token %}
+            <!-- Re-enviar los mismos parámetros -->
+            {% for pk in empleados_sel_pks %}
+            <input type="hidden" name="empleados" value="{{ pk }}">
+            {% endfor %}
+            {% if banda_destino %}
+            <input type="hidden" name="banda_destino" value="{{ banda_destino.pk }}">
+            {% endif %}
+            <input type="hidden" name="exportar" value="1">
+            <button type="submit" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel me-1"></i>Exportar Excel
+            </button>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 comp-table">
+                <thead>
+                    <tr>
+                        <th class="ps-3">N°</th>
+                        <th>Trabajador</th>
+                        <th>Cargo actual</th>
+                        <th class="text-end">Sueldo actual</th>
+                        <th class="text-center">Banda actual</th>
+                        <th class="text-center">CR actual</th>
+                        <th class="text-end">Sueldo propuesto</th>
+                        <th class="text-end">Incremento S/</th>
+                        <th class="text-center">Incremento %</th>
+                        <th class="text-center">CR propuesto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    <tr>
+                        <td class="ps-3 text-muted text-center">{{ forloop.counter }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ r.emp.apellidos_nombres }}</div>
+                            <small class="text-muted">{{ r.emp.get_grupo_tareo_display }}</small>
+                        </td>
+                        <td>{{ r.emp.cargo|default:"—" }}</td>
+
+                        <!-- Sueldo actual -->
+                        <td class="text-end fw-semibold">S/ {{ r.sueldo_actual|floatformat:2|intcomma }}</td>
+
+                        <!-- Banda actual -->
+                        <td class="text-center">
+                            <small class="text-muted" style="font-size:.75rem;">{{ r.banda_actual_nombre }}</small>
+                        </td>
+
+                        <!-- CR actual -->
+                        <td class="text-center">
+                            {% if r.cr_actual %}
+                                {% if r.cr_actual < 0.85 %}
+                                <span class="badge badge-cr-bajo">{{ r.cr_actual }}</span>
+                                {% elif r.cr_actual > 1.15 %}
+                                <span class="badge badge-cr-sobre">{{ r.cr_actual }}</span>
+                                {% else %}
+                                <span class="badge badge-cr-rango">{{ r.cr_actual }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="badge badge-cr-nd">N/D</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Sueldo propuesto -->
+                        <td class="text-end fw-bold" style="color:#0f766e;">
+                            S/ {{ r.sueldo_propuesto|floatformat:2|intcomma }}
+                        </td>
+
+                        <!-- Incremento S/ -->
+                        <td class="text-end {% if r.incremento_monto > 0 %}inc-positivo{% elif r.incremento_monto < 0 %}inc-negativo{% else %}inc-neutro{% endif %}">
+                            {% if r.incremento_monto > 0 %}+{% endif %}S/ {{ r.incremento_monto|floatformat:2|intcomma }}
+                        </td>
+
+                        <!-- Incremento % -->
+                        <td class="text-center">
+                            <span class="badge {% if r.incremento_pct > 0 %}bg-success{% elif r.incremento_pct < 0 %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {% if r.incremento_pct > 0 %}+{% endif %}{{ r.incremento_pct }}%
+                            </span>
+                        </td>
+
+                        <!-- CR propuesto -->
+                        <td class="text-center">
+                            {% if r.cr_propuesto %}
+                            <span class="badge badge-cr-rango">{{ r.cr_propuesto }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark fw-bold">
+                        <td colspan="3" class="ps-3">TOTALES</td>
+                        <td class="text-end">S/ {{ masa_actual|floatformat:2|intcomma }}</td>
+                        <td colspan="2"></td>
+                        <td class="text-end" style="color:#5eead4;">S/ {{ masa_propuesta|floatformat:2|intcomma }}</td>
+                        <td class="text-end {% if costo_ajuste > 0 %}text-warning{% elif costo_ajuste < 0 %}text-danger{% endif %}">
+                            {% if costo_ajuste > 0 %}+{% endif %}S/ {{ costo_ajuste|floatformat:2|intcomma }}
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% elif request.method == "POST" %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-1"></i>
+    No se obtuvieron resultados. Asegúrate de seleccionar al menos un empleado y una banda destino.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    const selectEmp = document.getElementById('id_empleados');
+    const filtroArea = document.getElementById('filtroArea');
+    const contador = document.getElementById('contadorSel');
+
+    function actualizarContador() {
+        const n = selectEmp ? Array.from(selectEmp.options).filter(o => o.selected).length : 0;
+        if (contador) contador.textContent = n;
+    }
+
+    if (selectEmp) {
+        selectEmp.addEventListener('change', actualizarContador);
+    }
+
+    // Filtrar opciones por área
+    if (filtroArea) {
+        filtroArea.addEventListener('change', function () {
+            const areaId = this.value;
+            if (!selectEmp) return;
+            Array.from(selectEmp.options).forEach(function (opt) {
+                if (!areaId || opt.dataset.area === areaId) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Seleccionar todos los visibles
+    const btnSel = document.getElementById('btnSelTodos');
+    if (btnSel) {
+        btnSel.addEventListener('click', function () {
+            if (!selectEmp) return;
+            Array.from(selectEmp.options).forEach(function (opt) {
+                if (opt.style.display !== 'none') opt.selected = true;
+            });
+            actualizarContador();
+        });
+    }
+
+    // Deseleccionar todos
+    const btnDesel = document.getElementById('btnDeselTodos');
+    if (btnDesel) {
+        btnDesel.addEventListener('click', function () {
+            if (!selectEmp) return;
+            Array.from(selectEmp.options).forEach(function (opt) {
+                opt.selected = false;
+            });
+            actualizarContador();
+        });
+    }
+}());
+</script>
+{% endblock %}

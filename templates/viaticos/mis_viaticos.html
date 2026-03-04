@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis Viáticos{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Tu usuario no está vinculado a un empleado. Contacta a RRHH o TI.
+</div>
+{% else %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-route text-secondary me-2"></i>Mis Viáticos</h2>
+        <small class="text-muted">Asignaciones mensuales de viáticos y CDT</small>
+    </div>
+</div>
+
+{% if asignaciones %}
+{% for a in asignaciones %}
+<div class="card shadow-sm mb-3 {% if a.estado == 'CONCILIADO' %}border-success{% endif %}">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <h6 class="mb-0">
+                    <i class="fas fa-route text-primary me-2"></i>
+                    {{ a.periodo|date:"F Y" }}
+                </h6>
+                <small class="text-muted">{{ a.ubicacion|default:"Sin ubicación" }} · {{ a.dias_campo }} días campo</small>
+            </div>
+            <div>
+                {% if a.estado == 'ENTREGADO' %}<span class="badge bg-primary">Entregado</span>
+                {% elif a.estado == 'EN_RENDICION' %}<span class="badge bg-warning text-dark">En Rendición</span>
+                {% elif a.estado == 'CONCILIADO' %}<span class="badge bg-success">Conciliado</span>
+                {% elif a.estado == 'APROBADO' %}<span class="badge bg-info">Aprobado</span>
+                {% else %}<span class="badge bg-secondary">{{ a.get_estado_display }}</span>{% endif %}
+            </div>
+        </div>
+
+        <div class="row g-2" style="font-size:.85rem;">
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Asignado:</span>
+                <span class="fw-semibold">S/ {{ a.monto_total|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Rendido:</span>
+                <span class="fw-semibold">S/ {{ a.monto_rendido|floatformat:2|intcomma }}</span>
+            </div>
+            {% if a.estado == 'CONCILIADO' %}
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Devuelto:</span>
+                <span class="fw-semibold text-success">S/ {{ a.monto_devuelto|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <span class="text-muted">Reembolso:</span>
+                <span class="fw-semibold text-danger">S/ {{ a.monto_reembolso|floatformat:2|intcomma }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if a.estado == 'CONCILIADO' %}
+        <div class="mt-2 p-2 rounded small {% if a.saldo == 0 %}bg-success bg-opacity-10 text-success{% elif a.saldo > 0 %}bg-danger bg-opacity-10 text-danger{% else %}bg-info bg-opacity-10 text-info{% endif %}">
+            {% if a.saldo == 0 %}<i class="fas fa-check-circle me-1"></i>Cuadrado — sin diferencia
+            {% elif a.saldo > 0 %}<i class="fas fa-arrow-up me-1"></i>Pendiente reembolso de S/ {{ a.monto_reembolso|floatformat:2|intcomma }}
+            {% else %}<i class="fas fa-arrow-down me-1"></i>Pendiente devolución de S/ {{ a.monto_devuelto|floatformat:2|intcomma }}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-route fa-3x text-muted mb-3" style="opacity:.3"></i>
+    <h5 class="text-muted">No tienes viáticos registrados</h5>
+    <p class="text-muted small">Cuando se te asignen viáticos, aparecerán aquí con el detalle.</p>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

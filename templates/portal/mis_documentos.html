@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Documentos{% endblock %}
+
+{% block extra_css %}
+<style>
+.doc-card { border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+.doc-card .doc-icon { font-size:1.1rem; width:28px; text-align:center; }
+.doc-card .doc-name { font-weight:600; font-size:.85rem; }
+.doc-card .doc-meta { font-size:.72rem; color:#6b7280; }
+.cat-header { font-size:.88rem; font-weight:700; padding:8px 0; border-bottom:2px solid #0f766e; margin-bottom:8px; color:#0f766e; }
+.faltante-item { font-size:.82rem; padding:6px 12px; background:#fff3cd; border-radius:6px; margin-bottom:4px; }
+.estado-VIGENTE    { color:#059669; }
+.estado-VENCIDO    { color:#dc2626; }
+.estado-POR_VENCER { color:#d97706; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Tu cuenta de usuario no está vinculada a un perfil de personal.
+    Contacta al administrador.
+</div>
+{% else %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-folder-open text-secondary me-2"></i>Mis Documentos</h2>
+        <small class="text-muted">Legajo digital — {{ total_docs }} documento{{ total_docs|pluralize:"s" }} en tu expediente</small>
+    </div>
+</div>
+
+{% if faltantes %}
+<div class="card shadow-sm mb-3 border-warning">
+    <div class="card-header py-2 bg-warning bg-opacity-10">
+        <h6 class="mb-0"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Documentos Pendientes ({{ faltantes|length }})</h6>
+    </div>
+    <div class="card-body py-2">
+        <p class="small text-muted mb-2">Los siguientes documentos obligatorios aún no se encuentran en tu legajo. Contacta a RRHH para regularizarlos.</p>
+        {% for t in faltantes %}
+        <div class="faltante-item">
+            <i class="fas fa-file-circle-exclamation me-2 text-warning"></i>{{ t.nombre }}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% for cat_nombre, cat_data in categorias_dict.items %}
+<div class="mb-3">
+    <div class="cat-header">
+        <i class="fas {{ cat_data.icono }} me-2"></i>{{ cat_nombre }}
+        <span class="badge bg-light text-dark border ms-1" style="font-size:.7rem">{{ cat_data.docs|length }}</span>
+    </div>
+    {% for doc in cat_data.docs %}
+    <div class="doc-card d-flex align-items-center gap-2">
+        <div class="doc-icon"><i class="fas {{ doc.icono_archivo }}"></i></div>
+        <div class="flex-grow-1">
+            <div class="doc-name">{{ doc.tipo.nombre }}
+                {% if doc.version > 1 %}<span class="text-muted" style="font-size:.7rem">v{{ doc.version }}</span>{% endif %}
+            </div>
+            <div class="doc-meta">
+                {{ doc.nombre_archivo|truncatechars:40 }}
+                {% if doc.fecha_emision %} · Emitido: {{ doc.fecha_emision|date:"d/m/Y" }}{% endif %}
+                {% if doc.fecha_vencimiento %} · Vence: {{ doc.fecha_vencimiento|date:"d/m/Y" }}{% endif %}
+            </div>
+        </div>
+        <span class="badge estado-{{ doc.estado }}" style="font-size:.65rem; background:transparent; border:1px solid currentColor; padding:2px 6px; border-radius:3px;">
+            {{ doc.get_estado_display }}
+        </span>
+        {% if doc.archivo %}
+        <a href="{{ doc.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0 px-1" title="Ver / Descargar">
+            <i class="fas fa-download" style="font-size:.7rem"></i>
+        </a>
+        {% else %}
+        <span class="btn btn-xs btn-outline-secondary py-0 px-1 disabled" title="Archivo no disponible">
+            <i class="fas fa-ban" style="font-size:.7rem"></i>
+        </span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% empty %}
+{% if not faltantes %}
+<div class="text-center text-muted py-5">
+    <i class="fas fa-folder-open fa-3x d-block mb-3 opacity-25"></i>
+    <p>Aún no tienes documentos en tu legajo digital.</p>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endif %}
+
+{% endblock %}

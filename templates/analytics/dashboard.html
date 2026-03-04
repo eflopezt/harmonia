@@ -1,0 +1,1078 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI Grid ── */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.kpi-card {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-top: 3px solid transparent;
+    transition: box-shadow .2s;
+}
+.kpi-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+.kpi-card.kpi-primary  { border-top-color: #0f766e; }
+.kpi-card.kpi-staff    { border-top-color: #5eead4; }
+.kpi-card.kpi-rco      { border-top-color: #3b82f6; }
+.kpi-card.kpi-areas    { border-top-color: #8b5cf6; }
+.kpi-card.kpi-asist    { border-top-color: #10b981; }
+.kpi-card.kpi-rotacion { border-top-color: #f59e0b; }
+.kpi-card .kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+}
+.kpi-card .kpi-label {
+    font-size: .72rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: .35rem;
+}
+.kpi-card .kpi-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: .5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.kpi-card .kpi-delta {
+    font-size: .73rem;
+    margin-top: .4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .3rem;
+}
+.kpi-delta .delta-up   { color: #059669; }
+.kpi-delta .delta-down { color: #dc2626; }
+.kpi-delta .delta-neutral { color: #6b7280; }
+.kpi-sub { font-size: .78rem; color: #6b7280; margin-top: .15rem; }
+
+/* ── Chart containers ── */
+.chart-container {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ── People Risk Widget ── */
+.risk-widget {
+    background: #fff;
+    border-radius: .75rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+}
+.risk-widget .widget-header {
+    padding: .85rem 1.25rem;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.risk-widget .widget-header h6 { margin: 0; font-weight: 600; }
+.risk-mini-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+}
+.risk-mini-card {
+    padding: 1.1rem 1.25rem;
+    border-right: 1px solid #f3f4f6;
+    text-align: center;
+}
+.risk-mini-card:last-child { border-right: none; }
+.risk-mini-card .rmc-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.risk-mini-card .rmc-label {
+    font-size: .72rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-top: .3rem;
+}
+.risk-mini-card .rmc-link {
+    font-size: .72rem;
+    margin-top: .4rem;
+}
+.risk-widget-footer {
+    padding: .75rem 1.25rem;
+    background: #f9fafb;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+/* ── Señales por Módulo ── */
+.modulos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: .85rem;
+}
+.modulo-card {
+    background: #fff;
+    border-radius: .65rem;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    text-decoration: none;
+    transition: box-shadow .18s, transform .18s;
+    border: 1px solid #f1f5f9;
+    position: relative;
+    overflow: hidden;
+}
+.modulo-card:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,.11);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+.modulo-icon-wrap {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: .5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .95rem;
+    flex-shrink: 0;
+}
+.modulo-value {
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.modulo-label {
+    font-size: .68rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-top: .1rem;
+    line-height: 1.3;
+}
+/* pulsing dot */
+.pulse-dot {
+    position: absolute;
+    top: .55rem;
+    right: .6rem;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+}
+.pulse-dot.active {
+    background: #dc2626;
+    animation: pulse-red 1.6s infinite;
+}
+.pulse-dot.inactive {
+    background: #d1d5db;
+}
+@keyframes pulse-red {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .5; transform: scale(1.35); }
+}
+
+/* ── New Alertas RRHH Table ── */
+.alertas-table-widget {
+    background: #fff;
+    border-radius: .75rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+}
+.alertas-table-widget .widget-header {
+    padding: .85rem 1.25rem;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.alertas-table-widget .widget-header h6 { margin: 0; font-weight: 600; }
+.at-sev-CRITICAL { background: #fee2e2; color: #dc2626; }
+.at-sev-WARN     { background: #fef3c7; color: #b45309; }
+.at-sev-INFO     { background: #dbeafe; color: #1d4ed8; }
+.at-sev-badge {
+    font-size: .62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: .18rem .55rem;
+    border-radius: 999px;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+
+/* ── Cumpleaños Widget ── */
+.birthday-widget {
+    background: #fff;
+    border-radius: .75rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+}
+.birthday-widget .widget-header {
+    padding: .85rem 1.25rem;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+.birthday-widget .widget-header h6 { margin: 0; font-weight: 600; }
+.bd-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .65rem 1.25rem;
+    border-bottom: 1px solid #f9fafb;
+    gap: .75rem;
+}
+.bd-row:last-child { border-bottom: none; }
+.bd-name {
+    font-size: .82rem;
+    font-weight: 500;
+    color: #111827;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.bd-date {
+    font-size: .72rem;
+    color: #6b7280;
+    white-space: nowrap;
+}
+.bd-days {
+    font-size: .68rem;
+    font-weight: 600;
+    padding: .15rem .5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.bd-days.today  { background: #fef3c7; color: #92400e; }
+.bd-days.soon   { background: #dbeafe; color: #1d4ed8; }
+.bd-days.normal { background: #f3f4f6; color: #4b5563; }
+
+/* ── Alertas Widget ── */
+.alertas-widget {
+    background: #fff;
+    border-radius: .75rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+}
+.alertas-widget .widget-header {
+    padding: .85rem 1.25rem;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.alertas-widget .widget-header h6 { margin: 0; font-weight: 600; }
+.alerta-row {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .75rem 1.25rem;
+    border-bottom: 1px solid #f9fafb;
+    transition: background .15s;
+}
+.alerta-row:last-child { border-bottom: none; }
+.alerta-row:hover { background: #f9fafb; }
+.alerta-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: .4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .8rem;
+    flex-shrink: 0;
+    margin-top: .05rem;
+}
+/* severity colors */
+.sev-CRITICAL .alerta-icon { background: #fee2e2; color: #dc2626; }
+.sev-WARN     .alerta-icon { background: #fef3c7; color: #d97706; }
+.sev-INFO     .alerta-icon { background: #dbeafe; color: #2563eb; }
+.sev-CRITICAL .alerta-border { border-left: 3px solid #dc2626; }
+.sev-WARN     .alerta-border { border-left: 3px solid #f59e0b; }
+.sev-INFO     .alerta-border { border-left: 3px solid #3b82f6; }
+.alerta-titulo { font-size: .82rem; font-weight: 600; color: #111827; }
+.alerta-fecha  { font-size: .72rem; color: #9ca3af; }
+.alerta-empty  { padding: 2rem; text-align: center; color: #9ca3af; font-size: .85rem; }
+.sev-badge-CRITICAL { background: #fee2e2; color: #dc2626; }
+.sev-badge-WARN     { background: #fef3c7; color: #b45309; }
+.sev-badge-INFO     { background: #dbeafe; color: #1d4ed8; }
+.sev-badge {
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: .15rem .5rem;
+    border-radius: 999px;
+    letter-spacing: .04em;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0 fw-bold"><i class="fas fa-chart-line me-2" style="color:#0f766e"></i>Analytics & People Intelligence</h2>
+        <p class="text-muted mb-0" style="font-size:.82rem">Datos en tiempo real del periodo actual</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'analytics_snapshots' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-camera me-1"></i>Snapshots
+        </a>
+        <form method="post" action="{% url 'analytics_generar_snapshot' %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-sync me-1"></i>Generar Snapshot
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     KPI CARDS
+═══════════════════════════════════════════════ -->
+<div class="kpi-grid mb-4">
+
+    <!-- Headcount Total -->
+    <div class="kpi-card kpi-primary">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="kpi-label">Headcount Total</div>
+                <div class="kpi-value">{{ total_empleados }}</div>
+                <div class="kpi-delta">
+                    <span class="delta-up"><i class="fas fa-arrow-up fa-xs"></i> {{ altas_mes }} alta{{ altas_mes|pluralize:"s" }} mes</span>
+                    &nbsp;·&nbsp;
+                    <span class="delta-down"><i class="fas fa-arrow-down fa-xs"></i> {{ bajas_mes }} baja{{ bajas_mes|pluralize:"s" }} mes</span>
+                </div>
+                {% if penultimo_snapshot %}
+                <div class="kpi-sub">
+                    {% with delta=total_empleados|add:penultimo_snapshot.total_empleados|add:"-" %}{% endwith %}
+                    {% if total_empleados > penultimo_snapshot.total_empleados %}
+                        <span class="delta-up"><i class="fas fa-caret-up"></i> +{{ total_empleados|add:"-"|add:penultimo_snapshot.total_empleados|add:"0" }}</span>
+                    {% elif total_empleados < penultimo_snapshot.total_empleados %}
+                        <span class="delta-down"><i class="fas fa-caret-down"></i></span>
+                    {% endif %}
+                    vs. snapshot anterior ({{ penultimo_snapshot.total_empleados }})
+                </div>
+                {% endif %}
+            </div>
+            <div class="kpi-icon" style="background:#d1fae5">
+                <i class="fas fa-users" style="color:#0f766e"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- STAFF -->
+    <div class="kpi-card kpi-staff">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="kpi-label">STAFF</div>
+                <div class="kpi-value">{{ empleados_staff }}</div>
+                <div class="kpi-sub">
+                    {% if total_empleados > 0 %}
+                        {% widthratio empleados_staff total_empleados 100 %}% del total
+                    {% endif %}
+                </div>
+                {% if penultimo_snapshot %}
+                <div class="kpi-sub">
+                    {% if empleados_staff > penultimo_snapshot.empleados_staff %}
+                        <span class="delta-up"><i class="fas fa-caret-up"></i> sube</span>
+                    {% elif empleados_staff < penultimo_snapshot.empleados_staff %}
+                        <span class="delta-down"><i class="fas fa-caret-down"></i> baja</span>
+                    {% else %}
+                        <span class="delta-neutral">sin cambio</span>
+                    {% endif %}
+                    vs. mes ant. ({{ penultimo_snapshot.empleados_staff }})
+                </div>
+                {% endif %}
+            </div>
+            <div class="kpi-icon" style="background:#ccfbf1">
+                <i class="fas fa-hard-hat" style="color:#0d9488"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- RCO -->
+    <div class="kpi-card kpi-rco">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="kpi-label">RCO</div>
+                <div class="kpi-value">{{ empleados_rco }}</div>
+                <div class="kpi-sub">
+                    {% if total_empleados > 0 %}
+                        {% widthratio empleados_rco total_empleados 100 %}% del total
+                    {% endif %}
+                </div>
+                {% if penultimo_snapshot %}
+                <div class="kpi-sub">
+                    {% if empleados_rco > penultimo_snapshot.empleados_rco %}
+                        <span class="delta-up"><i class="fas fa-caret-up"></i> sube</span>
+                    {% elif empleados_rco < penultimo_snapshot.empleados_rco %}
+                        <span class="delta-down"><i class="fas fa-caret-down"></i> baja</span>
+                    {% else %}
+                        <span class="delta-neutral">sin cambio</span>
+                    {% endif %}
+                    vs. mes ant. ({{ penultimo_snapshot.empleados_rco }})
+                </div>
+                {% endif %}
+            </div>
+            <div class="kpi-icon" style="background:#dbeafe">
+                <i class="fas fa-user-tie" style="color:#2563eb"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Áreas Activas -->
+    <div class="kpi-card kpi-areas">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="kpi-label">Áreas Activas</div>
+                <div class="kpi-value">{{ total_areas }}</div>
+            </div>
+            <div class="kpi-icon" style="background:#ede9fe">
+                <i class="fas fa-sitemap" style="color:#7c3aed"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasa Asistencia -->
+    <div class="kpi-card kpi-asist">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="kpi-label">Asistencia del Mes</div>
+                <div class="kpi-value">
+                    {% if tasa_asistencia_actual is not None %}
+                        {{ tasa_asistencia_actual }}%
+                    {% elif ultimo_snapshot %}
+                        {{ ultimo_snapshot.tasa_asistencia }}%
+                    {% else %}
+                        <span class="text-muted fs-5">—</span>
+                    {% endif %}
+                </div>
+                {% if tasa_asistencia_actual is None and ultimo_snapshot %}
+                    <div class="kpi-sub text-muted">último snapshot</div>
+                {% endif %}
+                {% if ultimo_snapshot and penultimo_snapshot %}
+                <div class="kpi-sub">
+                    {% if ultimo_snapshot.tasa_asistencia > penultimo_snapshot.tasa_asistencia %}
+                        <span class="delta-up"><i class="fas fa-caret-up"></i> mejora</span>
+                    {% elif ultimo_snapshot.tasa_asistencia < penultimo_snapshot.tasa_asistencia %}
+                        <span class="delta-down"><i class="fas fa-caret-down"></i> baja</span>
+                    {% endif %}
+                    vs. mes ant. ({{ penultimo_snapshot.tasa_asistencia }}%)
+                </div>
+                {% endif %}
+            </div>
+            <div class="kpi-icon" style="background:#d1fae5">
+                <i class="fas fa-calendar-check" style="color:#059669"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rotación Mensual -->
+    <div class="kpi-card kpi-rotacion">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="kpi-label">Rotación Mensual</div>
+                <div class="kpi-value">
+                    {% if ultimo_snapshot %}
+                        {{ ultimo_snapshot.tasa_rotacion }}%
+                    {% else %}
+                        <span class="text-muted fs-5">—</span>
+                    {% endif %}
+                </div>
+                {% if ultimo_snapshot %}
+                    <div class="kpi-sub">{{ ultimo_snapshot.periodo|date:"M Y" }}</div>
+                {% endif %}
+                {% if ultimo_snapshot and penultimo_snapshot %}
+                <div class="kpi-sub">
+                    {% if ultimo_snapshot.tasa_rotacion > penultimo_snapshot.tasa_rotacion %}
+                        <span class="delta-down"><i class="fas fa-caret-up"></i> sube</span>
+                    {% elif ultimo_snapshot.tasa_rotacion < penultimo_snapshot.tasa_rotacion %}
+                        <span class="delta-up"><i class="fas fa-caret-down"></i> baja</span>
+                    {% endif %}
+                    vs. mes ant. ({{ penultimo_snapshot.tasa_rotacion }}%)
+                </div>
+                {% endif %}
+            </div>
+            <div class="kpi-icon" style="background:#fef3c7">
+                <i class="fas fa-exchange-alt" style="color:#d97706"></i>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PEOPLE RISK WIDGET
+═══════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="risk-widget">
+            <div class="widget-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span style="width:2rem;height:2rem;border-radius:.4rem;display:flex;align-items:center;justify-content:center;background:#fee2e2">
+                        <i class="fas fa-shield-alt" style="color:#dc2626;font-size:.8rem"></i>
+                    </span>
+                    <h6>People Risk — Indicadores de Atención</h6>
+                </div>
+                <a href="{% url 'analytics_attrition' %}" class="btn btn-sm btn-outline-danger" style="font-size:.78rem">
+                    <i class="fas fa-chart-bar me-1"></i>Ver análisis completo
+                </a>
+            </div>
+            <div class="risk-mini-cards">
+                <div class="risk-mini-card">
+                    <div class="rmc-value" style="color:#dc2626">{{ riesgo_alto }}</div>
+                    <div class="rmc-label">En riesgo alto</div>
+                    <div class="rmc-link">
+                        <a href="{% url 'analytics_attrition' %}" class="text-danger text-decoration-none" style="font-size:.72rem">
+                            <i class="fas fa-arrow-right fa-xs"></i> Ver detalle
+                        </a>
+                    </div>
+                </div>
+                <div class="risk-mini-card">
+                    <div class="rmc-value" style="color:#d97706">{{ contratos_vencen }}</div>
+                    <div class="rmc-label">Contratos vencen en 60d</div>
+                    <div class="rmc-link">
+                        <span class="text-muted" style="font-size:.72rem">Plazo fijo próximos a vencer</span>
+                    </div>
+                </div>
+                <div class="risk-mini-card">
+                    <div class="rmc-value" style="color:#7c3aed">{{ ausentismo_critico }}</div>
+                    <div class="rmc-label">Ausentismo crítico</div>
+                    <div class="rmc-link">
+                        <span class="text-muted" style="font-size:.72rem">Más de 3 faltas este mes</span>
+                    </div>
+                </div>
+            </div>
+            <div class="risk-widget-footer">
+                <a href="{% url 'analytics_salarios' %}" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem">
+                    <i class="fas fa-dollar-sign me-1"></i>Análisis Salarial
+                </a>
+                <a href="{% url 'analytics_headcount' %}" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem">
+                    <i class="fas fa-users me-1"></i>Headcount Detallado
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHARTS — Fila 1: Tendencia (7) + Distribución Área (5)
+     La tendencia necesita ancho, el área necesita espacio para leyenda
+═══════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+    <div class="col-md-7">
+        <div class="chart-container h-100">
+            <h6 class="mb-2 fw-semibold" style="font-size:.82rem">
+                <i class="fas fa-users me-1 text-muted"></i>Tendencia Headcount
+            </h6>
+            <div style="position:relative;height:200px"><canvas id="chartHeadcount"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="chart-container h-100">
+            <h6 class="mb-2 fw-semibold" style="font-size:.82rem">
+                <i class="fas fa-building me-1 text-muted"></i>Distribución por Área
+            </h6>
+            <div class="d-flex align-items-center gap-3">
+                <div style="position:relative;height:200px;flex:0 0 160px"><canvas id="chartAreas"></canvas></div>
+                <div id="areasLegend" style="font-size:.72rem;line-height:1.8;flex:1;min-width:0;overflow:hidden"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHARTS — Fila 2: Tipo (3) + Rotación (5) + HE (4)
+     Donut pequeño | Bar rotación | Bar HE
+═══════════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="chart-container h-100 text-center">
+            <h6 class="mb-2 fw-semibold" style="font-size:.82rem">
+                <i class="fas fa-chart-pie me-1 text-muted"></i>Por Tipo
+            </h6>
+            <div style="position:relative;height:150px"><canvas id="chartTipo"></canvas></div>
+            <div class="d-flex justify-content-center gap-3 mt-2" style="font-size:.72rem">
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0f766e;margin-right:.25rem"></span>STAFF: {{ empleados_staff }}</span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5eead4;margin-right:.25rem"></span>RCO: {{ empleados_rco }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="chart-container h-100">
+            <h6 class="mb-2 fw-semibold" style="font-size:.82rem">
+                <i class="fas fa-exchange-alt me-1 text-muted"></i>Rotación Mensual %
+            </h6>
+            <div style="position:relative;height:150px"><canvas id="chartRotacion"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-container h-100">
+            <h6 class="mb-2 fw-semibold" style="font-size:.82rem">
+                <i class="fas fa-clock me-1 text-muted"></i>Horas Extra Mensuales
+            </h6>
+            <div style="position:relative;height:150px"><canvas id="chartHE"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SEÑALES POR MÓDULO
+═══════════════════════════════════════════════ -->
+{% if modulos_resumen %}
+<div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h5 class="mb-0 fw-semibold" style="font-size:.92rem;text-transform:uppercase;letter-spacing:.07em;color:#374151">
+                <i class="fas fa-th-large me-2" style="color:#0f766e"></i>Señales por Módulo
+            </h5>
+        </div>
+    </div>
+    <div class="modulos-grid">
+        {% for mod in modulos_resumen %}
+        <a href="{% url mod.url %}" class="modulo-card">
+            <div class="pulse-dot {% if mod.value > 0 %}active{% else %}inactive{% endif %}"></div>
+            <div class="modulo-icon-wrap" style="background:{{ mod.color }}1a">
+                <i class="{{ mod.icon }}" style="color:{{ mod.color }}"></i>
+            </div>
+            <div>
+                <div class="modulo-value" style="color:{% if mod.value > 0 %}{{ mod.color }}{% else %}#9ca3af{% endif %}">
+                    {{ mod.value }}
+                </div>
+                <div class="modulo-label">{{ mod.label }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════
+     ALERTAS RRHH ACTIVAS (TABLA) + PRÓXIMOS CUMPLEAÑOS
+═══════════════════════════════════════════════ -->
+{% if top_alertas or proximos_cumpleanios %}
+<div class="row g-4 mb-4">
+
+    {% if top_alertas %}
+    <div class="{% if proximos_cumpleanios %}col-lg-8{% else %}col-12{% endif %}">
+        <div class="alertas-table-widget">
+            <div class="widget-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span style="width:2rem;height:2rem;border-radius:.4rem;display:flex;align-items:center;justify-content:center;background:#fee2e2">
+                        <i class="fas fa-exclamation-triangle" style="color:#dc2626;font-size:.8rem"></i>
+                    </span>
+                    <h6>Alertas RRHH Activas</h6>
+                </div>
+                <a href="{% url 'analytics_alertas' %}" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem">
+                    <i class="fas fa-list me-1"></i>Ver todas
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="font-size:.82rem">
+                    <thead style="background:#f9fafb">
+                        <tr>
+                            <th style="padding:.6rem 1rem;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border:none">Severidad</th>
+                            <th style="padding:.6rem .75rem;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border:none">Categoría</th>
+                            <th style="padding:.6rem .75rem;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border:none">Alerta</th>
+                            <th style="padding:.6rem .75rem;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border:none;text-align:right">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alerta in top_alertas %}
+                        <tr>
+                            <td style="padding:.65rem 1rem;vertical-align:middle;border-color:#f3f4f6">
+                                <span class="at-sev-badge at-sev-{{ alerta.severidad }}">
+                                    {% if alerta.severidad == 'CRITICAL' %}Crítica
+                                    {% elif alerta.severidad == 'WARN' %}Alta
+                                    {% else %}Info
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td style="padding:.65rem .75rem;vertical-align:middle;border-color:#f3f4f6">
+                                {% if alerta.categoria %}
+                                    <span class="badge bg-light text-secondary" style="font-size:.65rem;font-weight:500">
+                                        {{ alerta.get_categoria_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:.65rem .75rem;vertical-align:middle;border-color:#f3f4f6">
+                                <div style="font-weight:500;color:#111827">{{ alerta.titulo|truncatechars:60 }}</div>
+                                {% if alerta.area %}
+                                    <div style="font-size:.72rem;color:#9ca3af"><i class="fas fa-building fa-xs me-1"></i>{{ alerta.area.nombre }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding:.65rem .75rem;vertical-align:middle;border-color:#f3f4f6;text-align:right;color:#6b7280;white-space:nowrap">
+                                {{ alerta.creado_en|timesince }} atrás
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if proximos_cumpleanios %}
+    <div class="{% if top_alertas %}col-lg-4{% else %}col-12{% endif %}">
+        <div class="birthday-widget">
+            <div class="widget-header">
+                <span style="width:2rem;height:2rem;border-radius:.4rem;display:flex;align-items:center;justify-content:center;background:#fdf4ff;flex-shrink:0">
+                    <i class="fas fa-birthday-cake" style="color:#a855f7;font-size:.8rem"></i>
+                </span>
+                <h6>Próximos Cumpleaños</h6>
+            </div>
+            {% for bd in proximos_cumpleanios %}
+            <div class="bd-row">
+                <div class="min-w-0 flex-grow-1">
+                    <div class="bd-name" title="{{ bd.nombre }}">{{ bd.nombre }}</div>
+                    <div class="bd-date"><i class="fas fa-calendar-day fa-xs me-1"></i>{{ bd.fecha_cumple|date:"d M" }}</div>
+                </div>
+                {% if bd.dias_para_cumple == 0 %}
+                    <span class="bd-days today"><i class="fas fa-gift fa-xs me-1"></i>Hoy</span>
+                {% elif bd.dias_para_cumple <= 7 %}
+                    <span class="bd-days soon">en {{ bd.dias_para_cumple }}d</span>
+                {% else %}
+                    <span class="bd-days normal">en {{ bd.dias_para_cumple }}d</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════
+     ÚLTIMAS ALERTAS RRHH (WIDGET)
+═══════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="alertas-widget">
+            <div class="widget-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="kpi-icon" style="background:#fff7ed;width:2rem;height:2rem;border-radius:.4rem;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-bell" style="color:#ea580c;font-size:.8rem"></i>
+                    </span>
+                    <h6>
+                        Últimas Alertas RRHH
+                        {% if total_alertas_activas > 0 %}
+                            <span class="badge ms-1" style="background:#dc2626;font-size:.65rem">
+                                {{ total_alertas_activas }} activa{{ total_alertas_activas|pluralize:"s" }}
+                            </span>
+                        {% endif %}
+                    </h6>
+                </div>
+                <a href="{% url 'analytics_alertas' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-list me-1"></i>Ver todas
+                </a>
+            </div>
+
+            {% if alertas %}
+                {% for alerta in alertas %}
+                <div class="alerta-row sev-{{ alerta.severidad }}">
+                    <div class="alerta-icon">
+                        {% if alerta.severidad == 'CRITICAL' %}
+                            <i class="fas fa-exclamation-circle"></i>
+                        {% elif alerta.severidad == 'WARN' %}
+                            <i class="fas fa-exclamation-triangle"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="alerta-titulo">{{ alerta.titulo }}</span>
+                            <span class="sev-badge sev-badge-{{ alerta.severidad }}">
+                                {% if alerta.severidad == 'CRITICAL' %}Crítica
+                                {% elif alerta.severidad == 'WARN' %}Advertencia
+                                {% else %}Info
+                                {% endif %}
+                            </span>
+                            {% if alerta.categoria %}
+                                <span class="badge bg-light text-secondary" style="font-size:.65rem;font-weight:500">
+                                    {{ alerta.get_categoria_display }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted" style="font-size:.78rem;margin-top:.15rem">
+                            {{ alerta.descripcion|truncatewords:18 }}
+                        </div>
+                        <div class="alerta-fecha">
+                            <i class="fas fa-clock fa-xs me-1"></i>{{ alerta.creado_en|timesince }} atrás
+                            {% if alerta.area %}&nbsp;·&nbsp;<i class="fas fa-building fa-xs me-1"></i>{{ alerta.area.nombre }}{% endif %}
+                        </div>
+                    </div>
+                    {% if alerta.estado == 'ACTIVA' %}
+                    <form method="post" action="{% url 'analytics_resolver_alerta' alerta.pk %}" class="flex-shrink-0">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-success" title="Marcar como resuelta" style="padding:.2rem .5rem;font-size:.75rem">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                {% if total_alertas_activas > 5 %}
+                <div style="padding:.6rem 1.25rem;background:#fafafa;text-align:center;font-size:.78rem;color:#6b7280">
+                    <i class="fas fa-ellipsis-h me-1"></i>
+                    Y {{ total_alertas_activas|add:"-5" }} alerta{{ total_alertas_activas|add:"-5"|pluralize:"s" }} más activa{{ total_alertas_activas|add:"-5"|pluralize:"s" }} —
+                    <a href="{% url 'analytics_alertas' %}" class="text-decoration-none fw-semibold">ver todas</a>
+                </div>
+                {% endif %}
+
+            {% else %}
+                <div class="alerta-empty">
+                    <i class="fas fa-check-circle fa-2x d-block mb-2 opacity-50" style="color:#10b981"></i>
+                    Sin alertas activas. Todo bajo control.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const TEAL       = '#0f766e';
+    const TEAL_LIGHT = '#5eead4';
+    const COLORS     = ['#0f766e','#5eead4','#f59e0b','#3b82f6','#8b5cf6',
+                        '#ec4899','#10b981','#f97316','#6366f1','#14b8a6'];
+
+    const defaultFont = { family: "'Inter','Segoe UI',sans-serif", size: 11 };
+    Chart.defaults.font = defaultFont;
+    Chart.defaults.color = '#6b7280';
+    Chart.defaults.maintainAspectRatio = false;
+
+    // ── Donut: Headcount por tipo (STAFF vs RCO) ──
+    const staffCount = {{ empleados_staff }};
+    const rcoCount   = {{ empleados_rco }};
+    const otroCount  = {{ total_empleados }} - staffCount - rcoCount;
+    if (staffCount + rcoCount + otroCount > 0) {
+        new Chart(document.getElementById('chartTipo'), {
+            type: 'doughnut',
+            data: {
+                labels: ['STAFF', 'RCO', 'Otro'],
+                datasets: [{
+                    data: [staffCount, rcoCount, otroCount > 0 ? otroCount : null],
+                    backgroundColor: ['#0f766ecc', '#5eead4cc', '#f59e0bcc'],
+                    borderColor: ['#0f766e', '#5eead4', '#f59e0b'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '62%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.label}: ${ctx.parsed} empleados`
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Distribución por Área (doughnut) ──
+    const areasLabels = {{ areas_labels|safe }};
+    const areasValues = {{ areas_values|safe }};
+    if (areasLabels.length) {
+        new Chart(document.getElementById('chartAreas'), {
+            type: 'doughnut',
+            data: {
+                labels: areasLabels,
+                datasets: [{
+                    data: areasValues,
+                    backgroundColor: COLORS.slice(0, areasLabels.length),
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.label}: ${ctx.parsed} empleados`
+                        }
+                    }
+                }
+            }
+        });
+        // Leyenda custom: top 7 áreas + "Otros"
+        const legendEl = document.getElementById('areasLegend');
+        if (legendEl) {
+            const total = areasValues.reduce((a,b) => a+b, 0);
+            const top = areasLabels.slice(0, 7);
+            const otrosVal = areasValues.slice(7).reduce((a,b) => a+b, 0);
+            let html = '';
+            top.forEach((lbl, i) => {
+                const pct = total ? Math.round(areasValues[i]/total*100) : 0;
+                html += `<div style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden">
+                    <span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i]};flex-shrink:0;display:inline-block"></span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;color:#334155">${lbl}</span>
+                    <span style="color:#64748b;margin-left:auto;flex-shrink:0">${areasValues[i]}</span>
+                </div>`;
+            });
+            if (otrosVal > 0) {
+                html += `<div style="display:flex;align-items:center;gap:5px;color:#94a3b8">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#e2e8f0;flex-shrink:0;display:inline-block"></span>
+                    <span>Otros</span><span style="margin-left:auto">${otrosVal}</span>
+                </div>`;
+            }
+            legendEl.innerHTML = html;
+        }
+    }
+
+    // ── Tendencia Headcount (line + STAFF/RCO si hay datos) ──
+    const trendLabels = {{ trend_labels|safe }};
+    const trendHC     = {{ trend_headcount|safe }};
+    const trendStaff  = {{ trend_staff|safe }};
+    const trendRco    = {{ trend_rco|safe }};
+    if (trendLabels.length) {
+        const hcDatasets = [{
+            label: 'Total',
+            data: trendHC,
+            borderColor: TEAL,
+            backgroundColor: TEAL_LIGHT + '33',
+            fill: true,
+            tension: .35,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: TEAL,
+        }];
+        if (trendStaff.length > 0) {
+            hcDatasets.push({
+                label: 'STAFF',
+                data: trendStaff,
+                borderColor: '#0f766e',
+                backgroundColor: 'transparent',
+                borderDash: [4, 3],
+                tension: .35,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                pointBackgroundColor: '#0f766e',
+            });
+            hcDatasets.push({
+                label: 'RCO',
+                data: trendRco,
+                borderColor: '#3b82f6',
+                backgroundColor: 'transparent',
+                borderDash: [4, 3],
+                tension: .35,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                pointBackgroundColor: '#3b82f6',
+            });
+        }
+        new Chart(document.getElementById('chartHeadcount'), {
+            type: 'line',
+            data: { labels: trendLabels, datasets: hcDatasets },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                },
+                plugins: {
+                    legend: {
+                        display: trendStaff.length > 0,
+                        position: 'bottom',
+                        labels: { font: { size: 10 }, boxWidth: 10, padding: 8 }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Rotación Mensual (bar) ──
+    const trendRot = {{ trend_rotacion|safe }};
+    if (trendLabels.length) {
+        new Chart(document.getElementById('chartRotacion'), {
+            type: 'bar',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Rotación %',
+                    data: trendRot,
+                    backgroundColor: '#f59e0b66',
+                    borderColor: '#f59e0b',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // ── Horas Extra Mensuales (line) ──
+    const trendHE = {{ trend_he|safe }};
+    if (trendLabels.length) {
+        new Chart(document.getElementById('chartHE'), {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Total HE',
+                    data: trendHE,
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f633',
+                    fill: true,
+                    tension: .35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#3b82f6',
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

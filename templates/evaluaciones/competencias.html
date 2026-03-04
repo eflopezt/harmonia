@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Competencias{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-puzzle-piece text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ competencias|length }} competencia{{ competencias|length|pluralize:"s" }}</small>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalComp"><i class="fas fa-plus me-1"></i>Nueva</button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Código</th>
+                    <th>Categoría</th>
+                    <th class="text-center">Activa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in competencias %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ c.nombre }}</div>
+                        {% if c.descripcion %}<small class="text-muted">{{ c.descripcion|truncatechars:50 }}</small>{% endif %}
+                    </td>
+                    <td><code>{{ c.codigo }}</code></td>
+                    <td><span class="badge bg-light text-dark">{{ c.get_categoria_display }}</span></td>
+                    <td class="text-center">{% if c.activa %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No hay competencias configuradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalComp" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Nueva Competencia</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form id="formComp">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">Nombre *</label><input type="text" name="nombre" class="form-control form-control-sm" required></div>
+                    <div class="mb-2"><label class="form-label">Código *</label><input type="text" name="codigo" class="form-control form-control-sm" required></div>
+                    <div class="mb-2"><label class="form-label">Categoría</label>
+                        <select name="categoria" class="form-select form-select-sm">
+                            <option value="CORE">Core / Organizacional</option>
+                            <option value="LIDERAZGO">Liderazgo</option>
+                            <option value="TECNICA">Técnica</option>
+                            <option value="INTERPERSONAL">Interpersonal</option>
+                        </select>
+                    </div>
+                    <div class="mb-2"><label class="form-label">Descripción</label><textarea name="descripcion" class="form-control form-control-sm" rows="2"></textarea></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('formComp').addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch('{% url "competencia_crear" %}', {method:'POST', body: new FormData(this)})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+});
+</script>
+{% endblock %}

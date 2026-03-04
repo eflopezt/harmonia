@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis Boletas de Pago{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="fas fa-file-invoice-dollar text-secondary me-2"></i>{{ titulo }}</h2>
+
+{% if not empleado %}
+<div class="alert alert-info">No tienes un perfil de empleado vinculado a tu usuario.</div>
+{% else %}
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-4">
+        <div class="stat-card"><div class="stat-value text-primary">{{ stats.total }}</div><div class="stat-label">Total {{ anio_filtro }}</div></div>
+    </div>
+    <div class="col-4">
+        <div class="stat-card"><div class="stat-value text-success">{{ stats.leidas }}</div><div class="stat-label">Leídas</div></div>
+    </div>
+    <div class="col-4">
+        <div class="stat-card"><div class="stat-value text-warning">{{ stats.pendientes }}</div><div class="stat-label">Pendientes</div></div>
+    </div>
+</div>
+
+<!-- Filtro año -->
+<div class="mb-3">
+    <form method="get" class="d-flex gap-2 align-items-center">
+        <label class="form-label mb-0 small">Año:</label>
+        <select name="anio" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
+            {% for y in "2024 2025 2026 2027"|make_list %}{% endfor %}
+            <option value="{{ anio_actual|add:"-2" }}" {% if anio_filtro == anio_actual|add:"-2"|stringformat:"d" %}selected{% endif %}>{{ anio_actual|add:"-2" }}</option>
+            <option value="{{ anio_actual|add:"-1" }}" {% if anio_filtro == anio_actual|add:"-1"|stringformat:"d" %}selected{% endif %}>{{ anio_actual|add:"-1" }}</option>
+            <option value="{{ anio_actual }}" {% if anio_filtro == anio_actual|stringformat:"d" %}selected{% endif %}>{{ anio_actual }}</option>
+        </select>
+    </form>
+</div>
+
+<!-- Lista de boletas -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead>
+                <tr>
+                    <th>Período</th>
+                    <th>Tipo</th>
+                    <th class="text-end">Neto a Pagar</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in boletas %}
+                <tr>
+                    <td class="fw-semibold">{{ b.periodo|date:"F Y" }}</td>
+                    <td>{{ b.get_tipo_display }}</td>
+                    <td class="text-end fw-semibold">{% if b.neto_pagar %}S/ {{ b.neto_pagar|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                    <td class="text-center">
+                        {% if b.estado == 'LEIDA' %}<span class="badge bg-success"><i class="fas fa-check me-1"></i>Leída</span>
+                        {% else %}<span class="badge bg-primary">Nueva</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{{ b.archivo.url }}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2"><i class="fas fa-download me-1"></i>PDF</a>
+                            {% if b.estado == 'PUBLICADA' %}
+                            <button class="btn btn-xs btn-outline-success py-0 px-2" onclick="confirmar({{ b.pk }})"><i class="fas fa-check me-1"></i>Confirmar</button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay boletas disponibles para este año.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-2">
+    <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Al confirmar la lectura, se genera constancia de recepción según DS 009-2011-TR.</small>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmar(pk) {
+    if(!confirm('¿Confirmar recepción de esta boleta?')) return;
+    fetch(`/documentos/boletas/${pk}/confirmar/`, {
+        method:'POST',
+        headers:{'X-CSRFToken':'{{ csrf_token }}'}
+    }).then(r=>r.json()).then(d=>{
+        if(d.ok) location.reload();
+        else alert(d.error || 'Error al confirmar');
+    });
+}
+</script>
+{% endblock %}

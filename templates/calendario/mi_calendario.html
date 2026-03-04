@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mi Calendario{% endblock %}
+{% block page_title %}<h1>Mi Calendario</h1>{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ─── Portal Calendar ─── */
+.pcal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+.pcal-nav {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+.pcal-nav-btn {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: .375rem;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #374151;
+    transition: all .15s;
+}
+.pcal-nav-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+.pcal-month-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #0f766e;
+    min-width: 180px;
+    text-align: center;
+    text-transform: capitalize;
+}
+.pcal-today-btn {
+    border: 1px solid #0f766e;
+    background: #fff;
+    color: #0f766e;
+    border-radius: .375rem;
+    padding: .25rem .75rem;
+    font-size: .8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+}
+.pcal-today-btn:hover { background: #0f766e; color: #fff; }
+
+/* ─── Filter chips ─── */
+.pcal-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: 1rem;
+}
+.pcal-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 2px solid;
+    transition: all .15s;
+    user-select: none;
+}
+.pcal-chip .chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.pcal-chip.active { color: #fff; }
+.pcal-chip:not(.active) { background: #fff; }
+
+/* ─── Calendar Grid ─── */
+.pcal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid #e5e7eb;
+    border-radius: .5rem;
+    overflow: hidden;
+    background: #fff;
+}
+.pcal-header-cell {
+    padding: .4rem;
+    text-align: center;
+    font-size: .7rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+.pcal-cell {
+    min-height: 80px;
+    padding: .3rem;
+    border-right: 1px solid #f3f4f6;
+    border-bottom: 1px solid #f3f4f6;
+    cursor: pointer;
+    transition: background .1s;
+    position: relative;
+}
+.pcal-cell:nth-child(7n) { border-right: none; }
+.pcal-cell:hover { background: #f0fdfa; }
+.pcal-cell.today {
+    background: #f0fdfa;
+    box-shadow: inset 0 0 0 2px #5eead4;
+}
+.pcal-cell.other-month { background: #fafafa; }
+.pcal-cell.other-month .pcal-day-num { color: #c4c8cc; }
+.pcal-cell.selected { background: #e6fffa; box-shadow: inset 0 0 0 2px #0f766e; }
+.pcal-day-num {
+    font-size: .78rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: .15rem;
+}
+.pcal-day-num.weekend { color: #9ca3af; }
+.pcal-cell.today .pcal-day-num {
+    background: #0f766e;
+    color: #fff;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .7rem;
+}
+
+/* ─── Event dots ─── */
+.pcal-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-top: 2px;
+}
+.pcal-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+.pcal-event-pill {
+    display: block;
+    font-size: .62rem;
+    line-height: 1.2;
+    padding: 1px 3px;
+    margin-bottom: 1px;
+    border-radius: 2px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+.pcal-more {
+    font-size: .6rem;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+/* ─── Day Detail (below calendar on portal) ─── */
+.pcal-detail {
+    margin-top: 1rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: .5rem;
+    overflow: hidden;
+}
+.pcal-detail-header {
+    padding: .6rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 600;
+    color: #0f766e;
+    font-size: .9rem;
+}
+.pcal-detail-body {
+    padding: .5rem;
+}
+.pcal-detail-event {
+    display: flex;
+    align-items: flex-start;
+    gap: .5rem;
+    padding: .5rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.pcal-detail-event:last-child { border-bottom: none; }
+.pcal-detail-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: .3rem;
+}
+.pcal-detail-title {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+.pcal-detail-sub {
+    font-size: .72rem;
+    color: #6b7280;
+    margin-top: .1rem;
+}
+.pcal-detail-empty {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    color: #9ca3af;
+    font-size: .85rem;
+}
+.pcal-detail-empty i {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: .5rem;
+    color: #d1d5db;
+}
+
+/* Legend */
+.pcal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    padding: .5rem 0;
+    font-size: .72rem;
+    color: #6b7280;
+}
+.pcal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+}
+.pcal-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if not empleado %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Su usuario no esta vinculado a un registro de personal. Contacte al administrador.
+</div>
+{% else %}
+
+<!-- Toolbar -->
+<div class="pcal-toolbar">
+    <div class="pcal-nav">
+        <button class="pcal-nav-btn" id="pcalPrev"><i class="fas fa-chevron-left"></i></button>
+        <span class="pcal-month-title" id="pcalTitle"></span>
+        <button class="pcal-nav-btn" id="pcalNext"><i class="fas fa-chevron-right"></i></button>
+    </div>
+    <button class="pcal-today-btn" id="pcalToday">Hoy</button>
+</div>
+
+<!-- Filters -->
+<div class="pcal-filters" id="pcalFilters">
+    <label class="pcal-chip active" data-type="vacacion" style="border-color:#3b82f6;background:#3b82f6;">
+        <span class="chip-dot" style="background:#fff;"></span>Vacaciones
+    </label>
+    <label class="pcal-chip active" data-type="permiso" style="border-color:#f59e0b;background:#f59e0b;">
+        <span class="chip-dot" style="background:#fff;"></span>Permisos
+    </label>
+    <label class="pcal-chip active" data-type="feriado" style="border-color:#ef4444;background:#ef4444;">
+        <span class="chip-dot" style="background:#fff;"></span>Feriados
+    </label>
+    <label class="pcal-chip active" data-type="cumpleanos" style="border-color:#22c55e;background:#22c55e;">
+        <span class="chip-dot" style="background:#fff;"></span>Cumpleanos
+    </label>
+    <label class="pcal-chip active" data-type="turno" style="border-color:#8b5cf6;background:#8b5cf6;">
+        <span class="chip-dot" style="background:#fff;"></span>Turnos
+    </label>
+</div>
+
+<!-- Calendar Grid -->
+<div class="pcal-grid" id="pcalGrid"></div>
+
+<!-- Legend -->
+<div class="pcal-legend">
+    <span class="pcal-legend-item"><span class="pcal-legend-dot" style="background:#3b82f6"></span>Vacaciones</span>
+    <span class="pcal-legend-item"><span class="pcal-legend-dot" style="background:#f59e0b"></span>Permisos</span>
+    <span class="pcal-legend-item"><span class="pcal-legend-dot" style="background:#ef4444"></span>Feriados</span>
+    <span class="pcal-legend-item"><span class="pcal-legend-dot" style="background:#22c55e"></span>Cumpleanos</span>
+    <span class="pcal-legend-item"><span class="pcal-legend-dot" style="background:#8b5cf6"></span>Turnos</span>
+</div>
+
+<!-- Day Detail -->
+<div class="pcal-detail" id="pcalDetail">
+    <div class="pcal-detail-header" id="pcalDetailTitle">Seleccione un dia</div>
+    <div class="pcal-detail-body" id="pcalDetailBody">
+        <div class="pcal-detail-empty">
+            <i class="far fa-calendar"></i>
+            Haga clic en un dia para ver sus eventos
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if empleado %}
+<script>
+(function() {
+    'use strict';
+
+    const DAYS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+    const MONTHS = [
+        'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+    ];
+    const TYPE_COLORS = {
+        vacacion: '#3b82f6', permiso: '#f59e0b', feriado: '#ef4444',
+        cumpleanos: '#22c55e', turno: '#8b5cf6', reunion: '#0f766e', otro: '#6b7280'
+    };
+    const MAX_PILLS = 2;
+
+    let currentDate = new Date();
+    let cachedEvents = [];
+    let selectedDate = null;
+    let activeTypes = new Set(['vacacion','permiso','feriado','cumpleanos','turno']);
+
+    const grid  = document.getElementById('pcalGrid');
+    const title = document.getElementById('pcalTitle');
+    const detailTitle = document.getElementById('pcalDetailTitle');
+    const detailBody  = document.getElementById('pcalDetailBody');
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function isoDate(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+    function parseISO(s) { const p = s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+    function formatDay(s) {
+        const d = parseISO(s);
+        return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
+    }
+
+    function fetchEvents() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        let startOffset = firstDay.getDay() - 1;
+        if (startOffset < 0) startOffset = 6;
+        const gridStart = new Date(year, month, 1 - startOffset);
+        let endOffset = 7 - lastDay.getDay();
+        if (endOffset === 7) endOffset = 0;
+        const gridEnd = new Date(year, month + 1, endOffset);
+
+        const params = new URLSearchParams({
+            start: isoDate(gridStart),
+            end: isoDate(gridEnd),
+        });
+
+        fetch('{% url "mi_calendario_eventos" %}?' + params.toString())
+            .then(r => r.json())
+            .then(data => {
+                cachedEvents = data;
+                renderGrid();
+                if (selectedDate) showDayDetail(selectedDate);
+            })
+            .catch(err => console.error('Error:', err));
+    }
+
+    function visibleEvents() {
+        return cachedEvents.filter(ev => activeTypes.has(ev.type));
+    }
+
+    function eventsForDate(dateStr) {
+        return visibleEvents().filter(ev => ev.start <= dateStr && ev.end >= dateStr);
+    }
+
+    function renderGrid() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const today = isoDate(new Date());
+
+        title.textContent = MONTHS[month] + ' ' + year;
+
+        const firstDay = new Date(year, month, 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        let startOffset = firstDay.getDay() - 1;
+        if (startOffset < 0) startOffset = 6;
+        const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+        let html = '';
+        for (let i = 0; i < 7; i++) {
+            html += '<div class="pcal-header-cell">' + DAYS[i] + '</div>';
+        }
+
+        for (let i = 0; i < totalCells; i++) {
+            const dayNum = i - startOffset + 1;
+            const cellDate = new Date(year, month, dayNum);
+            const dateStr = isoDate(cellDate);
+            const isCurrentMonth = (cellDate.getMonth() === month);
+            const isToday = (dateStr === today);
+            const isSelected = (dateStr === selectedDate);
+            const dayOfWeek = cellDate.getDay();
+            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+            let cls = 'pcal-cell';
+            if (!isCurrentMonth) cls += ' other-month';
+            if (isToday) cls += ' today';
+            if (isSelected) cls += ' selected';
+
+            html += '<div class="' + cls + '" data-date="' + dateStr + '">';
+            const numCls = isWeekend ? 'pcal-day-num weekend' : 'pcal-day-num';
+            html += '<div class="' + numCls + '">' + cellDate.getDate() + '</div>';
+
+            const dayEvents = eventsForDate(dateStr);
+            const show = Math.min(dayEvents.length, MAX_PILLS);
+            for (let j = 0; j < show; j++) {
+                const ev = dayEvents[j];
+                const c = ev.color || TYPE_COLORS[ev.type] || '#6b7280';
+                html += '<div class="pcal-event-pill" style="background:' + c + ';" title="' + ev.title.replace(/"/g,'&quot;') + '">'
+                    + ev.title + '</div>';
+            }
+            if (dayEvents.length > MAX_PILLS) {
+                html += '<div class="pcal-more">+' + (dayEvents.length - MAX_PILLS) + ' mas</div>';
+            }
+            html += '</div>';
+        }
+
+        grid.innerHTML = html;
+
+        grid.querySelectorAll('.pcal-cell').forEach(cell => {
+            cell.addEventListener('click', function() {
+                selectDay(this.getAttribute('data-date'));
+            });
+        });
+    }
+
+    function selectDay(dateStr) {
+        selectedDate = dateStr;
+        grid.querySelectorAll('.pcal-cell').forEach(c => c.classList.remove('selected'));
+        const cell = grid.querySelector('.pcal-cell[data-date="' + dateStr + '"]');
+        if (cell) cell.classList.add('selected');
+        showDayDetail(dateStr);
+    }
+
+    function showDayDetail(dateStr) {
+        const dayEvents = eventsForDate(dateStr);
+        const d = parseISO(dateStr);
+        detailTitle.textContent = pad(d.getDate()) + ' de ' + MONTHS[d.getMonth()] + ', ' + d.getFullYear();
+
+        if (dayEvents.length === 0) {
+            detailBody.innerHTML = '<div class="pcal-detail-empty">'
+                + '<i class="far fa-calendar"></i>No hay eventos para este dia</div>';
+            return;
+        }
+
+        let html = '';
+        dayEvents.forEach(ev => {
+            const c = ev.color || TYPE_COLORS[ev.type] || '#6b7280';
+            html += '<div class="pcal-detail-event">';
+            html += '<div class="pcal-detail-dot" style="background:' + c + ';"></div>';
+            html += '<div style="flex:1;min-width:0;">';
+            html += '<div class="pcal-detail-title">' + ev.title + '</div>';
+            if (ev.description) {
+                html += '<div class="pcal-detail-sub">' + ev.description + '</div>';
+            }
+            html += '<div class="pcal-detail-sub"><i class="fas fa-tag me-1"></i>' + ev.type;
+            if (ev.start !== ev.end) {
+                html += ' &middot; ' + formatDay(ev.start) + ' - ' + formatDay(ev.end);
+            }
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+        });
+
+        detailBody.innerHTML = html;
+    }
+
+    // Navigation
+    document.getElementById('pcalPrev').addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        fetchEvents();
+    });
+    document.getElementById('pcalNext').addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        fetchEvents();
+    });
+    document.getElementById('pcalToday').addEventListener('click', function() {
+        currentDate = new Date();
+        selectedDate = isoDate(currentDate);
+        fetchEvents();
+    });
+
+    // Filter chips
+    document.querySelectorAll('.pcal-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            const type = this.getAttribute('data-type');
+            const color = this.style.borderColor;
+            if (this.classList.contains('active')) {
+                this.classList.remove('active');
+                this.style.background = '#fff';
+                this.style.color = color;
+                activeTypes.delete(type);
+            } else {
+                this.classList.add('active');
+                this.style.background = color;
+                this.style.color = '#fff';
+                activeTypes.add(type);
+            }
+            renderGrid();
+            if (selectedDate) showDayDetail(selectedDate);
+        });
+    });
+
+    // Init
+    fetchEvents();
+})();
+</script>
+{% endif %}
+{% endblock %}

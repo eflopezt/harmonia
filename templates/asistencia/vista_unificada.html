@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Vista Asistencia{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-table me-2 text-primary"></i>Asistencia — {{ mes_nombre }} {{ anio_sel }}</h1>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Controles ──────────────────────────────────────────── -->
+<form method="get" class="dash-card mb-4">
+    <div class="dash-card-body">
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+
+            <!-- Tabs grupo -->
+            <div class="btn-group" role="group">
+                <a href="?grupo=TODOS&mes={{ mes_sel }}&anio={{ anio_sel }}{% if buscar %}&buscar={{ buscar }}{% endif %}"
+                   class="btn btn-sm {% if grupo_sel == 'TODOS' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-users me-1"></i>Todos
+                </a>
+                <a href="?grupo=STAFF&mes={{ mes_sel }}&anio={{ anio_sel }}{% if buscar %}&buscar={{ buscar }}{% endif %}"
+                   class="btn btn-sm {% if grupo_sel == 'STAFF' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-id-badge me-1"></i>STAFF
+                </a>
+                <a href="?grupo=RCO&mes={{ mes_sel }}&anio={{ anio_sel }}{% if buscar %}&buscar={{ buscar }}{% endif %}"
+                   class="btn btn-sm {% if grupo_sel == 'RCO' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-hard-hat me-1"></i>RCO
+                </a>
+            </div>
+
+            <!-- Mes / Año -->
+            <select name="mes" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+                {% for num, nombre in meses %}
+                <option value="{{ num }}" {% if num == mes_sel %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+            <select name="anio" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+                {% for a in anios_disponibles %}
+                <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="grupo" value="{{ grupo_sel }}">
+
+            <!-- Búsqueda -->
+            <div class="input-group input-group-sm" style="max-width:220px">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" name="buscar" class="form-control" placeholder="Nombre o DNI..." value="{{ buscar }}">
+                {% if buscar %}
+                <a href="?grupo={{ grupo_sel }}&mes={{ mes_sel }}&anio={{ anio_sel }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Filtrar
+            </button>
+        </div>
+    </div>
+</form>
+
+<!-- ── KPI Cards ──────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card--primary">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-value">{{ totales.personas }}</div>
+            <div class="stat-label">Personas registradas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card--warning">
+            <div class="stat-icon"><i class="fas fa-business-time"></i></div>
+            <div class="stat-value">{{ kpi.he_total|floatformat:1 }}h</div>
+            <div class="stat-label">HE Total</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card--danger">
+            <div class="stat-icon"><i class="fas fa-user-times"></i></div>
+            <div class="stat-value">{{ kpi.faltas }}</div>
+            <div class="stat-label">Faltas (FA/F)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card--success">
+            <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+            <div class="stat-value">{{ totales.dias_trabajados }}</div>
+            <div class="stat-label">Días-persona trab.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Tabla ──────────────────────────────────────────────── -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <span>
+            <i class="fas fa-list me-2 text-primary"></i>
+            {% if grupo_sel == 'TODOS' %}STAFF + RCO{% else %}{{ grupo_sel }}{% endif %}
+            — {{ mes_ini|date:"d/m" }} al {{ mes_fin|date:"d/m/Y" }}
+            <span class="text-muted ms-2" style="font-size:.82rem">{{ totales.personas }} personas</span>
+        </span>
+        {% if buscar %}
+        <span class="badge bg-warning text-dark">
+            <i class="fas fa-search me-1"></i>Filtrado: "{{ buscar }}"
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="dash-card-body p-0">
+        {% if rows %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tablaUnificada">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="min-width:200px">Nombre</th>
+                        <th>DNI</th>
+                        {% if grupo_sel == 'TODOS' %}
+                        <th>Grupo</th>
+                        {% endif %}
+                        <th class="text-center">Condición</th>
+                        <th class="text-center" title="Días trabajados">T</th>
+                        <th class="text-center" title="Sin Salida">SS</th>
+                        <th class="text-center" title="Días Libres">DL</th>
+                        <th class="text-center" title="Faltas">FA</th>
+                        <th class="text-center" title="Vacaciones">VAC</th>
+                        <th class="text-end">HE 25%</th>
+                        <th class="text-end">HE 35%</th>
+                        <th class="text-end">HE 100%</th>
+                        <th class="text-end fw-semibold">HE Total</th>
+                        {% if grupo_sel == 'STAFF' %}
+                        <th class="text-end pe-3">Banco</th>
+                        {% else %}
+                        <th class="pe-3"></th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td class="ps-3 fw-medium" style="font-size:.875rem">
+                            {{ r.nombre|truncatechars:32 }}
+                        </td>
+                        <td class="text-muted" style="font-size:.82rem">{{ r.nro_doc }}</td>
+                        {% if grupo_sel == 'TODOS' %}
+                        <td>
+                            <span class="badge {% if r.grupo == 'STAFF' %}bg-primary{% else %}bg-info text-dark{% endif %}" style="font-size:.7rem">
+                                {{ r.grupo }}
+                            </span>
+                        </td>
+                        {% endif %}
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border" style="font-size:.7rem">{{ r.condicion }}</span>
+                        </td>
+                        <td class="text-center fw-semibold">{{ r.dias_trabajados }}</td>
+                        <td class="text-center text-muted">{% if r.dias_ss %}{{ r.dias_ss }}{% else %}—{% endif %}</td>
+                        <td class="text-center text-muted">{% if r.dias_dl %}{{ r.dias_dl }}{% else %}—{% endif %}</td>
+                        <td class="text-center {% if r.dias_fa %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                            {% if r.dias_fa %}{{ r.dias_fa }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-center text-muted">{% if r.dias_vac %}{{ r.dias_vac }}{% else %}—{% endif %}</td>
+                        <td class="text-end {% if r.he_25 %}text-success{% else %}text-muted{% endif %}">
+                            {% if r.he_25 %}{{ r.he_25|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end {% if r.he_35 %}text-warning{% else %}text-muted{% endif %}">
+                            {% if r.he_35 %}{{ r.he_35|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end {% if r.he_100 %}text-danger{% else %}text-muted{% endif %}">
+                            {% if r.he_100 %}{{ r.he_100|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end fw-semibold {% if r.he_total %}text-primary{% else %}text-muted{% endif %}">
+                            {% if r.he_total %}{{ r.he_total|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            {% if r.banco_saldo is not None %}
+                            <span class="{% if r.banco_saldo > 0 %}text-success{% elif r.banco_saldo < 0 %}text-danger{% else %}text-muted{% endif %} fw-semibold">
+                                {{ r.banco_saldo|floatformat:1 }}h
+                            </span>
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <!-- Fila de totales -->
+                <tfoot class="table-light fw-semibold">
+                    <tr style="border-top:2px solid #dee2e6">
+                        <td class="ps-3" colspan="{% if grupo_sel == 'TODOS' %}4{% else %}3{% endif %}">
+                            Totales — {{ totales.personas }} personas
+                        </td>
+                        <td class="text-center">{{ totales.dias_trabajados }}</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center {% if totales.dias_fa %}text-danger{% endif %}">
+                            {% if totales.dias_fa %}{{ totales.dias_fa }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-center">—</td>
+                        <td class="text-end text-success">{{ totales.he_25|floatformat:2 }}h</td>
+                        <td class="text-end text-warning">{{ totales.he_35|floatformat:2 }}h</td>
+                        <td class="text-end text-danger">{{ totales.he_100|floatformat:2 }}h</td>
+                        <td class="text-end text-primary">{{ totales.he_total|floatformat:2 }}h</td>
+                        <td class="pe-3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+            Sin registros para este período
+            {% if buscar %}<p class="mt-1">Prueba con otro término de búsqueda</p>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

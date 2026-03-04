@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+{% block title %}{{ reloj.nombre }} — Reloj Biométrico{% endblock %}
+
+{% block extra_css %}
+<style>
+.device-header {
+  background: linear-gradient(135deg, #0d2b27, #134e4a);
+  border-radius: 16px;
+  padding: 1.8rem 2rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+.device-header h2 { font-size: 1.5rem; margin-bottom: .25rem; }
+.device-header .meta { opacity: .75; font-size: .88rem; }
+
+.estado-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; padding: .3rem .8rem; border-radius: 30px; font-weight: 700; }
+.estado-CONECTADO     { background: #dcfce7; color: #15803d; }
+.estado-DESCONECTADO  { background: #fee2e2; color: #b91c1c; }
+.estado-ERROR         { background: #fef3c7; color: #b45309; }
+.estado-SIN_VERIFICAR { background: rgba(255,255,255,.15); color: rgba(255,255,255,.85); }
+
+.stat-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.2rem; }
+.stat-card .stat-num { font-size: 1.8rem; font-weight: 800; color: #0f766e; line-height: 1; }
+.stat-card .stat-num.warn { color: #dc2626; }
+.stat-card .stat-label { font-size: .78rem; color: #94a3b8; margin-top: .15rem; }
+
+.action-btn { min-width: 140px; }
+
+.marcacion-table th { font-size: .78rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.marcacion-table td { font-size: .85rem; vertical-align: middle; }
+.tipo-ENTRADA         { color: #15803d; font-weight: 600; }
+.tipo-SALIDA          { color: #1d4ed8; font-weight: 600; }
+.tipo-HE_SALIDA       { color: #9333ea; font-weight: 600; }
+.tipo-DESCANSO_SALIDA { color: #d97706; }
+.tipo-OTRO            { color: #9ca3af; }
+
+.procesado-badge { font-size: .7rem; padding: .2rem .55rem; border-radius: 20px; }
+.procesado-si  { background: #dcfce7; color: #15803d; }
+.procesado-no  { background: #f1f5f9; color: #64748b; }
+
+.period-filter { background: #f8fafc; border-radius: 10px; padding: 1rem 1.2rem; }
+
+.import-chip { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: .3rem .7rem; font-size: .8rem; color: #0f766e; }
+.import-chip.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Header del dispositivo ──────────────────────────────────────── #}
+  <div class="device-header">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <a href="{% url 'asistencia_relojes_lista' %}"
+             class="btn btn-sm" style="background:rgba(255,255,255,.15); color:white;">
+            <i class="fas fa-arrow-left"></i>
+          </a>
+          <h2 class="mb-0"><i class="fas fa-fingerprint me-2"></i>{{ reloj.nombre }}</h2>
+          <span class="estado-badge estado-{{ reloj.estado_conexion }}">
+            {{ reloj.get_estado_conexion_display }}
+          </span>
+        </div>
+        <div class="meta d-flex gap-4 flex-wrap">
+          <span><i class="fas fa-network-wired me-1"></i>{{ reloj.ip }}:{{ reloj.puerto }} ({{ reloj.protocolo }})</span>
+          {% if reloj.ubicacion %}<span><i class="fas fa-map-marker-alt me-1"></i>{{ reloj.ubicacion }}</span>{% endif %}
+          {% if reloj.numero_serie %}<span><i class="fas fa-barcode me-1"></i>{{ reloj.numero_serie }}</span>{% endif %}
+          {% if reloj.modelo_dispositivo %}<span><i class="fas fa-microchip me-1"></i>{{ reloj.modelo_dispositivo }}</span>{% endif %}
+        </div>
+        {% if reloj.ultima_sincronizacion %}
+        <div class="meta mt-1">
+          <i class="fas fa-sync me-1"></i>Última sync: {{ reloj.ultima_sincronizacion|date:"d/m/Y H:i" }}
+        </div>
+        {% endif %}
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'asistencia_relojes_editar' reloj.pk %}"
+           class="btn btn-sm" style="background:rgba(255,255,255,.15); color:white;">
+          <i class="fas fa-cog me-1"></i>Configurar
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ── Alertas ─────────────────────────────────────────────────────── #}
+  {% if not pyzk_disponible %}
+  <div class="alert alert-warning mb-3" style="border-radius:10px;">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>pyzk no instalado.</strong>
+    La sincronización directa requiere: <code>pip install pyzk</code>
+  </div>
+  {% endif %}
+
+  {# ── Acciones principales ─────────────────────────────────────────── #}
+  <div class="d-flex gap-2 flex-wrap mb-4">
+    {% if pyzk_disponible and reloj.activo %}
+    <button id="btnTest" class="btn btn-outline-success action-btn">
+      <i class="fas fa-plug me-2"></i>Probar conexión
+    </button>
+    <button id="btnSync" class="btn btn-primary action-btn">
+      <i class="fas fa-sync me-2"></i>Sincronizar marcaciones
+    </button>
+    <button id="btnVerUsuarios" class="btn btn-outline-info action-btn">
+      <i class="fas fa-users me-2"></i>Ver usuarios
+    </button>
+    {% endif %}
+  </div>
+
+  {# ── Estadísticas del período ──────────────────────────────────────── #}
+  <div class="period-filter mb-3">
+    <form method="get" class="d-flex gap-3 align-items-end flex-wrap">
+      <div>
+        <label class="form-label small fw-bold mb-1">Fecha inicio</label>
+        <input type="date" name="fecha_ini" class="form-control form-control-sm"
+               value="{{ fecha_ini|date:'Y-m-d' }}">
+      </div>
+      <div>
+        <label class="form-label small fw-bold mb-1">Fecha fin</label>
+        <input type="date" name="fecha_fin" class="form-control form-control-sm"
+               value="{{ fecha_fin|date:'Y-m-d' }}">
+      </div>
+      <button type="submit" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-filter me-1"></i>Filtrar
+      </button>
+    </form>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="stat-card">
+        <div class="stat-num">{{ stats.total }}</div>
+        <div class="stat-label">Marcaciones en período</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="stat-card">
+        <div class="stat-num {% if stats.sin_procesar > 0 %}warn{% endif %}">
+          {{ stats.sin_procesar }}
+        </div>
+        <div class="stat-label">Sin procesar</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="stat-card">
+        <div class="stat-num" style="color:#1d4ed8">{{ stats.procesadas }}</div>
+        <div class="stat-label">Procesadas a tareo</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="stat-card">
+        <div class="stat-num" style="color:#9333ea">{{ stats.empleados_unicos }}</div>
+        <div class="stat-label">Empleados únicos</div>
+      </div>
+    </div>
+    {% if stats.sin_match > 0 %}
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="stat-card" style="border-color:#fecaca">
+        <div class="stat-num warn">{{ stats.sin_match }}</div>
+        <div class="stat-label text-danger">Sin match a Personal</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Procesar a Tareo ─────────────────────────────────────────────── #}
+  {% if stats.sin_procesar > 0 %}
+  <div class="card border-primary border-2 mb-4" style="border-radius:12px;">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h6 class="fw-bold mb-1">
+          <i class="fas fa-cogs text-primary me-2"></i>
+          {{ stats.sin_procesar }} marcaciones listas para procesar
+        </h6>
+        <p class="text-muted small mb-0">
+          Convierte las marcaciones del período en registros de asistencia (RegistroTareo).
+          El procesador calculará automáticamente horas normales, horas extra y banco de horas.
+        </p>
+      </div>
+      <button id="btnProcesar" class="btn btn-primary px-4">
+        <i class="fas fa-magic me-2"></i>Procesar a Tareo
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Importaciones previas ──────────────────────────────────────────── #}
+  {% if importaciones %}
+  <h6 class="fw-bold text-muted small text-uppercase mb-2">Procesados anteriores</h6>
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    {% for imp in importaciones %}
+    <div class="import-chip {% if imp.registros_error > 0 %}error{% endif %}">
+      <i class="fas fa-file-alt me-1"></i>
+      {{ imp.periodo_inicio|date:"d/m" }}–{{ imp.periodo_fin|date:"d/m/Y" }}
+      — {{ imp.registros_ok }} OK
+      {% if imp.registros_error > 0 %} / {{ imp.registros_error }} errores{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Tabla de marcaciones ─────────────────────────────────────────── #}
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="fw-bold mb-0">Marcaciones del período</h6>
+    <small class="text-muted">Mostrando las últimas 100</small>
+  </div>
+
+  {% if marcaciones %}
+  <div class="card border-0 shadow-sm" style="border-radius:12px; overflow:hidden;">
+    <div class="table-responsive">
+      <table class="table table-hover marcacion-table mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="ps-3">Fecha / Hora</th>
+            <th>User ID (dispositivo)</th>
+            <th>Personal</th>
+            <th>Tipo</th>
+            <th>Procesado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in marcaciones %}
+          <tr>
+            <td class="ps-3 font-monospace">{{ m.timestamp|date:"d/m/Y H:i:s" }}</td>
+            <td class="font-monospace text-muted">{{ m.user_id_dispositivo }}</td>
+            <td>
+              {% if m.personal %}
+              <span class="fw-semibold">{{ m.personal.nombre_completo }}</span>
+              <span class="text-muted small">{{ m.personal.dni }}</span>
+              {% else %}
+              <span class="text-danger small">Sin match</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="tipo-{{ m.tipo_marcacion }}">
+                {% if m.tipo_marcacion == 'ENTRADA' %}<i class="fas fa-sign-in-alt me-1"></i>{% endif %}
+                {% if m.tipo_marcacion == 'SALIDA' %}<i class="fas fa-sign-out-alt me-1"></i>{% endif %}
+                {% if m.tipo_marcacion == 'HE_SALIDA' %}<i class="fas fa-clock me-1"></i>{% endif %}
+                {{ m.get_tipo_marcacion_display }}
+              </span>
+            </td>
+            <td>
+              {% if m.procesado %}
+              <span class="procesado-badge procesado-si"><i class="fas fa-check me-1"></i>Sí</span>
+              {% else %}
+              <span class="procesado-badge procesado-no">Pendiente</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="fas fa-clock" style="font-size:2rem; opacity:.3;"></i>
+    <p class="mt-2">No hay marcaciones en este período.</p>
+    {% if pyzk_disponible %}
+    <button id="btnSyncEmpty" class="btn btn-outline-primary">
+      <i class="fas fa-sync me-2"></i>Sincronizar ahora
+    </button>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+{# ── Modal usuarios del dispositivo ────────────────────────────────── #}
+<div class="modal fade" id="modalUsuarios" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="fas fa-users me-2 text-primary"></i>
+          Usuarios en el dispositivo
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="usuariosContent" class="p-3 text-center">
+          <div class="spinner-border text-primary"></div>
+          <p class="mt-2 text-muted small">Consultando dispositivo…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Toast ───────────────────────────────────────────────────────────── #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="relojToast" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="relojToastMsg">…</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const RELOJ_PK = {{ reloj.pk }};
+const FECHA_INI = '{{ fecha_ini|date:"Y-m-d" }}';
+const FECHA_FIN = '{{ fecha_fin|date:"Y-m-d" }}';
+
+function csrfToken() {
+  return document.cookie.split(';').map(c => c.trim())
+    .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function showToast(msg, ok) {
+  const el = document.getElementById('relojToast');
+  el.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-primary');
+  el.classList.add(ok ? 'bg-success' : 'bg-danger');
+  document.getElementById('relojToastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, {delay: 5000}).show();
+}
+
+function setLoading(btn, loading) {
+  if (!btn) return;
+  btn.disabled = loading;
+  if (loading) {
+    btn._origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando…';
+  } else {
+    btn.innerHTML = btn._origHtml || btn.innerHTML;
+  }
+}
+
+// ── Probar conexión
+const btnTest = document.getElementById('btnTest');
+if (btnTest) {
+  btnTest.addEventListener('click', async () => {
+    setLoading(btnTest, true);
+    try {
+      const r = await fetch(`/asistencia/relojes/${RELOJ_PK}/test/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      });
+      const data = await r.json();
+      showToast(
+        data.ok
+          ? `✓ Conectado. ${data.detail}`
+          : `✗ Error: ${data.detail}`,
+        data.ok
+      );
+      if (data.ok) setTimeout(() => location.reload(), 2000);
+    } catch(e) {
+      showToast(`Error de red: ${e.message}`, false);
+    } finally {
+      setLoading(btnTest, false);
+    }
+  });
+}
+
+// ── Sincronizar marcaciones
+const btnSync = document.getElementById('btnSync');
+const btnSyncEmpty = document.getElementById('btnSyncEmpty');
+
+async function doSync() {
+  const btn = btnSync || btnSyncEmpty;
+  if (!confirm('¿Sincronizar marcaciones del dispositivo?\n\nSe descargarán todas las marcaciones disponibles. Los registros ya descargados no se duplicarán.')) return;
+  setLoading(btn, true);
+  try {
+    const r = await fetch(`/asistencia/relojes/${RELOJ_PK}/sync/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken()}
+    });
+    const data = await r.json();
+    if (data.ok) {
+      showToast(`✓ Sync completada: ${data.nuevos} nuevas, ${data.omitidos} duplicadas, ${data.sin_match} sin match`, true);
+      setTimeout(() => location.reload(), 2500);
+    } else {
+      showToast(`✗ Error: ${data.error}`, false);
+    }
+  } catch(e) {
+    showToast(`Error de red: ${e.message}`, false);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+if (btnSync) btnSync.addEventListener('click', doSync);
+if (btnSyncEmpty) btnSyncEmpty.addEventListener('click', doSync);
+
+// ── Procesar marcaciones a RegistroTareo
+const btnProcesar = document.getElementById('btnProcesar');
+if (btnProcesar) {
+  btnProcesar.addEventListener('click', async () => {
+    const msg = `¿Procesar marcaciones del período ${FECHA_INI} al ${FECHA_FIN} a RegistroTareo?\n\nSe calcularán horas normales, horas extra y banco de horas según el régimen de cada empleado.`;
+    if (!confirm(msg)) return;
+    setLoading(btnProcesar, true);
+    try {
+      const r = await fetch(`/asistencia/relojes/${RELOJ_PK}/procesar/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({fecha_ini: FECHA_INI, fecha_fin: FECHA_FIN}),
+      });
+      const data = await r.json();
+      if (data.ok) {
+        const errMsg = data.errores?.length ? ` (${data.errores.length} errores)` : '';
+        showToast(
+          `✓ Procesado: ${data.creados} creados, ${data.actualizados} actualizados, ${data.sin_match} sin match${errMsg}`,
+          true
+        );
+        setTimeout(() => location.reload(), 2500);
+      } else {
+        showToast(`✗ Error: ${data.error}`, false);
+      }
+    } catch(e) {
+      showToast(`Error de red: ${e.message}`, false);
+    } finally {
+      setLoading(btnProcesar, false);
+    }
+  });
+}
+
+// ── Ver usuarios del dispositivo
+const btnVerUsuarios = document.getElementById('btnVerUsuarios');
+if (btnVerUsuarios) {
+  const modal = new bootstrap.Modal(document.getElementById('modalUsuarios'));
+  btnVerUsuarios.addEventListener('click', async () => {
+    modal.show();
+    const content = document.getElementById('usuariosContent');
+    content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted small">Consultando dispositivo…</p></div>';
+    try {
+      const r = await fetch(`/asistencia/relojes/${RELOJ_PK}/usuarios/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      });
+      const data = await r.json();
+      if (data.ok && data.usuarios.length > 0) {
+        let html = `<p class="px-3 pt-2 text-muted small">${data.total} usuarios enrollados en el dispositivo</p>`;
+        html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0">';
+        html += '<thead class="bg-light"><tr><th class="ps-3">UID</th><th>User ID (DNI)</th><th>Nombre en dispositivo</th><th>Tarjeta</th></tr></thead><tbody>';
+        for (const u of data.usuarios) {
+          html += `<tr>
+            <td class="ps-3 font-monospace text-muted">${u.uid}</td>
+            <td class="font-monospace fw-semibold">${u.user_id || '—'}</td>
+            <td>${u.nombre || '—'}</td>
+            <td class="font-monospace text-muted">${u.tarjeta || '—'}</td>
+          </tr>`;
+        }
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+      } else if (data.ok) {
+        content.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-users fs-2 mb-2 d-block opacity-25"></i>No hay usuarios enrollados en el dispositivo.</div>';
+      } else {
+        content.innerHTML = `<div class="alert alert-danger m-3">${data.error || 'Error al consultar el dispositivo.'}</div>`;
+      }
+    } catch(e) {
+      content.innerHTML = `<div class="alert alert-danger m-3">Error de red: ${e.message}</div>`;
+    }
+  });
+}
+</script>
+{% endblock %}

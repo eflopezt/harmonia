@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Firma Digital - Harmoni{% endblock %}
+
+{% block content %}
+<div class='container-fluid py-4'>
+<div class='d-flex justify-content-between align-items-center mb-4'>
+<div><h1 class='h3 fw-bold mb-0'><i class='fas fa-signature me-2 text-teal'></i>Firma Digital</h1>
+<p class='text-muted mb-0 small'>Gestion de documentos via ZapSign</p></div>
+<div class='d-flex gap-2'>{% if not zapsign_activo %}
+<a href='{% url 'configuracion_sistema' %}' class='btn btn-warning btn-sm'><i class='fas fa-key me-1'></i>Configurar API Key</a>{% endif %}
+<a href='{% url 'firma_sincronizar_todos' %}' class='btn btn-outline-secondary btn-sm'><i class='fas fa-sync me-1'></i>Sincronizar todos</a>
+<a href='{% url 'firma_crear' %}' class='btn btn-primary btn-sm'><i class='fas fa-plus me-1'></i>Nuevo documento</a>
+</div></div>
+{% if messages %}
+{% for msg in messages %}
+<div class='alert alert-{{ msg.tags }} alert-dismissible fade show' role='alert'>{{ msg }}<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>
+{% endfor %}
+{% endif %}
+
+{% if not zapsign_activo %}
+<div class='alert alert-warning d-flex align-items-center mb-4'><i class='fas fa-exclamation-triangle me-3 fa-lg'></i><div>
+ZapSign no configurado. <a href='{% url 'configuracion_sistema' %}'>Configura la API Key</a> en la configuracion del sistema.
+</div></div>
+{% endif %}
+
+<div class='row g-3 mb-4'>
+<div class='col-sm-6 col-md-3'><div class='card text-center py-3 h-100'><div class='display-6 fw-bold text-dark'>{{ stats.total }}</div><div class='text-muted small'>Total</div></div></div>
+<div class='col-sm-6 col-md-3'><div class='card text-center py-3 h-100'><div class='display-6 fw-bold text-warning'>{{ stats.pendientes }}</div><div class='text-muted small'>En proceso</div></div></div>
+<div class='col-sm-6 col-md-3'><div class='card text-center py-3 h-100'><div class='display-6 fw-bold text-success'>{{ stats.firmados }}</div><div class='text-muted small'>Firmados</div></div></div>
+<div class='col-sm-6 col-md-3'><div class='card text-center py-3 h-100'><div class='display-6 fw-bold text-danger'>{{ stats.errores }}</div><div class='text-muted small'>Errores</div></div></div>
+</div>
+<div class='card mb-3'><div class='card-body py-2'>
+<form method='get' class='row g-2 align-items-center'>
+<div class='col-auto'><input type='text' name='q' value='{{ q }}' placeholder='Buscar trabajador...' class='form-control form-control-sm'></div>
+<div class='col-auto'><select name='estado' class='form-select form-select-sm'><option value=''>Todos los estados</option>
+{% for val, label in estado_choices %}<option value='{{ val }}' {% if estado_filtro == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class='col-auto'><button type='submit' class='btn btn-sm btn-outline-primary'>Filtrar</button><a href='{% url 'firma_panel' %}' class='btn btn-sm btn-outline-secondary ms-1'>Limpiar</a></div>
+</form></div></div>
+
+<div class='card'><div class='table-responsive'>
+<table class='table table-hover mb-0 align-middle'><thead class='table-dark'><tr><th>Trabajador</th><th>Documento</th><th>Tipo</th><th>Estado</th><th>Enviado</th><th>Vence</th><th class='text-center'>Acciones</th></tr></thead>
+<tbody>
+{% for doc in docs %}
+<tr>
+<td><div class='fw-semibold'>{{ doc.personal.apellidos_nombres }}</div><div class='text-muted small'>{{ doc.personal.nro_doc }}</div></td>
+<td><div>{{ doc.nombre }}</div>{% if doc.descripcion %}<div class='text-muted small'>{{ doc.descripcion|truncatechars:50 }}</div>{% endif %}{% if doc.error_detalle %}<div class='text-danger small'><i class='fas fa-exclamation-circle me-1'></i>{{ doc.error_detalle|truncatechars:80 }}</div>{% endif %}</td>
+<td><span class='badge bg-secondary'>{{ doc.get_tipo_display }}</span></td>
+<td><span class='badge bg-{{ doc.color_estado }}'><i class='fas {{ doc.icono_estado }} me-1'></i>{{ doc.get_estado_display }}</span></td>
+<td>{% if doc.enviado_en %}<span class='small'>{{ doc.enviado_en|date:"d/m/Y H:i" }}</span>{% else %}<span class='text-muted small'>--</span>{% endif %}</td>
+<td>{% if doc.vence_en %}<span class='small {% if doc.vence_en < today %}text-danger{% endif %}'>{{ doc.vence_en|date:"d/m/Y" }}</span>{% else %}<span class='text-muted small'>--</span>{% endif %}</td>
+<td class='text-center'><div class='d-flex gap-1 justify-content-center flex-wrap'>
+{% if doc.estado == 'PENDIENTE' or doc.estado == 'ERROR' %}
+<form method='post' action='{% url 'firma_enviar' doc.pk %}' class='d-inline'>{% csrf_token %}<button type='submit' class='btn btn-sm btn-primary' title='Enviar a ZapSign' {% if not zapsign_activo %}disabled{% endif %}><i class='fas fa-paper-plane'></i></button></form>{% endif %}
+{% if doc.estado == 'ENVIADO' or doc.estado == 'FIRMANDO' %}
+<form method='post' action='{% url 'firma_sincronizar' doc.pk %}' class='d-inline'>{% csrf_token %}<button type='submit' class='btn btn-sm btn-outline-info' title='Actualizar estado'><i class='fas fa-sync'></i></button></form>{% endif %}
+{% if doc.signer_url %}<a href='{{ doc.signer_url }}' target='_blank' rel='noopener' class='btn btn-sm btn-outline-warning' title='Link firma'><i class='fas fa-external-link-alt'></i></a>{% endif %}
+{% if doc.pdf_firmado_url %}<a href='{{ doc.pdf_firmado_url }}' target='_blank' rel='noopener' class='btn btn-sm btn-success' title='Descargar PDF'><i class='fas fa-download'></i></a>{% endif %}
+{% if doc.estado != 'FIRMADO' and doc.estado != 'CANCELADO' %}
+<form method='post' action='{% url 'firma_cancelar' doc.pk %}' class='d-inline' onsubmit='return confirm('Cancelar este documento?')'>{% csrf_token %}<button type='submit' class='btn btn-sm btn-outline-danger' title='Cancelar'><i class='fas fa-ban'></i></button></form>{% endif %}
+</div></td></tr>
+{% empty %}
+<tr><td colspan='7' class='text-center py-5 text-muted'><i class='fas fa-signature fa-3x mb-3 d-block opacity-25'></i> No hay documentos. <a href='{% url 'firma_crear' %}'>Crear el primero</a></td></tr>
+{% endfor %}
+</tbody></table></div></div>
+</div>
+{% endblock %}

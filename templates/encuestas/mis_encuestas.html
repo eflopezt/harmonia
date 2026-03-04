@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Encuestas{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h2 class="mb-0"><i class="fas fa-poll text-secondary me-2"></i>{{ titulo }}</h2>
+    {% if empleado %}<small class="text-muted">{{ empleado.apellidos_nombres }}</small>{% endif %}
+</div>
+
+{% if not empleado %}
+<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No tienes un perfil de empleado vinculado.</div>
+{% else %}
+
+<!-- Encuestas pendientes -->
+{% if pendientes %}
+<div class="card shadow-sm mb-3 border-warning">
+    <div class="card-header bg-warning bg-opacity-10"><i class="fas fa-exclamation-circle me-1"></i> Encuestas Pendientes ({{ pendientes|length }})</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:.85rem;">
+            <thead><tr><th>Encuesta</th><th>Tipo</th><th>Vence</th><th></th></tr></thead>
+            <tbody>
+                {% for e in pendientes %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ e.titulo }}</div>
+                        {% if e.anonima %}<span class="badge bg-dark" style="font-size:.65rem;">Anónima</span>{% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ e.get_tipo_display }}</span></td>
+                    <td>{{ e.fecha_fin|date:"d/m/Y" }}</td>
+                    <td><a href="{% url 'responder_encuesta' e.pk %}" class="btn btn-xs btn-primary py-0 px-2"><i class="fas fa-pen me-1"></i>Responder</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No tienes encuestas pendientes. Has respondido {{ respondidas_count }} encuesta{{ respondidas_count|pluralize:"s" }}.</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Documento{% endblock %}
+
+{% block extra_css %}
+<style>
+.badge-oblig { background:#d1fae5; color:#065f46; font-size:.68rem; }
+.badge-vence { background:#dbeafe; color:#1e40af; font-size:.68rem; }
+.badge-inact { background:#e9ecef; color:#6c757d; font-size:.68rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{% url 'documentos_panel' %}" class="text-muted text-decoration-none small">
+            <i class="fas fa-arrow-left me-1"></i>Documentos
+        </a>
+        <h2 class="mb-0 mt-1"><i class="fas fa-cog text-secondary me-2"></i>Tipos de Documento</h2>
+        <small class="text-muted">Configurar tipos y categorías para el legajo digital</small>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" onclick="abrirModalCat()">
+            <i class="fas fa-layer-group me-1"></i>Nueva Categoría
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalTipo()">
+            <i class="fas fa-plus me-1"></i>Nuevo Tipo
+        </button>
+    </div>
+</div>
+
+<!-- Categorías -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-layer-group me-2"></i>Categorías</h6></div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light">
+                <tr><th>Nombre</th><th>Icono</th><th>Orden</th><th style="width:80px"></th></tr>
+            </thead>
+            <tbody>
+                {% for c in categorias %}
+                <tr id="cat-{{ c.pk }}">
+                    <td class="fw-semibold"><i class="fas {{ c.icono }} me-1 text-secondary"></i>{{ c.nombre }}</td>
+                    <td class="text-muted small">{{ c.icono }}</td>
+                    <td>{{ c.orden }}</td>
+                    <td class="text-end">
+                        <button class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="editarCat({{ c.pk }}, '{{ c.nombre|escapejs }}', '{{ c.icono }}', {{ c.orden }})">
+                            <i class="fas fa-pen" style="font-size:.7rem"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Sin categorías. Cree una para organizar los tipos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tipos -->
+<div class="card shadow-sm">
+    <div class="card-header py-2"><h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Tipos de Documento</h6></div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th class="text-center">Flags</th>
+                    <th class="text-center">Aplica</th>
+                    <th style="width:80px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tipos %}
+                <tr id="tipo-{{ t.pk }}" class="{% if not t.activo %}text-muted{% endif %}">
+                    <td class="fw-semibold small">{{ t.nombre }}</td>
+                    <td class="small text-muted">{{ t.categoria.nombre|default:"—" }}</td>
+                    <td class="text-center">
+                        {% if t.obligatorio %}<span class="badge badge-oblig">Obligatorio</span>{% endif %}
+                        {% if t.vence %}<span class="badge badge-vence">Vence ({{ t.dias_alerta_vencimiento }}d)</span>{% endif %}
+                        {% if not t.activo %}<span class="badge badge-inact">Inactivo</span>{% endif %}
+                    </td>
+                    <td class="text-center small">
+                        {% if t.aplica_staff %}S{% endif %}{% if t.aplica_rco %}R{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-xs btn-outline-secondary py-0 px-1"
+                                onclick="editarTipo({{ t.pk }}, '{{ t.nombre|escapejs }}', '{{ t.categoria_id|default:"" }}', {{ t.obligatorio|yesno:'true,false' }}, {{ t.vence|yesno:'true,false' }}, {{ t.dias_alerta_vencimiento }}, {{ t.aplica_staff|yesno:'true,false' }}, {{ t.aplica_rco|yesno:'true,false' }}, {{ t.activo|yesno:'true,false' }})">
+                            <i class="fas fa-pen" style="font-size:.7rem"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Sin tipos de documento configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Categoría -->
+<div class="modal fade" id="modalCat" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="catModalTitle">Nueva Categoría</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="catPk">
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Nombre</label>
+                    <input type="text" class="form-control form-control-sm" id="catNombre">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Icono (FontAwesome)</label>
+                    <input type="text" class="form-control form-control-sm" id="catIcono" value="fa-folder" placeholder="fa-folder">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Orden</label>
+                    <input type="number" class="form-control form-control-sm" id="catOrden" value="0">
+                </div>
+                <div id="catError" class="alert alert-danger py-1 small mt-2" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="guardarCat()"><i class="fas fa-save me-1"></i>Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tipo -->
+<div class="modal fade" id="modalTipo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="tipoModalTitle">Nuevo Tipo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="tipoPk">
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Nombre</label>
+                    <input type="text" class="form-control form-control-sm" id="tipoNombre">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Categoría</label>
+                    <select class="form-select form-select-sm" id="tipoCat">
+                        <option value="">— Sin categoría —</option>
+                        {% for c in categorias %}<option value="{{ c.pk }}">{{ c.nombre }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <div class="form-check"><input type="checkbox" class="form-check-input" id="tipoOblig"><label class="form-check-label small" for="tipoOblig">Obligatorio</label></div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-check"><input type="checkbox" class="form-check-input" id="tipoVence"><label class="form-check-label small" for="tipoVence">Tiene vencimiento</label></div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Días alerta vencimiento</label>
+                    <input type="number" class="form-control form-control-sm" id="tipoDias" value="30">
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><div class="form-check"><input type="checkbox" class="form-check-input" id="tipoStaff" checked><label class="form-check-label small" for="tipoStaff">Aplica STAFF</label></div></div>
+                    <div class="col-6"><div class="form-check"><input type="checkbox" class="form-check-input" id="tipoRco" checked><label class="form-check-label small" for="tipoRco">Aplica RCO</label></div></div>
+                </div>
+                <div class="form-check mb-2" id="tipoActivoContainer" style="display:none">
+                    <input type="checkbox" class="form-check-input" id="tipoActivo" checked>
+                    <label class="form-check-label small" for="tipoActivo">Activo</label>
+                </div>
+                <div id="tipoError" class="alert alert-danger py-1 small mt-2" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="guardarTipo()"><i class="fas fa-save me-1"></i>Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+/* ── Categorías ── */
+function abrirModalCat(pk, nombre, icono, orden) {
+    document.getElementById('catPk').value = pk || '';
+    document.getElementById('catNombre').value = nombre || '';
+    document.getElementById('catIcono').value = icono || 'fa-folder';
+    document.getElementById('catOrden').value = orden || 0;
+    document.getElementById('catError').style.display = 'none';
+    document.getElementById('catModalTitle').textContent = pk ? 'Editar Categoría' : 'Nueva Categoría';
+    new bootstrap.Modal(document.getElementById('modalCat')).show();
+}
+function editarCat(pk, nombre, icono, orden) { abrirModalCat(pk, nombre, icono, orden); }
+
+async function guardarCat() {
+    const pk = document.getElementById('catPk').value;
+    const url = pk ? `/documentos/categorias/${pk}/editar/` : '{% url "documentos_categoria_crear" %}';
+    const body = new URLSearchParams({
+        nombre: document.getElementById('catNombre').value,
+        icono: document.getElementById('catIcono').value,
+        orden: document.getElementById('catOrden').value,
+    });
+    const resp = await fetch(url, { method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'}, body });
+    const data = await resp.json();
+    if (data.ok) location.reload();
+    else { document.getElementById('catError').textContent = data.error; document.getElementById('catError').style.display = ''; }
+}
+
+/* ── Tipos ── */
+function abrirModalTipo(pk, nombre, catId, oblig, vence, dias, staff, rco, activo) {
+    document.getElementById('tipoPk').value = pk || '';
+    document.getElementById('tipoNombre').value = nombre || '';
+    document.getElementById('tipoCat').value = catId || '';
+    document.getElementById('tipoOblig').checked = oblig || false;
+    document.getElementById('tipoVence').checked = vence || false;
+    document.getElementById('tipoDias').value = dias || 30;
+    document.getElementById('tipoStaff').checked = staff !== false;
+    document.getElementById('tipoRco').checked = rco !== false;
+    document.getElementById('tipoActivo').checked = activo !== false;
+    document.getElementById('tipoActivoContainer').style.display = pk ? '' : 'none';
+    document.getElementById('tipoError').style.display = 'none';
+    document.getElementById('tipoModalTitle').textContent = pk ? 'Editar Tipo' : 'Nuevo Tipo';
+    new bootstrap.Modal(document.getElementById('modalTipo')).show();
+}
+function editarTipo(pk, nombre, catId, oblig, vence, dias, staff, rco, activo) {
+    abrirModalTipo(pk, nombre, catId, oblig, vence, dias, staff, rco, activo);
+}
+
+async function guardarTipo() {
+    const pk = document.getElementById('tipoPk').value;
+    const url = pk ? `/documentos/tipos/${pk}/editar/` : '{% url "documentos_tipo_crear" %}';
+    const body = new URLSearchParams({
+        nombre: document.getElementById('tipoNombre').value,
+        categoria_id: document.getElementById('tipoCat').value,
+        dias_alerta: document.getElementById('tipoDias').value,
+    });
+    if (document.getElementById('tipoOblig').checked) body.append('obligatorio', 'on');
+    if (document.getElementById('tipoVence').checked) body.append('vence', 'on');
+    if (document.getElementById('tipoStaff').checked) body.append('aplica_staff', 'on');
+    if (document.getElementById('tipoRco').checked) body.append('aplica_rco', 'on');
+    if (document.getElementById('tipoActivo').checked) body.append('activo', 'on');
+
+    const resp = await fetch(url, { method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'}, body });
+    const data = await resp.json();
+    if (data.ok) location.reload();
+    else { document.getElementById('tipoError').textContent = data.error; document.getElementById('tipoError').style.display = ''; }
+}
+</script>
+{% endblock %}

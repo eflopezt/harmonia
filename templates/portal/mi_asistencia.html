@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Mi Asistencia{% endblock %}
+
+{% block page_title %}
+<h1 class="topbar-h1"><i class="fas fa-clock me-2 text-primary"></i>Mi Asistencia</h1>
+{% endblock %}
+
+{% block content %}
+
+{% if not empleado %}
+<div class="alert alert-warning">Tu usuario no está vinculado a un empleado. Contacta a RRHH o TI.</div>
+{% else %}
+
+<!-- Filtro de período -->
+<div class="dash-card mb-4">
+    <div class="dash-card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label mb-1" style="font-size:.8rem">Mes</label>
+                <select name="mes" class="form-select form-select-sm">
+                    {% for num, nombre in meses %}
+                    <option value="{{ num }}" {% if num == mes_sel %}selected{% endif %}>{{ nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-1" style="font-size:.8rem">Año</label>
+                <select name="anio" class="form-select form-select-sm">
+                    {% for a in anios %}
+                    <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-search me-1"></i>Consultar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de registros -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <span><i class="fas fa-list me-2 text-primary"></i>
+            Registros: {{ fecha_inicio|date:"d/m/Y" }} — {{ fecha_fin|date:"d/m/Y" }}
+        </span>
+        {% if registros %}
+        <span class="text-muted" style="font-size:.85rem">
+            {{ registros|length }} registro(s) · HE Total: <strong>{{ total_he|floatformat:2 }}h</strong>
+        </span>
+        {% endif %}
+    </div>
+    <div class="dash-card-body p-0">
+        {% if registros %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Fecha</th>
+                        <th>Día</th>
+                        <th>Código</th>
+                        <th class="text-end">H. Efectivas</th>
+                        <th class="text-end">HE 25%</th>
+                        <th class="text-end">HE 35%</th>
+                        <th class="text-end pe-3">HE 100%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registros %}
+                    <tr{% if r.es_feriado %} class="table-warning"{% endif %}>
+                        <td class="ps-3">{{ r.fecha|date:"d/m/Y" }}</td>
+                        <td class="text-muted" style="font-size:.8rem">
+                            {{ r.fecha|date:"D"|truncatechars:3 }}
+                        </td>
+                        <td>
+                            {% if r.codigo_dia %}
+                            <span class="badge bg-light text-dark border">{{ r.codigo_dia }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if r.horas_efectivas %}{{ r.horas_efectivas|floatformat:1 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end {% if r.he_25 %}text-success{% else %}text-muted{% endif %}">
+                            {% if r.he_25 %}{{ r.he_25|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end {% if r.he_35 %}text-warning{% else %}text-muted{% endif %}">
+                            {% if r.he_35 %}{{ r.he_35|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end pe-3 {% if r.he_100 %}text-danger{% else %}text-muted{% endif %}">
+                            {% if r.he_100 %}{{ r.he_100|floatformat:2 }}h{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+            Sin registros para este período
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

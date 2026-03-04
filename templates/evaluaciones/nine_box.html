@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}9-Box — {{ ciclo.nombre }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="fas fa-th text-secondary me-2"></i>{{ titulo }}</h2>
+        <small class="text-muted">{{ resultados|length }} resultado{{ resultados|length|pluralize:"s" }} consolidado{{ resultados|length|pluralize:"s" }}</small>
+    </div>
+    <a href="{% url 'ciclo_detalle' ciclo.pk %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Volver al Ciclo</a>
+</div>
+
+<!-- 9-Box Grid -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row text-center mb-2">
+            <div class="col"><strong>Bajo</strong></div>
+            <div class="col"><strong>Medio</strong></div>
+            <div class="col"><strong>Alto</strong></div>
+        </div>
+        <!-- Potencial Alto (fila superior) -->
+        <div class="row g-2 mb-2">
+            <div class="col position-relative">
+                <div class="nine-box-label" style="position:absolute;left:-60px;top:50%;transform:rotate(-90deg) translateX(-50%);white-space:nowrap;font-size:.75rem;"><strong>Alto</strong></div>
+            </div>
+        </div>
+        {% for row_label, positions in grid_rows %}
+        <div class="row g-2 mb-2">
+            {% for pos in positions %}
+            <div class="col">
+                <div class="border rounded p-2" style="min-height:80px; background:{% if pos == 9 %}#d4edda{% elif pos == 8 or pos == 6 %}#d1ecf1{% elif pos == 5 %}#fff3cd{% elif pos == 1 %}#f8d7da{% else %}#f8f9fa{% endif %};">
+                    <small class="text-muted d-block mb-1">Posición {{ pos }}</small>
+                    {% for r in grid %}
+                    {% if r.nine_box_position == pos %}
+                    <span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:20 }}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <table style="width:100%;" class="mt-2">
+            <tr>
+                <td style="width:33%;">
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#f8d7da;">
+                        <small class="d-block fw-bold text-danger mb-1">Bajo Des. / Bajo Pot.</small>
+                        {% for r in grid.1 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+                <td style="width:33%;">
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#fff3cd;">
+                        <small class="d-block fw-bold text-warning mb-1">Medio Des. / Bajo Pot.</small>
+                        {% for r in grid.4 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+                <td style="width:33%;">
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#d1ecf1;">
+                        <small class="d-block fw-bold text-info mb-1">Alto Des. / Bajo Pot.</small>
+                        {% for r in grid.7 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#f8d7da;">
+                        <small class="d-block fw-bold mb-1">Bajo Des. / Medio Pot.</small>
+                        {% for r in grid.2 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#fff3cd;">
+                        <small class="d-block fw-bold text-dark mb-1">Medio Des. / Medio Pot.</small>
+                        {% for r in grid.5 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#d1ecf1;">
+                        <small class="d-block fw-bold mb-1">Alto Des. / Medio Pot.</small>
+                        {% for r in grid.8 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#f8d7da;">
+                        <small class="d-block fw-bold mb-1">Bajo Des. / Alto Pot.</small>
+                        {% for r in grid.3 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#d1ecf1;">
+                        <small class="d-block fw-bold mb-1">Medio Des. / Alto Pot.</small>
+                        {% for r in grid.6 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <div class="border rounded p-2 text-center" style="min-height:80px; background:#d4edda;">
+                        <small class="d-block fw-bold text-success mb-1">Alto Des. / Alto Pot.</small>
+                        {% for r in grid.9 %}<span class="badge bg-dark mb-1" style="font-size:.7rem;">{{ r.personal.apellidos_nombres|truncatechars:18 }}</span><br>{% endfor %}
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<!-- Clasificar resultados no clasificados -->
+{% for r in resultados %}
+{% if not r.nine_box_position %}
+<div class="alert alert-info py-2" style="font-size:.85rem;">
+    <strong>{{ r.personal.apellidos_nombres }}</strong> (Promedio: {{ r.puntaje_promedio|floatformat:1|default:"—" }}) — Sin clasificar.
+    <form method="post" action="{% url 'resultado_clasificar' r.pk %}" class="d-inline ms-2" id="form-{{ r.pk }}">
+        {% csrf_token %}
+        <select name="desempeno" class="form-select form-select-sm d-inline" style="width:100px;">
+            <option value="">Desemp.</option>
+            <option value="BAJO">Bajo</option>
+            <option value="MEDIO">Medio</option>
+            <option value="ALTO">Alto</option>
+        </select>
+        <select name="potencial" class="form-select form-select-sm d-inline" style="width:100px;">
+            <option value="">Potenc.</option>
+            <option value="BAJO">Bajo</option>
+            <option value="MEDIO">Medio</option>
+            <option value="ALTO">Alto</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-primary" onclick="clasificar({{ r.pk }})">Clasificar</button>
+    </form>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function clasificar(pk) {
+    const form = document.getElementById(`form-${pk}`);
+    fetch(form.action, {method:'POST', body: new FormData(form)})
+    .then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); else alert(d.error); });
+}
+</script>
+{% endblock %}

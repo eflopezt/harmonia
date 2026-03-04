@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Análisis Salarial — Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── KPI Cards ── */
+.sal-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.sal-kpi {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-top: 3px solid transparent;
+}
+.sal-kpi.kpi-total   { border-top-color: #0f766e; }
+.sal-kpi.kpi-prom    { border-top-color: #5eead4; }
+.sal-kpi.kpi-median  { border-top-color: #3b82f6; }
+.sal-kpi.kpi-gap     { border-top-color: #f59e0b; }
+.sal-kpi .kpi-label {
+    font-size: .72rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .3rem;
+}
+.sal-kpi .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+}
+.sal-kpi .kpi-sub {
+    font-size: .75rem;
+    color: #9ca3af;
+    margin-top: .3rem;
+}
+
+/* ── Chart containers ── */
+.chart-container {
+    background: #fff;
+    border-radius: .75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.chart-title {
+    font-size: .88rem;
+    font-weight: 600;
+    margin-bottom: .75rem;
+    color: #111827;
+}
+
+/* ── Percentile table ── */
+.pct-table th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7280;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding: .6rem .75rem;
+}
+.pct-table td {
+    font-size: .84rem;
+    padding: .6rem .75rem;
+    vertical-align: middle;
+}
+.pct-bar-wrap {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: .3rem;
+}
+.pct-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #5eead4, #0f766e);
+    border-radius: 999px;
+}
+
+/* ── Top/Bottom tables ── */
+.rank-table th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7280;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding: .55rem .75rem;
+}
+.rank-table td {
+    font-size: .82rem;
+    padding: .55rem .75rem;
+    vertical-align: middle;
+}
+
+/* ── Gender gap badge ── */
+.gap-badge {
+    font-size: .8rem;
+    font-weight: 600;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+}
+.gap-positive { background: #fef3c7; color: #b45309; }
+.gap-neutral  { background: #dcfce7; color: #16a34a; }
+
+/* ── Section divider ── */
+.section-label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6b7280;
+    margin-bottom: .75rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* ── Disclaimer ── */
+.disclaimer {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: .5rem;
+    padding: .6rem 1rem;
+    font-size: .75rem;
+    color: #6b7280;
+    margin-top: 1.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-1 fw-bold">
+            <i class="fas fa-dollar-sign me-2" style="color:#0f766e"></i>Análisis Salarial
+        </h2>
+        <p class="text-muted mb-0" style="font-size:.83rem">
+            Distribución, equidad y estructura de remuneraciones — {{ n_empleados }} empleados con sueldo registrado
+        </p>
+    </div>
+    <a href="{% url 'analytics_dashboard' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Dashboard
+    </a>
+</div>
+
+<!-- KPI Cards -->
+<div class="sal-kpi-grid">
+    <div class="sal-kpi kpi-total">
+        <div class="kpi-label">Total Planilla Mensual</div>
+        <div class="kpi-value" style="font-size:1.4rem">S/ {{ total_planilla|floatformat:2|intcomma }}</div>
+        <div class="kpi-sub">Suma sueldos base activos</div>
+    </div>
+    <div class="sal-kpi kpi-prom">
+        <div class="kpi-label">Promedio Sueldo</div>
+        <div class="kpi-value">S/ {{ promedio|floatformat:2|intcomma }}</div>
+        <div class="kpi-sub">Media aritmética</div>
+    </div>
+    <div class="sal-kpi kpi-median">
+        <div class="kpi-label">Mediana Sueldo</div>
+        <div class="kpi-value">S/ {{ mediana|floatformat:2|intcomma }}</div>
+        <div class="kpi-sub">P50 — valor central</div>
+    </div>
+    <div class="sal-kpi kpi-gap">
+        <div class="kpi-label">Diferencia Salarial M/F</div>
+        <div class="kpi-value">
+            {% if gap_pct >= 0 %}
+                <span class="gap-badge gap-positive">{{ gap_pct }}%</span>
+            {% else %}
+                <span class="gap-badge gap-neutral">{{ gap_pct|cut:"-" }}%</span>
+            {% endif %}
+        </div>
+        <div class="kpi-sub">
+            M: S/ {{ avg_m|floatformat:0|intcomma }} · F: S/ {{ avg_f|floatformat:0|intcomma }}
+        </div>
+    </div>
+</div>
+
+<!-- Row 1: Distribución por rango + Promedio por área -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="chart-container h-100">
+            <p class="chart-title">
+                <i class="fas fa-chart-bar me-1 text-muted"></i>Distribución por Rango Salarial
+            </p>
+            <canvas id="chartDistribucion" height="260"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="chart-container h-100">
+            <p class="chart-title">
+                <i class="fas fa-building me-1 text-muted"></i>Promedio Salarial por Área
+            </p>
+            <canvas id="chartAreaAvg" height="260"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: Ratio vs UIT + Percentiles -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="chart-container h-100">
+            <p class="chart-title">
+                <i class="fas fa-balance-scale me-1 text-muted"></i>Distribución vs UIT 2026
+                <small class="text-muted fw-normal">(UIT = S/ {{ uit_2026|floatformat:0|intcomma }})</small>
+            </p>
+            <canvas id="chartUIT" height="220"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="chart-container h-100">
+            <p class="chart-title">
+                <i class="fas fa-percentage me-1 text-muted"></i>Percentiles Salariales
+            </p>
+            <table class="table pct-table mb-3">
+                <thead>
+                    <tr>
+                        <th>Percentil</th>
+                        <th class="text-end">Valor</th>
+                        <th style="width:40%">Referencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for label, val in percentiles %}
+                    <tr>
+                        <td><strong>{{ label }}</strong></td>
+                        <td class="text-end fw-bold">S/ {{ val|floatformat:2|intcomma }}</td>
+                        <td>
+                            <div class="pct-bar-wrap">
+                                {% if p90 > 0 %}
+                                    {% widthratio val p90 100 as pct_w %}
+                                    <div class="pct-bar" style="width:{{ pct_w }}%"></div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Gender gap detail -->
+            <div class="section-label">Comparativa por Género</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="text-center p-3" style="background:#eff6ff;border-radius:.5rem">
+                        <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;margin-bottom:.25rem">
+                            <i class="fas fa-mars me-1" style="color:#3b82f6"></i>Masculino
+                        </div>
+                        <div style="font-size:1.3rem;font-weight:700;color:#1d4ed8">
+                            S/ {{ avg_m|floatformat:0|intcomma }}
+                        </div>
+                        <div style="font-size:.72rem;color:#6b7280">promedio</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="text-center p-3" style="background:#fdf4ff;border-radius:.5rem">
+                        <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;margin-bottom:.25rem">
+                            <i class="fas fa-venus me-1" style="color:#a855f7"></i>Femenino
+                        </div>
+                        <div style="font-size:1.3rem;font-weight:700;color:#7c3aed">
+                            S/ {{ avg_f|floatformat:0|intcomma }}
+                        </div>
+                        <div style="font-size:.72rem;color:#6b7280">promedio</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Top 5 y Bottom 5 -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fas fa-arrow-up me-1" style="color:#0f766e"></i>
+                    Top 5 — Sueldos más altos
+                </h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table rank-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Empleado</th>
+                            <th>Área</th>
+                            <th class="text-end">Sueldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in top5 %}
+                        <tr>
+                            <td class="fw-bold" style="color:#0f766e">{{ forloop.counter }}</td>
+                            <td>
+                                <div class="fw-semibold" style="font-size:.82rem">{{ row.apellidos_nombres }}</div>
+                                <div class="text-muted" style="font-size:.72rem">{{ row.cargo|truncatechars:30 }}</div>
+                            </td>
+                            <td style="font-size:.78rem">{{ row.subarea__area__nombre|default:"—" }}</td>
+                            <td class="text-end fw-bold" style="color:#0f766e">
+                                S/ {{ row.sueldo_base|floatformat:2|intcomma }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin datos</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fas fa-arrow-down me-1" style="color:#f59e0b"></i>
+                    Bottom 5 — Sueldos más bajos
+                </h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table rank-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Empleado</th>
+                            <th>Área</th>
+                            <th class="text-end">Sueldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in bottom5 %}
+                        <tr>
+                            <td class="fw-bold" style="color:#f59e0b">{{ forloop.counter }}</td>
+                            <td>
+                                <div class="fw-semibold" style="font-size:.82rem">{{ row.apellidos_nombres }}</div>
+                                <div class="text-muted" style="font-size:.72rem">{{ row.cargo|truncatechars:30 }}</div>
+                            </td>
+                            <td style="font-size:.78rem">{{ row.subarea__area__nombre|default:"—" }}</td>
+                            <td class="text-end fw-bold" style="color:#f59e0b">
+                                S/ {{ row.sueldo_base|floatformat:2|intcomma }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sin datos</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Disclaimer -->
+<div class="disclaimer">
+    <i class="fas fa-info-circle me-1"></i>
+    <strong>Nota:</strong> Los datos de brecha salarial por género se presentan con fines informativos y analíticos.
+    Las diferencias pueden deberse a factores como cargo, área, antigüedad y nivel jerárquico.
+    Se recomienda análisis complementario antes de tomar decisiones. UIT 2026 = S/ {{ uit_2026|floatformat:0|intcomma }}.
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const TEAL       = '#0f766e';
+    const TEAL_LIGHT = '#5eead4';
+    const COLORS     = ['#0f766e','#5eead4','#f59e0b','#3b82f6','#8b5cf6',
+                        '#ec4899','#10b981','#f97316','#6366f1','#14b8a6',
+                        '#a78bfa','#fb923c','#34d399','#60a5fa','#f472b6'];
+
+    const defaultFont = { family: "'Inter','Segoe UI',sans-serif", size: 11 };
+    Chart.defaults.font = defaultFont;
+    Chart.defaults.color = '#6b7280';
+
+    // ── Bar: Distribución por rango ──
+    const distLabels = {{ dist_labels|safe }};
+    const distValues = {{ dist_values|safe }};
+    if (distLabels.length) {
+        new Chart(document.getElementById('chartDistribucion'), {
+            type: 'bar',
+            data: {
+                labels: distLabels,
+                datasets: [{
+                    label: 'Empleados',
+                    data: distValues,
+                    backgroundColor: [
+                        '#5eead466', '#0f766e66', '#3b82f666', '#8b5cf666', '#f59e0b66'
+                    ],
+                    borderColor: [
+                        '#5eead4', '#0f766e', '#3b82f6', '#8b5cf6', '#f59e0b'
+                    ],
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.parsed.y} empleados`
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    // ── Bar: Promedio por área ──
+    const areaLabels = {{ area_labels|safe }};
+    const areaAvg    = {{ area_avg_values|safe }};
+    if (areaLabels.length) {
+        new Chart(document.getElementById('chartAreaAvg'), {
+            type: 'bar',
+            data: {
+                labels: areaLabels,
+                datasets: [{
+                    label: 'Promedio S/',
+                    data: areaAvg,
+                    backgroundColor: COLORS.slice(0, areaLabels.length).map(c => c + 'bb'),
+                    borderColor:     COLORS.slice(0, areaLabels.length),
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` S/ ${ctx.parsed.x.toLocaleString('es-PE', {minimumFractionDigits:2})}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: '#f3f4f6' },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: v => 'S/ ' + (v/1000).toFixed(1) + 'k'
+                        }
+                    },
+                    y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    // ── Doughnut: Ratio vs UIT ──
+    const uitLabels = {{ uit_labels|safe }};
+    const uitValues = {{ uit_values|safe }};
+    if (uitLabels.length) {
+        new Chart(document.getElementById('chartUIT'), {
+            type: 'doughnut',
+            data: {
+                labels: uitLabels,
+                datasets: [{
+                    data: uitValues,
+                    backgroundColor: ['#fee2e2cc','#fef3c7cc','#d1fae5cc','#dbeafece'],
+                    borderColor:     ['#dc2626','#f59e0b','#10b981','#3b82f6'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '58%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 10 }, boxWidth: 12, padding: 8 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.label}: ${ctx.parsed} empleados`
+                        }
+                    }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}
