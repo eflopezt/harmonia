@@ -35,11 +35,15 @@ echo  [2/4] Setup inicial (seeds + superusuario)...
 "%PYTHON%" manage.py setup_harmoni --no-input 2>nul
 echo  OK
 
-echo  [3/4] Setup datos de demo...
+echo  [3/5] Setup datos de demo...
 "%PYTHON%" manage.py seed_demo_presentacion 2>nul
 if %errorlevel% neq 0 (
     echo  [AVISO] seed_demo_presentacion omitido ^(puede que ya existan datos^)
 )
+echo  OK
+
+echo  [4/5] Completando perfiles de empleados (banco, CUSPP, correos, contratos)...
+"%PYTHON%" manage.py seed_demo_completar 2>nul
 echo  OK
 
 :: ── Detectar IP local para que el cliente se conecte ─────────────────────
@@ -51,7 +55,7 @@ for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4" ^| findstr /v 
 set LOCAL_IP=%LOCAL_IP: =%
 
 echo.
-echo  [4/4] Iniciando servidor...
+echo  [5/5] Iniciando servidor...
 echo.
 echo  ╔══════════════════════════════════════════════════════╗
 echo  ║  Sistema listo. Accede desde cualquier PC en la red: ║
