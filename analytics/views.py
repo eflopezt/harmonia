@@ -482,6 +482,305 @@ def headcount(request):
 
 
 # ─────────────────────────────────────────────────
+# PREDICTIVE INSIGHTS — Análisis predictivo RRHH
+# ─────────────────────────────────────────────────
+
+@solo_admin
+def predictive_insights(request):
+    """
+    Página de inteligencia predictiva de RRHH.
+    Muestra: predicción de bajas, riesgo por área, compa-ratio, ausentismo histórico,
+    señales de riesgo agregadas, y recomendaciones de acción.
+    """
+    from personal.models import Personal, Area
+    from django.db.models import Avg, Count, Q
+
+    hoy = date.today()
+    inicio_mes = date(hoy.year, hoy.month, 1)
+    hace_6m = hoy - timedelta(days=180)
+    hace_1y = hoy - timedelta(days=365)
+    en_30d = hoy + timedelta(days=30)
+    en_60d = hoy + timedelta(days=60)
+    en_90d = hoy + timedelta(days=90)
+
+    activos = Personal.objects.filter(estado='Activo').select_related('subarea', 'subarea__area')
+    total_activos = activos.count()
+
+    # ── 1. Predicción de bajas próximos 30 / 60 / 90 días ─────────────────
+    contratos_30d = activos.filter(
+        tipo_contrato='PLAZO_FIJO',
+        fecha_fin_contrato__gte=hoy,
+        fecha_fin_contrato__lte=en_30d,
+    ).count()
+    contratos_60d = activos.filter(
+        tipo_contrato='PLAZO_FIJO',
+        fecha_fin_contrato__gt=en_30d,
+        fecha_fin_contrato__lte=en_60d,
+    ).count()
+    contratos_90d = activos.filter(
+        tipo_contrato='PLAZO_FIJO',
+        fecha_fin_contrato__gt=en_60d,
+        fecha_fin_contrato__lte=en_90d,
+    ).count()
+
+    # Tasa histórica de renovación (bajas 12m / altas 12m)
+    bajas_12m = Personal.objects.filter(
+        fecha_cese__gte=hoy - timedelta(days=365), estado='Cesado'
+    ).count()
+    altas_12m = Personal.objects.filter(fecha_alta__gte=hoy - timedelta(days=365)).count()
+    tasa_renovacion_pct = round((altas_12m / bajas_12m * 100) if bajas_12m else 100, 0)
+
+    # Predicción probabilística de bajas (contratos_30d × tasa no-renovación histórica)
+    tasa_no_renueva = max(0, 1 - (altas_12m / bajas_12m)) if bajas_12m else 0.3
+    bajas_pred_30d = round(contratos_30d * tasa_no_renueva)
+
+    # ── 2. Scoring por área ────────────────────────────────────────────────
+    # Reutilizamos el mismo scoring de attrition pero agregado por área
+    faltas_por_persona = {}
+    try:
+        from asistencia.models import RegistroTareo
+        for row in (
+            RegistroTareo.objects
+            .filter(fecha__gte=inicio_mes, fecha__lte=hoy,
+                    codigo_dia__in=['F', 'FALTA'], personal__isnull=False)
+            .values('personal_id').annotate(n=Count('id'))
+        ):
+            faltas_por_persona[row['personal_id']] = row['n']
+    except Exception:
+        pass
+
+    con_evaluacion = set()
+    try:
+        from evaluaciones.models import ResultadoConsolidado
+        con_evaluacion = set(
+            ResultadoConsolidado.objects
+            .filter(fecha_consolidacion__gte=hace_6m)
+            .values_list('personal_id', flat=True)
+        )
+    except Exception:
+        pass
+
+    con_capacitacion = set()
+    try:
+        from capacitaciones.models import AsistenciaCapacitacion
+        con_capacitacion = set(
+            AsistenciaCapacitacion.objects
+            .filter(capacitacion__fecha_inicio__gte=hace_1y, asistio=True)
+            .values_list('personal_id', flat=True)
+        )
+    except Exception:
+        pass
+
+    bandas_min = {}
+    bandas_mid = {}
+    try:
+        from salarios.models import BandaSalarial
+        for banda in BandaSalarial.objects.filter(activa=True):
+            k = banda.cargo.strip().lower()
+            if k not in bandas_min or banda.minimo < bandas_min[k]:
+                bandas_min[k] = float(banda.minimo)
+            midpoint = float((banda.minimo + banda.maximo) / 2)
+            if k not in bandas_mid:
+                bandas_mid[k] = midpoint
+    except Exception:
+        pass
+
+    # Score por empleado
+    emp_scores = {}
+    for emp in activos:
+        score = 0
+        if (emp.tipo_contrato == 'PLAZO_FIJO' and emp.fecha_fin_contrato and
+                hoy <= emp.fecha_fin_contrato <= en_60d):
+            score += 30
+        if faltas_por_persona.get(emp.id, 0) > 3:
+            score += 20
+        if emp.sueldo_base and emp.cargo:
+            bm = bandas_min.get(emp.cargo.strip().lower())
+            if bm and float(emp.sueldo_base) < bm:
+                score += 15
+        if emp.id not in con_evaluacion:
+            score += 10
+        if emp.id not in con_capacitacion:
+            score += 10
+        emp_scores[emp.id] = (score, emp)
+
+    # Agrupar por área
+    areas = Area.objects.filter(activa=True).order_by('nombre')
+    area_riesgo = []
+    for area in areas:
+        emps_area = [e for _, e in emp_scores.values() if e.subarea and e.subarea.area_id == area.id]
+        if not emps_area:
+            continue
+        total_area = len(emps_area)
+        high = sum(1 for e in emps_area if emp_scores[e.id][0] >= 40)
+        medium = sum(1 for e in emps_area if 20 <= emp_scores[e.id][0] < 40)
+        low = total_area - high - medium
+        avg_score = round(sum(emp_scores[e.id][0] for e in emps_area) / total_area, 1)
+        area_riesgo.append({
+            'area': area.nombre,
+            'total': total_area,
+            'high': high,
+            'medium': medium,
+            'low': low,
+            'avg_score': avg_score,
+            'pct_riesgo': round((high + medium) / total_area * 100, 0),
+        })
+    area_riesgo.sort(key=lambda x: -x['avg_score'])
+
+    # ── 3. Compa-ratio por área ────────────────────────────────────────────
+    compa_ratio_data = []
+    for area in areas:
+        emps_area = [
+            e for _, e in emp_scores.values()
+            if e.subarea and e.subarea.area_id == area.id and
+            e.sueldo_base and e.cargo and e.cargo.strip().lower() in bandas_mid
+        ]
+        if not emps_area:
+            continue
+        ratios = []
+        for e in emps_area:
+            mid = bandas_mid.get(e.cargo.strip().lower())
+            if mid and mid > 0:
+                ratios.append(float(e.sueldo_base) / mid * 100)
+        if ratios:
+            avg_ratio = round(sum(ratios) / len(ratios), 1)
+            compa_ratio_data.append({'area': area.nombre, 'ratio': avg_ratio, 'n': len(ratios)})
+
+    # ── 4. Ausentismo por semana (últimas 10 semanas) ──────────────────────
+    semanas_labels = []
+    semanas_pct = []
+    for i in range(9, -1, -1):
+        inicio_semana = hoy - timedelta(days=hoy.weekday()) - timedelta(weeks=i)
+        fin_semana = inicio_semana + timedelta(days=6)
+        try:
+            from asistencia.models import RegistroTareo
+            total_sem = RegistroTareo.objects.filter(
+                fecha__gte=inicio_semana, fecha__lte=fin_semana
+            ).count()
+            faltas_sem = RegistroTareo.objects.filter(
+                fecha__gte=inicio_semana, fecha__lte=fin_semana,
+                codigo_dia__in=['F', 'FALTA'],
+            ).count()
+            pct = round(faltas_sem / total_sem * 100, 1) if total_sem > 0 else 0
+        except Exception:
+            pct = 0
+        semanas_labels.append(inicio_semana.strftime('Sem %d/%m'))
+        semanas_pct.append(pct)
+
+    ausentismo_tendencia = 'UP' if len(semanas_pct) >= 2 and semanas_pct[-1] > semanas_pct[-3] else 'DOWN'
+    ausentismo_actual = semanas_pct[-1] if semanas_pct else 0
+
+    # ── 5. Señales de alerta compuestas ────────────────────────────────────
+    senales = []
+    riesgo_total = sum(1 for s, _ in emp_scores.values() if s >= 20)
+    riesgo_alto = sum(1 for s, _ in emp_scores.values() if s >= 40)
+
+    if riesgo_alto >= 5:
+        senales.append({
+            'nivel': 'CRITICO',
+            'icono': 'fas fa-user-slash',
+            'color': '#dc2626',
+            'bg': '#fef2f2',
+            'titulo': f'{riesgo_alto} empleados en riesgo alto de fuga',
+            'accion': 'Revisar contratos y compensaciones de forma urgente',
+            'url': '/analytics/attrition/',
+        })
+    elif riesgo_alto > 0:
+        senales.append({
+            'nivel': 'ALTO',
+            'icono': 'fas fa-exclamation-triangle',
+            'color': '#f59e0b',
+            'bg': '#fffbeb',
+            'titulo': f'{riesgo_alto} empleados con señales de abandono',
+            'accion': 'Programar reuniones 1:1 y revisar motivación',
+            'url': '/analytics/attrition/',
+        })
+
+    if contratos_30d > 0:
+        senales.append({
+            'nivel': 'URGENTE',
+            'icono': 'fas fa-file-contract',
+            'color': '#dc2626',
+            'bg': '#fff1f2',
+            'titulo': f'{contratos_30d} contrato{"s" if contratos_30d > 1 else ""} vence{"n" if contratos_30d > 1 else ""} en 30 días',
+            'accion': 'Decidir renovación o inicio de proceso de cese',
+            'url': '/personal/?contratos=vencen',
+        })
+
+    if ausentismo_actual > 8:
+        senales.append({
+            'nivel': 'ALTO',
+            'icono': 'fas fa-user-clock',
+            'color': '#f59e0b',
+            'bg': '#fffbeb',
+            'titulo': f'Ausentismo esta semana: {ausentismo_actual}%',
+            'accion': 'Identificar causas (clima, salud, desmotivación)',
+            'url': '/asistencia/',
+        })
+
+    sin_eval_pct = round((1 - len(con_evaluacion) / total_activos) * 100) if total_activos else 0
+    if sin_eval_pct > 60:
+        senales.append({
+            'nivel': 'MEDIO',
+            'icono': 'fas fa-star-half-alt',
+            'color': '#0891b2',
+            'bg': '#f0f9ff',
+            'titulo': f'{sin_eval_pct}% de empleados sin evaluación reciente',
+            'accion': 'Lanzar ciclo de evaluaciones 360°',
+            'url': '/evaluaciones/',
+        })
+
+    sin_cap_pct = round((1 - len(con_capacitacion) / total_activos) * 100) if total_activos else 0
+    if sin_cap_pct > 50:
+        senales.append({
+            'nivel': 'BAJO',
+            'icono': 'fas fa-graduation-cap',
+            'color': '#7c3aed',
+            'bg': '#faf5ff',
+            'titulo': f'{sin_cap_pct}% sin capacitación en el último año',
+            'accion': 'Planificar programa de desarrollo y e-learning',
+            'url': '/capacitaciones/',
+        })
+
+    # ── 6. Top empleados en riesgo (para tabla) ───────────────────────────
+    top_riesgo = sorted(
+        [(s, e) for s, e in emp_scores.values() if s >= 20],
+        key=lambda x: -x[0]
+    )[:15]
+
+    context = {
+        # Predicción bajas
+        'contratos_30d': contratos_30d,
+        'contratos_60d': contratos_60d,
+        'contratos_90d': contratos_90d,
+        'bajas_pred_30d': bajas_pred_30d,
+        'tasa_renovacion_pct': int(tasa_renovacion_pct),
+        'bajas_12m': bajas_12m,
+        'altas_12m': altas_12m,
+        # Riesgo
+        'riesgo_total': riesgo_total,
+        'riesgo_alto': riesgo_alto,
+        'total_activos': total_activos,
+        # Por área
+        'area_riesgo': area_riesgo,
+        'area_riesgo_json': json.dumps(area_riesgo),
+        # Compa-ratio
+        'compa_ratio_data': compa_ratio_data,
+        'compa_ratio_json': json.dumps(compa_ratio_data),
+        # Ausentismo
+        'semanas_labels_json': json.dumps(semanas_labels),
+        'semanas_pct_json': json.dumps(semanas_pct),
+        'ausentismo_actual': ausentismo_actual,
+        'ausentismo_tendencia': ausentismo_tendencia,
+        # Señales
+        'senales': senales,
+        # Top riesgo
+        'top_riesgo': top_riesgo,
+    }
+    return render(request, 'analytics/predictive_insights.html', context)
+
+
+# ─────────────────────────────────────────────────
 # RIESGO DE ROTACIÓN (ATTRITION RISK)
 # ─────────────────────────────────────────────────
 
@@ -982,3 +1281,227 @@ def api_tendencias(request):
         'he': [float(s.total_he_mes) for s in snapshots],
     }
     return JsonResponse(data)
+
+
+# ─────────────────────────────────────────────────
+# API WIDGETS HOME — Team Health + Riesgo Rotación
+# ─────────────────────────────────────────────────
+
+@solo_admin
+def api_team_health(request):
+    """
+    Composite Team Health Score (0-100) para widget en home.
+    Ponderación: asistencia 35% + retención 25% + evaluaciones 20% + capacitaciones 20%.
+    """
+    from personal.models import Personal
+
+    hoy = date.today()
+    inicio_mes = date(hoy.year, hoy.month, 1)
+    hace_6m = hoy - timedelta(days=180)
+    hace_1y = hoy - timedelta(days=365)
+
+    activos = Personal.objects.filter(estado='Activo')
+    total = activos.count()
+    if not total:
+        return JsonResponse({
+            'score': 0, 'label': 'Sin datos', 'color': '#94a3b8',
+            'factores': [], 'total_activos': 0,
+        })
+
+    # 1. Asistencia este mes (35%) — % registros sin falta
+    asistencia_score = 80.0  # default razonable si no hay tareo aún
+    try:
+        from asistencia.models import RegistroTareo
+        total_reg = RegistroTareo.objects.filter(fecha__gte=inicio_mes, fecha__lte=hoy).count()
+        if total_reg > 0:
+            faltas = RegistroTareo.objects.filter(
+                fecha__gte=inicio_mes, fecha__lte=hoy,
+                codigo_dia__in=['F', 'FALTA'],
+            ).count()
+            asistencia_score = round((1 - faltas / total_reg) * 100, 1)
+    except Exception:
+        pass
+
+    # 2. Retención últimos 90 días (25%) — 100 menos tasa de bajas amplificada
+    retencion_score = 95.0
+    try:
+        bajas_3m = Personal.objects.filter(
+            fecha_cese__gte=hoy - timedelta(days=90), estado='Cesado'
+        ).count()
+        tasa = (bajas_3m / total) * 100
+        retencion_score = max(0.0, round(100 - tasa * 4, 1))
+    except Exception:
+        pass
+
+    # 3. Cobertura evaluaciones (20%) — % con resultado consolidado últimos 6m
+    eval_score = 0.0
+    try:
+        from evaluaciones.models import ResultadoConsolidado
+        con_eval = (
+            ResultadoConsolidado.objects
+            .filter(fecha_consolidacion__gte=hace_6m)
+            .values('personal_id').distinct().count()
+        )
+        eval_score = round(con_eval / total * 100, 1)
+    except Exception:
+        pass
+
+    # 4. Cobertura capacitaciones (20%) — % con asistencia último año
+    cap_score = 0.0
+    try:
+        from capacitaciones.models import AsistenciaCapacitacion
+        con_cap = (
+            AsistenciaCapacitacion.objects
+            .filter(capacitacion__fecha_inicio__gte=hace_1y, asistio=True)
+            .values('personal_id').distinct().count()
+        )
+        cap_score = round(con_cap / total * 100, 1)
+    except Exception:
+        pass
+
+    composite = round(
+        asistencia_score * 0.35 +
+        retencion_score  * 0.25 +
+        eval_score       * 0.20 +
+        cap_score        * 0.20,
+        1,
+    )
+
+    if composite >= 80:
+        label = 'Equipo en forma'
+        color = '#16a34a'
+    elif composite >= 65:
+        label = 'Equipo estable'
+        color = '#0f766e'
+    elif composite >= 50:
+        label = 'Atención requerida'
+        color = '#f59e0b'
+    else:
+        label = 'Alerta crítica'
+        color = '#dc2626'
+
+    return JsonResponse({
+        'score': composite,
+        'label': label,
+        'color': color,
+        'total_activos': total,
+        'factores': [
+            {'nombre': 'Asistencia',     'valor': asistencia_score, 'peso': 35},
+            {'nombre': 'Retención',      'valor': retencion_score,  'peso': 25},
+            {'nombre': 'Evaluaciones',   'valor': eval_score,       'peso': 20},
+            {'nombre': 'Capacitaciones', 'valor': cap_score,        'peso': 20},
+        ],
+    })
+
+
+@solo_admin
+def api_rotacion_riesgo_top(request):
+    """
+    Top 5 empleados con mayor riesgo de rotación. Para widget en home dashboard.
+    Retorna solo empleados con score >= 20 (MEDIUM o HIGH).
+    """
+    from personal.models import Personal
+
+    hoy = date.today()
+    inicio_mes = date(hoy.year, hoy.month, 1)
+    hace_6m = hoy - timedelta(days=180)
+    hace_1y = hoy - timedelta(days=365)
+    en_60d = hoy + timedelta(days=60)
+
+    activos = Personal.objects.filter(estado='Activo').select_related('subarea', 'subarea__area')
+
+    # Datos para scoring (misma lógica que attrition_risk)
+    faltas_por_persona = {}
+    try:
+        from asistencia.models import RegistroTareo
+        for row in (
+            RegistroTareo.objects
+            .filter(fecha__gte=inicio_mes, fecha__lte=hoy,
+                    codigo_dia__in=['F', 'FALTA'], personal__isnull=False)
+            .values('personal_id').annotate(n=Count('id'))
+        ):
+            faltas_por_persona[row['personal_id']] = row['n']
+    except Exception:
+        pass
+
+    con_evaluacion = set()
+    try:
+        from evaluaciones.models import ResultadoConsolidado
+        con_evaluacion = set(
+            ResultadoConsolidado.objects
+            .filter(fecha_consolidacion__gte=hace_6m)
+            .values_list('personal_id', flat=True)
+        )
+    except Exception:
+        pass
+
+    con_capacitacion = set()
+    try:
+        from capacitaciones.models import AsistenciaCapacitacion
+        con_capacitacion = set(
+            AsistenciaCapacitacion.objects
+            .filter(capacitacion__fecha_inicio__gte=hace_1y, asistio=True)
+            .values_list('personal_id', flat=True)
+        )
+    except Exception:
+        pass
+
+    bandas_min = {}
+    try:
+        from salarios.models import BandaSalarial
+        for banda in BandaSalarial.objects.filter(activa=True):
+            k = banda.cargo.strip().lower()
+            if k not in bandas_min or banda.minimo < bandas_min[k]:
+                bandas_min[k] = float(banda.minimo)
+    except Exception:
+        pass
+
+    scored = []
+    for emp in activos:
+        score = 0
+        factores = []
+
+        if (emp.tipo_contrato == 'PLAZO_FIJO' and emp.fecha_fin_contrato and
+                hoy <= emp.fecha_fin_contrato <= en_60d):
+            score += 30
+            factores.append(f'Contrato en {(emp.fecha_fin_contrato - hoy).days}d')
+
+        faltas = faltas_por_persona.get(emp.id, 0)
+        if faltas > 3:
+            score += 20
+            factores.append(f'{faltas} faltas/mes')
+
+        if emp.sueldo_base and emp.cargo:
+            bm = bandas_min.get(emp.cargo.strip().lower())
+            if bm and float(emp.sueldo_base) < bm:
+                score += 15
+                factores.append('Sueldo bajo banda')
+
+        if emp.id not in con_evaluacion:
+            score += 10
+            factores.append('Sin evaluación')
+
+        if emp.id not in con_capacitacion:
+            score += 10
+            factores.append('Sin capacitación')
+
+        if score >= 20:
+            nivel = 'HIGH' if score >= 40 else 'MEDIUM'
+            area_nombre = (emp.subarea.area.nombre if emp.subarea and emp.subarea.area else 'Sin área')
+            scored.append({
+                'pk': emp.pk,
+                'nombre': emp.apellidos_nombres,
+                'cargo': emp.cargo or '',
+                'area': area_nombre,
+                'score': score,
+                'nivel': nivel,
+                'factores': factores[:3],
+            })
+
+    scored.sort(key=lambda x: -x['score'])
+
+    return JsonResponse({
+        'top': scored[:5],
+        'total_riesgo': len(scored),
+        'riesgo_alto': sum(1 for e in scored if e['nivel'] == 'HIGH'),
+    })

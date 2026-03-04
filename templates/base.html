@@ -690,8 +690,12 @@
                     <a href="{% url 'analytics_salarios' %}" class="nav-item" data-match="/analytics/salarios">
                         <i class="fas fa-coins"></i><span>Análisis Salarial</span>
                     </a>
+                    <a href="{% url 'analytics_predictive' %}" class="nav-item" data-match="/analytics/predictive">
+                        <i class="fas fa-brain"></i><span>Predictive Insights</span>
+                        <span class="badge ms-auto" style="background:linear-gradient(135deg,#5eead4,#0f766e);color:#fff;font-size:.52rem;padding:2px 6px;border-radius:8px;">NUEVO</span>
+                    </a>
                     <a href="{% url 'analytics_ai_dashboard' %}" class="nav-item" data-match="/analytics/ia">
-                        <i class="fas fa-brain"></i><span>Dashboard IA</span>
+                        <i class="fas fa-robot"></i><span>Dashboard IA</span>
                         <span class="badge ms-auto" style="background:#5eead4;color:#0d2b27;font-size:.55rem;padding:2px 6px;border-radius:8px;">IA</span>
                     </a>
                 </div>
@@ -1286,6 +1290,408 @@
 {% endif %}
 
 {% block extra_js %}{% endblock %}
+
+{% if user.is_authenticated %}
+<!-- ══════════════════════════════════════════════════════════════════════════
+     COMMAND PALETTE — Ctrl+K / Cmd+K  (estilo Linear/Notion/GitHub)
+     Ningún ERP peruano tiene esto. Búsqueda global + acciones rápidas.
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="cmdOverlay" class="cmd-overlay" style="display:none">
+  <div class="cmd-container">
+
+    <!-- Barra de búsqueda -->
+    <div class="cmd-search-bar">
+      <i class="fas fa-search cmd-search-icon"></i>
+      <input type="text" id="cmdInput" class="cmd-input"
+             placeholder="Buscar empleado, módulo o acción…"
+             autocomplete="off" spellcheck="false">
+      <kbd class="cmd-esc-hint">ESC</kbd>
+    </div>
+
+    <!-- Resultados -->
+    <div id="cmdResults" class="cmd-results">
+      <!-- Se renderizan dinámicamente -->
+    </div>
+
+    <!-- Footer -->
+    <div class="cmd-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
+      <span><kbd>Enter</kbd> Abrir</span>
+      <span><kbd>Esc</kbd> Cerrar</span>
+      <span class="ms-auto text-muted" style="font-size:.7rem;">Harmoni ERP · Ctrl+K</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.cmd-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    z-index: 99999; display: flex; align-items: flex-start;
+    justify-content: center; padding-top: 12vh;
+    backdrop-filter: blur(4px);
+    animation: cmdFadeIn .12s ease;
+}
+@keyframes cmdFadeIn { from { opacity:0; } to { opacity:1; } }
+.cmd-container {
+    background: #fff; border-radius: 12px; width: 100%; max-width: 620px;
+    box-shadow: 0 25px 60px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+    overflow: hidden;
+    animation: cmdSlideIn .15s ease;
+}
+@keyframes cmdSlideIn { from { transform: translateY(-16px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.cmd-search-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+}
+.cmd-search-icon { color: #9ca3af; font-size: 1rem; }
+.cmd-input {
+    flex: 1; border: none; outline: none; font-size: 1.05rem;
+    color: #111; background: transparent;
+}
+.cmd-input::placeholder { color: #9ca3af; }
+.cmd-esc-hint {
+    background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb;
+    border-radius: 4px; padding: 2px 7px; font-size: .72rem;
+    font-family: inherit; cursor: default;
+}
+.cmd-results { max-height: 420px; overflow-y: auto; padding: 8px 0; }
+.cmd-section-label {
+    padding: 6px 20px 4px;
+    font-size: .67rem; font-weight: 700; letter-spacing: .6px;
+    color: #9ca3af; text-transform: uppercase;
+}
+.cmd-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 20px; cursor: pointer; transition: background .1s;
+    text-decoration: none; color: inherit;
+}
+.cmd-item:hover, .cmd-item.cmd-selected {
+    background: #f0fdf4;
+}
+.cmd-item-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: .85rem;
+}
+.cmd-item-icon.emp   { background: #eff6ff; color: #3b82f6; }
+.cmd-item-icon.nav   { background: #f0fdf4; color: #0f766e; }
+.cmd-item-icon.accion{ background: #fef3c7; color: #d97706; }
+.cmd-item-body { flex: 1; min-width: 0; }
+.cmd-item-title { font-size: .88rem; font-weight: 600; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmd-item-sub   { font-size: .74rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmd-item-badge { font-size: .65rem; padding: 1px 7px; border-radius: 10px; flex-shrink:0; }
+.cmd-badge-activo { background: #d1fae5; color: #065f46; }
+.cmd-badge-cesado { background: #fee2e2; color: #991b1b; }
+.cmd-empty { text-align: center; padding: 32px 20px; color: #9ca3af; font-size: .9rem; }
+.cmd-footer {
+    display: flex; gap: 14px; align-items: center;
+    padding: 10px 20px; border-top: 1px solid #f3f4f6;
+    font-size: .72rem; color: #9ca3af;
+}
+.cmd-footer kbd {
+    background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 3px;
+    padding: 1px 5px; font-size: .7rem; font-family: inherit;
+}
+/* Dark mode hint */
+@media (prefers-color-scheme: dark) {
+    .cmd-container { background: #1e293b; }
+    .cmd-input { color: #f1f5f9; }
+    .cmd-item:hover, .cmd-item.cmd-selected { background: #0f2b27; }
+    .cmd-section-label { color: #64748b; }
+    .cmd-item-title { color: #f1f5f9; }
+    .cmd-footer { border-color: #334155; }
+}
+</style>
+
+<script>
+(function() {
+'use strict';
+
+const SEARCH_URL  = '{% url "cmd_search" %}';
+const HR_ASK_URL  = '{% url "hr_ask" %}';
+let overlay, input, results;
+let selectedIdx = -1;
+let allItems = [];
+let searchTimer = null;
+let lastQuery = '';
+
+// Keywords que disparan modo Q&A en lugar de búsqueda normal
+const HR_QUESTION_KW = [
+  '?','cuántos','cuantos','cuántas','cuantas','cuándo','cuando',
+  'cumpleaños','cumpleanos','ausentismo','faltas','contrato','contratos',
+  'riesgo','rotación','rotacion','vacaciones','planilla','nómina','nomina',
+  'altas','bajas','nuevos','cesados','headcount','sueldo','sueldos',
+  'áreas','areas','gerencia','gerencias','evaluaci','capacitac','ayuda','help',
+];
+
+function isHRQuestion(q) {
+  const ql = q.toLowerCase();
+  return HR_QUESTION_KW.some(k => ql.includes(k));
+}
+
+function open() {
+    overlay = document.getElementById('cmdOverlay');
+    input   = document.getElementById('cmdInput');
+    results = document.getElementById('cmdResults');
+    overlay.style.display = 'flex';
+    input.value = '';
+    input.focus();
+    selectedIdx = -1;
+    renderDefault();
+}
+
+function close() {
+    document.getElementById('cmdOverlay').style.display = 'none';
+}
+
+// Ctrl+K / Cmd+K global
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const ov = document.getElementById('cmdOverlay');
+        if (ov.style.display === 'none' || ov.style.display === '') open();
+        else close();
+    }
+    if (e.key === 'Escape') {
+        const ov = document.getElementById('cmdOverlay');
+        if (ov && ov.style.display !== 'none') close();
+    }
+});
+
+// Close on overlay click
+document.getElementById('cmdOverlay').addEventListener('click', function(e) {
+    if (e.target === this) close();
+});
+
+// Search input
+document.getElementById('cmdInput').addEventListener('input', function() {
+    const q = this.value.trim();
+    clearTimeout(searchTimer);
+    if (q === lastQuery) return;
+    lastQuery = q;
+    if (!q) { renderDefault(); return; }
+    searchTimer = setTimeout(() => search(q), 180);
+});
+
+// Keyboard navigation
+document.getElementById('cmdInput').addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
+    else if (e.key === 'Enter') { e.preventDefault(); activateSelected(); }
+});
+
+function moveSelection(dir) {
+    const items = document.querySelectorAll('.cmd-item');
+    if (!items.length) return;
+    items.forEach(i => i.classList.remove('cmd-selected'));
+    selectedIdx = Math.max(0, Math.min(items.length - 1, selectedIdx + dir));
+    items[selectedIdx].classList.add('cmd-selected');
+    items[selectedIdx].scrollIntoView({ block: 'nearest' });
+}
+
+function activateSelected() {
+    const sel = document.querySelector('.cmd-item.cmd-selected');
+    if (sel) { window.location = sel.getAttribute('href'); close(); }
+    else {
+        const first = document.querySelector('.cmd-item');
+        if (first) { window.location = first.getAttribute('href'); close(); }
+    }
+}
+
+async function search(q) {
+    // Si parece una pregunta de RRHH → modo Q&A
+    if (isHRQuestion(q) && q.length > 4) {
+        renderHRAskLoading(q);
+        try {
+            const r = await fetch(`${HR_ASK_URL}?q=${encodeURIComponent(q)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await r.json();
+            selectedIdx = -1;
+            renderHRAnswer(data, q);
+        } catch(e) {
+            console.warn('hr-ask error', e);
+        }
+        return;
+    }
+    // Búsqueda normal de empleados/nav
+    try {
+        const r = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await r.json();
+        selectedIdx = -1;
+        render(data, q);
+    } catch(e) {
+        console.warn('cmd search error', e);
+    }
+}
+
+function renderHRAskLoading(q) {
+    const res = document.getElementById('cmdResults');
+    res.innerHTML = `
+        <div style="padding:20px 20px;display:flex;align-items:center;gap:12px">
+            <div class="spinner-border spinner-border-sm" style="color:#0f766e" role="status"></div>
+            <span style="font-size:.85rem;color:#6b7280">Consultando datos de RRHH…</span>
+        </div>`;
+}
+
+function renderHRAnswer(data, q) {
+    const res = document.getElementById('cmdResults');
+    if (!data || !data.respuesta) { render({ empleados:[], nav:[], acciones:[] }, q); return; }
+
+    // Convertir markdown básico (negrita)
+    const fmtResp = data.respuesta
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+
+    let accionesHtml = '';
+    if (data.acciones && data.acciones.length) {
+        accionesHtml = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">` +
+            data.acciones.map(a => `
+                <a href="${esc(a.url)}" onclick="cmdClose()" style="display:inline-flex;align-items:center;gap:6px;
+                   padding:5px 12px;border-radius:20px;font-size:.73rem;font-weight:600;
+                   background:#f0fdf4;color:#0f766e;border:1px solid #bbf7d0;text-decoration:none;
+                   transition:filter .15s" onmouseover="this.style.filter='brightness(.93)'" onmouseout="this.style.filter=''">
+                    <i class="fas ${esc(a.icono || 'fa-arrow-right')}"></i>${esc(a.label)}
+                </a>`).join('') +
+        `</div>`;
+    }
+
+    const confianzaColor = data.confianza === 'alta' ? '#16a34a' : data.confianza === 'media' ? '#f59e0b' : '#94a3b8';
+
+    res.innerHTML = `
+        <div style="padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <div style="width:28px;height:28px;background:#f0fdf4;border-radius:8px;display:flex;align-items:center;justify-content:center">
+                    <i class="fas fa-robot" style="color:#0f766e;font-size:.78rem"></i>
+                </div>
+                <span style="font-size:.7rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em">
+                    Asistente RRHH
+                </span>
+                <span style="margin-left:auto;font-size:.62rem;color:${confianzaColor};font-weight:600">
+                    ● ${data.confianza === 'alta' ? 'Alta confianza' : data.confianza === 'media' ? 'Confianza media' : 'Sin match'}
+                </span>
+            </div>
+            <div style="font-size:.84rem;line-height:1.65;color:#1f2937;background:#f8fafc;
+                        border-left:3px solid #0f766e;padding:10px 14px;border-radius:0 8px 8px 0">
+                ${fmtResp}
+            </div>
+            ${accionesHtml}
+        </div>`;
+}
+
+function render(data, q) {
+    const res = document.getElementById('cmdResults');
+    let html = '';
+    let hasAny = false;
+
+    // Empleados
+    if (data.empleados && data.empleados.length) {
+        hasAny = true;
+        html += `<div class="cmd-section-label"><i class="fas fa-users me-1"></i>Empleados</div>`;
+        for (const p of data.empleados) {
+            const badge = p.estado === 'Activo'
+                ? '<span class="cmd-item-badge cmd-badge-activo">Activo</span>'
+                : '<span class="cmd-item-badge cmd-badge-cesado">Cesado</span>';
+            html += `<a href="${p.url}" class="cmd-item" onclick="cmdClose()">
+                <div class="cmd-item-icon emp"><i class="fas fa-user"></i></div>
+                <div class="cmd-item-body">
+                    <div class="cmd-item-title">${esc(p.nombre)}</div>
+                    <div class="cmd-item-sub">${esc(p.dni)} · ${esc(p.cargo)} · ${esc(p.area)}</div>
+                </div>
+                ${badge}
+            </a>`;
+        }
+    }
+
+    // Acciones
+    if (data.acciones && data.acciones.length) {
+        hasAny = true;
+        html += `<div class="cmd-section-label"><i class="fas fa-bolt me-1"></i>Acciones Rápidas</div>`;
+        for (const a of data.acciones) {
+            html += `<a href="${a.url}" class="cmd-item" onclick="cmdClose()">
+                <div class="cmd-item-icon accion"><i class="fas ${a.icon}"></i></div>
+                <div class="cmd-item-body">
+                    <div class="cmd-item-title">${esc(a.label)}</div>
+                </div>
+            </a>`;
+        }
+    }
+
+    // Navegación
+    if (data.nav && data.nav.length) {
+        hasAny = true;
+        html += `<div class="cmd-section-label"><i class="fas fa-compass me-1"></i>Ir a…</div>`;
+        for (const n of data.nav.slice(0, 6)) {
+            html += `<a href="${n.url}" class="cmd-item" onclick="cmdClose()">
+                <div class="cmd-item-icon nav"><i class="fas ${n.icon}"></i></div>
+                <div class="cmd-item-body">
+                    <div class="cmd-item-title">${esc(n.label)}</div>
+                </div>
+            </a>`;
+        }
+    }
+
+    if (!hasAny) {
+        html = `<div class="cmd-empty"><i class="fas fa-search fa-lg mb-2 d-block"></i>Sin resultados para "<strong>${esc(q)}</strong>"</div>`;
+    }
+
+    res.innerHTML = html;
+}
+
+function renderDefault() {
+    // Módulos de navegación más usados + hint
+    const nav_items = [
+        {label:'Personal',     url:'/personal/',      icon:'fa-users'},
+        {label:'Asistencia',   url:'/tareo/',         icon:'fa-fingerprint'},
+        {label:'Vacaciones',   url:'/vacaciones/',    icon:'fa-umbrella-beach'},
+        {label:'Analytics',    url:'/analytics/',     icon:'fa-chart-bar'},
+        {label:'Documentos',   url:'/documentos/',    icon:'fa-folder-open'},
+        {label:'Reclutamiento',url:'/reclutamiento/', icon:'fa-briefcase'},
+    ];
+    let html = `<div class="cmd-section-label"><i class="fas fa-compass me-1"></i>Módulos</div>`;
+    for (const n of nav_items) {
+        html += `<a href="${n.url}" class="cmd-item" onclick="cmdClose()">
+            <div class="cmd-item-icon nav"><i class="fas ${n.icon}"></i></div>
+            <div class="cmd-item-body"><div class="cmd-item-title">${n.label}</div></div>
+        </a>`;
+    }
+    html += `<div class="cmd-section-label mt-1"><i class="fas fa-robot me-1"></i>Asistente RRHH</div>
+        <div style="padding:6px 20px 10px; font-size:.8rem; color:#6b7280; line-height:1.6">
+            Pregunta en lenguaje natural: <br>
+            <span style="color:#0f766e;font-weight:500">"¿Cuántos empleados hay?"</span> ·
+            <span style="color:#0f766e;font-weight:500">"Contratos por vencer"</span> ·
+            <span style="color:#0f766e;font-weight:500">"Ausentismo este mes"</span>
+        </div>`;
+    document.getElementById('cmdResults').innerHTML = html;
+}
+
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.cmdClose = close;
+
+// Mostrar hint en el header la primera vez
+(function showHint() {
+    const seen = localStorage.getItem('harmoni_cmd_hint');
+    if (!seen) {
+        setTimeout(() => {
+            const hint = document.createElement('div');
+            hint.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f766e;color:#fff;padding:8px 18px;border-radius:20px;font-size:.8rem;z-index:9998;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:cmdFadeIn .3s ease;';
+            hint.innerHTML = '<i class="fas fa-keyboard me-2"></i>Tip: presiona <strong>Ctrl+K</strong> para búsqueda global';
+            document.body.appendChild(hint);
+            setTimeout(() => hint.remove(), 4500);
+            localStorage.setItem('harmoni_cmd_hint', '1');
+        }, 2000);
+    }
+})();
+
+})();
+</script>
+{% endif %}
 
 <!-- PWA Service Worker -->
 <script>

@@ -526,6 +526,19 @@
 </div>
 {% endif %}{# /is_superuser #}
 
+{# ── Alertas Proactivas del Día ────────────────────────────────────── #}
+<div id="alertasDiaSection" style="margin-bottom:16px;display:none">
+  <div class="hw-card" style="border-left:4px solid #f59e0b">
+    <div class="hw-card-hdr" style="justify-content:space-between">
+      <span><i class="fas fa-bell" style="color:#f59e0b"></i> Alertas del Día</span>
+      <span id="alertasDiaCount" class="badge" style="background:#f59e0b;color:#000;font-size:.7rem;font-weight:700"></span>
+    </div>
+    <div class="hw-card-body" style="padding:6px 0 4px">
+      <div id="alertasDiaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px 10px;padding:4px 12px 8px"></div>
+    </div>
+  </div>
+</div>
+
 {# ── Actividad reciente + Insights IA ─────────────────────────────── #}
 <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;">
   <div style="min-width:0">
@@ -560,8 +573,40 @@
 
   </div>
 
-  {# Insights IA — lateral #}
-  <div>
+  {# Sidebar derecho: Team Health + Riesgo Rotación + Insights IA #}
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    {# Team Health Score widget #}
+    {% if user.is_superuser %}
+    <div class="hw-card" id="teamHealthCard" style="display:none;">
+      <div class="hw-card-hdr">
+        <i class="fas fa-heartbeat" style="color:#0f766e"></i>
+        Team Health
+        <span class="ms-auto" style="font-size:.68rem;color:#94a3b8;font-weight:400">en tiempo real</span>
+      </div>
+      <div class="hw-card-body" id="teamHealthBody" style="padding:14px 16px 16px">
+        <div class="text-center py-3">
+          <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+        </div>
+      </div>
+    </div>
+
+    {# Top Riesgo Rotación widget #}
+    <div class="hw-card" id="rotacionRiesgoCard" style="display:none;">
+      <div class="hw-card-hdr">
+        <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i>
+        Riesgo Rotación
+        <a href="{% url 'analytics_attrition' %}" class="ms-auto" style="font-size:.68rem;color:#5eead4;font-weight:500;text-decoration:none">Ver todos →</a>
+      </div>
+      <div class="hw-card-body" id="rotacionRiesgoBody" style="padding:6px 0 8px">
+        <div class="text-center py-3">
+          <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Insights IA #}
     <div class="hw-card" id="aiInsightsCard" style="display:none;">
       <div class="hw-ai-hdr">
         <i class="fas fa-brain" style="color:#5eead4"></i>
@@ -583,6 +628,7 @@
         </div>
       </div>
     </div>
+
   </div>
 
 </div>{# /bottom grid #}
@@ -592,6 +638,11 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+// ── Utilidades globales ───────────────────────────────
+function escH(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 // ── Saludo dinámico ──────────────────────────────────
 (function () {
   const h = new Date().getHours();
@@ -655,6 +706,157 @@
   load(false);
   document.getElementById('aiInsightsRefresh')?.addEventListener('click', () => load(true));
   document.getElementById('aiInsightsRetry')?.addEventListener('click', e => { e.preventDefault(); load(true); });
+})();
+
+// ── Team Health Score ─────────────────────────────────────────────────────
+{% if user.is_superuser %}
+(async function loadTeamHealth() {
+  const card = document.getElementById('teamHealthCard');
+  const body = document.getElementById('teamHealthBody');
+  if (!card || !body) return;
+  try {
+    const d = await (await fetch('{% url "analytics_api_team_health" %}')).json();
+    card.style.display = 'block';
+
+    const scoreColor = d.color || '#0f766e';
+    const score = d.score || 0;
+    const ring = Math.round((score / 100) * 283); // 283 = 2π×45
+    const factoresHtml = (d.factores || []).map(f => {
+      const bw = Math.round(f.valor);
+      const bc = f.valor >= 80 ? '#16a34a' : f.valor >= 60 ? '#f59e0b' : '#dc2626';
+      return `
+        <div style="margin-bottom:9px">
+          <div style="display:flex;justify-content:space-between;font-size:.71rem;margin-bottom:3px">
+            <span style="color:#4b5563;font-weight:500">${f.nombre}</span>
+            <span style="color:${bc};font-weight:700">${f.valor}%</span>
+          </div>
+          <div style="height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${bw}%;background:${bc};border-radius:3px;transition:width .5s ease"></div>
+          </div>
+        </div>`;
+    }).join('');
+
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+        <div style="position:relative;flex-shrink:0">
+          <svg width="90" height="90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+            <circle cx="50" cy="50" r="45" fill="none" stroke="${scoreColor}" stroke-width="10"
+                    stroke-dasharray="${ring} 283" stroke-dashoffset="70.75"
+                    stroke-linecap="round" transform="rotate(-90 50 50)"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <span style="font-size:1.5rem;font-weight:800;color:${scoreColor};line-height:1">${score}</span>
+            <span style="font-size:.58rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em">/ 100</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.85rem;font-weight:700;color:#1f2937;margin-bottom:3px">${d.label || ''}</div>
+          <div style="font-size:.7rem;color:#6b7280">${d.total_activos} colaboradores activos</div>
+          <a href="{% url 'analytics_dashboard' %}" style="font-size:.68rem;color:#0f766e;text-decoration:none;margin-top:6px;display:inline-block">
+            Ver analytics →
+          </a>
+        </div>
+      </div>
+      ${factoresHtml}`;
+  } catch(e) {
+    console.warn('[TeamHealth]', e);
+    if (card) card.style.display = 'none';
+  }
+})();
+
+// ── Top Riesgo Rotación ───────────────────────────────────────────────────
+(async function loadRotacionRiesgo() {
+  const card = document.getElementById('rotacionRiesgoCard');
+  const body = document.getElementById('rotacionRiesgoBody');
+  if (!card || !body) return;
+  try {
+    const d = await (await fetch('{% url "analytics_api_rotacion_riesgo" %}')).json();
+    if (!d.top || d.top.length === 0) return;
+    card.style.display = 'block';
+
+    const nivelColor = n => n === 'HIGH' ? '#dc2626' : '#f59e0b';
+    const nivelBg    = n => n === 'HIGH' ? '#fef2f2' : '#fffbeb';
+    const nivelLabel = n => n === 'HIGH' ? 'Alto' : 'Medio';
+
+    const statsHtml = `
+      <div style="display:flex;gap:8px;padding:6px 14px 10px;border-bottom:1px solid #f8fafc">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:1.2rem;font-weight:800;color:#dc2626">${d.riesgo_alto}</div>
+          <div style="font-size:.64rem;color:#6b7280">Riesgo alto</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:1.2rem;font-weight:800;color:#f59e0b">${d.total_riesgo - d.riesgo_alto}</div>
+          <div style="font-size:.64rem;color:#6b7280">Riesgo medio</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:1.2rem;font-weight:800;color:#0f766e">${d.total_riesgo}</div>
+          <div style="font-size:.64rem;color:#6b7280">Total en riesgo</div>
+        </div>
+      </div>`;
+
+    const rowsHtml = d.top.map(e => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #f8fafc">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.78rem;font-weight:600;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(e.nombre)}</div>
+          <div style="font-size:.66rem;color:#6b7280;margin-top:1px">${escH(e.cargo)} · ${escH(e.area)}</div>
+          <div style="font-size:.62rem;color:#94a3b8;margin-top:2px">${e.factores.map(f => escH(f)).join(' · ')}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:center">
+          <div style="background:${nivelBg(e.nivel)};color:${nivelColor(e.nivel)};
+               border-radius:12px;padding:2px 8px;font-size:.65rem;font-weight:700;
+               border:1px solid ${nivelColor(e.nivel)}40">${nivelLabel(e.nivel)}</div>
+          <div style="font-size:.7rem;font-weight:800;color:${nivelColor(e.nivel)};margin-top:3px">${e.score}pts</div>
+        </div>
+      </div>`).join('');
+
+    body.innerHTML = statsHtml + rowsHtml;
+  } catch(e) {
+    console.warn('[RotacionRiesgo]', e);
+  }
+})();
+{% endif %}
+
+// ── Alertas Proactivas del Día ────────────────────────────────────────────
+(async function loadAlertasDia() {
+  try {
+    const data = await (await fetch('{% url "alertas_dia" %}')).json();
+    if (!data.alertas || data.alertas.length === 0) return;
+
+    const section = document.getElementById('alertasDiaSection');
+    const grid    = document.getElementById('alertasDiaGrid');
+    const count   = document.getElementById('alertasDiaCount');
+
+    section.style.display = 'block';
+    count.textContent = data.alertas.length + ' alerta' + (data.alertas.length > 1 ? 's' : '');
+
+    const iconoCat = {
+        cumpleanios:         '🎂',
+        cumpleanios_semana:  '🎁',
+        aniversario:         '🏅',
+        contrato_vence:      '⚠️',
+        periodo_prueba:      '⏰',
+        vacaciones_acumuladas: '🏖️',
+        sin_afp:             '🛡️',
+        disciplinaria:       '⚖️',
+    };
+
+    grid.innerHTML = data.alertas.map(a => `
+      <a href="${a.url}" style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;
+         background:#fefce8;border:1px solid #fde68a;border-left:3px solid ${a.color};
+         border-radius:8px;text-decoration:none;color:inherit;transition:box-shadow .15s"
+         onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.1)'"
+         onmouseout="this.style.boxShadow='none'">
+        <span style="font-size:1.2rem;line-height:1;flex-shrink:0">${iconoCat[a.tipo] || '🔔'}</span>
+        <div style="min-width:0">
+          <div style="font-size:.8rem;font-weight:600;color:#1f2937;line-height:1.3">${escH(a.titulo)}</div>
+          <div style="font-size:.73rem;color:#6b7280;line-height:1.3;margin-top:1px">${escH(a.detalle)}</div>
+        </div>
+      </a>
+    `).join('');
+  } catch(e) {
+    console.warn('[Alertas día]', e);
+  }
 })();
 </script>
 {% endblock %}

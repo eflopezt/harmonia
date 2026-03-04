@@ -90,6 +90,11 @@ urlpatterns = [
     path('contratos/<int:pk>/editar/', views.contrato_editar, name='contrato_editar'),
     path('contratos/api/stats/', views.contratos_api_stats, name='contratos_api_stats'),
 
+    # Command Palette + Smart Alerts + HR Ask (APIs globales)
+    path('api/cmd-search/', views.cmd_search, name='cmd_search'),
+    path('api/alertas-dia/', views.alertas_dia, name='alertas_dia'),
+    path('api/hr-ask/', views.hr_ask, name='hr_ask'),
+
     # Cese y Reactivación
     path('personal/<int:pk>/dar-baja/', views.personal_dar_baja, name='personal_dar_baja'),
     path('personal/<int:pk>/reactivar/', views.personal_reactivar, name='personal_reactivar'),
