@@ -46,29 +46,33 @@ def _sse_text(text: str) -> str:
     # Reemplazar newlines reales por \\n literal para que SSE no se rompa
     return text.replace('\n', '\\n')
 
-# Cache de conectividad Ollama (evita test_connection en cada request)
-_ollama_cache: dict = {'ok': None, 'ts': 0}
-_OLLAMA_CACHE_TTL = 30  # segundos
+# Cache de conectividad IA (evita test_connection en cada request)
+_ia_cache: dict = {'ok': None, 'ts': 0}
+_IA_CACHE_TTL = 30  # segundos
 
 
 def _is_ollama_reachable() -> bool:
-    """Verifica conectividad con Ollama, con cache de 30s."""
+    """
+    Verifica conectividad con el proveedor IA configurado, con cache de 30s.
+    Nombre mantenido por compatibilidad; funciona con cualquier provider.
+    """
     now = time.time()
-    if now - _ollama_cache['ts'] < _OLLAMA_CACHE_TTL and _ollama_cache['ok'] is not None:
-        return _ollama_cache['ok']
+    if now - _ia_cache['ts'] < _IA_CACHE_TTL and _ia_cache['ok'] is not None:
+        return _ia_cache['ok']
 
     svc = get_service()
     if svc is None:
-        _ollama_cache.update(ok=False, ts=now)
+        _ia_cache.update(ok=False, ts=now)
         return False
 
     try:
         result = svc.test_connection()
-        ok = result.get('ok', False) and result.get('modelo_activo', False)
+        # Solo chequeamos 'ok' — 'modelo_activo' es exclusivo de OllamaService
+        ok = result.get('ok', False)
     except Exception:
         ok = False
 
-    _ollama_cache.update(ok=ok, ts=now)
+    _ia_cache.update(ok=ok, ts=now)
     return ok
 
 
@@ -97,8 +101,8 @@ def ai_status(request):
 
     return JsonResponse({
         'available': True,
-        'provider': 'OLLAMA',
-        'model': svc.modelo,
+        'provider': getattr(svc, 'provider_name', 'IA'),
+        'model': getattr(svc, 'modelo', None),
         'fallback': False,
     })
 
@@ -233,8 +237,8 @@ def ai_chat_stream(request):
                     '- "¿Hay aprobaciones pendientes?"\n'
                     '- "¿Cómo va la asistencia hoy?"\n'
                     '- "Muéstrame un gráfico del personal por área"\n\n'
-                    'Para consultas más complejas, configura Ollama en '
-                    '**Asistencia > Configuración**.'
+                    'Para consultas más complejas, configura un proveedor IA en '
+                    '**Asistencia > Configuración > Pestaña IA**.'
                 )
                 yield f'data: {_sse_text(no_match)}\n\n'
             yield 'data: [DONE]\n\n'

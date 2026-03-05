@@ -193,14 +193,17 @@ class IAService(ABC):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Provider: GEMINI
+# Provider: GEMINI  (usa google-genai SDK v1+ — el antiguo google-generativeai está deprecado)
 # ═══════════════════════════════════════════════════════════════════════════
 
 class GeminiService(IAService):
     """
-    Google Gemini via google-generativeai SDK.
+    Google Gemini via google-genai SDK (v1+).
     Modelos: gemini-2.0-flash, gemini-2.5-flash-preview-04-17
     Streaming nativo soportado.
+
+    Nota: se usa `google.genai` (nuevo) NO `google.generativeai` (deprecado).
+    Instalar: pip install google-genai
     """
     provider_name = 'GEMINI'
 
@@ -212,62 +215,79 @@ class GeminiService(IAService):
     def _get_client(self):
         if self._client is None:
             try:
-                import google.generativeai as genai  # type: ignore
-                genai.configure(api_key=self.api_key)
-                self._client = genai.GenerativeModel(self.modelo)
+                import google.genai as genai  # type: ignore
+                self._client = genai.Client(api_key=self.api_key)
             except ImportError:
                 raise RuntimeError(
-                    'google-generativeai no instalado. '
-                    'Ejecuta: pip install google-generativeai'
+                    'google-genai no instalado. Ejecuta: pip install google-genai'
                 )
         return self._client
 
+    def _build_contents(self, messages: list) -> list:
+        """Convierte formato OpenAI messages a formato Gemini contents."""
+        contents = []
+        for m in messages:
+            role = 'user' if m['role'] == 'user' else 'model'
+            contents.append({'role': role, 'parts': [{'text': m['content']}]})
+        return contents
+
     def test_connection(self) -> dict:
         try:
-            import google.generativeai as genai  # type: ignore
-            genai.configure(api_key=self.api_key)
-            # Listar modelos disponibles como test de conectividad
-            modelos = [m.name for m in genai.list_models()
-                       if 'generateContent' in m.supported_generation_methods]
+            import google.genai as genai  # type: ignore
+            client = genai.Client(api_key=self.api_key)
+            # Llamada mínima para verificar API key
+            resp = client.models.generate_content(
+                model=self.modelo,
+                contents='di "ok"',
+            )
             return {
                 'ok': True,
-                'info': f'Gemini conectado. Modelo: {self.modelo}. {len(modelos)} modelos disponibles.',
-                'modelos': modelos[:10],
+                'info': f'Gemini conectado. Modelo: {self.modelo}. Respuesta: {(resp.text or "")[:40]}',
                 'error': None,
             }
         except ImportError:
-            return {'ok': False, 'info': '', 'modelos': [],
-                    'error': 'Instala: pip install google-generativeai'}
+            return {'ok': False, 'info': '', 'error': 'Instala: pip install google-genai'}
         except Exception as e:
-            return {'ok': False, 'info': '', 'modelos': [], 'error': str(e)}
+            return {'ok': False, 'info': '', 'error': str(e)}
 
     def generate(self, prompt: str, system: str | None = None) -> str | None:
         try:
+            import google.genai as genai  # type: ignore
             client = self._get_client()
-            full_prompt = f'{system}\n\n{prompt}' if system else prompt
-            resp = client.generate_content(full_prompt)
-            return resp.text.strip() if resp.text else None
+            config = genai.types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=0.1,
+                max_output_tokens=400,
+            ) if system else genai.types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=400,
+            )
+            resp = client.models.generate_content(
+                model=self.modelo,
+                contents=prompt,
+                config=config,
+            )
+            return (resp.text or '').strip() or None
         except Exception as e:
             logger.warning(f'Gemini generate falló: {e}')
             return None
 
     def chat(self, messages: list, system: str | None = None) -> str | None:
         try:
-            import google.generativeai as genai  # type: ignore
-            genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel(
-                self.modelo,
+            import google.genai as genai  # type: ignore
+            client = self._get_client()
+            contents = self._build_contents(messages)
+            config = genai.types.GenerateContentConfig(
                 system_instruction=system,
+                temperature=0.1,
+                max_output_tokens=600,
             )
-            # Convertir formato messages a formato Gemini
-            gemini_msgs = []
-            for m in messages:
-                role = 'user' if m['role'] == 'user' else 'model'
-                gemini_msgs.append({'role': role, 'parts': [m['content']]})
-
-            chat_session = model.start_chat(history=gemini_msgs[:-1])
-            resp = chat_session.send_message(gemini_msgs[-1]['parts'][0])
-            return resp.text.strip() if resp.text else None
+            resp = client.models.generate_content(
+                model=self.modelo,
+                contents=contents,
+                config=config,
+            )
+            return (resp.text or '').strip() or None
         except Exception as e:
             logger.warning(f'Gemini chat falló: {e}')
             return None
@@ -280,27 +300,19 @@ class GeminiService(IAService):
         num_predict: int = 500,
     ):
         try:
-            import google.generativeai as genai  # type: ignore
-            genai.configure(api_key=self.api_key)
-            gen_config = genai.GenerationConfig(
+            import google.genai as genai  # type: ignore
+            client = self._get_client()
+            contents = self._build_contents(messages)
+            config = genai.types.GenerateContentConfig(
+                system_instruction=system,
                 temperature=temperature,
                 max_output_tokens=num_predict,
             )
-            model = genai.GenerativeModel(
-                self.modelo,
-                system_instruction=system,
-                generation_config=gen_config,
-            )
-            gemini_msgs = []
-            for m in messages:
-                role = 'user' if m['role'] == 'user' else 'model'
-                gemini_msgs.append({'role': role, 'parts': [m['content']]})
-
-            chat_session = model.start_chat(history=gemini_msgs[:-1])
-            resp = chat_session.send_message(
-                gemini_msgs[-1]['parts'][0], stream=True
-            )
-            for chunk in resp:
+            for chunk in client.models.generate_content_stream(
+                model=self.modelo,
+                contents=contents,
+                config=config,
+            ):
                 if chunk.text:
                     yield chunk.text
         except Exception as e:
@@ -315,19 +327,18 @@ class GeminiService(IAService):
         num_predict: int = 500,
     ):
         try:
-            import google.generativeai as genai  # type: ignore
-            genai.configure(api_key=self.api_key)
-            gen_config = genai.GenerationConfig(
+            import google.genai as genai  # type: ignore
+            client = self._get_client()
+            config = genai.types.GenerateContentConfig(
+                system_instruction=system,
                 temperature=temperature,
                 max_output_tokens=num_predict,
             )
-            model = genai.GenerativeModel(
-                self.modelo,
-                system_instruction=system,
-                generation_config=gen_config,
-            )
-            full_prompt = f'{system}\n\n{prompt}' if system else prompt
-            for chunk in model.generate_content(full_prompt, stream=True):
+            for chunk in client.models.generate_content_stream(
+                model=self.modelo,
+                contents=prompt,
+                config=config,
+            ):
                 if chunk.text:
                     yield chunk.text
         except Exception as e:
