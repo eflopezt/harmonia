@@ -1,27 +1,68 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
 {% block title %}{% if roster %}Editar{% else %}Nuevo{% endif %} Registro Roster{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">
-                    <i class="fas fa-calendar-alt"></i>
-                    {% if roster %}Editar Registro de Roster{% else %}Nuevo Registro de Roster{% endif %}
-                </h4>
+  <div class="col-md-8">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">
+          <i class="fas fa-calendar-alt me-2"></i>
+          {% if roster %}Editar Registro de Roster{% else %}Nuevo Registro de Roster{% endif %}
+        </h4>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label for="{{ form.personal.id_for_label }}" class="form-label fw-semibold">
+              {{ form.personal.label }} <span class="text-danger">*</span>
+            </label>
+            {{ form.personal }}
+            {% if form.personal.errors %}<div class="text-danger small">{{ form.personal.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="{{ form.fecha.id_for_label }}" class="form-label fw-semibold">
+                {{ form.fecha.label }} <span class="text-danger">*</span>
+              </label>
+              {{ form.fecha }}
+              {% if form.fecha.errors %}<div class="text-danger small">{{ form.fecha.errors.0 }}</div>{% endif %}
             </div>
-            <div class="card-body">
-                {% crispy form %}
+            <div class="col-md-6">
+              <label for="{{ form.codigo.id_for_label }}" class="form-label fw-semibold">
+                {{ form.codigo.label }} <span class="text-danger">*</span>
+              </label>
+              {{ form.codigo }}
+              {% if form.codigo.errors %}<div class="text-danger small">{{ form.codigo.errors.0 }}</div>{% endif %}
             </div>
-        </div>
-        <div class="mt-3">
-            <a href="{% url 'roster_matricial' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver
+          </div>
+
+          <div class="mb-3">
+            <label for="{{ form.observaciones.id_for_label }}" class="form-label">
+              {{ form.observaciones.label }}
+            </label>
+            {{ form.observaciones }}
+            {% if form.observaciones.errors %}<div class="text-danger small">{{ form.observaciones.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i>Guardar
+            </button>
+            <a href="{% url 'roster_matricial' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left me-1"></i>Volver
             </a>
-        </div>
+          </div>
+        </form>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

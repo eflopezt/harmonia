@@ -4,7 +4,7 @@ Formularios para el módulo personal.
 from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Submit, Row, Column, Div
+from crispy_forms.layout import Submit
 from .models import Area, SubArea, Personal, Roster
 
 
@@ -49,9 +49,15 @@ class SubAreaForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_method = 'post'
-        self.helper.add_input(Submit('submit', 'Guardar', css_class='btn btn-primary'))
+        # No crispy — template renderiza manualmente (Python 3.14 compat)
+        for field in self.fields.values():
+            w = field.widget
+            if isinstance(w, forms.CheckboxInput):
+                w.attrs.setdefault('class', 'form-check-input')
+            elif isinstance(w, (forms.Select, forms.SelectMultiple)):
+                w.attrs.setdefault('class', 'form-select')
+            else:
+                w.attrs.setdefault('class', 'form-control')
 
 
 class PersonalForm(forms.ModelForm):
@@ -98,124 +104,20 @@ class PersonalForm(forms.ModelForm):
                 self.initial['fecha_inicio_contrato'] = self.instance.fecha_inicio_contrato.strftime('%Y-%m-%d')
             if self.instance.fecha_fin_contrato:
                 self.initial['fecha_fin_contrato'] = self.instance.fecha_fin_contrato.strftime('%Y-%m-%d')
-        
-        self.helper = FormHelper()
-        self.helper.form_method = 'post'
-        self.helper.layout = Layout(
-            # --- Identificación ---
-            Div(
-                Row(
-                    Column('tipo_doc', css_class='col-md-3'),
-                    Column('nro_doc', css_class='col-md-3'),
-                    Column('codigo_fotocheck', css_class='col-md-3'),
-                    Column('sexo', css_class='col-md-3'),
-                ),
-                Row(
-                    Column('apellidos_nombres', css_class='col-md-8'),
-                    Column('fecha_nacimiento', css_class='col-md-4'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            # --- Datos Laborales ---
-            Div(
-                Row(
-                    Column('cargo', css_class='col-md-4'),
-                    Column('tipo_trab', css_class='col-md-4'),
-                    Column('categoria', css_class='col-md-4'),
-                ),
-                Row(
-                    Column('subarea', css_class='col-md-4'),
-                    Column('estado', css_class='col-md-4'),
-                    Column('asignacion_familiar', css_class='col-md-4 pt-4'),
-                ),
-                Row(
-                    Column('fecha_alta', css_class='col-md-4'),
-                    Column('fecha_cese', css_class='col-md-4'),
-                    Column('sueldo_base', css_class='col-md-4'),
-                ),
-                Row(
-                    Column('motivo_cese', css_class='col-md-6 motivo-cese-row'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            # --- Pensión y Banca ---
-            Div(
-                Row(
-                    Column('regimen_pension', css_class='col-md-3'),
-                    Column('afp', css_class='col-md-3'),
-                    Column('cuspp', css_class='col-md-3'),
-                    Column('banco', css_class='col-md-3'),
-                ),
-                Row(
-                    Column('cuenta_ahorros', css_class='col-md-4'),
-                    Column('cuenta_cci', css_class='col-md-4'),
-                    Column('cuenta_cts', css_class='col-md-4'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            # --- Beneficios No Remunerativos ---
-            Div(
-                Row(
-                    Column('cond_trabajo_mensual', css_class='col-md-4'),
-                    Column('alimentacion_mensual', css_class='col-md-4'),
-                    Column('viaticos_mensual', css_class='col-md-4'),
-                ),
-                Row(
-                    Column('tiene_eps', css_class='col-md-4 pt-4'),
-                    Column('eps_descuento_mensual', css_class='col-md-4'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            # --- Tareo / Régimen ---
-            Div(
-                Row(
-                    Column('grupo_tareo', css_class='col-md-3'),
-                    Column('condicion', css_class='col-md-3'),
-                    Column('regimen_laboral', css_class='col-md-3'),
-                    Column('regimen_turno', css_class='col-md-3'),
-                ),
-                Row(
-                    Column('jornada_horas', css_class='col-md-3'),
-                    Column('codigo_sap', css_class='col-md-3'),
-                    Column('codigo_s10', css_class='col-md-3'),
-                    Column('partida_control', css_class='col-md-3'),
-                ),
-                Row(
-                    Column('dias_libres_corte_2025', css_class='col-md-4'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            # --- Contrato Laboral ---
-            Div(
-                Row(
-                    Column('tipo_contrato', css_class='col-md-4'),
-                    Column('fecha_inicio_contrato', css_class='col-md-3'),
-                    Column('fecha_fin_contrato', css_class='col-md-3'),
-                    Column('renovacion_automatica', css_class='col-md-2 pt-4'),
-                ),
-                Row(
-                    Column('observaciones_contrato', css_class='col-md-12'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            # --- Contacto ---
-            Div(
-                Row(
-                    Column('celular', css_class='col-md-4'),
-                    Column('correo_personal', css_class='col-md-4'),
-                    Column('correo_corporativo', css_class='col-md-4'),
-                ),
-                Row(
-                    Column('direccion', css_class='col-md-8'),
-                    Column('ubigeo', css_class='col-md-4'),
-                ),
-                Row(
-                    Column('observaciones', css_class='col-md-12'),
-                ),
-                css_class='card mb-3 p-3'
-            ),
-            Submit('submit', 'Guardar', css_class='btn btn-primary')
-        )
+
+        # No usar crispy Layout — incompatible con Python 3.14 (context.__copy__).
+        # El template personal_form.html renderiza los campos manualmente con Bootstrap.
+        # Añadir clases Bootstrap a todos los widgets para renderizado manual.
+        for field_name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs.setdefault('class', 'form-check-input')
+            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
+                widget.attrs.setdefault('class', 'form-select')
+            elif isinstance(widget, forms.Textarea):
+                widget.attrs.setdefault('class', 'form-control')
+            else:
+                widget.attrs.setdefault('class', 'form-control')
 
 
 class RosterForm(forms.ModelForm):
@@ -229,9 +131,15 @@ class RosterForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_method = 'post'
-        self.helper.add_input(Submit('submit', 'Guardar', css_class='btn btn-primary'))
+        # No crispy — template renderiza manualmente (Python 3.14 compat)
+        for field in self.fields.values():
+            w = field.widget
+            if isinstance(w, forms.CheckboxInput):
+                w.attrs.setdefault('class', 'form-check-input')
+            elif isinstance(w, (forms.Select, forms.SelectMultiple)):
+                w.attrs.setdefault('class', 'form-select')
+            else:
+                w.attrs.setdefault('class', 'form-control')
 
 
 class ImportExcelForm(forms.Form):
