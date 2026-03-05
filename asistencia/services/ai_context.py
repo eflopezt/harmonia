@@ -24,7 +24,8 @@ _CONTEXT_CACHE_TTL = 15       # segundos — datos frescos pero no excesivos
 # ═══════════════════════════════════════════════════════════════════════════
 
 MODULE_KEYWORDS: dict[str, list[str]] = {
-    'personal':       ['empleado', 'personal', 'headcount', 'staff', 'rco', 'area', 'gerencia'],
+    'personal':       ['empleado', 'personal', 'headcount', 'staff', 'rco', 'area', 'gerencia',
+                       'edad', 'rango de edad', 'antiguedad demog'],
     'asistencia':     ['asistencia', 'tareo', 'faltas', 'marcacion', 'horas extra', 'he ',
                        'tardanza', 'tardanzas', 'ausentismo', 'inasistencia', 'puntualidad'],
     'vacaciones':     ['vacacion', 'permiso', 'licencia', 'descanso', 'goce'],
@@ -1181,6 +1182,151 @@ def responder_sin_ia(message: str, user) -> str | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Queries individuales (ranking de empleados)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def detect_individual_query(message: str) -> str | None:
+    """
+    Detecta si la pregunta pide datos individuales de empleados.
+    Retorna el tipo de query o None.
+    """
+    msg = message.lower()
+
+    quien_words = ['quien', 'quién', 'quienes', 'quiénes', 'ranking', 'top', 'lista de', 'nombre']
+    is_individual = any(w in msg for w in quien_words)
+
+    # También detectar sin "quien" pero con superlativo
+    superlativos = ['más faltas', 'mas faltas', 'más tardanzas', 'mas tardanzas',
+                    'más horas extra', 'mas horas extra', 'más he', 'mas he',
+                    'mayor ausentismo', 'peor asistencia']
+    is_superlativo = any(s in msg for s in superlativos)
+
+    if not (is_individual or is_superlativo):
+        return None
+
+    if any(w in msg for w in ['falt', 'ausent', 'inasist']):
+        return 'faltas_mes'
+    if any(w in msg for w in ['tard', 'tardón', 'tardon', 'puntual']):
+        return 'tardanzas_mes'
+    if any(w in msg for w in ['hora extra', 'horas extra', ' he ', 'overtime']):
+        return 'he_mes'
+    if any(w in msg for w in ['contrato', 'vencer', 'vence', 'vencimiento']):
+        return 'contratos_vencen'
+
+    return None
+
+
+def get_individual_ranking(query_type: str, user, limit: int = 10) -> list[dict]:
+    """
+    Retorna ranking individual de empleados para tipos de consulta específicos.
+    Se llama dinámicamente cuando la pregunta pide datos individuales.
+    """
+    from personal.permissions import filtrar_personal
+    from datetime import date
+
+    hoy = date.today()
+    personal = filtrar_personal(user).filter(estado='Activo')
+    results = []
+
+    try:
+        if query_type in ('faltas_mes', 'falta'):
+            from asistencia.models import RegistroTareo
+            from django.db.models import Count, Q
+            inicio_mes = date(hoy.year, hoy.month, 1)
+            qs = (
+                RegistroTareo.objects
+                .filter(fecha__gte=inicio_mes, fecha__lte=hoy,
+                        personal__in=personal,
+                        codigo_dia__in=['FA', 'F', 'FALTA'])
+                .values('personal__apellido_paterno', 'personal__apellido_materno',
+                        'personal__nombres', 'personal__subarea__area__nombre')
+                .annotate(total=Count('id'))
+                .order_by('-total')[:limit]
+            )
+            results = [
+                {
+                    'nombre': f"{r['personal__apellido_paterno']} {r['personal__apellido_materno']}, {r['personal__nombres']}",
+                    'area': r['personal__subarea__area__nombre'] or 'Sin área',
+                    'valor': r['total'],
+                    'unidad': 'faltas este mes',
+                }
+                for r in qs
+            ]
+
+        elif query_type in ('tardanzas_mes', 'tardanza', 'tardón'):
+            from asistencia.models import RegistroTareo
+            from django.db.models import Count
+            inicio_mes = date(hoy.year, hoy.month, 1)
+            qs = (
+                RegistroTareo.objects
+                .filter(fecha__gte=inicio_mes, fecha__lte=hoy,
+                        personal__in=personal,
+                        codigo_dia__in=['TA', 'TD', 'TARDA', 'T_TARD'])
+                .values('personal__apellido_paterno', 'personal__apellido_materno',
+                        'personal__nombres', 'personal__subarea__area__nombre')
+                .annotate(total=Count('id'))
+                .order_by('-total')[:limit]
+            )
+            results = [
+                {
+                    'nombre': f"{r['personal__apellido_paterno']} {r['personal__apellido_materno']}, {r['personal__nombres']}",
+                    'area': r['personal__subarea__area__nombre'] or 'Sin área',
+                    'valor': r['total'],
+                    'unidad': 'tardanzas este mes',
+                }
+                for r in qs
+            ]
+
+        elif query_type == 'he_mes':
+            from asistencia.models import SolicitudHE
+            from django.db.models import Sum
+            inicio_mes = date(hoy.year, hoy.month, 1)
+            qs = (
+                SolicitudHE.objects
+                .filter(fecha__gte=inicio_mes, fecha__lte=hoy,
+                        personal__in=personal, estado='APROBADO')
+                .values('personal__apellido_paterno', 'personal__apellido_materno',
+                        'personal__nombres', 'personal__subarea__area__nombre')
+                .annotate(total=Sum('horas_aprobadas'))
+                .order_by('-total')[:limit]
+            )
+            results = [
+                {
+                    'nombre': f"{r['personal__apellido_paterno']} {r['personal__apellido_materno']}, {r['personal__nombres']}",
+                    'area': r['personal__subarea__area__nombre'] or 'Sin área',
+                    'valor': float(r['total'] or 0),
+                    'unidad': 'horas extra este mes',
+                }
+                for r in qs
+            ]
+
+        elif query_type == 'contratos_vencen':
+            from datetime import timedelta
+            en_30d = hoy + timedelta(days=30)
+            qs = personal.filter(
+                fecha_fin_contrato__isnull=False,
+                fecha_fin_contrato__gte=hoy,
+                fecha_fin_contrato__lte=en_30d,
+            ).values(
+                'apellido_paterno', 'apellido_materno', 'nombres',
+                'fecha_fin_contrato', 'subarea__area__nombre'
+            ).order_by('fecha_fin_contrato')[:limit]
+            results = [
+                {
+                    'nombre': f"{r['apellido_paterno']} {r['apellido_materno']}, {r['nombres']}",
+                    'area': r['subarea__area__nombre'] or 'Sin área',
+                    'valor': (r['fecha_fin_contrato'] - hoy).days,
+                    'unidad': f"días (vence {r['fecha_fin_contrato'].strftime('%d/%m/%Y')})",
+                }
+                for r in qs
+            ]
+    except Exception as e:
+        logger.debug(f'get_individual_ranking {query_type}: {e}')
+
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Detección de gráficos
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1241,9 +1387,81 @@ def generate_dashboard_data(user) -> dict | None:
     }
 
 
+def _detect_chart_types(msg: str) -> list[str]:
+    """
+    Detecta todos los tipos de gráfico pedidos en un mensaje (lowercased).
+    Retorna lista de tipos en orden de especificidad (más específico primero).
+    Uso interno — para multi-chart support.
+    """
+    found = []
+
+    # Orden de especificidad: más específico primero
+    if any(kw in msg for kw in [
+        'antigüedad', 'antiguedad', 'tenure', 'tiempo en empresa',
+        'permanencia', 'intervalo',
+    ]):
+        found.append('antiguedad')
+
+    if any(kw in msg for kw in [
+        'asistencia semanal', 'ultimos 7', 'ultima semana', 'semana',
+    ]):
+        found.append('asistencia_semanal')
+
+    if any(kw in msg for kw in [
+        'hora extra', 'horas extra', 'distribucion he', 'tipo he',
+    ]):
+        found.append('he_distribucion')
+
+    if any(kw in msg for kw in ['vacacion', 'estado vacacion']):
+        found.append('vacaciones_estado')
+
+    if any(kw in msg for kw in [
+        'capacitacion', 'training', 'estado capacitacion', 'cursos',
+    ]):
+        found.append('capacitaciones_estado')
+
+    if any(kw in msg for kw in [
+        'tipo contrato', 'tipo de contrato', 'contrato', 'modalidad contrat',
+    ]):
+        found.append('tipo_contrato')
+
+    if any(kw in msg for kw in ['genero', 'género', 'sexo', 'hombre', 'mujer']):
+        found.append('genero')
+
+    if any(kw in msg for kw in [
+        'edad', 'rango de edad', 'rango etario', 'generacion', 'generación',
+        'demografía', 'demografia', 'senior', 'junior',
+    ]):
+        found.append('edad')
+
+    if any(kw in msg for kw in [
+        'área', 'area', 'gerencia', 'departamento', 'división', 'division',
+    ]):
+        found.append('areas')
+
+    if any(kw in msg for kw in ['staff', 'rco', 'tipo personal', 'grupo tareo']):
+        found.append('tipo_personal')
+
+    if any(kw in msg for kw in [
+        'pension', 'pensión', 'afp', 'onp', 'regimen pension',
+    ]):
+        found.append('regimen_pension')
+
+    if any(kw in msg for kw in ['rotación', 'rotacion', 'turnover']):
+        found.append('rotacion')
+
+    if any(kw in msg for kw in [
+        'headcount', 'evolución', 'evolucion', 'tendencia', 'trend',
+    ]):
+        found.append('headcount')
+
+    return found
+
+
 def detect_chart_request(message: str) -> dict | None:
     """
     Detecta si el usuario pide un gráfico/chart y retorna la especificación.
+    Para detectar múltiples gráficos en un mensaje, usar detect_multiple_chart_requests.
     Returns: {'type': str} o None.
     """
     msg = message.lower()
@@ -1257,65 +1475,36 @@ def detect_chart_request(message: str) -> dict | None:
     if not is_chart:
         return None
 
-    # Tipo de gráfico (orden de especificidad: más específico primero)
-    if any(kw in msg for kw in [
-        'antigüedad', 'antiguedad', 'tenure', 'tiempo en empresa',
-        'permanencia', 'intervalo',
-    ]):
-        return {'type': 'antiguedad', 'raw_msg': msg}
-
-    if any(kw in msg for kw in [
-        'asistencia semanal', 'ultimos 7', 'ultima semana', 'semana',
-    ]):
-        return {'type': 'asistencia_semanal'}
-
-    if any(kw in msg for kw in [
-        'hora extra', 'horas extra', 'distribucion he', 'tipo he',
-    ]):
-        return {'type': 'he_distribucion'}
-
-    if any(kw in msg for kw in ['vacacion', 'estado vacacion']):
-        return {'type': 'vacaciones_estado'}
-
-    if any(kw in msg for kw in [
-        'capacitacion', 'training', 'estado capacitacion', 'cursos',
-    ]):
-        return {'type': 'capacitaciones_estado'}
-
-    if any(kw in msg for kw in [
-        'tipo contrato', 'tipo de contrato', 'contrato', 'modalidad contrat',
-    ]):
-        return {'type': 'tipo_contrato'}
-
-    if any(kw in msg for kw in ['genero', 'género', 'sexo', 'hombre', 'mujer']):
-        return {'type': 'genero'}
-
-    if any(kw in msg for kw in ['edad', 'generacion', 'generación', 'demografía', 'rango etario']):
-        return {'type': 'edad'}
-
-    if any(kw in msg for kw in [
-        'área', 'area', 'gerencia', 'departamento', 'división', 'division',
-    ]):
-        return {'type': 'areas'}
-
-    if any(kw in msg for kw in ['staff', 'rco', 'tipo personal', 'grupo tareo']):
-        return {'type': 'tipo_personal'}
-
-    if any(kw in msg for kw in [
-        'pension', 'pensión', 'afp', 'onp', 'regimen pension',
-    ]):
-        return {'type': 'regimen_pension'}
-
-    if any(kw in msg for kw in ['rotación', 'rotacion', 'turnover']):
-        return {'type': 'rotacion'}
-
-    if any(kw in msg for kw in [
-        'headcount', 'evolución', 'evolucion', 'tendencia', 'trend',
-    ]):
-        return {'type': 'headcount'}
+    types = _detect_chart_types(msg)
+    if types:
+        return {'type': types[0], 'raw_msg': msg}
 
     # Default
     return {'type': 'areas'}
+
+
+def detect_multiple_chart_requests(message: str) -> list[dict] | None:
+    """
+    Detecta si el usuario pide uno o más gráficos en un mensaje.
+    Retorna lista de especificaciones {'type': str} o None si no hay gráficos.
+    Úsalo en el chat stream para soportar "gráfico por género y edad".
+    """
+    msg = message.lower()
+
+    chart_kw = [
+        'gráfico', 'grafico', 'gráfica', 'grafica', 'chart', 'graph',
+        'muéstrame', 'muestrame', 'mostrar', 'visualiza', 'diagrama',
+        'dibuja', 'genera un',
+    ]
+    is_chart = any(kw in msg for kw in chart_kw)
+    if not is_chart:
+        return None
+
+    types = _detect_chart_types(msg)
+    if not types:
+        return [{'type': 'areas'}]
+
+    return [{'type': t, 'raw_msg': msg} for t in types]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

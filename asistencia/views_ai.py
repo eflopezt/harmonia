@@ -27,9 +27,12 @@ from .services.ai_context import (
     detect_chart_request,
     detect_dashboard_request,
     detect_export_request,
+    detect_individual_query,
     detect_module_context,
+    detect_multiple_chart_requests,
     generate_chart_data,
     generate_dashboard_data,
+    get_individual_ranking,
     responder_sin_ia,
 )
 
@@ -195,38 +198,58 @@ def ai_chat_stream(request):
             response['X-Accel-Buffering'] = 'no'
             return response
 
+    # ── Detectar queries individuales (antes del fallback) ──
+    indiv_type = detect_individual_query(message)
+    indiv_data = None
+    if indiv_type:
+        indiv_data = get_individual_ranking(indiv_type, request.user)
+
     # ── Fallback sin IA si Ollama no está disponible ──
     if not ollama_ok:
         # Charts también funcionan sin Ollama (datos vienen de BD)
-        chart_req = detect_chart_request(message)
-        chart_data = None
-        if chart_req:
-            chart_data = generate_chart_data(
-                chart_req['type'], request.user, message,
-            )
+        chart_reqs = detect_multiple_chart_requests(message)
+        chart_datas = []
+        if chart_reqs:
+            for cr in chart_reqs:
+                cd = generate_chart_data(cr['type'], request.user, message)
+                if cd:
+                    chart_datas.append(cd)
 
         fallback = responder_sin_ia(message, request.user)
 
         def fallback_stream():
             yield 'data: [FALLBACK]\n\n'
-            if chart_data:
-                chart_json = json.dumps(chart_data, ensure_ascii=False)
-                yield f'data: [CHART]{chart_json}[/CHART]\n\n'
-                # Breve análisis estático del chart
-                total = sum(chart_data.get('values', []))
+            if chart_datas:
+                for chart_data in chart_datas:
+                    chart_json = json.dumps(chart_data, ensure_ascii=False)
+                    yield f'data: [CHART]{chart_json}[/CHART]\n\n'
+                # Breve análisis estático del primer chart
+                first = chart_datas[0]
+                total = sum(first.get('values', []))
                 if total:
                     top = max(
-                        zip(chart_data.get('labels', []),
-                            chart_data.get('values', [])),
+                        zip(first.get('labels', []),
+                            first.get('values', [])),
                         key=lambda x: x[1],
                     )
                     analysis = (
-                        f'**{chart_data.get("title", "Gráfico")}** — '
+                        f'**{first.get("title", "Gráfico")}** — '
                         f'Total: {total}. '
                         f'Mayor: {top[0]} con {top[1]} '
                         f'({top[1] * 100 // total}%).'
                     )
+                    if len(chart_datas) > 1:
+                        analysis += f' (+{len(chart_datas) - 1} gráfico(s) adicional(es) mostrado(s))'
                     yield f'data: {_sse_text(analysis)}\n\n'
+            elif indiv_data is not None:
+                if indiv_data:
+                    ranking_text = '\n'.join(
+                        f'{i + 1}. **{r["nombre"]}** ({r["area"]}): {r["valor"]} {r["unidad"]}'
+                        for i, r in enumerate(indiv_data)
+                    )
+                    yield f'data: {_sse_text(ranking_text)}\n\n'
+                else:
+                    yield f'data: {_sse_text("No hay registros de " + indiv_type.replace("_", " ") + " este mes en la BD.")}\n\n'
             elif fallback:
                 yield f'data: {_sse_text(fallback)}\n\n'
             else:
@@ -249,13 +272,14 @@ def ai_chat_stream(request):
         response['X-Accel-Buffering'] = 'no'
         return response
 
-    # ── Detectar si pide un gráfico ──
-    chart_req = detect_chart_request(message)
-    chart_data = None
-    if chart_req:
-        chart_data = generate_chart_data(
-            chart_req['type'], request.user, message,
-        )
+    # ── Detectar si pide uno o más gráficos ──
+    chart_reqs = detect_multiple_chart_requests(message)
+    chart_datas = []
+    if chart_reqs:
+        for cr in chart_reqs:
+            cd = generate_chart_data(cr['type'], request.user, message)
+            if cd:
+                chart_datas.append(cd)
 
     # ── Lazy loading: detectar módulos relevantes ──
     modules = detect_module_context(message)
@@ -269,33 +293,57 @@ def ai_chat_stream(request):
         if role in ('user', 'assistant') and content:
             messages.append({'role': role, 'content': content})
 
-    # Si hay chart data, enriquecer el prompt para que el LLM analice
+    # Construir mensaje enriquecido para el LLM
     ai_message = message
-    if chart_data:
-        total = sum(chart_data['values'])
-        if total > 0:
-            parts = [
-                f'{l}: {v} ({v * 100 // total}%)'
-                for l, v in zip(chart_data['labels'], chart_data['values'])
-            ]
-            data_summary = ', '.join(parts)
+
+    if indiv_data is not None:
+        # Datos individuales exactos de BD — inyectar en el prompt
+        if indiv_data:
+            ranking_text = '\n'.join(
+                f'{i + 1}. {r["nombre"]} ({r["area"]}): {r["valor"]} {r["unidad"]}'
+                for i, r in enumerate(indiv_data)
+            )
+            ai_message = (
+                f'{message}\n\n'
+                f'[DATOS EXACTOS DE LA BD para responder esta pregunta]\n'
+                f'{ranking_text}\n'
+                f'[FIN DATOS]\n\n'
+                f'Usa estos datos exactos para responder. Menciona los nombres completos.'
+            )
         else:
-            data_summary = 'Sin datos'
+            ai_message = (
+                f'{message}\n\n'
+                f'[NOTA: No hay registros de {indiv_type.replace("_", " ")} este mes en la BD]'
+            )
+    elif chart_datas:
+        # Si hay charts, dar contexto al LLM para análisis
+        summaries = []
+        for cd in chart_datas:
+            total = sum(cd.get('values', []))
+            if total > 0:
+                parts = [
+                    f'{l}: {v} ({v * 100 // total}%)'
+                    for l, v in zip(cd.get('labels', []), cd.get('values', []))
+                ]
+                summaries.append(f'{cd.get("title", "Gráfico")}: {", ".join(parts)} (Total: {total})')
+            else:
+                summaries.append(f'{cd.get("title", "Gráfico")}: Sin datos')
         ai_message = (
-            f'El usuario pidio un grafico y YA se lo estoy mostrando visualmente. '
+            f'El usuario pidio graficos y YA se los estoy mostrando visualmente. '
             f'Tu solo necesitas dar un breve analisis en texto (3-4 lineas). '
-            f'Los datos reales son: {data_summary}. Total: {total}. '
-            f'Analiza brevemente que significan estos numeros para RRHH.'
+            f'Los datos reales son:\n' + '\n'.join(summaries) +
+            '\nAnaliza brevemente que significan estos numeros para RRHH.'
         )
 
     messages.append({'role': 'user', 'content': ai_message})
 
     def event_stream():
         try:
-            # Si hay chart, enviar marcador PRIMERO
-            if chart_data:
-                chart_json = json.dumps(chart_data, ensure_ascii=False)
-                yield f'data: [CHART]{chart_json}[/CHART]\n\n'
+            # Si hay charts, enviar marcadores PRIMERO
+            if chart_datas:
+                for chart_data in chart_datas:
+                    chart_json = json.dumps(chart_data, ensure_ascii=False)
+                    yield f'data: [CHART]{chart_json}[/CHART]\n\n'
 
             for chunk in svc.chat_stream(
                 messages=messages,
