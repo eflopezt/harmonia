@@ -771,13 +771,13 @@
                 </div>
             </div>
 
-            <!-- OCR Provider (solo visible si hay API key Gemini) -->
+            <!-- OCR Provider -->
             <div id="panelOcrProvider">
                 <div class="cfg-section-title mt-3">
                     <i class="fas fa-file-pdf me-2 text-danger"></i>OCR — PDFs escaneados
                 </div>
-                <div class="row g-3 align-items-center">
-                    <div class="col-md-4 cfg-field">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3 cfg-field">
                         <label>Proveedor OCR</label>
                         <select class="form-select" name="ia_ocr_provider" id="selOcrProvider">
                             {% for val, label in config.IA_OCR_PROVIDER_CHOICES %}
@@ -785,10 +785,30 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-8">
+                    <div class="col-md-4 cfg-field" id="panelGeminiOcrKey">
+                        <label>
+                            <i class="fas fa-key me-1 text-warning"></i>API Key Gemini OCR
+                            <span class="badge bg-secondary ms-1" style="font-size:.65rem;">opcional</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="ia_gemini_api_key"
+                                   id="iaGeminiOcrKey"
+                                   value="{{ config.ia_gemini_api_key|default:'' }}"
+                                   placeholder="AIza... (si usas DeepSeek + Gemini OCR)">
+                            <button class="btn btn-outline-secondary" type="button"
+                                    onclick="toggleFieldVisibility('iaGeminiOcrKey','iconEyeOcr')" title="Mostrar/ocultar">
+                                <i class="fas fa-eye" id="iconEyeOcr"></i>
+                            </button>
+                        </div>
+                        <div class="help-text mt-1">
+                            Solo necesaria si el proveedor principal NO es Gemini.
+                            Permite usar DeepSeek para chat y Gemini para OCR simultáneamente.
+                        </div>
+                    </div>
+                    <div class="col-md-5">
                         <div class="help-text">
-                            <i class="fas fa-info-circle me-1"></i>
-                            <strong>Gemini Files API</strong>: sube el PDF directamente a Gemini (hasta 50 MB, 1M token contexto).
+                            <i class="fas fa-info-circle me-1 text-primary"></i>
+                            <strong>Gemini Files API</strong>: sube el PDF directamente a Gemini (hasta 50 MB, 1M tokens contexto).
                             No requiere conversión a imagen. Ideal para boletas, T-Registro, planillas escaneadas.
                         </div>
                     </div>
@@ -1189,14 +1209,19 @@ function actualizarPanelIA() {
 }
 
 function toggleApiKeyVisibility() {
-    const inp  = document.getElementById('iaApiKey');
-    const icon = document.getElementById('iconEye');
+    toggleFieldVisibility('iaApiKey', 'iconEye');
+}
+
+function toggleFieldVisibility(inputId, iconId) {
+    const inp  = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (!inp) return;
     if (inp.type === 'password') {
         inp.type = 'text';
-        icon.className = 'fas fa-eye-slash';
+        if (icon) icon.className = 'fas fa-eye-slash';
     } else {
         inp.type = 'password';
-        icon.className = 'fas fa-eye';
+        if (icon) icon.className = 'fas fa-eye';
     }
 }
 

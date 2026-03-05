@@ -37,6 +37,7 @@ MODULE_KEYWORDS: dict[str, list[str]] = {
     'reclutamiento':  ['vacante', 'reclutamiento', 'postulacion', 'candidato', 'entrevista'],
     'salarios':       ['salario', 'sueldo', 'remuneracion', 'banda salarial', 'incremento', 'compa-ratio'],
     'analytics':      ['kpi', 'rotacion', 'tendencia', 'dashboard', 'indicador'],
+    'nominas':        ['nomina', 'nómina', 'planilla', 'boleta', 'neto', 'essalud', 'afp', 'gratificacion', 'cts', 'periodo nomina'],
 }
 
 
@@ -218,6 +219,51 @@ def _collect_reclutamiento(data: dict) -> None:
         logger.debug(f'ai_context reclutamiento: {e}')
 
 
+def _collect_nominas(data: dict) -> None:
+    """Nóminas: período actual, totales, estado."""
+    try:
+        from nominas.models import PeriodoNomina, RegistroNomina
+        from django.db.models import Sum, Count, Q
+
+        # Período más reciente (el último creado)
+        ultimo = PeriodoNomina.objects.order_by('-anio', '-mes').first()
+        if not ultimo:
+            return
+        data['nomina_periodo']   = str(ultimo)
+        data['nomina_estado']    = ultimo.estado
+        data['nomina_tipo']      = ultimo.get_tipo_display()
+
+        # Conteo y totales del período actual
+        regs = RegistroNomina.objects.filter(periodo=ultimo)
+        stats = regs.aggregate(
+            total=Count('id'),
+            aprobados=Count('id', filter=Q(estado='APROBADO')),
+            calculados=Count('id', filter=Q(estado='CALCULADO')),
+            neto_total=Sum('neto_a_pagar'),
+            essalud_total=Sum('aporte_essalud'),
+            costo_total=Sum('costo_total_empresa'),
+        )
+        data['nomina_registros_total']    = stats['total'] or 0
+        data['nomina_registros_aprobados']= stats['aprobados'] or 0
+        data['nomina_registros_calculados']= stats['calculados'] or 0
+        data['nomina_neto_total']         = float(stats['neto_total'] or 0)
+        data['nomina_essalud_total']      = float(stats['essalud_total'] or 0)
+        data['nomina_costo_total']        = float(stats['costo_total'] or 0)
+
+        # Período anterior para comparar
+        anterior = PeriodoNomina.objects.filter(
+            tipo='MENSUAL'
+        ).exclude(pk=ultimo.pk).order_by('-anio', '-mes').first()
+        if anterior:
+            ant_neto = RegistroNomina.objects.filter(
+                periodo=anterior
+            ).aggregate(n=Sum('neto_a_pagar'))['n'] or 0
+            data['nomina_neto_anterior'] = float(ant_neto)
+            data['nomina_periodo_anterior'] = str(anterior)
+    except Exception as e:
+        logger.debug(f'_collect_nominas: {e}')
+
+
 def _collect_salarios(personal, data: dict) -> None:
     """Salarios: incrementos recientes, bandas activas."""
     try:
@@ -248,6 +294,7 @@ _MODULE_COLLECTORS: dict[str, tuple[bool, callable]] = {
     'comunicaciones': (True,  _collect_comunicaciones),
     'reclutamiento':  (False, _collect_reclutamiento),
     'salarios':       (True,  _collect_salarios),
+    'nominas':        (False, _collect_nominas),
 }
 
 
@@ -545,6 +592,21 @@ def build_system_prompt(user, modules: list[str] | None = None) -> str:
     if fin_lines:
         sections.append('FINANCIERO:\n- ' + '\n- '.join(fin_lines))
 
+    # NÓMINAS
+    if data.get('nomina_periodo'):
+        nom_lines = [
+            f'Período: {data.get("nomina_periodo")} — {data.get("nomina_tipo")} / {data.get("nomina_estado")}',
+            f'Registros: {data.get("nomina_registros_total", 0)} '
+            f'({data.get("nomina_registros_aprobados", 0)} aprobados)',
+            f'Neto a pagar: S/ {data.get("nomina_neto_total", 0):,.2f}',
+            f'Costo empresa: S/ {data.get("nomina_costo_total", 0):,.2f}',
+        ]
+        if data.get('nomina_neto_anterior'):
+            nom_lines.append(
+                f'Período anterior: S/ {data.get("nomina_neto_anterior", 0):,.2f}'
+            )
+        sections.append('NÓMINAS:\n- ' + '\n- '.join(nom_lines))
+
     # RECLUTAMIENTO
     if data.get('vacantes_activas'):
         sections.append(
@@ -685,6 +747,14 @@ def _format_resumen_general(data: dict) -> str:
         dev_parts.append(f'{data["okrs_en_riesgo"]} OKRs en riesgo')
     if dev_parts:
         lines.append(f'📚 **Desarrollo**: {", ".join(dev_parts)}')
+
+    # Nóminas
+    if data.get('nomina_periodo'):
+        lines.append(
+            f'💼 **Nómina**: {data.get("nomina_periodo")} — '
+            f'Neto S/ {data.get("nomina_neto_total", 0):,.0f} '
+            f'({data.get("nomina_registros_aprobados", 0)}/{data.get("nomina_registros_total", 0)} aprobados)'
+        )
 
     # Financiero
     if data.get('prestamos_en_curso'):
@@ -909,6 +979,27 @@ _FALLBACK_PATTERNS: list[tuple[list[str], list[str], callable]] = [
             f'- Encuestas activas: {d.get("encuestas_activas", 0)}'
             + (f'\n- Último eNPS: {d["enps_score"]}' if d.get('enps_score') is not None else '')
         ),
+    ),
+    (
+        ['nomina', 'nómina', 'planilla', 'boleta de pago', 'periodo nomina',
+         'cuanto es el neto', 'costo planilla', 'masa salarial'],
+        ['nominas'],
+        lambda d: (
+            (
+                f'**Nóminas — {d.get("nomina_periodo", "Sin período")}** '
+                f'({d.get("nomina_tipo", "")} / {d.get("nomina_estado", "")}):\n'
+                f'- Registros: {d.get("nomina_registros_total", 0)} '
+                f'({d.get("nomina_registros_aprobados", 0)} aprobados, '
+                f'{d.get("nomina_registros_calculados", 0)} calculados)\n'
+                f'- Neto a pagar: **S/ {d.get("nomina_neto_total", 0):,.2f}**\n'
+                f'- EsSalud (empleador): S/ {d.get("nomina_essalud_total", 0):,.2f}\n'
+                f'- Costo total empresa: S/ {d.get("nomina_costo_total", 0):,.2f}'
+            ) + (
+                f'\n- Período anterior ({d.get("nomina_periodo_anterior", "")}): '
+                f'S/ {d.get("nomina_neto_anterior", 0):,.2f}'
+                if d.get('nomina_neto_anterior') else ''
+            )
+        ) if d.get('nomina_periodo') else 'No hay períodos de nómina registrados aún.',
     ),
     (
         ['horas extra', 'sobretiempo', 'he '],

@@ -775,6 +775,35 @@ def ia_disponible() -> bool:
     return ok
 
 
+def get_ocr_service() -> 'GeminiService | None':
+    """
+    Devuelve un GeminiService configurado para OCR de PDFs.
+
+    Lógica de selección de API key:
+      1. Si ia_ocr_provider == 'GEMINI' y ia_gemini_api_key está definida → usa ia_gemini_api_key
+      2. Si ia_ocr_provider == 'GEMINI' y ia_gemini_api_key está vacía + ia_provider == 'GEMINI' → usa ia_api_key
+      3. Cualquier otro caso → None (OCR no disponible)
+
+    Esto permite el setup dual: DeepSeek para chat + Gemini para OCR.
+    """
+    try:
+        from asistencia.models import ConfiguracionSistema
+        config = ConfiguracionSistema.get()
+        if config.ia_ocr_provider != 'GEMINI':
+            return None
+        # Priorizar key OCR dedicada, caer a key principal si es también Gemini
+        ocr_key = getattr(config, 'ia_gemini_api_key', '') or ''
+        if not ocr_key and config.ia_provider == 'GEMINI':
+            ocr_key = getattr(config, 'ia_api_key', '') or ''
+        if not ocr_key:
+            return None
+        modelo = config.ia_modelo or 'gemini-2.0-flash'
+        return GeminiService(api_key=ocr_key, modelo=modelo)
+    except Exception as e:
+        logger.debug(f'get_ocr_service: {e}')
+        return None
+
+
 def mapear_columnas_ia(
     columnas: list[str],
     campos_target: list[str],

@@ -1291,7 +1291,15 @@ class ConfiguracionSistema(models.Model):
     ia_ocr_provider = models.CharField(
         max_length=20, choices=IA_OCR_PROVIDER_CHOICES, default='NINGUNO',
         verbose_name="Proveedor OCR (PDFs escaneados)",
-        help_text="Gemini Files API para OCR de PDFs escaneados. Requiere ia_api_key de Gemini.")
+        help_text="Gemini Files API para OCR de PDFs escaneados.")
+    ia_gemini_api_key = models.CharField(
+        max_length=500, blank=True, default='',
+        verbose_name="API Key Gemini (OCR)",
+        help_text=(
+            "Clave API de Gemini exclusiva para OCR de PDFs escaneados. "
+            "Permite usar DeepSeek para chat y Gemini para OCR simultáneamente. "
+            "Si está vacía y el proveedor principal es Gemini, se usa ia_api_key."
+        ))
     ia_mapeo_activo = models.BooleanField(
         default=False,
         verbose_name="Activar Mapeo IA de Columnas",

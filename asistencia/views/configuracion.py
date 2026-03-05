@@ -141,8 +141,9 @@ def configuracion_view(request):
         config.ia_api_key     = request.POST.get('ia_api_key', getattr(config, 'ia_api_key', '')).strip()
         config.ia_endpoint    = request.POST.get('ia_endpoint', config.ia_endpoint).strip()
         config.ia_modelo      = request.POST.get('ia_modelo', config.ia_modelo).strip()
-        config.ia_ocr_provider = request.POST.get('ia_ocr_provider', getattr(config, 'ia_ocr_provider', 'NINGUNO'))
-        config.ia_mapeo_activo = request.POST.get('ia_mapeo_activo') == '1'
+        config.ia_ocr_provider    = request.POST.get('ia_ocr_provider', getattr(config, 'ia_ocr_provider', 'NINGUNO'))
+        config.ia_gemini_api_key  = request.POST.get('ia_gemini_api_key', getattr(config, 'ia_gemini_api_key', '')).strip()
+        config.ia_mapeo_activo    = request.POST.get('ia_mapeo_activo') == '1'
 
         # S10
         config.s10_nombre_concepto_he25 = request.POST.get('s10_nombre_concepto_he25', config.s10_nombre_concepto_he25)
