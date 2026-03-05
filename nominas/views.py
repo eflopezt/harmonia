@@ -943,8 +943,12 @@ def ir5ta_panel(request):
         Personal.objects
         .filter(estado='Activo', sueldo_base__isnull=False, sueldo_base__gt=0)
         .order_by('-sueldo_base', 'apellidos_nombres')
-        .values('pk', 'apellidos_nombres', 'nro_doc', 'sueldo_base',
-                'grupo_tareo', 'asignacion_familiar')
+        .values(
+            'pk', 'apellidos_nombres', 'nro_doc', 'sueldo_base',
+            'grupo_tareo', 'asignacion_familiar',
+            # nuevos campos nómina
+            'tiene_eps', 'eps_descuento_mensual', 'viaticos_mensual',
+        )
     )
 
     asig_fam_monto = engine.ASIG_FAM  # S/ 102.50
@@ -961,12 +965,20 @@ def ir5ta_panel(request):
         # (12 meses + gratificación julio + gratificación diciembre)
         anual = rem_computable * Decimal('14')
 
-        # Renta neta imponible tras deducción 7 UIT
-        rni = max(anual - deduccion, Decimal('0'))
+        # EPS: co-pago anual del trabajador (deducible del base IR 5ta)
+        tiene_eps         = bool(emp.get('tiene_eps', False))
+        eps_mensual       = Decimal(str(emp.get('eps_descuento_mensual') or '0'))
+        eps_anual         = eps_mensual * Decimal('12')
 
-        # IR anual y mensual
-        ir_anual   = engine.calcular_ir_5ta_mensual(anual) * Decimal('12')
-        ir_mensual = engine.calcular_ir_5ta_mensual(anual)
+        # Viáticos: monto mensual fijo (NO remunerativo, excluido de base IR 5ta)
+        viaticos_mensual  = Decimal(str(emp.get('viaticos_mensual') or '0'))
+
+        # Renta neta imponible = anual - EPS anual - 7 UIT
+        rni = max(anual - eps_anual - deduccion, Decimal('0'))
+
+        # IR anual y mensual (pasando deducción EPS al engine)
+        ir_mensual = engine.calcular_ir_5ta_mensual(anual, deduccion_eps_anual=eps_anual)
+        ir_anual   = ir_mensual * Decimal('12')
 
         # Clasificar para color de fila
         if ir_mensual == 0:
@@ -983,14 +995,33 @@ def ir5ta_panel(request):
             'apellidos_nombres':emp['apellidos_nombres'],
             'numero_documento': emp['nro_doc'],
             'sueldo_base':      sueldo,
+            'asig_fam':         asig,
+            'asignacion_familiar': bool(emp.get('asignacion_familiar')),
+            'rem_computable':   rem_computable,
             'grupo':            emp.get('grupo_tareo', ''),
             'anual_proyectado': anual,
             'rni':              rni,
             'ir_anual':         ir_anual,
             'ir_mensual':       ir_mensual,
             'fila_clase':       fila_clase,
+            # EPS / viáticos
+            'tiene_eps':        tiene_eps,
+            'eps_mensual':      eps_mensual,
+            'eps_anual':        eps_anual,
+            'viaticos_mensual': viaticos_mensual,
         })
         total_ir_mensual += ir_mensual
+
+    # ── Resumen por tramo (para cards de distribución) ──────────────────────
+    resumen = {
+        'sin_ir':     sum(1 for e in empleados if e['ir_mensual'] == 0),
+        'tramo_8':    sum(1 for e in empleados if e['fila_clase'] == 'ir-8'),
+        'tramo_14':   sum(1 for e in empleados if e['fila_clase'] == 'ir-14'),
+        'tramo_17_mas': sum(1 for e in empleados if e['fila_clase'] == 'ir-alto'),
+        'total_con_ir': sum(1 for e in empleados if e['ir_mensual'] > 0),
+        'con_eps':    sum(1 for e in empleados if e['tiene_eps']),
+        'con_viaticos': sum(1 for e in empleados if e['viaticos_mensual'] > 0),
+    }
 
     return render(request, 'nominas/ir5ta_panel.html', {
         'titulo': 'IR 5ta Categoría — 2026',
@@ -1001,6 +1032,7 @@ def ir5ta_panel(request):
         'total_ir_mensual': total_ir_mensual,
         'total_empleados': len(empleados),
         'pagan_ir': sum(1 for e in empleados if e['ir_mensual'] > 0),
+        'resumen': resumen,
     })
 
 

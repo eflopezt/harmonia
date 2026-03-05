@@ -35,7 +35,7 @@ AFP_TASAS = {
 AFP_APORTE    = Decimal('10.00')   # % obligatorio
 ONP_TASA      = Decimal('13.00')   # %
 ESSALUD_TASA  = Decimal('9.00')    # % aporte empleador
-UIT_2026      = Decimal('5350.00')
+UIT_2026      = Decimal('5500.00')   # DS 233-2025-EF (vigente 2026)
 RMV_2025      = Decimal('1025.00')
 ASIG_FAM      = RMV_2025 * Decimal('0.10')   # S/ 102.50
 
@@ -56,13 +56,24 @@ def _redondear(valor: Decimal) -> Decimal:
     return Decimal(valor).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
-def calcular_ir_5ta_mensual(rem_anual_proyectada: Decimal) -> Decimal:
+def calcular_ir_5ta_mensual(
+    rem_anual_proyectada: Decimal,
+    deduccion_eps_anual: Decimal = Decimal('0'),
+) -> Decimal:
     """
     Calcula la retención mensual de IR 5ta categoría.
     Proyección anual → escala progresiva → dividir por 12.
+
+    Args:
+        rem_anual_proyectada: Remuneración anual proyectada (sueldo × 14 + HE).
+        deduccion_eps_anual:  Aporte anual del trabajador a EPS (si aplica).
+                              Reduce la base imponible antes de las 7 UIT.
     """
-    # Deducción 7 UIT
-    base_imponible = max(rem_anual_proyectada - (IR_5TA_DEDUCCION_UITS * UIT_2026), Decimal('0'))
+    # Deducción EPS trabajador + 7 UIT (base legal: Art. 46° TUO LIR)
+    base_imponible = max(
+        rem_anual_proyectada - deduccion_eps_anual - (IR_5TA_DEDUCCION_UITS * UIT_2026),
+        Decimal('0'),
+    )
     if base_imponible <= 0:
         return Decimal('0')
 

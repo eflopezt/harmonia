@@ -340,7 +340,39 @@ class Personal(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name="Bonos"
     )
-    
+    # EPS — Entidad Prestadora de Salud (alternativa a EsSalud)
+    tiene_eps = models.BooleanField(
+        default=False,
+        verbose_name="Tiene EPS",
+        help_text=(
+            "El empleador contrata EPS para este trabajador en lugar de EsSalud. "
+            "Si el trabajador paga un co-seguro, registrar el monto mensual abajo."
+        )
+    )
+    eps_descuento_mensual = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name="Aporte EPS trabajador (mensual)",
+        help_text=(
+            "Co-pago mensual del trabajador a la EPS. Deducible de la base de IR 5ta "
+            "(Art. 46° TUO LIR). Cero si el empleador asume el 100% de la prima."
+        )
+    )
+    # Viáticos fijos — monto mensual no remunerativo (excluido de IR 5ta)
+    viaticos_mensual = models.DecimalField(
+        max_digits=9,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name="Viáticos fijos mensuales",
+        help_text=(
+            "Asignación mensual fija de viáticos. No es remuneración (D.Leg. 728 Art. 19°) "
+            "y NO forma parte de la base de IR 5ta. Solo para referencia y planilla."
+        )
+    )
+
     # --- Clasificación de tareo ---
     GRUPO_TAREO_CHOICES = [
         ('STAFF', 'RC Staff (HE compensatorias — banco de horas)'),
