@@ -1121,9 +1121,47 @@ def flujo_caja_panel(request):
     Panel de proyección de flujo de caja de planilla.
     Muestra proyección mensual de todos los desembolsos de RR.HH.
     vs. presupuesto aprobado (si existe).
+
+    Parámetros GET:
+        hasta=YYYY-MM  → proyecta hasta ese mes inclusive (preferido)
+        meses=N        → proyecta N meses desde hoy (legacy)
     """
-    n_meses = int(request.GET.get('meses', 18))
-    n_meses = max(6, min(n_meses, 36))
+    from dateutil.relativedelta import relativedelta as _rdelta
+
+    hoy_inicio = date.today().replace(day=1)
+
+    # ── Resolver horizonte ────────────────────────────────────────────
+    hasta_param = request.GET.get('hasta', '').strip()
+    if hasta_param:
+        try:
+            yr, mo = hasta_param.split('-')
+            hasta_date = date(int(yr), int(mo), 1)
+            diff = _rdelta(hasta_date, hoy_inicio)
+            n_meses = diff.years * 12 + diff.months + 1   # incluye mes actual
+            n_meses = max(1, n_meses)
+        except (ValueError, AttributeError):
+            hasta_param = ''
+            n_meses = int(request.GET.get('meses', 18))
+    else:
+        n_meses = int(request.GET.get('meses', 18))
+
+    n_meses = max(1, min(n_meses, 60))   # cap: 1–60 meses
+
+    # Fecha fin proyección (para el selector de mes en el template)
+    hasta_date = hoy_inicio + _rdelta(months=n_meses - 1)
+    hasta_str   = hasta_date.strftime('%Y-%m')    # "2027-08"  ← input[type=month] value
+    mes_min_str = hoy_inicio.strftime('%Y-%m')     # min del picker
+    _MESES_ES_L = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    hasta_label = f"{_MESES_ES_L[hasta_date.month]}-{str(hasta_date.year)[2:]}"  # "Ago-27"
+    # Atajos rápidos — valor "YYYY-MM" del último mes del atajo
+    atajos = {
+        '6':  (hoy_inicio + _rdelta(months=5)).strftime('%Y-%m'),
+        '12': (hoy_inicio + _rdelta(months=11)).strftime('%Y-%m'),
+        '18': (hoy_inicio + _rdelta(months=17)).strftime('%Y-%m'),
+        '24': (hoy_inicio + _rdelta(months=23)).strftime('%Y-%m'),
+        '36': (hoy_inicio + _rdelta(months=35)).strftime('%Y-%m'),
+    }
 
     meses, empleados = proyectar_flujo_caja(n_meses=n_meses)
 
@@ -1185,6 +1223,11 @@ def flujo_caja_panel(request):
         'headcount_actual':       headcount_actual,
         'meses_con_vencimientos': meses_con_vencimientos,
         'empleados_por_vencer':   empleados_por_vencer,
+        # Selector de período
+        'hasta_str':    hasta_str,
+        'hasta_label':  hasta_label,
+        'mes_min_str':  mes_min_str,
+        'atajos':       atajos,
         # Charts
         'chart_labels':    chart_labels,
         'chart_neto':      chart_neto,

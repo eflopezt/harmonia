@@ -151,16 +151,37 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
 }
 .btn-teal-outline:hover { background: #f0fdf4; }
 
-/* ── Period selector ─────────────────────────────────────────────────── */
-.period-pills { display: flex; gap: 6px; }
-.period-pill {
-  padding: 5px 14px; border-radius: 20px; font-size: .8rem; font-weight: 600;
-  border: 2px solid rgba(255,255,255,.3); color: rgba(255,255,255,.7);
-  text-decoration: none; transition: all .15s;
+/* ── Period selector — atajos + month picker ─────────────────────────── */
+.period-picker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.period-shortcuts { display: flex; gap: 4px; }
+.period-shortcut {
+  padding: 4px 11px; border-radius: 16px; font-size: .76rem; font-weight: 600;
+  border: 1.5px solid rgba(255,255,255,.28); color: rgba(255,255,255,.65);
+  text-decoration: none; transition: all .15s; white-space: nowrap;
 }
-.period-pill:hover, .period-pill.active {
+.period-shortcut:hover, .period-shortcut.active {
   background: rgba(255,255,255,.15); color: #fff;
   border-color: rgba(255,255,255,.7);
+}
+.period-sep { color: rgba(255,255,255,.25); font-size: .75rem; }
+.period-month-wrap {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,.08);
+  border: 1.5px solid rgba(255,255,255,.28); border-radius: 10px;
+  padding: 5px 12px; cursor: pointer;
+}
+.period-month-wrap:hover { border-color: rgba(255,255,255,.55); }
+.period-month-wrap label {
+  font-size: .72rem; color: rgba(255,255,255,.6); white-space: nowrap; cursor: pointer;
+}
+.period-month-input {
+  background: transparent; border: none; color: #fff;
+  font-size: .84rem; font-weight: 700; cursor: pointer;
+  min-width: 130px; padding: 0;
+}
+.period-month-input:focus { outline: none; }
+.period-month-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2); cursor: pointer; opacity: .7; margin-left: 2px;
 }
 
 /* ── Legend chips ────────────────────────────────────────────────────── */
@@ -195,15 +216,26 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
       <p>Proyección de desembolsos de RR.HH. basada en el personal activo</p>
     </div>
     <div class="fdc-header-actions">
-      <!-- Period selector -->
-      <div class="period-pills">
-        <a href="?meses=6"  class="period-pill {% if n_meses == 6  %}active{% endif %}">6 m</a>
-        <a href="?meses=12" class="period-pill {% if n_meses == 12 %}active{% endif %}">12 m</a>
-        <a href="?meses=18" class="period-pill {% if n_meses == 18 %}active{% endif %}">18 m</a>
-        <a href="?meses=24" class="period-pill {% if n_meses == 24 %}active{% endif %}">24 m</a>
+      <!-- Selector de período: atajos rápidos + month picker -->
+      <div class="period-picker">
+        <div class="period-shortcuts">
+          <a href="?hasta={{ atajos.6 }}"  class="period-shortcut {% if hasta_str == atajos.6  %}active{% endif %}">6 m</a>
+          <a href="?hasta={{ atajos.12 }}" class="period-shortcut {% if hasta_str == atajos.12 %}active{% endif %}">12 m</a>
+          <a href="?hasta={{ atajos.18 }}" class="period-shortcut {% if hasta_str == atajos.18 %}active{% endif %}">18 m</a>
+          <a href="?hasta={{ atajos.24 }}" class="period-shortcut {% if hasta_str == atajos.24 %}active{% endif %}">24 m</a>
+          <a href="?hasta={{ atajos.36 }}" class="period-shortcut {% if hasta_str == atajos.36 %}active{% endif %}">36 m</a>
+        </div>
+        <span class="period-sep">|</span>
+        <!-- Picker libre: hasta qué mes/año -->
+        <div class="period-month-wrap" onclick="document.getElementById('hastaInput').showPicker?.() || document.getElementById('hastaInput').focus()">
+          <label for="hastaInput"><i class="fas fa-calendar-to me-1"></i>Hasta</label>
+          <input type="month" id="hastaInput" class="period-month-input"
+                 value="{{ hasta_str }}" min="{{ mes_min_str }}"
+                 onchange="window.location.href='?hasta='+this.value">
+        </div>
       </div>
       <!-- Presupuesto CTA -->
-      <button class="btn-teal-outline text-white border-white" style="color:#fff!important;border-color:rgba(255,255,255,.5)!important"
+      <button class="btn-teal-outline" style="color:#fff!important;border-color:rgba(255,255,255,.5)!important"
               data-bs-toggle="modal" data-bs-target="#modalPresupuesto">
         <i class="fas fa-bullseye me-1"></i> Presupuesto
       </button>
@@ -220,7 +252,7 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
     <div class="fdc-kpi accent">
       <div class="fdc-kpi-label"><i class="fas fa-chart-area me-1"></i>Total Proyectado</div>
       <div class="fdc-kpi-value">S/ {{ total_18m|floatformat:0|intcomma }}</div>
-      <div class="fdc-kpi-sub">en {{ n_meses }} meses</div>
+      <div class="fdc-kpi-sub">{{ n_meses }} meses · hasta {{ hasta_label }}</div>
     </div>
     <div class="fdc-kpi warn">
       <div class="fdc-kpi-label"><i class="fas fa-calendar-alt me-1"></i>Promedio Mensual</div>
@@ -245,7 +277,7 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
     <div class="fdc-card-header">
       <i class="fas fa-chart-bar"></i> Proyección de Desembolsos
       <span class="ms-auto text-muted" style="font-size:.78rem;font-weight:400">
-        Acumulado {{ n_meses }} meses
+        {{ n_meses }} meses · hasta {{ hasta_label }}
       </span>
     </div>
     <div class="fdc-card-body">
