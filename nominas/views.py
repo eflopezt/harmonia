@@ -25,6 +25,144 @@ from . import engine
 solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff)
 
 
+# ─── Calendario procesos especiales ────────────────────────────────────────────
+
+# Definición del calendario legal peruano de procesos especiales
+_SCHEDULE = [
+    # tipo,            mes, label,          base legal
+    ('GRATIFICACION',  7,  'Gratif. Julio',  'Ley 27735'),
+    ('GRATIFICACION', 12,  'Gratif. Diciembre', 'Ley 27735'),
+    ('CTS',            5,  'CTS Mayo',       'D.Leg. 650'),
+    ('CTS',           11,  'CTS Noviembre',  'D.Leg. 650'),
+    ('UTILIDADES',     3,  'Utilidades',     'D.Leg. 892'),
+]
+
+_TIPO_META = {
+    'GRATIFICACION': {'icon': 'fas fa-gift',              'color_base': '#ccfbf1', 'color_icon': '#0f766e'},
+    'CTS':           {'icon': 'fas fa-piggy-bank',        'color_base': '#dbeafe', 'color_icon': '#1d4ed8'},
+    'UTILIDADES':    {'icon': 'fas fa-chart-line',        'color_base': '#fef9c3', 'color_icon': '#a16207'},
+    'LIQUIDACION':   {'icon': 'fas fa-file-invoice-dollar','color_base': '#fee2e2', 'color_icon': '#b91c1c'},
+}
+
+_ESTADO_META = {
+    'PENDIENTE':  {'label': 'Por iniciar',  'badge': 'secondary', 'icon': 'far fa-circle'},
+    'BORRADOR':   {'label': 'Borrador',     'badge': 'info',      'icon': 'fas fa-pen'},
+    'CALCULADO':  {'label': 'Calculado',    'badge': 'primary',   'icon': 'fas fa-calculator'},
+    'APROBADO':   {'label': 'Aprobado',     'badge': 'success',   'icon': 'fas fa-check-circle'},
+    'CERRADO':    {'label': 'Cerrado',      'badge': 'dark',      'icon': 'fas fa-lock'},
+    'ANULADO':    {'label': 'Anulado',      'badge': 'danger',    'icon': 'fas fa-times-circle'},
+}
+
+
+def _urgency(dias):
+    """Clasifica urgencia por días restantes."""
+    if dias < 0:
+        return 'pasado'
+    if dias <= 15:
+        return 'critico'
+    if dias <= 30:
+        return 'urgente'
+    if dias <= 60:
+        return 'proximo'
+    return 'planificado'
+
+
+def _build_procesos_calendar(hoy, ultimo_regular):
+    """
+    Construye el calendario de procesos especiales para los últimos 3 años + siguiente.
+    Devuelve dict {anio: [slot_dict, ...]} ordenado cronológicamente por año DESC.
+
+    Cada slot tiene:
+      tipo, label, ley, mes, anio, fecha_pago, dias, urgencia,
+      estado, monto, monto_estimado, trabajadores, pk, creado,
+      icon, color_base, color_icon, estado_label, estado_badge, estado_icon
+    """
+    # Estimaciones basadas en último período regular aprobado
+    masa = float(ultimo_regular.total_neto or 0) if ultimo_regular else 0
+    trab = int(ultimo_regular.total_trabajadores or 0) if ultimo_regular else 0
+    estimados = {
+        'GRATIFICACION': masa,           # equivalente a 1 sueldo mensual
+        'CTS':           masa * 0.5,     # medio sueldo semestral
+        'UTILIDADES':    masa * 0.18,    # ~18% de la masa (estimación conservadora)
+    }
+
+    # Índice de períodos existentes: (tipo, anio, mes) → PeriodoNomina
+    existentes = {
+        (p.tipo, p.anio, p.mes): p
+        for p in PeriodoNomina.objects.filter(
+            tipo__in=['GRATIFICACION', 'CTS', 'UTILIDADES', 'LIQUIDACION']
+        ).only('tipo', 'anio', 'mes', 'estado', 'total_neto', 'total_trabajadores', 'pk')
+    }
+
+    anios = [hoy.year + 1, hoy.year, hoy.year - 1, hoy.year - 2]
+    calendar = {}
+
+    for anio in anios:
+        slots = []
+        for tipo, mes, label, ley in _SCHEDULE:
+            try:
+                fecha_pago = date(anio, mes, 15)
+            except ValueError:
+                fecha_pago = date(anio, mes, 28)
+
+            dias = (fecha_pago - hoy).days
+            periodo = existentes.get((tipo, anio, mes))
+            meta_tipo   = _TIPO_META.get(tipo, _TIPO_META['GRATIFICACION'])
+            monto_est   = estimados.get(tipo, 0)
+
+            if periodo:
+                estado = periodo.estado
+                monto  = float(periodo.total_neto or 0)
+                n_trab = int(periodo.total_trabajadores or trab)
+                pk     = periodo.pk
+                creado = True
+            else:
+                # Sólo mostrar años futuros o actuales como "por iniciar"
+                # Años pasados sin período: mostrar igual pero como histórico perdido
+                estado = 'PENDIENTE'
+                monto  = 0.0
+                n_trab = trab
+                pk     = None
+                creado = False
+
+            meta_estado = _ESTADO_META.get(estado, _ESTADO_META['PENDIENTE'])
+
+            slots.append({
+                # Identificadores
+                'tipo':          tipo,
+                'mes':           mes,
+                'anio':          anio,
+                'label':         label,
+                'ley':           ley,
+                # Fechas
+                'fecha_pago':    fecha_pago,
+                'dias':          dias,
+                'urgencia':      _urgency(dias),
+                # Estado
+                'estado':        estado,
+                'estado_label':  meta_estado['label'],
+                'estado_badge':  meta_estado['badge'],
+                'estado_icon':   meta_estado['icon'],
+                # Montos
+                'monto':         monto,
+                'monto_estimado': monto_est,
+                'trabajadores':  n_trab,
+                # Navegación
+                'pk':            pk,
+                'creado':        creado,
+                # Visual
+                'icon':          meta_tipo['icon'],
+                'color_base':    meta_tipo['color_base'],
+                'color_icon':    meta_tipo['color_icon'],
+            })
+
+        # Ordenar: primero los próximos (dias >= 0), luego los pasados
+        slots.sort(key=lambda s: s['fecha_pago'])
+        calendar[anio] = slots
+
+    return calendar
+
+
 # ─── Panel principal ───────────────────────────────────────────────────────────
 
 @login_required
@@ -128,49 +266,15 @@ def nominas_panel(request):
     except Exception:
         pass
 
-    # ── Procesos especiales: próximas fechas y períodos ──────────────────────
+    # ── Calendario de Procesos Especiales ────────────────────────────────────
     hoy_d = date.today()
-
-    # Próxima gratificación
-    julio_act  = date(hoy_d.year, 7, 15)
-    dic_act    = date(hoy_d.year, 12, 15)
-    julio_sig  = date(hoy_d.year + 1, 7, 15)
-    if hoy_d <= julio_act:
-        proxima_grat       = julio_act
-        proxima_grat_label = f'Julio {hoy_d.year}'
-        proxima_grat_mes   = 7
-    elif hoy_d <= dic_act:
-        proxima_grat       = dic_act
-        proxima_grat_label = f'Diciembre {hoy_d.year}'
-        proxima_grat_mes   = 12
-    else:
-        proxima_grat       = julio_sig
-        proxima_grat_label = f'Julio {hoy_d.year + 1}'
-        proxima_grat_mes   = 7
-    dias_grat = (proxima_grat - hoy_d).days
-
-    # Próxima CTS
-    mayo_act  = date(hoy_d.year, 5, 15)
-    nov_act   = date(hoy_d.year, 11, 15)
-    mayo_sig  = date(hoy_d.year + 1, 5, 15)
-    if hoy_d <= mayo_act:
-        proxima_cts       = mayo_act
-        proxima_cts_label = f'Mayo {hoy_d.year}'
-        proxima_cts_mes   = 5
-    elif hoy_d <= nov_act:
-        proxima_cts       = nov_act
-        proxima_cts_label = f'Noviembre {hoy_d.year}'
-        proxima_cts_mes   = 11
-    else:
-        proxima_cts       = mayo_sig
-        proxima_cts_label = f'Mayo {hoy_d.year + 1}'
-        proxima_cts_mes   = 5
-    dias_cts = (proxima_cts - hoy_d).days
-
-    periodos_grat        = PeriodoNomina.objects.filter(tipo='GRATIFICACION').order_by('-anio', '-mes')[:8]
-    periodos_cts         = PeriodoNomina.objects.filter(tipo='CTS').order_by('-anio', '-mes')[:8]
-    periodos_utilidades  = PeriodoNomina.objects.filter(tipo='UTILIDADES').order_by('-anio', '-mes')[:8]
-    periodos_liquidacion = PeriodoNomina.objects.filter(tipo='LIQUIDACION').order_by('-anio', '-mes')[:8]
+    _cal_dict = _build_procesos_calendar(hoy_d, ultimo)
+    # Convertir a lista de dicts para que Django templates pueda iterar sin filtros custom
+    cal_anios_list = [hoy_d.year + 1, hoy_d.year, hoy_d.year - 1, hoy_d.year - 2]
+    cal_data = [
+        {'anio': anio_k, 'slots': _cal_dict[anio_k]}
+        for anio_k in cal_anios_list
+    ]
 
     return render(request, 'nominas/panel.html', {
         'titulo': 'Nóminas',
@@ -186,20 +290,10 @@ def nominas_panel(request):
         'distribucion_conceptos_json': distribucion_conceptos_json,
         'top_sueldos': top_sueldos,
         'masa_salarial_json': masa_salarial_json,
-        # Procesos especiales
-        'proxima_grat': proxima_grat,
-        'proxima_grat_label': proxima_grat_label,
-        'proxima_grat_mes': proxima_grat_mes,
-        'dias_grat': dias_grat,
-        'proxima_cts': proxima_cts,
-        'proxima_cts_label': proxima_cts_label,
-        'proxima_cts_mes': proxima_cts_mes,
-        'dias_cts': dias_cts,
-        'periodos_grat': periodos_grat,
-        'periodos_cts': periodos_cts,
-        'periodos_utilidades': periodos_utilidades,
-        'periodos_liquidacion': periodos_liquidacion,
-        'anio_actual': hoy_d.year,
+        # Calendario procesos especiales
+        'cal_data': cal_data,
+        'cal_anio_actual': hoy_d.year,
+        'cal_anios': cal_anios_list,
     })
 
 
