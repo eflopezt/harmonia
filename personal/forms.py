@@ -65,6 +65,8 @@ class PersonalForm(forms.ModelForm):
             'fecha_nacimiento', 'sexo', 'celular', 'correo_personal', 'correo_corporativo',
             'direccion', 'ubigeo',
             'sueldo_base', 'banco', 'cuenta_ahorros', 'cuenta_cci', 'cuenta_cts',
+            'cond_trabajo_mensual', 'alimentacion_mensual', 'viaticos_mensual',
+            'tiene_eps', 'eps_descuento_mensual',
             'grupo_tareo', 'condicion', 'regimen_laboral', 'regimen_turno',
             'codigo_sap', 'codigo_s10', 'partida_control', 'jornada_horas',
             'dias_libres_corte_2025', 'observaciones',
@@ -148,6 +150,19 @@ class PersonalForm(forms.ModelForm):
                     Column('cuenta_ahorros', css_class='col-md-4'),
                     Column('cuenta_cci', css_class='col-md-4'),
                     Column('cuenta_cts', css_class='col-md-4'),
+                ),
+                css_class='card mb-3 p-3'
+            ),
+            # --- Beneficios No Remunerativos ---
+            Div(
+                Row(
+                    Column('cond_trabajo_mensual', css_class='col-md-4'),
+                    Column('alimentacion_mensual', css_class='col-md-4'),
+                    Column('viaticos_mensual', css_class='col-md-4'),
+                ),
+                Row(
+                    Column('tiene_eps', css_class='col-md-4 pt-4'),
+                    Column('eps_descuento_mensual', css_class='col-md-4'),
                 ),
                 css_class='card mb-3 p-3'
             ),

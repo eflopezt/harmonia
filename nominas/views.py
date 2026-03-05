@@ -19,9 +19,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
 
-from .models import ConceptoRemunerativo, LineaNomina, PeriodoNomina, RegistroNomina, PresupuestoPlanilla
+from .models import (
+    ConceptoRemunerativo, LineaNomina, PeriodoNomina, RegistroNomina,
+    PresupuestoPlanilla, PlanPlantilla, LineaPlan,
+)
 from . import engine
-from .flujo_caja_engine import proyectar_flujo_caja
+from .flujo_caja_engine import proyectar_flujo_caja, proyectar_desde_plan
 
 solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff)
 
@@ -1119,12 +1122,11 @@ def registro_ir5ta_ajax(request, pk):
 def flujo_caja_panel(request):
     """
     Panel de proyección de flujo de caja de planilla.
-    Muestra proyección mensual de todos los desembolsos de RR.HH.
-    vs. presupuesto aprobado (si existe).
 
     Parámetros GET:
-        hasta=YYYY-MM  → proyecta hasta ese mes inclusive (preferido)
+        hasta=YYYY-MM  → proyecta hasta ese mes inclusive
         meses=N        → proyecta N meses desde hoy (legacy)
+        plan=PK        → usa un PlanPlantilla como fuente (en lugar de empleados reales)
     """
     from dateutil.relativedelta import relativedelta as _rdelta
 
@@ -1137,24 +1139,22 @@ def flujo_caja_panel(request):
             yr, mo = hasta_param.split('-')
             hasta_date = date(int(yr), int(mo), 1)
             diff = _rdelta(hasta_date, hoy_inicio)
-            n_meses = diff.years * 12 + diff.months + 1   # incluye mes actual
+            n_meses = diff.years * 12 + diff.months + 1
             n_meses = max(1, n_meses)
         except (ValueError, AttributeError):
             hasta_param = ''
             n_meses = int(request.GET.get('meses', 18))
     else:
         n_meses = int(request.GET.get('meses', 18))
+    n_meses = max(1, min(n_meses, 60))
 
-    n_meses = max(1, min(n_meses, 60))   # cap: 1–60 meses
-
-    # Fecha fin proyección (para el selector de mes en el template)
-    hasta_date = hoy_inicio + _rdelta(months=n_meses - 1)
-    hasta_str   = hasta_date.strftime('%Y-%m')    # "2027-08"  ← input[type=month] value
-    mes_min_str = hoy_inicio.strftime('%Y-%m')     # min del picker
+    # Fecha fin proyección
+    hasta_date  = hoy_inicio + _rdelta(months=n_meses - 1)
+    hasta_str   = hasta_date.strftime('%Y-%m')
+    mes_min_str = hoy_inicio.strftime('%Y-%m')
     _MESES_ES_L = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-    hasta_label = f"{_MESES_ES_L[hasta_date.month]}-{str(hasta_date.year)[2:]}"  # "Ago-27"
-    # Atajos rápidos — valor "YYYY-MM" del último mes del atajo
+    hasta_label = f"{_MESES_ES_L[hasta_date.month]}-{str(hasta_date.year)[2:]}"
     atajos = {
         '6':  (hoy_inicio + _rdelta(months=5)).strftime('%Y-%m'),
         '12': (hoy_inicio + _rdelta(months=11)).strftime('%Y-%m'),
@@ -1163,53 +1163,73 @@ def flujo_caja_panel(request):
         '36': (hoy_inicio + _rdelta(months=35)).strftime('%Y-%m'),
     }
 
-    meses, empleados = proyectar_flujo_caja(n_meses=n_meses)
+    # ── Fuente: REAL o PLAN ───────────────────────────────────────────
+    plan_id   = request.GET.get('plan', '').strip()
+    modo      = 'REAL'
+    plan_activo = None
+    planes_disponibles = PlanPlantilla.objects.order_by('nombre')
 
-    # Enriquecer con presupuesto si existe
-    presupuestos = PresupuestoPlanilla.objects.all()
-    presup_map = {(p.anio, p.mes): p for p in presupuestos}
+    if plan_id:
+        try:
+            plan_activo = PlanPlantilla.objects.get(pk=int(plan_id))
+            modo = 'PLAN'
+            meses, empleados = proyectar_desde_plan(plan_activo, n_meses=n_meses)
+        except (ValueError, PlanPlantilla.DoesNotExist):
+            plan_activo = None
+
+    if plan_activo is None:
+        meses, empleados = proyectar_flujo_caja(n_meses=n_meses)
+
+    # ── Presupuesto (solo en modo REAL) ───────────────────────────────
     tiene_presupuesto = False
-    for mes in meses:
-        key = (mes['fecha'].year, mes['fecha'].month)
-        presup = presup_map.get(key)
-        if presup:
-            tiene_presupuesto = True
-            mes['presup_total'] = presup.presup_total
-            mes['variacion']    = mes['total_desembolso'] - presup.presup_total
-            mes['variacion_pct'] = (
-                mes['variacion'] / presup.presup_total * 100
-                if presup.presup_total else None
-            )
+    if modo == 'REAL':
+        presup_map = {(p.anio, p.mes): p for p in PresupuestoPlanilla.objects.all()}
+        for mes in meses:
+            key = (mes['fecha'].year, mes['fecha'].month)
+            presup = presup_map.get(key)
+            if presup:
+                tiene_presupuesto = True
+                mes['presup_total'] = presup.presup_total
+                mes['variacion']    = mes['total_desembolso'] - presup.presup_total
+                mes['variacion_pct'] = (
+                    mes['variacion'] / presup.presup_total * 100
+                    if presup.presup_total else None
+                )
 
-    # Totales de resumen
-    total_18m         = sum(m['total_desembolso'] for m in meses)
-    promedio_mensual  = total_18m / len(meses) if meses else Decimal('0')
-    headcount_actual  = meses[0]['headcount'] if meses else 0
+    # ── Totales ───────────────────────────────────────────────────────
+    total_18m        = sum(m['total_desembolso'] for m in meses)
+    promedio_mensual = total_18m / len(meses) if meses else Decimal('0')
+    headcount_actual = meses[0]['headcount'] if meses else 0
     meses_con_vencimientos = sum(1 for m in meses if m['liquidaciones'] > 0)
-    # Empleados cuyo contrato vence dentro del horizonte proyectado
-    from decimal import Decimal as _D
-    from datetime import date as _date
-    from dateutil.relativedelta import relativedelta as _rd
-    _hoy = _date.today()
-    _horizon = _hoy.replace(day=1) + _rd(months=n_meses)
-    empleados_por_vencer = sum(
-        1 for e in empleados
-        if e.get('fecha_fin_contrato') and _hoy.replace(day=1) <= e['fecha_fin_contrato'] < _horizon
-    )
 
-    # Datos para Chart.js
-    chart_labels   = json.dumps([m['mes_label'] for m in meses])
-    chart_neto     = json.dumps([float(m['neto'])          for m in meses])
-    chart_cond     = json.dumps([float(m['cond_trabajo'])   for m in meses])
-    chart_alim     = json.dumps([float(m['alimentacion'])   for m in meses])
-    chart_essalud  = json.dumps([float(m['essalud'])        for m in meses])
-    chart_gratif   = json.dumps([float(m['gratificaciones']) for m in meses])
-    chart_cts      = json.dumps([float(m['cts'])            for m in meses])
-    chart_liq      = json.dumps([float(m['liquidaciones'])  for m in meses])
-    chart_headcount = json.dumps([m['headcount']            for m in meses])
-    chart_total    = json.dumps([float(m['total_desembolso']) for m in meses])
-    chart_presup   = json.dumps([
-        float(m['presup_total']) if m['presup_total'] is not None else None
+    _hoy = date.today()
+    _horizon = _hoy.replace(day=1) + _rdelta(months=n_meses)
+    if modo == 'REAL':
+        empleados_por_vencer = sum(
+            1 for e in empleados
+            if e.get('fecha_fin_contrato') and _hoy.replace(day=1) <= e['fecha_fin_contrato'] < _horizon
+        )
+    else:
+        # En modo PLAN: puestos que terminan dentro del horizonte
+        empleados_por_vencer = sum(
+            1 for e in empleados
+            if e.get('fecha_fin_puesto') and _hoy.replace(day=1) <= e['fecha_fin_puesto'] < _horizon
+        )
+
+    # ── Charts ────────────────────────────────────────────────────────
+    chart_labels    = json.dumps([m['mes_label'] for m in meses])
+    chart_neto      = json.dumps([float(m['neto'])             for m in meses])
+    chart_cond      = json.dumps([float(m['cond_trabajo'])     for m in meses])
+    chart_alim      = json.dumps([float(m['alimentacion'])     for m in meses])
+    chart_viaticos  = json.dumps([float(m.get('viaticos', 0)) for m in meses])
+    chart_essalud   = json.dumps([float(m['essalud'])          for m in meses])
+    chart_gratif    = json.dumps([float(m['gratificaciones'])  for m in meses])
+    chart_cts       = json.dumps([float(m['cts'])              for m in meses])
+    chart_liq       = json.dumps([float(m['liquidaciones'])    for m in meses])
+    chart_headcount = json.dumps([m['headcount']               for m in meses])
+    chart_total     = json.dumps([float(m['total_desembolso']) for m in meses])
+    chart_presup    = json.dumps([
+        float(m['presup_total']) if m.get('presup_total') is not None else None
         for m in meses
     ])
 
@@ -1217,6 +1237,9 @@ def flujo_caja_panel(request):
         'meses':            meses,
         'empleados':        empleados,
         'n_meses':          n_meses,
+        'modo':             modo,
+        'plan_activo':      plan_activo,
+        'planes_disponibles': planes_disponibles,
         'tiene_presupuesto':      tiene_presupuesto,
         'total_18m':              total_18m,
         'promedio_mensual':       promedio_mensual,
@@ -1233,6 +1256,7 @@ def flujo_caja_panel(request):
         'chart_neto':      chart_neto,
         'chart_cond':      chart_cond,
         'chart_alim':      chart_alim,
+        'chart_viaticos':  chart_viaticos,
         'chart_essalud':   chart_essalud,
         'chart_gratif':    chart_gratif,
         'chart_cts':       chart_cts,
@@ -1293,3 +1317,170 @@ def presupuesto_eliminar(request, anio, mes):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     deleted, _ = PresupuestoPlanilla.objects.filter(anio=anio, mes=mes, empresa=None).delete()
     return JsonResponse({'ok': True, 'deleted': deleted})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PLANES DE PLANTILLA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@login_required
+@solo_admin
+def planes_panel(request):
+    """Panel con lista de planes y botón de crear."""
+    planes = PlanPlantilla.objects.prefetch_related('lineas').order_by('-creado_en')
+    return render(request, 'nominas/planes_panel.html', {'planes': planes})
+
+
+@login_required
+@solo_admin
+def plan_crear(request):
+    """Crear un nuevo PlanPlantilla vía POST JSON."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+        plan = PlanPlantilla.objects.create(
+            nombre      = data['nombre'].strip(),
+            tipo        = data.get('tipo', 'OBRA'),
+            descripcion = data.get('descripcion', ''),
+            fecha_inicio= data['fecha_inicio'],
+            fecha_fin   = data.get('fecha_fin') or None,
+            estado      = 'BORRADOR',
+            creado_por  = request.user,
+        )
+        return JsonResponse({'ok': True, 'id': plan.pk, 'url': f'/nominas/planes/{plan.pk}/'})
+    except (KeyError, Exception) as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@solo_admin
+def plan_detalle(request, pk):
+    """Vista Gantt + tabla de líneas + totales mensuales."""
+    plan = get_object_or_404(PlanPlantilla.objects.prefetch_related('lineas__area', 'lineas__personal'), pk=pk)
+
+    # Proyección del plan
+    meses, posiciones = proyectar_desde_plan(plan)
+
+    # ── Preparar datos para el template ──────────────────────────────
+    chart_labels = [m['mes_label'] for m in meses]
+    chart_total  = [float(m['total_desembolso']) for m in meses]
+    chart_headcount = [m['headcount'] for m in meses]
+
+    # Datos chart stacked (igual que flujo_caja_panel)
+    chart_neto   = [float(m['neto'])           for m in meses]
+    chart_cond   = [float(m['cond_trabajo'])   for m in meses]
+    chart_alim   = [float(m['alimentacion'])   for m in meses]
+    chart_essalud= [float(m['essalud'])        for m in meses]
+    chart_gratif = [float(m['gratificaciones'])for m in meses]
+    chart_cts    = [float(m['cts'])            for m in meses]
+    chart_liq    = [float(m['liquidaciones'])  for m in meses]
+
+    # Total del horizonte
+    total_horizonte = sum(m['total_desembolso'] for m in meses)
+    headcount_pico  = max((m['headcount'] for m in meses), default=0)
+
+    # Áreas disponibles para el modal de línea
+    from personal.models import Area
+    areas = Area.objects.filter(activa=True).order_by('nombre')
+
+    return render(request, 'nominas/plan_detalle.html', {
+        'plan':             plan,
+        'meses':            meses,
+        'posiciones':       posiciones,
+        'chart_labels':     json.dumps(chart_labels),
+        'chart_neto':       json.dumps(chart_neto),
+        'chart_cond':       json.dumps(chart_cond),
+        'chart_alim':       json.dumps(chart_alim),
+        'chart_essalud':    json.dumps(chart_essalud),
+        'chart_gratif':     json.dumps(chart_gratif),
+        'chart_cts':        json.dumps(chart_cts),
+        'chart_liq':        json.dumps(chart_liq),
+        'chart_total':      json.dumps(chart_total),
+        'chart_headcount':  json.dumps(chart_headcount),
+        'total_horizonte':  total_horizonte,
+        'headcount_pico':   headcount_pico,
+        'areas':            areas,
+    })
+
+
+@login_required
+@solo_admin
+def plan_linea_upsert(request, plan_pk):
+    """Crear o actualizar una LineaPlan. POST JSON."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    plan = get_object_or_404(PlanPlantilla, pk=plan_pk)
+    try:
+        data    = json.loads(request.body)
+        linea_id = data.get('id')
+
+        def _d(key, default='0'):
+            v = data.get(key, default)
+            return Decimal(str(v or 0))
+
+        from personal.models import Area
+        area_id = data.get('area_id')
+        area    = Area.objects.filter(pk=area_id).first() if area_id else None
+
+        defaults = {
+            'cargo':                 data.get('cargo', '').strip(),
+            'area':                  area,
+            'cantidad':              int(data.get('cantidad', 1)),
+            'sueldo_base':           _d('sueldo_base'),
+            'asignacion_familiar':   bool(data.get('asignacion_familiar', False)),
+            'regimen_pension':       data.get('regimen_pension', 'AFP'),
+            'afp':                   data.get('afp', ''),
+            'cond_trabajo_mensual':  _d('cond_trabajo_mensual'),
+            'alimentacion_mensual':  _d('alimentacion_mensual'),
+            'fecha_inicio_puesto':   data['fecha_inicio_puesto'],
+            'fecha_fin_puesto':      data.get('fecha_fin_puesto') or None,
+            'notas':                 data.get('notas', ''),
+            'orden':                 int(data.get('orden', 0)),
+        }
+
+        if linea_id:
+            linea = get_object_or_404(LineaPlan, pk=linea_id, plan=plan)
+            for k, v in defaults.items():
+                setattr(linea, k, v)
+            linea.save()
+            created = False
+        else:
+            linea   = LineaPlan.objects.create(plan=plan, **defaults)
+            created = True
+
+        return JsonResponse({'ok': True, 'id': linea.pk, 'created': created})
+    except (KeyError, Exception) as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@solo_admin
+def plan_linea_eliminar(request, plan_pk, linea_pk):
+    """Eliminar una LineaPlan. POST."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    plan  = get_object_or_404(PlanPlantilla, pk=plan_pk)
+    linea = get_object_or_404(LineaPlan, pk=linea_pk, plan=plan)
+    linea.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@solo_admin
+def plan_actualizar_estado(request, pk):
+    """Cambia el estado de un plan. POST JSON: {estado: 'APROBADO'}."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    plan = get_object_or_404(PlanPlantilla, pk=pk)
+    try:
+        data   = json.loads(request.body)
+        estado = data['estado']
+        if estado not in dict(PlanPlantilla.ESTADO_CHOICES):
+            return JsonResponse({'error': 'Estado inválido'}, status=400)
+        plan.estado = estado
+        plan.save(update_fields=['estado', 'actualizado_en'])
+        return JsonResponse({'ok': True, 'estado': plan.estado, 'badge': plan.badge_estado})
+    except (KeyError, Exception) as e:
+        return JsonResponse({'error': str(e)}, status=400)

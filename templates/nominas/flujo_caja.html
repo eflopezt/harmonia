@@ -207,47 +207,83 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
 <div class="container-fluid px-4 py-3">
 
   <!-- ── Header ──────────────────────────────────────────────────────── -->
-  <div class="fdc-header">
+  <div class="fdc-header" style="flex-wrap:wrap;gap:16px;">
     <div class="fdc-header-icon">
       <i class="fas fa-chart-area"></i>
     </div>
-    <div>
+    <div style="flex:1;min-width:180px;">
       <h1>Flujo de Caja — Planilla</h1>
+      {% if modo == 'PLAN' and plan_activo %}
+      <p>
+        <span style="background:rgba(94,234,212,.2);border-radius:6px;padding:2px 8px;font-size:.78rem;font-weight:700;color:#5eead4;">
+          PLAN
+        </span>
+        {{ plan_activo.nombre }} ·
+        <a href="{% url 'nominas_plan_detalle' plan_activo.pk %}" style="color:#5eead4;font-size:.82rem;">
+          <i class="fas fa-external-link-alt"></i> Ver plan
+        </a>
+      </p>
+      {% else %}
       <p>Proyección de desembolsos de RR.HH. basada en el personal activo</p>
+      {% endif %}
     </div>
-    <div class="fdc-header-actions">
+
+    <!-- Selector REAL / PLAN -->
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px 8px;">
+      <a href="?hasta={{ hasta_str }}"
+         style="padding:4px 12px;border-radius:7px;font-size:.78rem;font-weight:700;text-decoration:none;
+                {% if modo == 'REAL' %}background:#5eead4;color:#0d2b27;{% else %}color:rgba(255,255,255,.6);{% endif %}">
+        <i class="fas fa-users me-1"></i>Real
+      </a>
+      {% for plan in planes_disponibles %}
+      <a href="?hasta={{ hasta_str }}&plan={{ plan.pk }}"
+         style="padding:4px 12px;border-radius:7px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;
+                {% if plan_activo.pk == plan.pk %}background:#5eead4;color:#0d2b27;{% else %}color:rgba(255,255,255,.6);{% endif %}">
+        <i class="fas fa-layer-group me-1"></i>{{ plan.nombre|truncatechars:22 }}
+      </a>
+      {% endfor %}
+      <a href="{% url 'nominas_planes' %}" style="color:rgba(255,255,255,.4);font-size:.75rem;padding:4px 8px;" title="Gestionar planes">
+        <i class="fas fa-cog"></i>
+      </a>
+    </div>
+
+    <div class="fdc-header-actions" style="margin-left:0;">
       <!-- Selector de período: atajos rápidos + month picker -->
       <div class="period-picker">
         <div class="period-shortcuts">
-          <a href="?hasta={{ atajos.6 }}"  class="period-shortcut {% if hasta_str == atajos.6  %}active{% endif %}">6 m</a>
-          <a href="?hasta={{ atajos.12 }}" class="period-shortcut {% if hasta_str == atajos.12 %}active{% endif %}">12 m</a>
-          <a href="?hasta={{ atajos.18 }}" class="period-shortcut {% if hasta_str == atajos.18 %}active{% endif %}">18 m</a>
-          <a href="?hasta={{ atajos.24 }}" class="period-shortcut {% if hasta_str == atajos.24 %}active{% endif %}">24 m</a>
-          <a href="?hasta={{ atajos.36 }}" class="period-shortcut {% if hasta_str == atajos.36 %}active{% endif %}">36 m</a>
+          <a href="?hasta={{ atajos.6 }}{% if plan_activo %}&plan={{ plan_activo.pk }}{% endif %}"  class="period-shortcut {% if hasta_str == atajos.6  %}active{% endif %}">6 m</a>
+          <a href="?hasta={{ atajos.12 }}{% if plan_activo %}&plan={{ plan_activo.pk }}{% endif %}" class="period-shortcut {% if hasta_str == atajos.12 %}active{% endif %}">12 m</a>
+          <a href="?hasta={{ atajos.18 }}{% if plan_activo %}&plan={{ plan_activo.pk }}{% endif %}" class="period-shortcut {% if hasta_str == atajos.18 %}active{% endif %}">18 m</a>
+          <a href="?hasta={{ atajos.24 }}{% if plan_activo %}&plan={{ plan_activo.pk }}{% endif %}" class="period-shortcut {% if hasta_str == atajos.24 %}active{% endif %}">24 m</a>
+          <a href="?hasta={{ atajos.36 }}{% if plan_activo %}&plan={{ plan_activo.pk }}{% endif %}" class="period-shortcut {% if hasta_str == atajos.36 %}active{% endif %}">36 m</a>
         </div>
         <span class="period-sep">|</span>
-        <!-- Picker libre: hasta qué mes/año -->
         <div class="period-month-wrap" onclick="document.getElementById('hastaInput').showPicker?.() || document.getElementById('hastaInput').focus()">
-          <label for="hastaInput"><i class="fas fa-calendar-to me-1"></i>Hasta</label>
+          <label for="hastaInput"><i class="fas fa-calendar me-1"></i>Hasta</label>
           <input type="month" id="hastaInput" class="period-month-input"
                  value="{{ hasta_str }}" min="{{ mes_min_str }}"
-                 onchange="window.location.href='?hasta='+this.value">
+                 onchange="window.location.href='?hasta='+this.value+'{% if plan_activo %}&plan={{ plan_activo.pk }}{% endif %}'">
         </div>
       </div>
-      <!-- Presupuesto CTA -->
+      {% if modo == 'REAL' %}
       <button class="btn-teal-outline" style="color:#fff!important;border-color:rgba(255,255,255,.5)!important"
               data-bs-toggle="modal" data-bs-target="#modalPresupuesto">
         <i class="fas fa-bullseye me-1"></i> Presupuesto
       </button>
+      {% endif %}
     </div>
   </div>
 
   <!-- ── KPIs ────────────────────────────────────────────────────────── -->
   <div class="fdc-kpis">
     <div class="fdc-kpi">
-      <div class="fdc-kpi-label"><i class="fas fa-users me-1"></i>Headcount Actual</div>
+      <div class="fdc-kpi-label"><i class="fas fa-users me-1"></i>
+        {% if modo == 'PLAN' %}Posiciones (mes 1){% else %}Headcount Actual{% endif %}
+      </div>
       <div class="fdc-kpi-value">{{ headcount_actual }}</div>
-      <div class="fdc-kpi-sub">empleados activos este mes</div>
+      <div class="fdc-kpi-sub">
+        {% if modo == 'PLAN' %}puestos presupuestados{% else %}empleados activos este mes{% endif %}
+      </div>
     </div>
     <div class="fdc-kpi accent">
       <div class="fdc-kpi-label"><i class="fas fa-chart-area me-1"></i>Total Proyectado</div>
@@ -290,6 +326,7 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
             <div class="legend-chip"><div class="legend-dot" style="background:#0f766e"></div>Neto trabajadores</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#14b8a6"></div>Cond. Trabajo</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#f59e0b"></div>Alimentación</div>
+            <div class="legend-chip"><div class="legend-dot" style="background:#f97316"></div>Viáticos</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#3b82f6"></div>EsSalud</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#8b5cf6"></div>Gratificaciones</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#ec4899"></div>CTS</div>
@@ -337,6 +374,7 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
             <th>Neto Trabajadores</th>
             <th>Cond. Trabajo</th>
             <th>Alimentación</th>
+            <th>Viáticos</th>
             <th>EsSalud</th>
             <th>Gratificaciones</th>
             <th>CTS</th>
@@ -358,6 +396,7 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
             <td>S/ {{ m.neto|floatformat:0|intcomma }}</td>
             <td>{% if m.cond_trabajo > 0 %}S/ {{ m.cond_trabajo|floatformat:0|intcomma }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td>{% if m.alimentacion > 0 %}S/ {{ m.alimentacion|floatformat:0|intcomma }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td>{% if m.viaticos > 0 %}S/ {{ m.viaticos|floatformat:0|intcomma }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td>S/ {{ m.essalud|floatformat:0|intcomma }}</td>
             <td>S/ {{ m.gratificaciones|floatformat:0|intcomma }}</td>
             <td>S/ {{ m.cts|floatformat:0|intcomma }}</td>
@@ -399,7 +438,7 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
             <td class="col-mes" style="color:#0f766e">TOTAL</td>
             <td class="col-hc">—</td>
             <td>S/ {% with t=0 %}{% for m in meses %}{% endfor %}{{ total_18m|floatformat:0|intcomma }}{% endwith %}</td>
-            <td colspan="{% if tiene_presupuesto %}9{% else %}7{% endif %}"></td>
+            <td colspan="{% if tiene_presupuesto %}10{% else %}8{% endif %}"></td>
             <td class="total-cell">S/ {{ total_18m|floatformat:0|intcomma }}</td>
             <td></td>
           </tr>
@@ -408,10 +447,11 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
     </div>
   </div>
 
-  <!-- ── Employee Presence Matrix ────────────────────────────────────── -->
+  <!-- ── Presence Matrix ─────────────────────────────────────────────── -->
   <div class="fdc-card">
     <div class="fdc-card-header" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#empMatrixBody">
-      <i class="fas fa-id-badge"></i> Detalle por Empleado
+      <i class="fas fa-id-badge"></i>
+      {% if modo == 'PLAN' %}Detalle por Puesto (Plan){% else %}Detalle por Empleado{% endif %}
       <span class="ms-2 badge bg-secondary" style="font-weight:500;font-size:.72rem">{{ empleados|length }}</span>
       <i class="fas fa-chevron-down ms-auto" id="empMatrixChevron" style="font-size:.75rem;transition:transform .25s"></i>
     </div>
@@ -420,33 +460,60 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
         <!-- Filter bar -->
         <div class="d-flex gap-2 mb-3 pt-3" style="border-top:1px solid #f1f5f9">
           <input type="text" class="form-control form-control-sm" id="empSearch"
-                 placeholder="Buscar empleado…" style="max-width:240px">
+                 placeholder="{% if modo == 'PLAN' %}Buscar cargo…{% else %}Buscar empleado…{% endif %}"
+                 style="max-width:240px">
+          {% if modo != 'PLAN' %}
           <select class="form-select form-select-sm" id="empGrupoFilter" style="max-width:160px">
             <option value="">Todos los grupos</option>
             <option value="STAFF">STAFF</option>
             <option value="RCO">RCO</option>
           </select>
+          {% endif %}
           <div class="ms-auto" style="font-size:.75rem;color:#64748b;line-height:32px">
             <span class="pres-dot active">✓</span> Activo &nbsp;
             <span class="pres-dot inactive">–</span> Inactivo &nbsp;
-            <span class="pres-dot vence">!</span> Último mes
+            {% if modo != 'PLAN' %}<span class="pres-dot vence">!</span> Último mes{% endif %}
           </div>
         </div>
         <div class="emp-matrix-wrap">
           <table class="emp-matrix" id="empMatrixTable">
             <thead>
               <tr>
+                {% if modo == 'PLAN' %}
+                <th class="emp-col">Cargo / Puesto</th>
+                <th class="emp-col">Área</th>
+                <th style="text-align:center">N°</th>
+                <th style="text-align:center">Meses</th>
+                <th style="text-align:right;min-width:90px">Sueldo c/u</th>
+                {% else %}
                 <th class="emp-col">Empleado</th>
                 <th class="emp-col">Cargo</th>
                 <th style="text-align:center">Gr.</th>
                 <th style="text-align:center">Meses</th>
                 <th style="text-align:right;min-width:90px">Sueldo</th>
+                {% endif %}
                 {% for m in meses %}
                 <th class="mes-col">{{ m.mes_label }}</th>
                 {% endfor %}
               </tr>
             </thead>
             <tbody>
+              {% if modo == 'PLAN' %}
+              {% for emp in empleados %}
+              <tr data-nombre="{{ emp.cargo|lower }}">
+                <td class="emp-name">{{ emp.cargo }}</td>
+                <td class="emp-cargo">{{ emp.area__nombre|default:"—"|truncatechars:25 }}</td>
+                <td style="text-align:center;font-weight:700;color:#0f766e">{{ emp.cantidad }}</td>
+                <td style="text-align:center;font-weight:700;color:#0f766e">{{ emp.meses_activos }}</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:.78rem">
+                  S/ {{ emp.sueldo_base|floatformat:0|intcomma }}
+                </td>
+                {% for p in emp.presencias %}
+                <td><span class="pres-dot {% if p %}active{% else %}inactive{% endif %}">{% if p %}✓{% else %}–{% endif %}</span></td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+              {% else %}
               {% for emp in empleados %}
               <tr data-nombre="{{ emp.apellidos_nombres|lower }}"
                   data-grupo="{{ emp.grupo_tareo }}">
@@ -462,16 +529,11 @@ table.emp-matrix tr:hover td { background: #f8fafc; }
                   {% if emp.sueldo_base %}S/ {{ emp.sueldo_base|floatformat:0|intcomma }}{% else %}<span class="text-muted">—</span>{% endif %}
                 </td>
                 {% for p in emp.presencias %}
-                <td>
-                  {% if p %}
-                    <span class="pres-dot active">✓</span>
-                  {% else %}
-                    <span class="pres-dot inactive">–</span>
-                  {% endif %}
-                </td>
+                <td>{% if p %}<span class="pres-dot active">✓</span>{% else %}<span class="pres-dot inactive">–</span>{% endif %}</td>
                 {% endfor %}
               </tr>
               {% endfor %}
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -603,6 +665,7 @@ const labels      = {{ chart_labels|safe }};
 const dNeto       = {{ chart_neto|safe }};
 const dCond       = {{ chart_cond|safe }};
 const dAlim       = {{ chart_alim|safe }};
+const dViaticos   = {{ chart_viaticos|safe }};
 const dEssalud    = {{ chart_essalud|safe }};
 const dGratif     = {{ chart_gratif|safe }};
 const dCts        = {{ chart_cts|safe }};
@@ -611,6 +674,7 @@ const dHeadcount  = {{ chart_headcount|safe }};
 const dTotal      = {{ chart_total|safe }};
 const dPresup     = {{ chart_presup|safe }};
 const tienePresup = {{ tiene_presupuesto|yesno:"true,false" }};
+const anyViaticos = dViaticos.some(v => v > 0);
 
 // Main stacked bar chart
 (function() {
@@ -619,11 +683,16 @@ const tienePresup = {{ tiene_presupuesto|yesno:"true,false" }};
     { label: 'Neto trabajadores', data: dNeto,    backgroundColor: '#0f766e', stack: 'a' },
     { label: 'Cond. Trabajo',     data: dCond,    backgroundColor: '#14b8a6', stack: 'a' },
     { label: 'Alimentación',      data: dAlim,    backgroundColor: '#f59e0b', stack: 'a' },
+  ];
+  if (anyViaticos) {
+    datasets.push({ label: 'Viáticos', data: dViaticos, backgroundColor: '#f97316', stack: 'a' });
+  }
+  datasets.push(
     { label: 'EsSalud',           data: dEssalud, backgroundColor: '#3b82f6', stack: 'a' },
     { label: 'Gratificaciones',   data: dGratif,  backgroundColor: '#8b5cf6', stack: 'a' },
     { label: 'CTS',               data: dCts,     backgroundColor: '#ec4899', stack: 'a' },
     { label: 'Liquidaciones',     data: dLiq,     backgroundColor: '#ef4444', stack: 'a' },
-  ];
+  );
   if (tienePresup) {
     datasets.push({
       label: 'Presupuesto', data: dPresup, type: 'line',
@@ -703,11 +772,11 @@ if (!{{ tiene_presupuesto|yesno:"true,false" }}) {
 
 // ── Employee matrix filter ───────────────────────────────────────────────────
 const empSearch = document.getElementById('empSearch');
-const empGrupo  = document.getElementById('empGrupoFilter');
+const empGrupo  = document.getElementById('empGrupoFilter');  // null in PLAN mode
 
 function filterEmps() {
-  const q     = empSearch.value.toLowerCase();
-  const grupo = empGrupo.value;
+  const q     = empSearch ? empSearch.value.toLowerCase() : '';
+  const grupo = empGrupo ? empGrupo.value : '';
   document.querySelectorAll('#empMatrixTable tbody tr').forEach(tr => {
     const nombre = tr.dataset.nombre || '';
     const g      = tr.dataset.grupo  || '';
@@ -715,8 +784,8 @@ function filterEmps() {
     tr.style.display = ok ? '' : 'none';
   });
 }
-empSearch.addEventListener('input', filterEmps);
-empGrupo.addEventListener('change', filterEmps);
+if (empSearch) empSearch.addEventListener('input', filterEmps);
+if (empGrupo)  empGrupo.addEventListener('change', filterEmps);
 
 // Collapse chevron animation
 document.querySelector('[data-bs-target="#empMatrixBody"]').addEventListener('click', function() {

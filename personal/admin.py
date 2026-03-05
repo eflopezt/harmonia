@@ -86,7 +86,11 @@ class PersonalAdmin(admin.ModelAdmin):
                       'correo_corporativo', 'direccion', 'ubigeo')
         }),
         ('Económicos', {
-            'fields': ('sueldo_base', 'bonos')
+            'fields': (
+                'sueldo_base', 'bonos',
+                'cond_trabajo_mensual', 'alimentacion_mensual', 'viaticos_mensual',
+                'tiene_eps', 'eps_descuento_mensual',
+            )
         }),
         ('Observaciones', {
             'fields': ('observaciones',),

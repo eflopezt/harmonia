@@ -39,4 +39,12 @@ urlpatterns = [
     path('flujo-caja/', views.flujo_caja_panel, name='nominas_flujo_caja'),
     path('presupuesto/guardar/', views.presupuesto_guardar, name='nominas_presupuesto_guardar'),
     path('presupuesto/<int:anio>/<int:mes>/eliminar/', views.presupuesto_eliminar, name='nominas_presupuesto_eliminar'),
+
+    # Planes de Plantilla
+    path('planes/', views.planes_panel, name='nominas_planes'),
+    path('planes/crear/', views.plan_crear, name='nominas_plan_crear'),
+    path('planes/<int:pk>/', views.plan_detalle, name='nominas_plan_detalle'),
+    path('planes/<int:pk>/estado/', views.plan_actualizar_estado, name='nominas_plan_estado'),
+    path('planes/<int:plan_pk>/lineas/', views.plan_linea_upsert, name='nominas_plan_linea_upsert'),
+    path('planes/<int:plan_pk>/lineas/<int:linea_pk>/eliminar/', views.plan_linea_eliminar, name='nominas_plan_linea_eliminar'),
 ]

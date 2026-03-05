@@ -1,0 +1,669 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ plan.nombre }} — Plan de Plantilla{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ──────────────────────────────────────────────────────────── */
+.pd-header {
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 60%, #0f766e 100%);
+    border-radius: 16px;
+    padding: 24px 28px;
+    color: #fff;
+    margin-bottom: 24px;
+}
+.pd-header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.pd-header h1 { font-size: 1.45rem; font-weight: 700; margin: 0 0 4px; }
+.pd-header .meta { font-size: .85rem; opacity: .75; }
+.pd-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+.pd-btn {
+    border: none; border-radius: 9px; padding: 9px 18px;
+    font-weight: 600; font-size: .88rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    text-decoration: none; transition: all .2s;
+}
+.pd-btn-primary   { background: #5eead4; color: #0d2b27; }
+.pd-btn-primary:hover { background: #99f6e4; }
+.pd-btn-secondary { background: rgba(255,255,255,.15); color: #fff; }
+.pd-btn-secondary:hover { background: rgba(255,255,255,.25); }
+.pd-btn-danger    { background: #fee2e2; color: #991b1b; }
+.pd-btn-danger:hover { background: #fca5a5; }
+.pd-btn-teal { background: #0f766e; color: #fff; }
+.pd-btn-teal:hover { background: #134e4a; color:#fff; }
+
+/* KPIs */
+.pd-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+.pd-kpi {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 16px 18px; text-align: center;
+}
+.pd-kpi-val { font-size: 1.6rem; font-weight: 800; color: #0f766e; line-height: 1; }
+.pd-kpi-lbl { font-size: .75rem; color: #94a3b8; margin-top: 4px; }
+
+/* Chart */
+.pd-charts { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 22px; }
+.pd-chart-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 18px; overflow: hidden;
+}
+.pd-chart-card h4 { font-size: .9rem; font-weight: 700; color: #374151; margin: 0 0 14px; }
+
+/* Tabla Gantt ─────────────────────────────────────────────────────── */
+.pd-gantt-wrap { overflow-x: auto; margin-bottom: 22px; }
+.pd-gantt {
+    width: 100%; min-width: 900px;
+    border-collapse: separate; border-spacing: 0;
+    border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+    background: #fff;
+}
+.pd-gantt th {
+    background: #0d2b27; color: #5eead4;
+    padding: 10px 8px; font-size: .75rem; font-weight: 700;
+    text-align: center; white-space: nowrap;
+    border-right: 1px solid #134e4a;
+}
+.pd-gantt th.col-info { text-align: left; padding-left: 14px; min-width: 180px; }
+.pd-gantt th.col-n    { min-width: 40px; }
+.pd-gantt th.col-mes  { min-width: 52px; }
+
+.pd-gantt td {
+    padding: 8px 8px; font-size: .8rem;
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+.pd-gantt tr:last-child td { border-bottom: none; }
+.pd-gantt td.col-info { padding-left: 14px; min-width: 180px; }
+
+.gantt-cargo  { font-weight: 700; color: #0d2b27; font-size: .85rem; }
+.gantt-area   { font-size: .74rem; color: #94a3b8; }
+.gantt-sueldo { font-size: .78rem; color: #374151; white-space: nowrap; }
+
+/* Celda activa en Gantt */
+.gantt-cell {
+    width: 52px; text-align: center; cursor: default;
+}
+.gantt-dot {
+    display: inline-block;
+    width: 28px; height: 18px; border-radius: 5px;
+    background: linear-gradient(135deg, #0f766e, #5eead4);
+    vertical-align: middle;
+}
+.gantt-empty { display: inline-block; width: 28px; height: 18px; }
+
+/* Fila totales */
+.pd-gantt tr.totals-row td {
+    background: #f0fdf4; font-weight: 700; font-size: .78rem;
+    color: #065f46; border-top: 2px solid #0f766e;
+}
+.pd-gantt tr.totals-row td.col-info {
+    color: #0d2b27; font-size: .82rem;
+}
+
+/* Acciones por fila */
+.row-actions { display: flex; gap: 4px; }
+.row-btn {
+    background: none; border: 1px solid transparent;
+    border-radius: 6px; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; cursor: pointer; transition: all .15s;
+}
+.row-btn.edit  { color: #0f766e; }
+.row-btn.edit:hover  { background: #d1fae5; border-color: #0f766e; }
+.row-btn.del   { color: #ef4444; }
+.row-btn.del:hover   { background: #fee2e2; border-color: #ef4444; }
+
+/* Modal de línea ─────────────────────────────────────────────────── */
+.pd-modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 1050;
+    display: none; align-items: center; justify-content: center;
+}
+.pd-modal-backdrop.open { display: flex; }
+.pd-modal {
+    background: #fff; border-radius: 16px; padding: 28px;
+    width: 600px; max-width: 96vw; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.pd-modal h3 { font-size: 1.1rem; font-weight: 700; color: #0d2b27; margin: 0 0 20px; }
+.pd-form-row { margin-bottom: 14px; }
+.pd-form-row label { display: block; font-size: .81rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.pd-form-row input,
+.pd-form-row select,
+.pd-form-row textarea {
+    width: 100%; box-sizing: border-box;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    padding: 8px 11px; font-size: .88rem;
+    transition: border-color .2s;
+}
+.pd-form-row input:focus,
+.pd-form-row select:focus { border-color: #0f766e; outline: none; }
+.pd-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pd-form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.pd-form-hint { font-size: .73rem; color: #94a3b8; margin-top: 3px; }
+.pd-divider { border: none; border-top: 1px solid #f1f5f9; margin: 16px 0; }
+.pd-section-label {
+    font-size: .75rem; font-weight: 700; color: #0f766e;
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px;
+}
+.pd-modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.pd-modal-btns button {
+    border-radius: 8px; padding: 9px 20px;
+    font-weight: 600; font-size: .88rem; cursor: pointer; border: none;
+}
+.pd-btn-cancel2 { background: #f1f5f9; color: #475569; }
+.pd-btn-save2   { background: #0f766e; color: #fff; }
+.pd-btn-save2:hover { background: #134e4a; }
+
+/* Estado selector */
+.estado-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.estado-pill {
+    border: 2px solid transparent; border-radius: 20px;
+    padding: 5px 14px; font-size: .8rem; font-weight: 700;
+    cursor: pointer; transition: all .2s;
+}
+.estado-pill[data-estado="BORRADOR"] { border-color: #94a3b8; color: #64748b; }
+.estado-pill[data-estado="APROBADO"] { border-color: #3b82f6; color: #1d4ed8; }
+.estado-pill[data-estado="VIGENTE"]  { border-color: #10b981; color: #065f46; }
+.estado-pill[data-estado="CERRADO"]  { border-color: #475569; color: #1e293b; }
+.estado-pill.active[data-estado="BORRADOR"] { background:#f1f5f9; }
+.estado-pill.active[data-estado="APROBADO"] { background:#dbeafe; }
+.estado-pill.active[data-estado="VIGENTE"]  { background:#d1fae5; }
+.estado-pill.active[data-estado="CERRADO"]  { background:#1e293b; color:#cbd5e1; }
+
+@media (max-width: 768px) {
+    .pd-kpis   { grid-template-columns: 1fr 1fr; }
+    .pd-charts { grid-template-columns: 1fr; }
+    .pd-form-grid-2, .pd-form-grid-3 { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="pd-header">
+    <div class="pd-header-top">
+        <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                <span style="font-size:.75rem;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;font-weight:700;">
+                    {% if plan.tipo == 'OBRA' %}🏗 OBRA{% else %}🏢 EMPRESA{% endif %}
+                </span>
+                <span id="badgeEstado" style="font-size:.75rem;padding:3px 10px;border-radius:20px;font-weight:700;background:rgba(94,234,212,.2);color:#5eead4;">
+                    {{ plan.get_estado_display }}
+                </span>
+            </div>
+            <h1>{{ plan.nombre }}</h1>
+            <p class="meta">
+                <i class="fas fa-calendar-alt me-1"></i>
+                {{ plan.fecha_inicio|date:"d M Y" }}
+                {% if plan.fecha_fin %} → {{ plan.fecha_fin|date:"d M Y" }}{% else %} → Abierto{% endif %}
+                &nbsp;·&nbsp; {{ meses|length }} meses proyectados
+                {% if plan.descripcion %}&nbsp;·&nbsp; {{ plan.descripcion|truncatechars:60 }}{% endif %}
+            </p>
+        </div>
+        <div class="pd-header-actions">
+            <a href="{% url 'nominas_planes' %}" class="pd-btn pd-btn-secondary">
+                <i class="fas fa-arrow-left"></i> Planes
+            </a>
+            <a href="{% url 'nominas_flujo_caja' %}?plan={{ plan.pk }}" class="pd-btn pd-btn-secondary">
+                <i class="fas fa-chart-area"></i> Flujo de Caja
+            </a>
+            <button class="pd-btn pd-btn-primary" onclick="abrirModalLinea()">
+                <i class="fas fa-plus"></i> Agregar Puesto
+            </button>
+        </div>
+    </div>
+
+    <!-- Estado pills inline -->
+    <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px;">
+        <span style="font-size:.75rem;opacity:.6;margin-right:8px;">Estado:</span>
+        <div class="estado-pills" style="display:inline-flex;">
+            {% for val, lbl in plan.ESTADO_CHOICES %}
+            <button class="estado-pill {% if plan.estado == val %}active{% endif %}"
+                    data-estado="{{ val }}"
+                    onclick="cambiarEstado('{{ val }}')">{{ lbl }}</button>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="pd-kpis">
+    <div class="pd-kpi">
+        <div class="pd-kpi-val">{{ plan.total_cabezas }}</div>
+        <div class="pd-kpi-lbl">Posiciones totales</div>
+    </div>
+    <div class="pd-kpi">
+        <div class="pd-kpi-val">{{ headcount_pico }}</div>
+        <div class="pd-kpi-lbl">Pico de headcount</div>
+    </div>
+    <div class="pd-kpi">
+        <div class="pd-kpi-val">S/ {{ total_horizonte|floatformat:0|intcomma }}</div>
+        <div class="pd-kpi-lbl">Total horizonte</div>
+    </div>
+    <div class="pd-kpi">
+        {% with avg=total_horizonte|floatformat:0 %}
+        {% if meses %}
+        <div class="pd-kpi-val">S/ {{ meses.0.total_desembolso|floatformat:0|intcomma }}</div>
+        {% else %}
+        <div class="pd-kpi-val">—</div>
+        {% endif %}
+        {% endwith %}
+        <div class="pd-kpi-lbl">Desembolso mes 1</div>
+    </div>
+</div>
+
+<!-- Charts -->
+{% if meses %}
+<div class="pd-charts">
+    <div class="pd-chart-card">
+        <h4><i class="fas fa-chart-bar me-1" style="color:#0f766e"></i>Desembolso mensual por componente</h4>
+        <canvas id="chartStack" height="180"></canvas>
+    </div>
+    <div class="pd-chart-card">
+        <h4><i class="fas fa-users me-1" style="color:#0f766e"></i>Headcount por mes</h4>
+        <canvas id="chartHC" height="180"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tabla Gantt -->
+<div class="pd-gantt-wrap">
+    <table class="pd-gantt" id="ganttTable">
+        <thead>
+            <tr>
+                <th class="col-info">Cargo / Puesto</th>
+                <th class="col-n">N°</th>
+                <th>Sueldo</th>
+                {% for m in meses %}<th class="col-mes">{{ m.mes_label }}</th>{% endfor %}
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="ganttBody">
+            {% for pos in posiciones %}
+            <tr data-id="{{ pos.id }}">
+                <td class="col-info">
+                    <div class="gantt-cargo">{{ pos.cargo }}</div>
+                    {% if pos.area__nombre %}<div class="gantt-area">{{ pos.area__nombre }}</div>{% endif %}
+                    {% if pos.personal__apellidos_nombres %}
+                    <div class="gantt-area" style="color:#0f766e"><i class="fas fa-user me-1"></i>{{ pos.personal__apellidos_nombres }}</div>
+                    {% endif %}
+                </td>
+                <td style="text-align:center;font-weight:700;color:#0f766e">{{ pos.cantidad }}</td>
+                <td class="gantt-sueldo">S/ {{ pos.sueldo_base|floatformat:0|intcomma }}</td>
+                {% for activo in pos.presencias %}
+                <td class="gantt-cell">
+                    {% if activo %}<span class="gantt-dot" title="Activo"></span>
+                    {% else %}<span class="gantt-empty"></span>{% endif %}
+                </td>
+                {% endfor %}
+                <td>
+                    <div class="row-actions">
+                        <button class="row-btn edit" title="Editar"
+                                onclick="editarLinea({{ pos.id }})">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="row-btn del" title="Eliminar"
+                                onclick="eliminarLinea({{ pos.id }}, '{{ pos.cargo|escapejs }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr id="emptyRow">
+                <td colspan="{{ meses|length|add:4 }}" style="text-align:center;padding:40px;color:#94a3b8;">
+                    <i class="fas fa-plus-circle me-2"></i>Aún no hay puestos. Haz clic en <strong>Agregar Puesto</strong>.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if meses and posiciones %}
+        <tfoot>
+            <tr class="totals-row">
+                <td class="col-info">TOTAL DESEMBOLSO</td>
+                <td style="text-align:center">{{ plan.total_cabezas }}</td>
+                <td>—</td>
+                {% for m in meses %}
+                <td style="text-align:center;font-size:.72rem;">
+                    S/{{ m.total_desembolso|floatformat:0|intcomma }}
+                </td>
+                {% endfor %}
+                <td>—</td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+
+
+<!-- Modal Línea -->
+<div class="pd-modal-backdrop" id="modalLinea">
+    <div class="pd-modal">
+        <h3 id="modalLineaTitulo"><i class="fas fa-briefcase me-2" style="color:#0f766e"></i>Nuevo Puesto</h3>
+
+        <input type="hidden" id="lnId" value="">
+
+        <div class="pd-section-label">Información del puesto</div>
+        <div class="pd-form-grid-2">
+            <div class="pd-form-row">
+                <label>Cargo / Puesto *</label>
+                <input type="text" id="lnCargo" placeholder="Ej: Ing. de Campo">
+            </div>
+            <div class="pd-form-row">
+                <label>Área</label>
+                <select id="lnArea">
+                    <option value="">— Sin área —</option>
+                    {% for a in areas %}
+                    <option value="{{ a.pk }}">{{ a.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="pd-form-grid-3">
+            <div class="pd-form-row">
+                <label>N° de posiciones *</label>
+                <input type="number" id="lnCantidad" value="1" min="1" max="999">
+            </div>
+            <div class="pd-form-row">
+                <label>Sueldo base *</label>
+                <input type="number" id="lnSueldo" placeholder="2500.00" step="0.01" min="0">
+            </div>
+            <div class="pd-form-row">
+                <label>Asig. familiar</label>
+                <select id="lnAsigFam">
+                    <option value="false">No</option>
+                    <option value="true">Sí (S/ 112.50)</option>
+                </select>
+            </div>
+        </div>
+
+        <hr class="pd-divider">
+        <div class="pd-section-label">Beneficios no remunerativos</div>
+        <div class="pd-form-grid-2">
+            <div class="pd-form-row">
+                <label>Cond. Trabajo / Hospedaje (mensual)</label>
+                <input type="number" id="lnCondTrabajo" value="0" step="0.01" min="0">
+            </div>
+            <div class="pd-form-row">
+                <label>Alimentación (mensual)</label>
+                <input type="number" id="lnAlimentacion" value="0" step="0.01" min="0">
+            </div>
+        </div>
+
+        <hr class="pd-divider">
+        <div class="pd-section-label">Régimen pensionario</div>
+        <div class="pd-form-grid-2">
+            <div class="pd-form-row">
+                <label>Régimen</label>
+                <select id="lnRegimen" onchange="toggleAfp()">
+                    <option value="AFP">AFP</option>
+                    <option value="ONP">ONP</option>
+                    <option value="SIN_PENSION">Sin régimen</option>
+                </select>
+            </div>
+            <div class="pd-form-row" id="rowAfp">
+                <label>AFP</label>
+                <select id="lnAfp">
+                    <option value="">— Seleccionar —</option>
+                    <option value="Habitat">Habitat</option>
+                    <option value="Integra">Integra</option>
+                    <option value="Prima">Prima</option>
+                    <option value="Profuturo">Profuturo</option>
+                </select>
+            </div>
+        </div>
+
+        <hr class="pd-divider">
+        <div class="pd-section-label">Duración del puesto</div>
+        <div class="pd-form-grid-2">
+            <div class="pd-form-row">
+                <label>Inicio del puesto *</label>
+                <input type="date" id="lnInicio">
+            </div>
+            <div class="pd-form-row">
+                <label>Fin del puesto</label>
+                <input type="date" id="lnFin">
+                <div class="pd-form-hint">Vacío = hasta el fin del plan</div>
+            </div>
+        </div>
+
+        <div class="pd-form-row">
+            <label>Notas</label>
+            <input type="text" id="lnNotas" placeholder="Observaciones opcionales">
+        </div>
+
+        <div class="pd-modal-btns">
+            <button class="pd-btn-cancel2" onclick="cerrarModalLinea()">Cancelar</button>
+            <button class="pd-btn-save2" onclick="guardarLinea()">
+                <i class="fas fa-check me-1"></i> Guardar Puesto
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const PLAN_PK   = {{ plan.pk }};
+const CSRF      = () => document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]||'';
+
+// Datos de posiciones para edición inline
+const POSICIONES = {
+    {% for pos in posiciones %}
+    {{ pos.id }}: {
+        cargo:       "{{ pos.cargo|escapejs }}",
+        area_id:     "{% if pos.area_id %}{{ pos.area_id }}{% endif %}",
+        cantidad:    {{ pos.cantidad }},
+        sueldo_base: {{ pos.sueldo_base }},
+        asig_fam:    {{ pos.asignacion_familiar|yesno:"true,false" }},
+        cond_trabajo:{{ pos.cond_trabajo_mensual }},
+        alimentacion:{{ pos.alimentacion_mensual }},
+        regimen:     "{{ pos.regimen_pension }}",
+        afp:         "{{ pos.afp|escapejs }}",
+        inicio:      "{{ pos.fecha_inicio_puesto|date:'Y-m-d' }}",
+        fin:         "{% if pos.fecha_fin_puesto %}{{ pos.fecha_fin_puesto|date:'Y-m-d' }}{% endif %}",
+        notas:       "{{ pos.notas|escapejs }}",
+    },
+    {% endfor %}
+};
+
+// ── Charts ──────────────────────────────────────────────────────────
+{% if meses %}
+const labels    = {{ chart_labels|safe }};
+const chNeto    = {{ chart_neto|safe }};
+const chCond    = {{ chart_cond|safe }};
+const chAlim    = {{ chart_alim|safe }};
+const chEssalud = {{ chart_essalud|safe }};
+const chGratif  = {{ chart_gratif|safe }};
+const chCts     = {{ chart_cts|safe }};
+const chLiq     = {{ chart_liq|safe }};
+const chHC      = {{ chart_headcount|safe }};
+
+const stackCtx = document.getElementById('chartStack').getContext('2d');
+new Chart(stackCtx, {
+    type: 'bar',
+    data: {
+        labels,
+        datasets: [
+            { label: 'Neto',           data: chNeto,    backgroundColor: '#0f766e' },
+            { label: 'Cond. Trabajo',  data: chCond,    backgroundColor: '#2dd4bf' },
+            { label: 'Alimentación',   data: chAlim,    backgroundColor: '#5eead4' },
+            { label: 'EsSalud',        data: chEssalud, backgroundColor: '#f59e0b' },
+            { label: 'Gratificaciones',data: chGratif,  backgroundColor: '#8b5cf6' },
+            { label: 'CTS',            data: chCts,     backgroundColor: '#ec4899' },
+            { label: 'Liquidaciones',  data: chLiq,     backgroundColor: '#ef4444' },
+        ]
+    },
+    options: {
+        responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+        scales: {
+            x: { stacked: true, ticks: { font: { size: 9 } } },
+            y: { stacked: true, ticks: {
+                font: { size: 9 },
+                callback: v => 'S/' + (v/1000).toFixed(0) + 'k'
+            }}
+        }
+    }
+});
+
+const hcCtx = document.getElementById('chartHC').getContext('2d');
+new Chart(hcCtx, {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{ label: 'Posiciones activas', data: chHC,
+            borderColor: '#0f766e', backgroundColor: 'rgba(15,118,110,.1)',
+            tension: .3, fill: true, pointRadius: 3 }]
+    },
+    options: {
+        responsive: true, plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { font: { size: 9 } } },
+            y: { ticks: { font: { size: 9 }, stepSize: 1 } }
+        }
+    }
+});
+{% endif %}
+
+// ── Estado ──────────────────────────────────────────────────────────
+async function cambiarEstado(estado) {
+    const res  = await fetch(`/nominas/planes/${PLAN_PK}/estado/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF()},
+        body: JSON.stringify({estado}),
+    });
+    const data = await res.json();
+    if (data.ok) {
+        document.querySelectorAll('.estado-pill').forEach(p => {
+            p.classList.toggle('active', p.dataset.estado === estado);
+        });
+        document.getElementById('badgeEstado').textContent = data.estado;
+    } else {
+        alert('Error: ' + data.error);
+    }
+}
+
+// ── Modal Línea ─────────────────────────────────────────────────────
+function abrirModalLinea() {
+    document.getElementById('modalLineaTitulo').innerHTML =
+        '<i class="fas fa-briefcase me-2" style="color:#0f766e"></i>Nuevo Puesto';
+    document.getElementById('lnId').value = '';
+    document.getElementById('lnCargo').value       = '';
+    document.getElementById('lnArea').value        = '';
+    document.getElementById('lnCantidad').value    = '1';
+    document.getElementById('lnSueldo').value      = '';
+    document.getElementById('lnAsigFam').value     = 'false';
+    document.getElementById('lnCondTrabajo').value = '0';
+    document.getElementById('lnAlimentacion').value= '0';
+    document.getElementById('lnRegimen').value     = 'AFP';
+    document.getElementById('lnAfp').value         = '';
+    document.getElementById('lnInicio').value      = '{{ plan.fecha_inicio|date:"Y-m-d" }}';
+    document.getElementById('lnFin').value         = '{{ plan.fecha_fin|date:"Y-m-d" }}';
+    document.getElementById('lnNotas').value       = '';
+    toggleAfp();
+    document.getElementById('modalLinea').classList.add('open');
+}
+function cerrarModalLinea() {
+    document.getElementById('modalLinea').classList.remove('open');
+}
+document.getElementById('modalLinea').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalLinea')) cerrarModalLinea();
+});
+
+function editarLinea(id) {
+    const data = POSICIONES[id] || {};
+    document.getElementById('modalLineaTitulo').innerHTML =
+        '<i class="fas fa-pen me-2" style="color:#0f766e"></i>Editar Puesto';
+    document.getElementById('lnId').value            = id;
+    document.getElementById('lnCargo').value         = data.cargo || '';
+    document.getElementById('lnArea').value          = data.area_id || '';
+    document.getElementById('lnCantidad').value      = data.cantidad || 1;
+    document.getElementById('lnSueldo').value        = data.sueldo_base || '';
+    document.getElementById('lnAsigFam').value       = data.asig_fam ? 'true' : 'false';
+    document.getElementById('lnCondTrabajo').value   = data.cond_trabajo || 0;
+    document.getElementById('lnAlimentacion').value  = data.alimentacion || 0;
+    document.getElementById('lnRegimen').value       = data.regimen || 'AFP';
+    document.getElementById('lnAfp').value           = data.afp || '';
+    document.getElementById('lnInicio').value        = data.inicio || '';
+    document.getElementById('lnFin').value           = data.fin || '';
+    document.getElementById('lnNotas').value         = data.notas || '';
+    toggleAfp();
+    document.getElementById('modalLinea').classList.add('open');
+}
+
+function toggleAfp() {
+    const reg = document.getElementById('lnRegimen').value;
+    document.getElementById('rowAfp').style.opacity = reg === 'AFP' ? '1' : '.4';
+    document.getElementById('lnAfp').disabled = reg !== 'AFP';
+}
+
+async function guardarLinea() {
+    const cargo  = document.getElementById('lnCargo').value.trim();
+    const sueldo = parseFloat(document.getElementById('lnSueldo').value);
+    const inicio = document.getElementById('lnInicio').value;
+    if (!cargo)  { alert('El cargo es obligatorio.'); return; }
+    if (!sueldo || sueldo <= 0) { alert('El sueldo base es obligatorio.'); return; }
+    if (!inicio) { alert('La fecha de inicio es obligatoria.'); return; }
+
+    const payload = {
+        id:                  document.getElementById('lnId').value || null,
+        cargo,
+        area_id:             document.getElementById('lnArea').value || null,
+        cantidad:            parseInt(document.getElementById('lnCantidad').value) || 1,
+        sueldo_base:         sueldo,
+        asignacion_familiar: document.getElementById('lnAsigFam').value === 'true',
+        cond_trabajo_mensual:parseFloat(document.getElementById('lnCondTrabajo').value) || 0,
+        alimentacion_mensual:parseFloat(document.getElementById('lnAlimentacion').value) || 0,
+        regimen_pension:     document.getElementById('lnRegimen').value,
+        afp:                 document.getElementById('lnAfp').value,
+        fecha_inicio_puesto: inicio,
+        fecha_fin_puesto:    document.getElementById('lnFin').value || null,
+        notas:               document.getElementById('lnNotas').value,
+    };
+
+    const btn = document.querySelector('.pd-btn-save2');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando…';
+
+    try {
+        const res  = await fetch(`/nominas/planes/${PLAN_PK}/lineas/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF()},
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.ok) {
+            // Recargar para reflejar cambios en Gantt + KPIs
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'desconocido'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Guardar Puesto';
+        }
+    } catch(e) {
+        alert('Error de red: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check me-1"></i> Guardar Puesto';
+    }
+}
+
+async function eliminarLinea(lineaId, cargo) {
+    if (!confirm(`¿Eliminar puesto "${cargo}"?\nEsta acción no se puede deshacer.`)) return;
+    const res  = await fetch(`/nominas/planes/${PLAN_PK}/lineas/${lineaId}/eliminar/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': CSRF()},
+    });
+    const data = await res.json();
+    if (data.ok) {
+        window.location.reload();
+    } else {
+        alert('Error: ' + (data.error || 'desconocido'));
+    }
+}
+</script>
+{% endblock %}

@@ -15,6 +15,7 @@ UIT 2026: S/ 5,500  |  RMV 2025: S/ 1,025
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from personal.models import Personal
@@ -300,3 +301,170 @@ class PresupuestoPlanilla(models.Model):
     def mes_label(self):
         label = self.MESES_ES[self.mes] if 1 <= self.mes <= 12 else str(self.mes)
         return f"{label}-{str(self.anio)[2:]}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# PLAN DE PLANTILLA — Workforce Planning (SAP/Workday style)
+# El presupuesto se asigna a PUESTOS, no a personas.
+# Un puesto puede estar ocupado (→ Personal) o vacante.
+# Soporta dos modos:
+#   OBRA    → cada puesto tiene INICIO y FIN (proyecto con fases)
+#   EMPRESA → puestos por área, horizonte indefinido o fiscal
+# ══════════════════════════════════════════════════════════════════════
+
+class PlanPlantilla(models.Model):
+    """
+    Plan de dotación presupuestada. Agrupa un conjunto de puestos (LineaPlan)
+    con su horizonte temporal y datos de contexto (obra o área corporativa).
+    """
+    TIPO_CHOICES = [
+        ('OBRA',    'Obra / Proyecto'),
+        ('EMPRESA', 'Empresa / Área'),
+    ]
+    ESTADO_CHOICES = [
+        ('BORRADOR', 'Borrador'),
+        ('APROBADO', 'Aprobado'),
+        ('VIGENTE',  'Vigente'),
+        ('CERRADO',  'Cerrado'),
+    ]
+    _BADGE = {'BORRADOR': 'secondary', 'APROBADO': 'primary',
+              'VIGENTE': 'success',   'CERRADO':  'dark'}
+
+    nombre       = models.CharField(max_length=200, verbose_name='Nombre del Plan')
+    tipo         = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    descripcion  = models.TextField(blank=True, verbose_name='Descripción / Alcance')
+    fecha_inicio = models.DateField(verbose_name='Inicio del horizonte')
+    fecha_fin    = models.DateField(
+        null=True, blank=True,
+        verbose_name='Fin del horizonte',
+        help_text='Vacío = indefinido. Para OBRA es obligatorio.',
+    )
+    estado   = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='BORRADOR')
+    empresa  = models.ForeignKey(
+        'empresas.Empresa', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='planes_plantilla',
+    )
+    area     = models.ForeignKey(
+        'personal.Area', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+        verbose_name='Área responsable',
+        help_text='Para EMPRESA: área/departamento que administra el plan.',
+    )
+    creado_por   = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    creado_en    = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Plan de Plantilla'
+        verbose_name_plural = 'Planes de Plantilla'
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f'{self.nombre} ({self.get_tipo_display()})'
+
+    @property
+    def badge_estado(self):
+        return self._BADGE.get(self.estado, 'secondary')
+
+    @property
+    def n_meses_horizonte(self):
+        """Meses entre fecha_inicio y fecha_fin (inclusive). None si sin fecha_fin."""
+        if not self.fecha_fin:
+            return None
+        from dateutil.relativedelta import relativedelta
+        d = relativedelta(self.fecha_fin, self.fecha_inicio)
+        return d.years * 12 + d.months + 1
+
+    @property
+    def total_cabezas(self):
+        return sum(l.cantidad for l in self.lineas.all())
+
+    @property
+    def tiene_lineas(self):
+        return self.lineas.exists()
+
+
+class LineaPlan(models.Model):
+    """
+    Un puesto presupuestado dentro de un PlanPlantilla.
+    Representa N posiciones del mismo cargo durante un rango de fechas.
+    Puede estar opcionalmente asignado a una persona real (Personal).
+    """
+    AFP_CHOICES = [
+        ('Habitat',   'Habitat'),
+        ('Integra',   'Integra'),
+        ('Prima',     'Prima'),
+        ('Profuturo', 'Profuturo'),
+    ]
+    REGIMEN_CHOICES = [
+        ('AFP',        'AFP'),
+        ('ONP',        'ONP'),
+        ('SIN_PENSION','Sin Régimen'),
+    ]
+
+    plan     = models.ForeignKey(PlanPlantilla, on_delete=models.CASCADE, related_name='lineas')
+    cargo    = models.CharField(max_length=150, verbose_name='Cargo / Puesto')
+    area     = models.ForeignKey(
+        'personal.Area', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+', verbose_name='Área',
+    )
+    cantidad = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1)],
+        verbose_name='N° de posiciones',
+        help_text='Número de personas para este cargo en el plan.',
+    )
+    sueldo_base = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name='Sueldo base (por persona)',
+    )
+    asignacion_familiar = models.BooleanField(default=False, verbose_name='Asignación familiar')
+    regimen_pension     = models.CharField(max_length=12, choices=REGIMEN_CHOICES, default='AFP')
+    afp                 = models.CharField(
+        max_length=20, choices=AFP_CHOICES, blank=True,
+        help_text='Solo si régimen es AFP.',
+    )
+    cond_trabajo_mensual = models.DecimalField(
+        max_digits=9, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name='Cond. Trabajo / Hospedaje (mensual, por persona)',
+    )
+    alimentacion_mensual = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name='Alimentación (mensual, por persona)',
+    )
+    fecha_inicio_puesto = models.DateField(verbose_name='Inicio del puesto')
+    fecha_fin_puesto    = models.DateField(
+        null=True, blank=True,
+        verbose_name='Fin del puesto',
+        help_text='Vacío = hasta el fin del plan.',
+    )
+    personal = models.ForeignKey(
+        'personal.Personal', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='lineas_plan',
+        verbose_name='Persona asignada (opcional)',
+        help_text='Si ya se sabe quién ocupa el puesto.',
+    )
+    notas = models.CharField(max_length=300, blank=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Línea de Plan'
+        verbose_name_plural = 'Líneas de Plan'
+        ordering = ['orden', 'cargo']
+
+    def __str__(self):
+        return f'{self.cargo} × {self.cantidad} ({self.plan.nombre})'
+
+    def es_activo_en_mes(self, mes_inicio, mes_fin):
+        """True si el puesto está activo durante algún día del mes."""
+        if self.fecha_inicio_puesto > mes_fin:
+            return False
+        fin = self.fecha_fin_puesto or self.plan.fecha_fin
+        if fin and fin < mes_inicio:
+            return False
+        return True
