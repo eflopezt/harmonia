@@ -208,7 +208,7 @@ def ia_test_connection(request):
         if provider == 'GEMINI':
             if not api_key:
                 return JsonResponse({'ok': False, 'error': 'API Key requerida para Gemini.', 'info': ''})
-            svc = GeminiService(api_key=api_key, modelo=modelo or 'gemini-2.5-flash-preview-04-17')
+            svc = GeminiService(api_key=api_key, modelo=modelo or 'gemini-2.5-flash')
 
         elif provider == 'DEEPSEEK':
             if not api_key:
