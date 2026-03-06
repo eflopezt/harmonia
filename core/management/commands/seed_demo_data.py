@@ -345,7 +345,7 @@ class Command(BaseCommand):
                     cargo               = cargo,
                     subarea             = sub_obj,
                     empresa             = empresa,
-                    tipo_trabajador     = 'Empleado' if grupo == 'STAFF' else 'Obrero',
+                    tipo_trab           = 'Empleado' if grupo == 'STAFF' else 'Obrero',
                     sexo                = _sexo_por_nombre(nombre),
                     sueldo_base         = Decimal(str(sueldo)),
                     grupo_tareo         = grupo,
@@ -459,7 +459,7 @@ class Command(BaseCommand):
                 dias_atras = (n_cambios - i) * random.randint(120, 365)
                 fecha_cambio = date.today() - timedelta(days=dias_atras)
                 sueldo_nuevo = sueldo_hist * Decimal(str(1 + random.uniform(0.03, 0.12)))
-                motivos = ['INCREMENTO_ANUAL', 'PROMOCION', 'MERITO', 'AJUSTE_MERCADO']
+                motivos = ['INCREMENTO', 'PROMOCION', 'REVALORACION', 'AJUSTE']
                 _, c = HistorialSalarial.objects.get_or_create(
                     personal=emp,
                     fecha_efectiva=fecha_cambio,
