@@ -14,7 +14,12 @@ if not SECRET_KEY or SECRET_KEY.startswith('django-insecure'):
 
 ALLOWED_HOSTS = [host for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host]
 
-CSRF_TRUSTED_ORIGINS = [origin for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if origin]
+# Si se pasa CSRF_TRUSTED_ORIGINS explícitamente, se usa; si no, se deriva de ALLOWED_HOSTS
+_csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_env:
+    CSRF_TRUSTED_ORIGINS = [o for o in _csrf_env.split(',') if o]
+else:
+    CSRF_TRUSTED_ORIGINS = [f'https://{h}' for h in ALLOWED_HOSTS if h]
 
 # CORS settings - restrictive in production (optional)
 cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
