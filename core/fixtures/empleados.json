@@ -27,62 +27,6 @@
 },
 {
   "model": "personal.area",
-  "pk": 1,
-  "fields": {
-    "nombre": "ADMINISTRACION",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.390Z",
-    "actualizado_en": "2026-02-28T15:19:15.390Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 33,
-  "fields": {
-    "nombre": "ADMINISTRACION CONTRATUAL Y LEGAL",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:42.513Z",
-    "actualizado_en": "2026-03-06T17:51:42.513Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 15,
-  "fields": {
-    "nombre": "ARQUITECTURA",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.446Z",
-    "actualizado_en": "2026-02-28T15:19:15.446Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 22,
-  "fields": {
-    "nombre": "Administracion",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-04T05:21:00.772Z",
-    "actualizado_en": "2026-03-04T05:21:00.772Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
   "pk": 24,
   "fields": {
     "nombre": "Administraci\u00f3n",
@@ -97,6 +41,34 @@
 },
 {
   "model": "personal.area",
+  "pk": 33,
+  "fields": {
+    "nombre": "Administraci\u00f3n Contratual Y Legal",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.513Z",
+    "actualizado_en": "2026-03-06T22:01:33.700Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 15,
+  "fields": {
+    "nombre": "Arquitectura",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-02-28T15:19:15.446Z",
+    "actualizado_en": "2026-03-06T22:01:07.873Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
   "pk": 4,
   "fields": {
     "nombre": "BIM",
@@ -105,7 +77,7 @@
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.398Z",
-    "actualizado_en": "2026-02-28T15:19:15.398Z",
+    "actualizado_en": "2026-03-06T22:01:33.707Z",
     "responsables": []
   }
 },
@@ -113,13 +85,13 @@
   "model": "personal.area",
   "pk": 41,
   "fields": {
-    "nombre": "BIM-INTERVENCION EISSA",
+    "nombre": "BIM-Intervenci\u00f3n Eissa",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:43.786Z",
-    "actualizado_en": "2026-03-06T17:51:43.786Z",
+    "actualizado_en": "2026-03-06T22:01:33.715Z",
     "responsables": []
   }
 },
@@ -127,13 +99,13 @@
   "model": "personal.area",
   "pk": 34,
   "fields": {
-    "nombre": "BIM-INTERVENCION FACONSE",
+    "nombre": "BIM-Intervenci\u00f3n Faconse",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.554Z",
-    "actualizado_en": "2026-03-06T17:51:42.554Z",
+    "actualizado_en": "2026-03-06T22:01:33.721Z",
     "responsables": []
   }
 },
@@ -141,13 +113,13 @@
   "model": "personal.area",
   "pk": 14,
   "fields": {
-    "nombre": "CALIDAD",
+    "nombre": "Calidad",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.443Z",
-    "actualizado_en": "2026-02-28T15:19:15.443Z",
+    "actualizado_en": "2026-03-06T22:01:07.898Z",
     "responsables": []
   }
 },
@@ -155,13 +127,13 @@
   "model": "personal.area",
   "pk": 35,
   "fields": {
-    "nombre": "CALIDAD-INTERVENCION EISSA",
+    "nombre": "Calidad-Intervenci\u00f3n Eissa",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.595Z",
-    "actualizado_en": "2026-03-06T17:51:42.595Z",
+    "actualizado_en": "2026-03-06T22:01:33.728Z",
     "responsables": []
   }
 },
@@ -169,13 +141,13 @@
   "model": "personal.area",
   "pk": 46,
   "fields": {
-    "nombre": "CALIDAD-INTERVENCION FACONSE",
+    "nombre": "Calidad-Intervenci\u00f3n Faconse",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:45.227Z",
-    "actualizado_en": "2026-03-06T17:51:45.228Z",
+    "actualizado_en": "2026-03-06T22:01:33.735Z",
     "responsables": []
   }
 },
@@ -183,13 +155,13 @@
   "model": "personal.area",
   "pk": 43,
   "fields": {
-    "nombre": "CALIDAD-INTERVENCION SEAL TELECOM",
+    "nombre": "Calidad-Intervenci\u00f3n Seal Telecom",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:44.110Z",
-    "actualizado_en": "2026-03-06T17:51:44.110Z",
+    "actualizado_en": "2026-03-06T22:01:33.743Z",
     "responsables": []
   }
 },
@@ -197,13 +169,13 @@
   "model": "personal.area",
   "pk": 31,
   "fields": {
-    "nombre": "COMMISSIONING",
+    "nombre": "Commissioning",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.444Z",
-    "actualizado_en": "2026-03-06T17:51:42.444Z",
+    "actualizado_en": "2026-03-06T22:01:07.933Z",
     "responsables": []
   }
 },
@@ -211,13 +183,13 @@
   "model": "personal.area",
   "pk": 45,
   "fields": {
-    "nombre": "COMMISSIONING-INTERVENCION LOS INKAS",
+    "nombre": "Commissioning-Intervenci\u00f3n Los Inkas",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:44.369Z",
-    "actualizado_en": "2026-03-06T17:51:44.369Z",
+    "actualizado_en": "2026-03-06T22:01:33.749Z",
     "responsables": []
   }
 },
@@ -225,13 +197,13 @@
   "model": "personal.area",
   "pk": 7,
   "fields": {
-    "nombre": "CONTABILIDAD",
+    "nombre": "Contabilidad",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.410Z",
-    "actualizado_en": "2026-02-28T15:19:15.410Z",
+    "actualizado_en": "2026-03-06T22:01:07.951Z",
     "responsables": []
   }
 },
@@ -239,13 +211,13 @@
   "model": "personal.area",
   "pk": 5,
   "fields": {
-    "nombre": "COSTOS",
+    "nombre": "Costos",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.403Z",
-    "actualizado_en": "2026-02-28T15:19:15.403Z",
+    "actualizado_en": "2026-03-06T22:01:07.960Z",
     "responsables": []
   }
 },
@@ -253,13 +225,13 @@
   "model": "personal.area",
   "pk": 36,
   "fields": {
-    "nombre": "COSTOS Y PRESUPUESTOS",
+    "nombre": "Costos Y Presupuestos",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.694Z",
-    "actualizado_en": "2026-03-06T17:51:42.694Z",
+    "actualizado_en": "2026-03-06T22:01:07.967Z",
     "responsables": []
   }
 },
@@ -267,13 +239,13 @@
   "model": "personal.area",
   "pk": 39,
   "fields": {
-    "nombre": "EQUIPAMIENTO",
+    "nombre": "Equipamiento",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:43.026Z",
-    "actualizado_en": "2026-03-06T17:51:43.026Z",
+    "actualizado_en": "2026-03-06T22:01:07.976Z",
     "responsables": []
   }
 },
@@ -281,27 +253,13 @@
   "model": "personal.area",
   "pk": 17,
   "fields": {
-    "nombre": "ESPECIALIDADES",
+    "nombre": "Especialidades",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.464Z",
-    "actualizado_en": "2026-02-28T15:19:15.464Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 6,
-  "fields": {
-    "nombre": "FINANZAS",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.408Z",
-    "actualizado_en": "2026-02-28T15:19:15.408Z",
+    "actualizado_en": "2026-03-06T22:01:07.982Z",
     "responsables": []
   }
 },
@@ -323,13 +281,13 @@
   "model": "personal.area",
   "pk": 16,
   "fields": {
-    "nombre": "GERENCIA",
+    "nombre": "Gerencia",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.450Z",
-    "actualizado_en": "2026-02-28T15:19:15.450Z",
+    "actualizado_en": "2026-03-06T22:01:07.991Z",
     "responsables": []
   }
 },
@@ -337,27 +295,13 @@
   "model": "personal.area",
   "pk": 37,
   "fields": {
-    "nombre": "GESTION HUMANA",
+    "nombre": "Gesti\u00f3n Humana",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.719Z",
-    "actualizado_en": "2026-03-06T17:51:42.719Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 23,
-  "fields": {
-    "nombre": "Gerencia",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-04T05:21:00.809Z",
-    "actualizado_en": "2026-03-04T05:21:00.809Z",
+    "actualizado_en": "2026-03-06T22:01:33.758Z",
     "responsables": []
   }
 },
@@ -365,13 +309,13 @@
   "model": "personal.area",
   "pk": 3,
   "fields": {
-    "nombre": "LEGAL",
+    "nombre": "Legal",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.396Z",
-    "actualizado_en": "2026-02-28T15:19:15.396Z",
+    "actualizado_en": "2026-03-06T22:01:08.004Z",
     "responsables": []
   }
 },
@@ -379,13 +323,13 @@
   "model": "personal.area",
   "pk": 10,
   "fields": {
-    "nombre": "OFICINA TECNICA",
+    "nombre": "Oficina T\u00e9cnica",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.420Z",
-    "actualizado_en": "2026-02-28T15:19:15.420Z",
+    "actualizado_en": "2026-03-06T22:01:33.765Z",
     "responsables": []
   }
 },
@@ -393,13 +337,13 @@
   "model": "personal.area",
   "pk": 30,
   "fields": {
-    "nombre": "OFICINA TECNICA-INTERVENCION EISSA",
+    "nombre": "Oficina T\u00e9cnica-Intervenci\u00f3n Eissa",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.365Z",
-    "actualizado_en": "2026-03-06T17:51:42.365Z",
+    "actualizado_en": "2026-03-06T22:01:33.774Z",
     "responsables": []
   }
 },
@@ -421,13 +365,13 @@
   "model": "personal.area",
   "pk": 8,
   "fields": {
-    "nombre": "PLANEAMIENTO",
+    "nombre": "Planeamiento",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.414Z",
-    "actualizado_en": "2026-02-28T15:19:15.414Z",
+    "actualizado_en": "2026-03-06T22:01:08.023Z",
     "responsables": []
   }
 },
@@ -435,13 +379,13 @@
   "model": "personal.area",
   "pk": 40,
   "fields": {
-    "nombre": "PLANEAMIENTO Y PROGRAMACION",
+    "nombre": "Planeamiento Y Programaci\u00f3n",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:43.154Z",
-    "actualizado_en": "2026-03-06T17:51:43.154Z",
+    "actualizado_en": "2026-03-06T22:01:33.781Z",
     "responsables": []
   }
 },
@@ -449,13 +393,13 @@
   "model": "personal.area",
   "pk": 2,
   "fields": {
-    "nombre": "PROCURA",
+    "nombre": "Procura",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.394Z",
-    "actualizado_en": "2026-02-28T15:19:15.394Z",
+    "actualizado_en": "2026-03-06T22:01:08.035Z",
     "responsables": []
   }
 },
@@ -463,83 +407,13 @@
   "model": "personal.area",
   "pk": 9,
   "fields": {
-    "nombre": "PROCURA EQUIPAMIENTO",
+    "nombre": "Procura Equipamiento",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.416Z",
-    "actualizado_en": "2026-02-28T15:19:15.416Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 11,
-  "fields": {
-    "nombre": "PRODUCCION",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.429Z",
-    "actualizado_en": "2026-02-28T15:19:15.429Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 32,
-  "fields": {
-    "nombre": "PRODUCCION-INTERVENCION EISSA",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:42.472Z",
-    "actualizado_en": "2026-03-06T17:51:42.472Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 29,
-  "fields": {
-    "nombre": "PRODUCCION-INTERVENCION FACONSE",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:42.337Z",
-    "actualizado_en": "2026-03-06T17:51:42.337Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 42,
-  "fields": {
-    "nombre": "PRODUCCION-INTERVENCION LAYO",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:43.930Z",
-    "actualizado_en": "2026-03-06T17:51:43.930Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 47,
-  "fields": {
-    "nombre": "PRODUCCION-INTERVENCION LOS INKAS",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:45.463Z",
-    "actualizado_en": "2026-03-06T17:51:45.463Z",
+    "actualizado_en": "2026-03-06T22:01:08.041Z",
     "responsables": []
   }
 },
@@ -547,13 +421,13 @@
   "model": "personal.area",
   "pk": 18,
   "fields": {
-    "nombre": "PRODUCCION/DRYWALL",
+    "nombre": "Produccion/Drywall",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.482Z",
-    "actualizado_en": "2026-02-28T15:19:15.482Z",
+    "actualizado_en": "2026-03-06T22:01:08.081Z",
     "responsables": []
   }
 },
@@ -561,27 +435,83 @@
   "model": "personal.area",
   "pk": 19,
   "fields": {
-    "nombre": "PRODUCCION/REVOQUES",
+    "nombre": "Produccion/Revoques",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.484Z",
-    "actualizado_en": "2026-02-28T15:19:15.484Z",
+    "actualizado_en": "2026-03-06T22:01:08.086Z",
     "responsables": []
   }
 },
 {
   "model": "personal.area",
-  "pk": 20,
+  "pk": 11,
   "fields": {
-    "nombre": "RESIDENCIA",
+    "nombre": "Producci\u00f3n",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
-    "creado_en": "2026-02-28T15:19:15.516Z",
-    "actualizado_en": "2026-02-28T15:19:15.516Z",
+    "creado_en": "2026-02-28T15:19:15.429Z",
+    "actualizado_en": "2026-03-06T22:01:08.047Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 32,
+  "fields": {
+    "nombre": "Producci\u00f3n-Intervenci\u00f3n Eissa",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.472Z",
+    "actualizado_en": "2026-03-06T22:01:33.791Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 29,
+  "fields": {
+    "nombre": "Producci\u00f3n-Intervenci\u00f3n Faconse",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.337Z",
+    "actualizado_en": "2026-03-06T22:01:33.798Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 42,
+  "fields": {
+    "nombre": "Producci\u00f3n-Intervenci\u00f3n Layo",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:43.930Z",
+    "actualizado_en": "2026-03-06T22:01:33.807Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 47,
+  "fields": {
+    "nombre": "Producci\u00f3n-Intervenci\u00f3n Los Inkas",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:45.463Z",
+    "actualizado_en": "2026-03-06T22:01:33.815Z",
     "responsables": []
   }
 },
@@ -595,7 +525,7 @@
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.437Z",
-    "actualizado_en": "2026-02-28T15:19:15.437Z",
+    "actualizado_en": "2026-03-06T22:01:33.822Z",
     "responsables": []
   }
 },
@@ -615,29 +545,15 @@
 },
 {
   "model": "personal.area",
-  "pk": 27,
+  "pk": 20,
   "fields": {
-    "nombre": "SEGURIDAD PATRIMONIAL",
+    "nombre": "Residencia",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
-    "creado_en": "2026-03-06T17:51:42.224Z",
-    "actualizado_en": "2026-03-06T17:51:42.224Z",
-    "responsables": []
-  }
-},
-{
-  "model": "personal.area",
-  "pk": 28,
-  "fields": {
-    "nombre": "SERVICIOS GENERALES Y LOGISTICA",
-    "codigo": "",
-    "jefe_area": null,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:42.279Z",
-    "actualizado_en": "2026-03-06T17:51:42.279Z",
+    "creado_en": "2026-02-28T15:19:15.516Z",
+    "actualizado_en": "2026-03-06T22:01:08.092Z",
     "responsables": []
   }
 },
@@ -651,7 +567,7 @@
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.432Z",
-    "actualizado_en": "2026-02-28T15:19:15.432Z",
+    "actualizado_en": "2026-03-06T22:01:33.836Z",
     "responsables": []
   }
 },
@@ -659,13 +575,41 @@
   "model": "personal.area",
   "pk": 44,
   "fields": {
-    "nombre": "SSOMA-INTERVENCION LOS INKAS",
+    "nombre": "SSOMA-Intervenci\u00f3n Los Inkas",
     "codigo": "",
     "jefe_area": null,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:44.205Z",
-    "actualizado_en": "2026-03-06T17:51:44.205Z",
+    "actualizado_en": "2026-03-06T22:01:33.844Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 27,
+  "fields": {
+    "nombre": "Seguridad Patrimonial",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.224Z",
+    "actualizado_en": "2026-03-06T22:01:08.104Z",
+    "responsables": []
+  }
+},
+{
+  "model": "personal.area",
+  "pk": 28,
+  "fields": {
+    "nombre": "Servicios Generales Y Log\u00edstica",
+    "codigo": "",
+    "jefe_area": null,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.279Z",
+    "actualizado_en": "2026-03-06T22:01:33.829Z",
     "responsables": []
   }
 },
@@ -679,7 +623,7 @@
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.832Z",
-    "actualizado_en": "2026-03-06T17:51:42.832Z",
+    "actualizado_en": "2026-03-06T22:01:33.852Z",
     "responsables": []
   }
 },
@@ -688,35 +632,11 @@
   "pk": 1,
   "fields": {
     "nombre": "ADMINISTRACION",
-    "area": 1,
+    "area": 24,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-02-28T15:19:15.392Z",
-    "actualizado_en": "2026-02-28T15:19:15.392Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 44,
-  "fields": {
-    "nombre": "ADMINISTRACION CONTRATUAL Y LEGAL",
-    "area": 33,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:42.522Z",
-    "actualizado_en": "2026-03-06T17:51:42.522Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 15,
-  "fields": {
-    "nombre": "ARQUITECTURA",
-    "area": 15,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.447Z",
-    "actualizado_en": "2026-02-28T15:19:15.447Z"
+    "actualizado_en": "2026-03-06T22:01:07.809Z"
   }
 },
 {
@@ -724,11 +644,11 @@
   "pk": 25,
   "fields": {
     "nombre": "Contabilidad",
-    "area": 22,
+    "area": 24,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-04T05:21:00.790Z",
-    "actualizado_en": "2026-03-04T05:21:00.790Z"
+    "actualizado_en": "2026-03-06T22:00:19.270Z"
   }
 },
 {
@@ -736,23 +656,11 @@
   "pk": 26,
   "fields": {
     "nombre": "Logistica",
-    "area": 22,
+    "area": 24,
     "descripcion": "",
     "activa": true,
     "creado_en": "2026-03-04T05:21:00.798Z",
-    "actualizado_en": "2026-03-04T05:21:00.798Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 24,
-  "fields": {
-    "nombre": "RRHH",
-    "area": 22,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-04T05:21:00.782Z",
-    "actualizado_en": "2026-03-04T05:21:00.782Z"
+    "actualizado_en": "2026-03-06T22:01:07.775Z"
   }
 },
 {
@@ -765,6 +673,18 @@
     "activa": true,
     "creado_en": "2026-03-04T20:05:41.152Z",
     "actualizado_en": "2026-03-04T20:05:41.152Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 24,
+  "fields": {
+    "nombre": "RRHH",
+    "area": 24,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-04T05:21:00.782Z",
+    "actualizado_en": "2026-03-06T22:01:07.784Z"
   }
 },
 {
@@ -789,6 +709,30 @@
     "activa": true,
     "creado_en": "2026-03-04T20:05:41.153Z",
     "actualizado_en": "2026-03-04T20:05:41.153Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 44,
+  "fields": {
+    "nombre": "ADMINISTRACION CONTRATUAL Y LEGAL",
+    "area": 33,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.522Z",
+    "actualizado_en": "2026-03-06T17:51:42.522Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 15,
+  "fields": {
+    "nombre": "ARQUITECTURA",
+    "area": 15,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-02-28T15:19:15.447Z",
+    "actualizado_en": "2026-02-28T15:19:15.447Z"
   }
 },
 {
@@ -961,18 +905,6 @@
 },
 {
   "model": "personal.subarea",
-  "pk": 6,
-  "fields": {
-    "nombre": "FINANZAS",
-    "area": 6,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.408Z",
-    "actualizado_en": "2026-02-28T15:19:15.408Z"
-  }
-},
-{
-  "model": "personal.subarea",
   "pk": 36,
   "fields": {
     "nombre": "Contabilidad",
@@ -985,6 +917,18 @@
 },
 {
   "model": "personal.subarea",
+  "pk": 6,
+  "fields": {
+    "nombre": "FINANZAS",
+    "area": 26,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-02-28T15:19:15.408Z",
+    "actualizado_en": "2026-03-06T22:01:07.828Z"
+  }
+},
+{
+  "model": "personal.subarea",
   "pk": 37,
   "fields": {
     "nombre": "Tesorer\u00eda",
@@ -993,6 +937,18 @@
     "activa": true,
     "creado_en": "2026-03-04T20:05:41.160Z",
     "actualizado_en": "2026-03-04T20:05:41.160Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 27,
+  "fields": {
+    "nombre": "Direccion",
+    "area": 16,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-04T05:21:00.817Z",
+    "actualizado_en": "2026-03-06T22:01:07.848Z"
   }
 },
 {
@@ -1017,18 +973,6 @@
     "activa": true,
     "creado_en": "2026-03-06T17:51:42.733Z",
     "actualizado_en": "2026-03-06T17:51:42.733Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 27,
-  "fields": {
-    "nombre": "Direccion",
-    "area": 23,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-04T05:21:00.817Z",
-    "actualizado_en": "2026-03-04T05:21:00.818Z"
   }
 },
 {
@@ -1177,6 +1121,30 @@
 },
 {
   "model": "personal.subarea",
+  "pk": 18,
+  "fields": {
+    "nombre": "PRODUCCION/DRYWALL",
+    "area": 18,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-02-28T15:19:15.483Z",
+    "actualizado_en": "2026-02-28T15:19:15.483Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 19,
+  "fields": {
+    "nombre": "PRODUCCION/REVOQUES",
+    "area": 19,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-02-28T15:19:15.485Z",
+    "actualizado_en": "2026-02-28T15:19:15.485Z"
+  }
+},
+{
+  "model": "personal.subarea",
   "pk": 11,
   "fields": {
     "nombre": "PRODUCCION",
@@ -1237,42 +1205,6 @@
 },
 {
   "model": "personal.subarea",
-  "pk": 18,
-  "fields": {
-    "nombre": "PRODUCCION/DRYWALL",
-    "area": 18,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.483Z",
-    "actualizado_en": "2026-02-28T15:19:15.483Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 19,
-  "fields": {
-    "nombre": "PRODUCCION/REVOQUES",
-    "area": 19,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.485Z",
-    "actualizado_en": "2026-02-28T15:19:15.485Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 20,
-  "fields": {
-    "nombre": "RESIDENCIA",
-    "area": 20,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-02-28T15:19:15.517Z",
-    "actualizado_en": "2026-02-28T15:19:15.517Z"
-  }
-},
-{
-  "model": "personal.subarea",
   "pk": 13,
   "fields": {
     "nombre": "RRHH",
@@ -1321,26 +1253,14 @@
 },
 {
   "model": "personal.subarea",
-  "pk": 38,
+  "pk": 20,
   "fields": {
-    "nombre": "SEGURIDAD PATRIMONIAL",
-    "area": 27,
+    "nombre": "RESIDENCIA",
+    "area": 20,
     "descripcion": "",
     "activa": true,
-    "creado_en": "2026-03-06T17:51:42.235Z",
-    "actualizado_en": "2026-03-06T17:51:42.235Z"
-  }
-},
-{
-  "model": "personal.subarea",
-  "pk": 39,
-  "fields": {
-    "nombre": "SERVICIOS GENERALES Y LOGISTICA",
-    "area": 28,
-    "descripcion": "",
-    "activa": true,
-    "creado_en": "2026-03-06T17:51:42.287Z",
-    "actualizado_en": "2026-03-06T17:51:42.287Z"
+    "creado_en": "2026-02-28T15:19:15.517Z",
+    "actualizado_en": "2026-02-28T15:19:15.517Z"
   }
 },
 {
@@ -1365,6 +1285,30 @@
     "activa": true,
     "creado_en": "2026-03-06T17:51:44.216Z",
     "actualizado_en": "2026-03-06T17:51:44.216Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 38,
+  "fields": {
+    "nombre": "SEGURIDAD PATRIMONIAL",
+    "area": 27,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.235Z",
+    "actualizado_en": "2026-03-06T17:51:42.235Z"
+  }
+},
+{
+  "model": "personal.subarea",
+  "pk": 39,
+  "fields": {
+    "nombre": "SERVICIOS GENERALES Y LOGISTICA",
+    "area": 28,
+    "descripcion": "",
+    "activa": true,
+    "creado_en": "2026-03-06T17:51:42.287Z",
+    "actualizado_en": "2026-03-06T17:51:42.287Z"
   }
 },
 {

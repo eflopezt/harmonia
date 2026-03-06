@@ -254,11 +254,13 @@ class Command(BaseCommand):
         if not f_fin:
             f_fin = date.today() + timedelta(days=90)
 
-        # Área y SubÁrea
-        area_obj, _ = Area.objects.get_or_create(nombre=area_nm)
-        subarea_obj, _ = SubArea.objects.get_or_create(
-            nombre=area_nm, area=area_obj
-        )
+        # Área y SubÁrea — lookup case-insensitive para evitar duplicados
+        area_obj = Area.objects.filter(nombre__iexact=area_nm).first()
+        if not area_obj:
+            area_obj = Area.objects.create(nombre=area_nm.title())
+        subarea_obj = SubArea.objects.filter(nombre__iexact=area_nm, area=area_obj).first()
+        if not subarea_obj:
+            subarea_obj = SubArea.objects.create(nombre=area_nm.title(), area=area_obj)
 
         grupo  = 'RCO' if _es_rco(cargo) else 'STAFF'
         cond   = 'FORANEO' if _es_foraneo(cargo) else 'LOCAL'

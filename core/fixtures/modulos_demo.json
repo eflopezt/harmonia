@@ -41737,7 +41737,7 @@
   "pk": 9,
   "fields": {
     "titulo": "Analista RRHH",
-    "area": 22,
+    "area": null,
     "descripcion": "Buscamos Analista de RRHH para procesos de nomina, seleccion y bienestar. Experiencia en ERP RRHH deseable.",
     "requisitos": "- Carrera de Administracion o RRHH\n- Experiencia 2+ anos en gestion de RRHH\n- Conocimiento de legislacion laboral peruana",
     "experiencia_minima": 0,
@@ -41762,7 +41762,7 @@
   "pk": 8,
   "fields": {
     "titulo": "Contador Senior",
-    "area": 22,
+    "area": null,
     "descripcion": "Requerimos Contador Senior para fortalecer el equipo de Contabilidad. Manejo de SUNAT, PDT, cierre mensual y contabilidad minera.",
     "requisitos": "- Titulo de Contador Publico Colegiado\n- Experiencia 5+ anos en empresas mineras\n- Manejo de PDT 601/621 y SUNAT Operaciones en Linea",
     "experiencia_minima": 0,
