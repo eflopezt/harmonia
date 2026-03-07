@@ -71,36 +71,55 @@ class Command(BaseCommand):
         self.stdout.write('')
 
     def _vincular_empleado(self):
-        """Vincula el usuario 'trabajador' a un Personal activo real."""
+        """
+        Vincula el usuario 'trabajador' al empleado con más datos reales:
+        asistencia, historial salarial, vacaciones y préstamos.
+        Prioridad: DNI 47110375 (CRUZADO LOLOY ANCELMO) — 186 registros tareo.
+        Fallback: primer activo con más registros de tareo.
+        """
         try:
             from personal.models import Personal
+            from django.db.models import Count
 
             user = User.objects.get(username='trabajador')
 
-            # Si ya tiene empleado vinculado, no hacer nada
+            # Desvincular empleado anterior si existe (para poder reasignar)
             if hasattr(user, 'personal_data') and user.personal_data:
-                emp = user.personal_data
-                self.stdout.write(
-                    f'  [OK] trabajador ya vinculado a: {emp.apellidos_nombres}'
-                )
-                return
+                anterior = user.personal_data
+                # Si ya es el empleado con datos, no hacer nada
+                if anterior.nro_doc == '47110375':
+                    self.stdout.write(
+                        f'  [OK] trabajador ya vinculado a: {anterior.apellidos_nombres}'
+                    )
+                    return
+                # Desvincular anterior para reasignar al correcto
+                anterior.usuario = None
+                anterior.save()
 
-            # Buscar un empleado activo sin usuario asignado
-            empleado = (
-                Personal.objects
-                .filter(estado='Activo', usuario__isnull=True)
-                .order_by('id')
-                .first()
-            )
+            # 1. Intentar el empleado preferido (mayor cantidad de datos)
+            empleado = Personal.objects.filter(
+                nro_doc='47110375', estado='Activo'
+            ).first()
+
+            # 2. Fallback: el activo con más registros de tareo
             if not empleado:
-                self.stdout.write('  [WARN] No hay empleados activos disponibles para vincular')
+                empleado = (
+                    Personal.objects
+                    .filter(estado='Activo', usuario__isnull=True)
+                    .annotate(n=Count('registros_tareo'))
+                    .order_by('-n')
+                    .first()
+                )
+
+            if not empleado:
+                self.stdout.write('  [WARN] No hay empleados activos disponibles')
                 return
 
             empleado.usuario = user
             empleado.save()
             self.stdout.write(
                 f'  [OK] trabajador vinculado a: {empleado.apellidos_nombres} '
-                f'(DNI: {empleado.nro_doc})'
+                f'(DNI: {empleado.nro_doc}, Cargo: {empleado.cargo})'
             )
         except Exception as e:
             self.stdout.write(f'  [WARN] No se pudo vincular empleado: {e}')

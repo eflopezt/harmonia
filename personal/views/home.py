@@ -192,7 +192,18 @@ def _get_frase_dia(hoy: date) -> dict:
 
 @login_required
 def home(request):
-    """Vista principal del sistema — Dashboard contextual."""
+    """Vista principal del sistema — Dashboard contextual.
+
+    Si el usuario NO es staff/superuser y NO tiene áreas a cargo,
+    se lo redirige al Portal del Colaborador (su espacio personal).
+    """
+    # ── Redirección automática a portal para trabajadores sin rol RRHH ──
+    if not request.user.is_staff and not request.user.is_superuser:
+        from personal.mixins import filtrar_areas as _fa
+        if not _fa(request.user).exists():
+            from django.urls import reverse
+            return redirect(reverse('portal_home'))
+
     hoy = date.today()
 
     # Filtros según rol del usuario
