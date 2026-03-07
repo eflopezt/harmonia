@@ -14,7 +14,7 @@ import json
 from ..models import Area, SubArea, Personal, Roster
 from ..permissions import (
     filtrar_areas, filtrar_subareas, filtrar_personal,
-    get_context_usuario
+    get_context_usuario, get_areas_responsable,
 )
 
 
@@ -197,10 +197,18 @@ def home(request):
     Si el usuario NO es staff/superuser y NO tiene áreas a cargo,
     se lo redirige al Portal del Colaborador (su espacio personal).
     """
-    # ── Redirección automática a portal para trabajadores sin rol RRHH ──
+    # ── Enrutamiento de 3 niveles ─────────────────────────────────────────────
+    # Nivel 1: is_superuser / is_staff   → dashboard RRHH completo (continúa)
+    # Nivel 2: Jefe de área (con áreas a cargo) → dashboard de equipo (is_jefe=True)
+    # Nivel 3: Trabajador final (sin áreas)  → Portal del Colaborador (redirect)
+    is_jefe = False
     if not request.user.is_staff and not request.user.is_superuser:
-        if not filtrar_areas(request.user).exists():
+        _areas_cargo = get_areas_responsable(request.user)
+        if not _areas_cargo.exists():
+            # Trabajador final → su espacio personal en el portal
             return redirect('portal_home')
+        # Jefe de área → dashboard de equipo
+        is_jefe = True
 
     hoy = date.today()
 
@@ -421,6 +429,22 @@ def home(request):
         except Exception:
             pass
 
+    # ── Vacaciones y permisos pendientes del equipo (jefe de área) ──
+    if is_jefe and 'vacaciones_stats' not in context:
+        try:
+            from vacaciones.models import SolicitudVacacion, SolicitudPermiso
+            vac_pend = SolicitudVacacion.objects.filter(
+                estado='PENDIENTE', personal__in=personal_activo).count()
+            perm_pend = SolicitudPermiso.objects.filter(
+                estado='PENDIENTE', personal__in=personal_activo).count()
+            context['vacaciones_stats'] = {
+                'vac_pendientes':  vac_pend,
+                'perm_pendientes': perm_pend,
+                'total':           vac_pend + perm_pend,
+            }
+        except Exception:
+            pass
+
     # ── Contratos por vencer (próximos 30 días) ──
     if request.user.is_superuser:
         try:
@@ -578,6 +602,7 @@ def home(request):
         except Exception:
             pass
 
+    context['is_jefe'] = is_jefe
     context.update(get_context_usuario(request.user))
     context['frase_dia'] = _get_frase_dia(hoy)
     return render(request, 'home.html', context)
