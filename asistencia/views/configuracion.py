@@ -421,7 +421,7 @@ def regimen_crear(request):
             dias_descanso_ciclo=int(request.POST['dias_descanso']),
             minutos_almuerzo=int(request.POST.get('minutos_almuerzo', 60)),
             es_nocturno=request.POST.get('es_nocturno') == '1',
-            recargo_nocturno_pct=Decimal(request.POST.get('recargo_nocturno', '35.00')),
+            recargo_nocturno_pct=Decimal(request.POST.get('recargo_nocturno', '').strip() or '35.00'),
             descripcion=request.POST.get('descripcion', '').strip(),
             activo=request.POST.get('activo', '1') == '1',
         )
@@ -445,7 +445,8 @@ def regimen_editar(request, pk):
         r.dias_descanso_ciclo = int(request.POST['dias_descanso'])
         r.minutos_almuerzo = int(request.POST.get('minutos_almuerzo', r.minutos_almuerzo))
         r.es_nocturno = request.POST.get('es_nocturno') == '1'
-        r.recargo_nocturno_pct = Decimal(request.POST.get('recargo_nocturno', str(r.recargo_nocturno_pct)))
+        _recargo_raw = request.POST.get('recargo_nocturno', '').strip()
+        r.recargo_nocturno_pct = Decimal(_recargo_raw) if _recargo_raw else r.recargo_nocturno_pct
         r.descripcion = request.POST.get('descripcion', '').strip()
         r.activo = request.POST.get('activo', '1') == '1'
         r.save()

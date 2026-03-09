@@ -26,4 +26,10 @@ python manage.py setup_harmoni --no-input || true
 echo "=== Creating demo users ==="
 python manage.py create_demo_users || true
 
+echo "=== Seeding demo modules (idempotent - get_or_create) ==="
+python manage.py seed_modulos_completos || true
+
+echo "=== Generating KPI snapshots (last 3 months) ==="
+python manage.py generar_kpi --alertas || true
+
 echo "=== Build complete ==="

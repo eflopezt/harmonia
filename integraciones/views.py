@@ -840,6 +840,7 @@ def configuracion_sistema(request):
                 config.mod_salarios = 'mod_salarios' in request.POST
 
             elif tab == 'nomina':
+                from decimal import Decimal, InvalidOperation
                 dia_corte = request.POST.get('dia_corte_planilla', '')
                 if dia_corte.isdigit():
                     config.dia_corte_planilla = int(dia_corte)
@@ -855,16 +856,30 @@ def configuracion_sistema(request):
                 jornada_foraneo = request.POST.get('jornada_foraneo_horas', '')
                 if jornada_local:
                     try:
-                        from decimal import Decimal
                         config.jornada_local_horas = Decimal(jornada_local)
                     except Exception:
                         pass
                 if jornada_foraneo:
                     try:
-                        from decimal import Decimal
                         config.jornada_foraneo_horas = Decimal(jornada_foraneo)
                     except Exception:
                         pass
+                # Parámetros legales Perú
+                uit_raw = request.POST.get('uit_valor', '').strip()
+                rmv_raw = request.POST.get('rmv_valor', '').strip()
+                uit_anno_raw = request.POST.get('uit_anno', '').strip()
+                if uit_raw:
+                    try:
+                        config.uit_valor = Decimal(uit_raw)
+                    except (InvalidOperation, Exception):
+                        pass
+                if rmv_raw:
+                    try:
+                        config.rmv_valor = Decimal(rmv_raw)
+                    except (InvalidOperation, Exception):
+                        pass
+                if uit_anno_raw.isdigit():
+                    config.uit_anno = int(uit_anno_raw)
 
             elif tab == 'integraciones':
                 config.programa_nomina = request.POST.get('programa_nomina', config.programa_nomina)

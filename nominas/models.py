@@ -23,8 +23,8 @@ from personal.models import Personal
 
 # ── Constantes Legales Perú 2026 ─────────────────────────────────────
 UIT_2026 = Decimal('5500.00')   # DS 233-2025-EF
-RMV_2025 = Decimal('1025.00')
-ASIG_FAM = RMV_2025 * Decimal('0.10')   # S/ 102.50
+RMV_2026 = Decimal('1025.00')
+ASIG_FAM = RMV_2026 * Decimal('0.10')   # S/ 102.50
 
 
 # ══════════════════════════════════════════════════════════════════════

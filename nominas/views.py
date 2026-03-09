@@ -928,8 +928,8 @@ def ir5ta_panel(request):
     """
     from personal.models import Personal
 
-    uit = engine.UIT_2026  # S/ 5,350
-    deduccion = engine.IR_5TA_DEDUCCION_UITS * uit  # 7 × 5,350 = S/ 37,450
+    uit = engine._get_uit()  # S/ 5,500 (DS 233-2025-EF, vigente 2026)
+    deduccion = engine.IR_5TA_DEDUCCION_UITS * uit  # 7 × 5,500 = S/ 38,500
 
     # Escala IR 5ta con límites en soles para la tabla visual
     # Tramos acumulativos: (limite_acum_uits, tasa%)

@@ -35,9 +35,27 @@ AFP_TASAS = {
 AFP_APORTE    = Decimal('10.00')   # % obligatorio
 ONP_TASA      = Decimal('13.00')   # %
 ESSALUD_TASA  = Decimal('9.00')    # % aporte empleador
-UIT_2026      = Decimal('5500.00')   # DS 233-2025-EF (vigente 2026)
-RMV_2025      = Decimal('1025.00')
-ASIG_FAM      = RMV_2025 * Decimal('0.10')   # S/ 102.50
+UIT_2026      = Decimal('5500.00')   # DS 233-2025-EF (vigente 2026) — fallback
+RMV_2026      = Decimal('1025.00')   # Desde abr-2022 — fallback
+ASIG_FAM      = RMV_2026 * Decimal('0.10')   # S/ 102.50
+
+
+def _get_uit() -> Decimal:
+    """Lee la UIT desde ConfiguracionSistema (configurable por admin). Fallback a constante."""
+    try:
+        from asistencia.models import ConfiguracionSistema
+        return ConfiguracionSistema.get().uit_valor
+    except Exception:
+        return UIT_2026
+
+
+def _get_rmv() -> Decimal:
+    """Lee la RMV desde ConfiguracionSistema (configurable por admin). Fallback a constante."""
+    try:
+        from asistencia.models import ConfiguracionSistema
+        return ConfiguracionSistema.get().rmv_valor
+    except Exception:
+        return RMV_2026
 
 # Escala IR 5ta Categoría 2026 (en UITs)
 # Tramos: (limite_uits, tasa%)
@@ -69,9 +87,10 @@ def calcular_ir_5ta_mensual(
         deduccion_eps_anual:  Aporte anual del trabajador a EPS (si aplica).
                               Reduce la base imponible antes de las 7 UIT.
     """
+    uit = _get_uit()
     # Deducción EPS trabajador + 7 UIT (base legal: Art. 46° TUO LIR)
     base_imponible = max(
-        rem_anual_proyectada - deduccion_eps_anual - (IR_5TA_DEDUCCION_UITS * UIT_2026),
+        rem_anual_proyectada - deduccion_eps_anual - (IR_5TA_DEDUCCION_UITS * uit),
         Decimal('0'),
     )
     if base_imponible <= 0:
@@ -85,7 +104,7 @@ def calcular_ir_5ta_mensual(
             # Tramo ilimitado
             exceso = base_imponible - anterior
         else:
-            limite = limite_uits * UIT_2026
+            limite = limite_uits * uit
             if base_imponible <= anterior:
                 break
             exceso = min(base_imponible, limite) - anterior
@@ -96,7 +115,7 @@ def calcular_ir_5ta_mensual(
 
         if limite_uits is None:
             break
-        anterior = limite_uits * UIT_2026
+        anterior = limite_uits * uit
         if base_imponible <= anterior:
             break
 
@@ -124,7 +143,7 @@ def calcular_registro(registro, conceptos_activos=None) -> dict:
     sueldo_prop = _redondear(sueldo * Decimal(dias) / Decimal('30'))
 
     # ── 2. Asignación familiar (10% RMV si tiene hijos) ──
-    asig_fam = ASIG_FAM if p.asignacion_familiar else Decimal('0')
+    asig_fam = _redondear(_get_rmv() * Decimal('0.10')) if p.asignacion_familiar else Decimal('0')
 
     # ── 3. Valor hora y horas extra ──
     valor_hora   = _redondear(sueldo / Decimal('30') / Decimal('8'))
@@ -197,7 +216,7 @@ def calcular_registro(registro, conceptos_activos=None) -> dict:
     _agregar('sueldo-basico',       sueldo,        Decimal('0'), sueldo_prop,
              f'{dias} días trabajados')
     if asig_fam > 0:
-        _agregar('asig-familiar',   RMV_2025,      Decimal('10'), asig_fam)
+        _agregar('asig-familiar',   _get_rmv(),    Decimal('10'), asig_fam)
     if monto_he_25 > 0:
         _agregar('he-25',           valor_hora,    Decimal('25'), monto_he_25,
                  f'{p.horas_extra_25}h × S/{valor_hora} × 1.25')
@@ -277,7 +296,7 @@ def calcular_gratificacion(registro, conceptos_activos=None) -> dict:
     afp_nombre = p.afp or 'Prima'
 
     # ── 1. Remuneración computable (solo sueldo + asig_fam) ──────────────
-    asig_fam   = ASIG_FAM if p.asignacion_familiar else Decimal('0')
+    asig_fam   = _redondear(_get_rmv() * Decimal('0.10')) if p.asignacion_familiar else Decimal('0')
     rem_base   = sueldo + asig_fam
 
     # ── 2. Gratificación proporcional ────────────────────────────────────
@@ -379,7 +398,7 @@ def calcular_cts(registro, conceptos_activos=None) -> dict:
     p          = registro
     sueldo     = _redondear(p.sueldo_base)
     meses      = max(1, min(int(p.dias_trabajados or 6), 6))
-    asig_fam   = ASIG_FAM if p.asignacion_familiar else Decimal('0')
+    asig_fam   = _redondear(_get_rmv() * Decimal('0.10')) if p.asignacion_familiar else Decimal('0')
 
     # ── Base computable CTS ───────────────────────────────────────────────
     # Incluye: sueldo + asig_fam + 1/6 sueldo (gratificación proporcional)

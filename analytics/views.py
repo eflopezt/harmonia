@@ -951,7 +951,7 @@ def salary_analytics(request):
     """Vista de análisis salarial: distribución, brechas, percentiles."""
     from personal.models import Personal, Area
 
-    UIT_2026 = Decimal('5350.00')
+    UIT_2026 = Decimal('5500.00')   # DS 233-2025-EF (vigente 2026)
 
     activos_con_sueldo = (
         Personal.objects.filter(estado='Activo', sueldo_base__isnull=False)

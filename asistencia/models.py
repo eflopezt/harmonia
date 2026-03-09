@@ -1215,6 +1215,22 @@ class ConfiguracionSistema(models.Model):
         verbose_name="Jornada Foráneo (h/día)",
         help_text="Ej: 11.0 para personal FORÁNEO 7:30–18:30")
 
+    # ── Parámetros Legales Perú ──
+    uit_valor = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('5500.00'),
+        verbose_name="UIT (S/)",
+        help_text="Unidad Impositiva Tributaria vigente. 2026: S/ 5,500 (DS 233-2025-EF). "
+                  "Impacta IR 5ta categoría, gratificaciones y otros cálculos.")
+    uit_anno = models.PositiveSmallIntegerField(
+        default=2026,
+        verbose_name="Año UIT",
+        help_text="Año de vigencia del valor UIT configurado.")
+    rmv_valor = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('1025.00'),
+        verbose_name="RMV / Sueldo Mínimo (S/)",
+        help_text="Remuneración Mínima Vital vigente. Desde abr-2022: S/ 1,025. "
+                  "Se usa para asignación familiar (10% RMV = S/ 102.50) y otros cálculos.")
+
     # ── Synkro (nombres de hojas) ──
     synkro_hoja_reloj = models.CharField(
         max_length=60, default='Reloj',
