@@ -14,9 +14,11 @@ from __future__ import annotations
 import json
 import logging
 import time
+import uuid
 
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, StreamingHttpResponse
+from django.core.cache import cache
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from .services.ai_service import get_service
@@ -26,6 +28,7 @@ from .services.ai_context import (
     build_insights_prompt,
     detect_chart_request,
     detect_dashboard_request,
+    detect_edit_request,
     detect_export_request,
     detect_individual_query,
     detect_module_context,
@@ -127,6 +130,168 @@ def ai_context(request):
 
 
 # ─────────────────────────────────────────────────
+# HELPER: Edición de PDF con IA + PyMuPDF
+# ─────────────────────────────────────────────────
+
+def _apply_pdf_edit(message: str, file_context: dict, svc) -> str | None:
+    """
+    Usa IA para determinar los cambios de texto en el PDF y los aplica con PyMuPDF.
+    Guarda el resultado en Django cache y retorna el edit_id (o None si falló).
+
+    Flujo:
+      1. Obtiene bytes del PDF original desde cache (usando file_id).
+      2. Llama a la IA con prompt especializado para obtener replacements JSON.
+      3. Aplica los reemplazos vía PyMuPDF (redacción + re-inserción).
+      4. Guarda PDF editado en cache con nuevo edit_id (TTL 15 min).
+    """
+    import re as _re
+
+    file_id = file_context.get('file_id', '')
+    if not file_id:
+        logger.warning('_apply_pdf_edit: no file_id en file_context')
+        return None
+
+    original_bytes = cache.get(f'ai_pdf_{file_id}')
+    if not original_bytes:
+        logger.warning(f'_apply_pdf_edit: PDF bytes expirados para file_id={file_id}')
+        return None
+
+    extracted_text = file_context.get('content', '')
+
+    # ── 1. Pedir a la IA los reemplazos como JSON ──────────────────────────
+    replacements = []
+    if svc:
+        replacement_system = (
+            'Eres un asistente que genera JSON de reemplazos de texto. '
+            'Siempre respondes ÚNICAMENTE con un JSON array válido, sin texto adicional. '
+            'Ejemplo: [{"old": "TEXTO_ORIGINAL", "new": "TEXTO_NUEVO"}]'
+        )
+        replacement_prompt = (
+            f'El documento PDF contiene este texto:\n{extracted_text[:3000]}\n\n'
+            f'El usuario pide: "{message}"\n\n'
+            f'Genera un JSON array con los reemplazos exactos necesarios. '
+            f'Usa el texto EXACTO tal como aparece en el documento. '
+            f'Responde SOLO el JSON array:'
+        )
+        try:
+            ai_response = svc.generate(replacement_prompt, system=replacement_system) or ''
+            json_match = _re.search(r'\[.*?\]', ai_response, _re.DOTALL)
+            if json_match:
+                replacements = json.loads(json_match.group())
+            else:
+                logger.warning(f'_apply_pdf_edit: sin JSON en respuesta IA: {ai_response[:200]}')
+        except Exception as exc:
+            logger.warning(f'_apply_pdf_edit IA call failed: {exc}')
+
+    # Fallback: parsear reemplazos del mensaje si la IA no respondió
+    if not replacements:
+        patterns = [
+            # "texto X" por "texto Y"  (con comillas dobles)
+            _re.compile(r'"([^"]+)"\s+(?:por|con|a)\s+"([^"]+)"', _re.IGNORECASE),
+            # 'texto X' por 'texto Y'  (con comillas simples)
+            _re.compile(r"'([^']+)'\s+(?:por|con|a)\s+'([^']+)'", _re.IGNORECASE),
+            # cambia/reemplaza EL? DNI/RUC/NÚMERO X por Y  (sin comillas, para números)
+            _re.compile(
+                r'(?:cambia|reemplaza|pon|coloca|actualiza)\s+(?:el\s+)?'
+                r'(?:dni|ruc|cod|código|numero|número|nro\.?|n°)?\s*'
+                r'([A-Z0-9][A-Z0-9 ]{0,30}?)\s+(?:por|con|a)\s+([A-Z0-9][A-Z0-9 ]{0,30})',
+                _re.IGNORECASE,
+            ),
+            # Detectar pares de números tipo DNI/RUC que aparecen como "NNNNNNNN por NNNNNNNN"
+            _re.compile(r'\b(\d{8,11})\b.*?\bpor\b.*?\b(\d{8,11})\b', _re.IGNORECASE),
+        ]
+        for pat in patterns:
+            for m in pat.finditer(message):
+                old_val = m.group(1).strip()
+                new_val = m.group(2).strip()
+                if old_val and new_val and old_val != new_val:
+                    replacements.append({'old': old_val, 'new': new_val})
+        # Deduplicar
+        seen = set()
+        unique_reps = []
+        for r in replacements:
+            key = (r['old'], r['new'])
+            if key not in seen:
+                seen.add(key)
+                unique_reps.append(r)
+        replacements = unique_reps
+
+    if not replacements:
+        logger.warning('_apply_pdf_edit: no se detectaron reemplazos')
+        return None
+
+    # ── 2. Aplicar reemplazos con PyMuPDF ─────────────────────────────────
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.warning('_apply_pdf_edit: PyMuPDF no instalado')
+        return None
+
+    try:
+        doc = fitz.open(stream=original_bytes, filetype='pdf')
+        changes_made = 0
+
+        for rep in replacements:
+            old_text = str(rep.get('old', '')).strip()
+            new_text = str(rep.get('new', '')).strip()
+            if not old_text or old_text == new_text:
+                continue
+
+            for page in doc:
+                instances = page.search_for(old_text)
+                if not instances:
+                    continue
+
+                # Estimar font size mirando el bloque de texto más cercano
+                font_size = 9.0
+                try:
+                    for block in page.get_text('dict')['blocks']:
+                        for line in block.get('lines', []):
+                            for span in line.get('spans', []):
+                                if old_text in span.get('text', ''):
+                                    font_size = span.get('size', 9.0)
+                                    raise StopIteration
+                except StopIteration:
+                    pass
+
+                # Guardar posiciones ANTES de redactar (apply_redactions puede mover cosas)
+                rects_copy = [fitz.Rect(r) for r in instances]
+
+                # Redactar (rellenar con blanco)
+                for rect in rects_copy:
+                    page.add_redact_annot(rect, fill=(1, 1, 1))
+                page.apply_redactions()
+
+                # Insertar texto nuevo en misma posición
+                for rect in rects_copy:
+                    page.insert_text(
+                        (rect.x0, rect.y1 - 1),
+                        new_text,
+                        fontsize=font_size,
+                        color=(0.0, 0.0, 0.0),
+                    )
+                    changes_made += 1
+
+        if changes_made == 0:
+            logger.warning('_apply_pdf_edit: ningún texto encontrado para reemplazar')
+            doc.close()
+            return None
+
+        edited_bytes = doc.tobytes()
+        doc.close()
+
+        # Guardar en cache con nuevo ID
+        edit_id = uuid.uuid4().hex[:16]
+        cache.set(f'ai_edit_{edit_id}', edited_bytes, 900)  # 15 min TTL
+        logger.info(f'_apply_pdf_edit: {changes_made} cambios aplicados → edit_id={edit_id}')
+        return edit_id
+
+    except Exception as exc:
+        logger.warning(f'_apply_pdf_edit PyMuPDF error: {exc}')
+        return None
+
+
+# ─────────────────────────────────────────────────
 # CHAT STREAMING (SSE) — con fallback
 # ─────────────────────────────────────────────────
 
@@ -156,6 +321,26 @@ def ai_chat_stream(request):
 
     svc = get_service()
     ollama_ok = _is_ollama_reachable()
+
+    # ── Detectar edición de PDF (antes que todo) ──
+    if detect_edit_request(message, file_context):
+        edit_id = _apply_pdf_edit(message, file_context, svc)
+        if edit_id:
+            def pdf_edit_stream():
+                yield 'data: [FALLBACK]\n\n'
+                resp_text = (
+                    '✏️ He aplicado los cambios al documento. '
+                    'Haz clic para descargar el PDF editado:\\n\\n'
+                    f'[DOWNLOAD:pdf_edit:{edit_id}]'
+                )
+                yield f'data: {resp_text}\n\n'
+                yield 'data: [DONE]\n\n'
+
+            resp = StreamingHttpResponse(pdf_edit_stream(), content_type='text/event-stream')
+            resp['Cache-Control'] = 'no-cache'
+            resp['X-Accel-Buffering'] = 'no'
+            return resp
+        # Si falló la edición, continúa con flujo normal (IA explicará por qué)
 
     # ── Detectar export request (antes de todo) ──
     export_req = detect_export_request(message)
@@ -935,6 +1120,10 @@ def ai_upload_file(request):
             was_truncated = len(full_text) > 12000
             preview = full_text[:120].replace('\n', ' ').strip() + ('...' if len(full_text) > 120 else '')
 
+            # Guardar bytes originales en cache para edición posterior (15 min TTL)
+            file_id = uuid.uuid4().hex[:16]
+            cache.set(f'ai_pdf_{file_id}', content_bytes, 900)
+
             return JsonResponse({
                 'ok': True,
                 'type': 'pdf',
@@ -944,6 +1133,7 @@ def ai_upload_file(request):
                 'truncated': was_truncated,
                 'preview': preview,
                 'size_kb': round(file.size / 1024, 1),
+                'file_id': file_id,  # ID para recuperar bytes y editar
             })
 
         # ── EXCEL ─────────────────────────────────────────────────────
@@ -1023,6 +1213,34 @@ def ai_upload_file(request):
     except Exception as e:
         logger.warning(f'ai_upload_file error: {e}')
         return JsonResponse({'ok': False, 'error': f'Error procesando archivo: {str(e)[:120]}'}, status=500)
+
+
+# ─────────────────────────────────────────────────
+# DESCARGA PDF EDITADO
+# ─────────────────────────────────────────────────
+
+@login_required
+@require_GET
+def ai_download_edited(request):
+    """
+    Sirve un PDF editado desde cache temporal.
+    GET /asistencia/ia/documento-editado/?id=<edit_id>
+    El edit_id es generado por _apply_pdf_edit y tiene TTL de 15 min.
+    """
+    edit_id = request.GET.get('id', '').strip()
+    if not edit_id or not edit_id.isalnum() or len(edit_id) > 32:
+        return JsonResponse({'error': 'ID inválido'}, status=400)
+
+    pdf_bytes = cache.get(f'ai_edit_{edit_id}')
+    if not pdf_bytes:
+        return JsonResponse(
+            {'error': 'Documento expirado o no encontrado. Vuelve a subir el PDF y solicita la edición.'},
+            status=404,
+        )
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="documento-editado.pdf"'
+    return response
 
 
 # ─────────────────────────────────────────────────

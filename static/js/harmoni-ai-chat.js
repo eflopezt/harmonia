@@ -815,6 +815,8 @@
                     name: fileCtx.name,
                     content: fileCtx.content || '',
                     truncated: fileCtx.truncated || false,
+                    mime: fileCtx.mime || '',
+                    file_id: fileCtx.file_id || '',  // para edición PDF en backend
                 };
             }
             const response = await fetch(CHAT_URL, {
@@ -877,8 +879,8 @@
                             continue;
                         }
 
-                        // ── Detect download marker ──
-                        const dlMatch = token.match(/^\[DOWNLOAD:(\w+)\]$/);
+                        // ── Detect download marker — supports [DOWNLOAD:type] and [DOWNLOAD:pdf_edit:id] ──
+                        const dlMatch = token.match(/^\[DOWNLOAD:([\w:]+)\]$/);
                         if (dlMatch) {
                             fullResponse += `[DOWNLOAD:${dlMatch[1]}]`;
                             const target = textContainer || bubble;
@@ -990,9 +992,9 @@
         if (!text) return '';
         text = cleanAiMarkers(text);
 
-        // Extract [DOWNLOAD:type] markers before any processing
+        // Extract [DOWNLOAD:type] markers before any processing (supports pdf_edit:id with colons)
         const downloadButtons = [];
-        text = text.replace(/\[DOWNLOAD:(\w+)\]/g, (match, type) => {
+        text = text.replace(/\[DOWNLOAD:([\w:]+)\]/g, (match, type) => {
             downloadButtons.push(type);
             return `AIDLBTN${downloadButtons.length - 1}AIDLBTN`;
         });
@@ -1037,10 +1039,19 @@
         html = html.replace(/<\/ol><br>/g, '</ol>');
         html = html.replace(/<\/h[34]><br>/g, (m) => m.replace('<br>', ''));
 
-        // Restore download buttons
+        // Restore download buttons — diferencia Excel report vs PDF editado
         downloadButtons.forEach((type, i) => {
-            const btnHtml = `<button class="ai-download-btn" onclick="window.aiDownloadReport('${type}')">`
-                + `<i class="fas fa-file-excel"></i> Descargar Reporte Ejecutivo (.xlsx)</button>`;
+            let btnHtml;
+            if (type.startsWith('pdf_edit:')) {
+                // PDF editado: [DOWNLOAD:pdf_edit:<edit_id>]
+                const editId = type.split(':')[2] || '';
+                btnHtml = `<button class="ai-download-btn ai-download-pdf-btn" onclick="window.aiDownloadPdf('${editId}')">`
+                    + `<i class="fas fa-file-pdf"></i> Descargar PDF Editado</button>`;
+            } else {
+                // Reporte Excel: [DOWNLOAD:gerencia]
+                btnHtml = `<button class="ai-download-btn" onclick="window.aiDownloadReport('${type}')">`
+                    + `<i class="fas fa-file-excel"></i> Descargar Reporte Ejecutivo (.xlsx)</button>`;
+            }
             html = html.replace(`AIDLBTN${i}AIDLBTN`, btnHtml);
         });
 
@@ -1153,6 +1164,41 @@
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-file-excel"></i> Descargar Reporte Ejecutivo (.xlsx)';
+        }
+    };
+
+    // ── Download PDF Editado (global for inline onclick) ──
+    window.aiDownloadPdf = async function (editId) {
+        const btn = document.querySelector('.ai-download-pdf-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Descargando...';
+        }
+        try {
+            const resp = await fetch(`/asistencia/ia/documento-editado/?id=${encodeURIComponent(editId)}`, {
+                headers: { 'X-CSRFToken': getCsrf() },
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || 'Error al descargar el PDF editado');
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.download = `documento-editado-${dateStr}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('PDF descargado ✓');
+        } catch (e) {
+            showToast('Error: ' + e.message);
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-pdf"></i> Descargar PDF Editado';
         }
     };
 

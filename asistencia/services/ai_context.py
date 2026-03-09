@@ -1356,6 +1356,35 @@ def detect_export_request(message: str) -> dict | None:
     return None
 
 
+def detect_edit_request(message: str, file_context: dict | None) -> bool:
+    """
+    Detecta si el usuario quiere editar/modificar el archivo PDF adjunto.
+    Solo aplica si hay un PDF adjunto con file_id en cache.
+    Returns True si es una solicitud de edición de documento.
+    """
+    if not file_context:
+        return False
+    fc_type = file_context.get('type', '')
+    file_id = file_context.get('file_id', '')
+    # Solo aplica a PDFs con bytes en cache
+    if fc_type != 'pdf' or not file_id:
+        return False
+
+    msg = message.lower()
+    edit_kw = [
+        'cambia', 'cambie', 'cambiar', 'reemplaza', 'reemplazar', 'reemplaze',
+        'edita', 'editar', 'edite', 'modifica', 'modificar', 'modifique',
+        'genera uno igual', 'genera el mismo', 'genera una copia',
+        'mismo documento con', 'crea uno con', 'genera uno con',
+        'rellena', 'rellenar', 'con el nombre', 'con el dni', 'con el ruc',
+        'con los datos de', 'con los datos del', 'con estos datos',
+        'actualiza', 'actualizar', 'actualice',
+        'pon', 'poner', 'coloca', 'colocar', 'poner el nombre',
+        'mismo pdf', 'mismo archivo', 'este pdf',
+    ]
+    return any(kw in msg for kw in edit_kw)
+
+
 def detect_dashboard_request(message: str) -> dict | None:
     """
     Detecta si el usuario quiere un dashboard ejecutivo multi-gráfico.

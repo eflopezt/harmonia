@@ -933,6 +933,16 @@
 .ai-download-btn i {
     color: #5eead4;
 }
+/* PDF edit download button — tono rojo para distinguir del Excel */
+.ai-download-pdf-btn {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+.ai-download-pdf-btn:hover {
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+.ai-download-pdf-btn i {
+    color: #fca5a5;
+}
 
 /* ── Toast Notification ── */
 .ai-toast {

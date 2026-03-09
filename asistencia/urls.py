@@ -52,6 +52,7 @@ urlpatterns = [
     path('ia/preguntar/', views_ai.ai_ask_data, name='ia_ask_data'),
     path('ia/exportar/', views_ai.ai_export_report, name='ia_export_report'),
     path('ia/upload/', views_ai.ai_upload_file, name='ia_upload_file'),
+    path('ia/documento-editado/', views_ai.ai_download_edited, name='ia_download_edited'),
     path('ia/indexar-embeddings/', views_ai.ai_index_embeddings, name='ia_index_embeddings'),
 
     # Parámetros (homologaciones, feriados, regímenes)
