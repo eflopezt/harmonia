@@ -415,7 +415,7 @@
           <div class="input-group">
             <span class="input-group-text">S/</span>
             <input type="number" name="uit_valor" class="form-control"
-                   value="{{ config.uit_valor }}" step="50" min="1000" max="20000">
+                   value="{{ config.uit_valor }}" step="1" min="1000" max="20000">
           </div>
           <div class="form-text">
             2026: S/ 5,500 (DS 233-2025-EF). Afecta IR 5ta categoría (7 UIT = S/ {{ config.uit_valor|floatformat:0|default:"38,500" }}).
@@ -434,7 +434,7 @@
           <div class="input-group">
             <span class="input-group-text">S/</span>
             <input type="number" name="rmv_valor" class="form-control"
-                   value="{{ config.rmv_valor }}" step="25" min="500" max="5000">
+                   value="{{ config.rmv_valor }}" step="1" min="500" max="5000">
           </div>
           <div class="form-text">
             Desde abr-2022: S/ 1,025. Asig. familiar = 10% RMV = S/ 102.50.
