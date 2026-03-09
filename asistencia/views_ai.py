@@ -348,7 +348,10 @@ def ai_chat_stream(request):
                 f'[ARCHIVO ADJUNTO: {fc_name}{trunc_note}]\n'
                 f'{fc_content}\n'
                 f'[FIN ARCHIVO]\n\n'
-                f'Pregunta del usuario: {message}'
+                f'Pregunta del usuario: {message}\n\n'
+                f'INSTRUCCION ADICIONAL: Si extraes datos de un trabajador (DNI, nombre), '
+                f'al final de tu respuesta agrega una línea: '
+                f'"¿Quieres que busque a este trabajador en el sistema para ver su expediente completo?"'
             )
 
     if indiv_data is not None:

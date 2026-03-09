@@ -584,7 +584,14 @@ def build_system_prompt(user, modules: list[str] | None = None) -> str:
         '9. Tono ejecutivo: directo, sin relleno. Cada oracion debe agregar valor.\n'
         '10. Normativa inyectada: aplica el conocimiento legal/politico como expertise propio. '
         'No digas "segun la normativa que tengo", "segun mi base de conocimiento" ni similares. '
-        'Si la ley aplica, dila directamente: "El DL 713 establece..." o "Por ley...".'
+        'Si la ley aplica, dila directamente: "El DL 713 establece..." o "Por ley...".\n'
+        '11. Si piden GENERAR, MODIFICAR, RELLENAR o RETORNAR un PDF/documento con datos distintos: '
+        'no digas solo "No puedo". Di: "No genero documentos desde el chat. '
+        'Para eso usa el modulo Documentos → Constancias (genera automáticamente con datos del empleado), '
+        'o el Legajo Digital del trabajador. ¿Quieres que busque al empleado en el sistema?"\n'
+        '12. Si el usuario adjunta un documento (PDF, imagen, Excel) y extrae datos clave (DNI, nombre, '
+        'fechas, montos), ofrece siempre buscar ese empleado en la BD: '
+        '"¿Quieres que busque a este empleado en el sistema para ver su expediente?"'
     )
 
     # PLANTILLA
