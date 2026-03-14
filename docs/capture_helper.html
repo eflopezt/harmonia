@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Screenshot Helper</title></head>
+<body>
+<h2>Screenshot Data Extractor</h2>
+<input type="file" id="f1" accept="image/*" onchange="readFile(this,'r1')"><br>
+<textarea id="r1" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f2" accept="image/*" onchange="readFile(this,'r2')"><br>
+<textarea id="r2" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f3" accept="image/*" onchange="readFile(this,'r3')"><br>
+<textarea id="r3" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f4" accept="image/*" onchange="readFile(this,'r4')"><br>
+<textarea id="r4" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f5" accept="image/*" onchange="readFile(this,'r5')"><br>
+<textarea id="r5" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f6" accept="image/*" onchange="readFile(this,'r6')"><br>
+<textarea id="r6" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f7" accept="image/*" onchange="readFile(this,'r7')"><br>
+<textarea id="r7" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f8" accept="image/*" onchange="readFile(this,'r8')"><br>
+<textarea id="r8" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f9" accept="image/*" onchange="readFile(this,'r9')"><br>
+<textarea id="r9" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<input type="file" id="f10" accept="image/*" onchange="readFile(this,'r10')"><br>
+<textarea id="r10" rows="3" cols="80" placeholder="base64 will appear here"></textarea><br><br>
+
+<script>
+function readFile(input, outId) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById(outId).value = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+</script>
+</body>
+</html>

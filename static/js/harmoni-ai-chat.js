@@ -14,12 +14,25 @@
     let isStreaming = false;
     let chartCounter = 0;
 
+    // ── Session ID — persiste en sessionStorage (una sesión por tab, 30 min server-side) ──
+    let sessionId = (function () {
+        try {
+            let sid = sessionStorage.getItem('harmoni_ai_sid');
+            if (!sid || sid.length < 8) {
+                sid = 'hs_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+                sessionStorage.setItem('harmoni_ai_sid', sid);
+            }
+            return sid;
+        } catch (e) { return ''; }
+    })();
+
     // ── Maximize state ──
     let isMaximized = false;
     let backdropEl = null;
 
     // ── File attachment state ──
     let attachedFile = null;   // { type, name, content, preview, size_kb, truncated }
+    let activeDocument = null; // PDF activo para edición multi-turno: { file_id, name, type }
     let isUploading = false;
 
     // ── DOM refs ──
@@ -270,7 +283,11 @@
                 clearAttachedFile();
                 return;
             }
-            attachedFile = data;  // { type, name, content, preview, size_kb, truncated }
+            attachedFile = data;  // { type, name, content, preview, size_kb, truncated, file_id }
+            // Persistir PDF activo para edición en mensajes posteriores
+            if (data.type === 'pdf' && data.file_id) {
+                activeDocument = { file_id: data.file_id, name: data.name, type: data.type };
+            }
             showFilePill(attachedFile);
             // Update attach button style
             if (fileAttachBtn) {
@@ -289,8 +306,17 @@
         }
     }
 
+    function clearActiveDocument() {
+        activeDocument = null;
+        // Quitar indicador persistente si existe
+        const indicator = document.getElementById('aiActiveDocIndicator');
+        if (indicator) indicator.remove();
+    }
+
     function clearAttachedFile() {
         attachedFile = null;
+        // Si el usuario hace click en X del attach button, también limpia el doc activo
+        clearActiveDocument();
         isUploading = false;
         if (filePillRow) filePillRow.innerHTML = '';
         if (fileAttachBtn) {
@@ -332,8 +358,33 @@
         filePillRow.appendChild(pill);
     }
 
+    function showActiveDocIndicator() {
+        if (!activeDocument || !messagesEl) return;
+        // Solo una vez — no duplicar
+        if (document.getElementById('aiActiveDocIndicator')) return;
+        const indicator = document.createElement('div');
+        indicator.id = 'aiActiveDocIndicator';
+        indicator.className = 'ai-active-doc-indicator';
+        indicator.innerHTML = `
+            <i class="fas fa-file-pdf"></i>
+            <span>Documento activo: <strong>${escapeHtml(activeDocument.name)}</strong></span>
+            <button title="Cerrar documento" onclick="(function(){window._harmoniClearDoc&&window._harmoniClearDoc()})()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        // Insertar al final de los mensajes (antes del input area)
+        const inputArea = panel ? panel.querySelector('.ai-chat-input-area') : null;
+        if (inputArea) {
+            panel.insertBefore(indicator, inputArea);
+        }
+    }
+
+    // Exponer clearActiveDocument globalmente para el onclick del indicador
+    window._harmoniClearDoc = clearActiveDocument;
+
     function clearChat() {
         chatHistory = [];
+        clearActiveDocument();
         sessionStorage.removeItem('harmoni_ai_history');
         messagesEl.innerHTML = '';
         appendWelcome();
@@ -776,7 +827,14 @@
 
         // Snapshot and clear attached file before sending
         const fileCtx = attachedFile ? { ...attachedFile } : null;
-        if (fileCtx) clearAttachedFile();
+        if (fileCtx) {
+            // Mantener activeDocument después de enviar (no limpiar solo por enviar)
+            const savedDoc = activeDocument;
+            clearAttachedFile();
+            activeDocument = savedDoc;  // restaurar — clearAttachedFile lo borra
+            // Mostrar indicador persistente del documento activo
+            if (activeDocument) showActiveDocIndicator();
+        }
 
         // Hide quick actions after first message
         quickActions.style.display = 'none';
@@ -806,7 +864,8 @@
         try {
             const requestBody = {
                 message: text,
-                history: chatHistory.slice(-10),
+                session_id: sessionId,
+                history: buildCleanHistory(20),
             };
             // Include file context if a file was attached (send content, not base64 image directly)
             if (fileCtx) {
@@ -817,6 +876,17 @@
                     truncated: fileCtx.truncated || false,
                     mime: fileCtx.mime || '',
                     file_id: fileCtx.file_id || '',  // para edición PDF en backend
+                };
+            } else if (activeDocument && activeDocument.file_id) {
+                // Referencia silenciosa al PDF activo — permite editar en mensajes posteriores
+                // content vacío → backend NO inyecta en prompt, solo usa file_id para edición
+                requestBody.file_context = {
+                    type: activeDocument.type,
+                    name: activeDocument.name,
+                    content: '',          // sin contenido para no repetir en el prompt
+                    truncated: false,
+                    mime: '',
+                    file_id: activeDocument.file_id,
                 };
             }
             const response = await fetch(CHAT_URL, {
@@ -975,6 +1045,25 @@
         } catch (e) { /* quota exceeded */ }
     }
 
+    // ── buildCleanHistory — historial limpio para enviar al backend ──
+    // Elimina JSON de gráficos (puede ser enorme), trunca respuestas largas.
+    // El backend usa la sesión server-side como fuente principal; esto es respaldo.
+    function buildCleanHistory(maxMsgs) {
+        maxMsgs = maxMsgs || 20;
+        return chatHistory.slice(-maxMsgs).map(function (msg) {
+            let content = (msg.content || '');
+            // Eliminar JSON de gráficos embebido
+            content = content.replace(/\[CHART\]\{[\s\S]*?\}\[\/CHART\]/g, '[gráfico mostrado]');
+            // Eliminar markers de descarga
+            content = content.replace(/\[DOWNLOAD:[\w:]+\]/g, '[documento generado]');
+            // Eliminar otros markers internos
+            content = content.replace(/\[(FALLBACK|DONE|MAXIMIZE|PIN_WIDGET[\s\S]*?\/PIN_WIDGET)\]/g, '');
+            // Truncar mensajes muy largos (evita enviar contenido de archivos adjuntos en historial)
+            if (content.length > 800) content = content.substring(0, 800) + '… [truncado]';
+            return { role: msg.role, content: content.trim() };
+        }).filter(function (m) { return m.content; });
+    }
+
     // ── Clean AI internal markers ──
     function cleanAiMarkers(text) {
         if (!text) return '';
@@ -1044,7 +1133,8 @@
             let btnHtml;
             if (type.startsWith('pdf_edit:')) {
                 // PDF editado: [DOWNLOAD:pdf_edit:<edit_id>]
-                const editId = type.split(':')[2] || '';
+                // type = 'pdf_edit:a1b2c3d4' → split(':') = ['pdf_edit','a1b2c3d4'] → [1]
+                const editId = type.split(':')[1] || '';
                 btnHtml = `<button class="ai-download-btn ai-download-pdf-btn" onclick="window.aiDownloadPdf('${editId}')">`
                     + `<i class="fas fa-file-pdf"></i> Descargar PDF Editado</button>`;
             } else {

@@ -1226,10 +1226,10 @@ class ConfiguracionSistema(models.Model):
         verbose_name="Año UIT",
         help_text="Año de vigencia del valor UIT configurado.")
     rmv_valor = models.DecimalField(
-        max_digits=8, decimal_places=2, default=Decimal('1025.00'),
+        max_digits=8, decimal_places=2, default=Decimal('1130.00'),
         verbose_name="RMV / Sueldo Mínimo (S/)",
-        help_text="Remuneración Mínima Vital vigente. Desde abr-2022: S/ 1,025. "
-                  "Se usa para asignación familiar (10% RMV = S/ 102.50) y otros cálculos.")
+        help_text="Remuneración Mínima Vital vigente. Desde ene-2025: S/ 1,130 (DS 006-2024-TR). "
+                  "Se usa para asignación familiar (10% RMV = S/ 113.00) y otros cálculos.")
 
     # ── Synkro (nombres de hojas) ──
     synkro_hoja_reloj = models.CharField(

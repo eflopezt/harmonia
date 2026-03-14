@@ -36,8 +36,8 @@ AFP_APORTE    = Decimal('10.00')   # % obligatorio
 ONP_TASA      = Decimal('13.00')   # %
 ESSALUD_TASA  = Decimal('9.00')    # % aporte empleador
 UIT_2026      = Decimal('5500.00')   # DS 233-2025-EF (vigente 2026) — fallback
-RMV_2026      = Decimal('1025.00')   # Desde abr-2022 — fallback
-ASIG_FAM      = RMV_2026 * Decimal('0.10')   # S/ 102.50
+RMV_2026      = Decimal('1130.00')   # DS 006-2024-TR vigente ene-2025 — fallback
+ASIG_FAM      = RMV_2026 * Decimal('0.10')   # S/ 113.00
 
 
 def _get_uit() -> Decimal:

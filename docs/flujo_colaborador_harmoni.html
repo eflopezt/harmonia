@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harmoni ERP — El Viaje del Colaborador</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --teal-dark: #0d2b27;
+    --teal-mid: #134e4a;
+    --teal-primary: #0f766e;
+    --teal-accent: #14b8a6;
+    --teal-light: #5eead4;
+    --teal-pale: #ccfbf1;
+    --white: #ffffff;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --gray-800: #1e293b;
+    --gold: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --orange: #f97316;
+    --green: #22c55e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #e5e7eb;
+    color: var(--gray-800);
+    line-height: 1.6;
+  }
+
+  /* PAGE */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto 20px;
+    position: relative;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 4px 24px rgba(0,0,0,.12);
+  }
+
+  @media print {
+    body { margin: 0; background: white; }
+    .page { margin: 0; box-shadow: none; page-break-after: always; }
+    .no-print { display: none; }
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    background: var(--teal-dark);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .page-header-brand { display: flex; align-items: center; gap: 10px; }
+  .page-header-name { font-size: 18px; font-weight: 800; color: white; letter-spacing: -0.5px; }
+  .page-header-title { font-size: 11px; color: var(--teal-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  .page-header-step {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(94,234,212,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 11px;
+    color: var(--teal-light);
+    font-weight: 700;
+  }
+
+  /* CONTENT */
+  .content { padding: 28px 32px; }
+
+  .section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--teal-pale);
+    color: var(--teal-primary);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--teal-dark);
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+
+  .section-sub {
+    font-size: 13px;
+    color: var(--gray-600);
+    margin-bottom: 22px;
+    max-width: 500px;
+    line-height: 1.5;
+  }
+
+  /* KPI GRID */
+  .kpi-grid {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-top: 3px solid var(--teal-primary);
+  }
+  .kpi-card.yellow { border-top-color: var(--gold); }
+  .kpi-card.red { border-top-color: var(--red); }
+  .kpi-card.blue { border-top-color: var(--blue); }
+  .kpi-card.purple { border-top-color: var(--purple); }
+  .kpi-card.orange { border-top-color: var(--orange); }
+  .kpi-card.green { border-top-color: var(--green); }
+
+  .kpi-label { font-size: 9px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 4px; }
+  .kpi-value { font-size: 22px; font-weight: 800; color: var(--teal-dark); line-height: 1; }
+  .kpi-sub { font-size: 9px; color: var(--gray-400); margin-top: 3px; }
+
+  /* MOCKUP TABLE */
+  .mockup-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    margin-bottom: 14px;
+    font-size: 11px;
+  }
+  .mockup-table th {
+    background: var(--gray-100);
+    padding: 7px 10px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    letter-spacing: 0.3px;
+    text-align: left;
+  }
+  .mockup-table td {
+    padding: 7px 10px;
+    color: var(--gray-800);
+    border-top: 1px solid var(--gray-100);
+  }
+  .mockup-table tr.highlight-row td { background: #f0fdf9; }
+
+  /* BADGE */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-teal { background: var(--teal-pale); color: var(--teal-primary); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-600); }
+
+  /* HIGHLIGHT BOX */
+  .highlight-box {
+    background: linear-gradient(135deg, var(--teal-pale), #e0fdf4);
+    border-left: 4px solid var(--teal-accent);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .highlight-box p { font-size: 12px; color: var(--teal-dark); line-height: 1.5; }
+  .highlight-box strong { color: var(--teal-primary); }
+
+  .quote-box {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    position: relative;
+  }
+  .quote-box::before {
+    content: '"';
+    position: absolute;
+    top: -4px;
+    left: 14px;
+    font-size: 40px;
+    color: var(--teal-accent);
+    font-weight: 900;
+    line-height: 1;
+  }
+  .quote-box p { font-size: 12px; color: var(--gray-600); line-height: 1.6; padding-left: 12px; font-style: italic; }
+
+  /* CHECKLIST */
+  .checklist { list-style: none; margin-bottom: 14px; }
+  .checklist li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    border: 1px solid var(--gray-100);
+  }
+  .checklist li.done { background: #f0fdf4; border-color: #bbf7d0; }
+  .checklist li.pending { background: var(--gray-50); border-color: var(--gray-200); }
+  .check-icon { font-size: 14px; flex-shrink: 0; }
+  .check-label { flex: 1; font-weight: 500; }
+  .check-label.done-text { color: #166534; }
+  .check-label.pending-text { color: var(--gray-600); }
+  .check-meta { font-size: 10px; color: var(--gray-400); }
+  .check-resp { font-size: 10px; background: var(--gray-100); color: var(--gray-600); padding: 1px 6px; border-radius: 10px; }
+
+  /* PROGRESS BAR */
+  .progress-wrap { margin-bottom: 16px; }
+  .progress-label { font-size: 11px; font-weight: 600; color: var(--gray-600); margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .progress-track { background: var(--gray-200); border-radius: 8px; height: 10px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--teal-primary), var(--teal-accent)); height: 100%; border-radius: 8px; }
+
+  /* KANBAN */
+  .kanban-board {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .kanban-col {
+    flex: 1;
+    min-width: 0;
+  }
+  .kanban-col-header {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--gray-600);
+    background: var(--gray-100);
+    border-radius: 6px 6px 0 0;
+    padding: 6px 8px;
+    text-align: center;
+    border: 1px solid var(--gray-200);
+    border-bottom: none;
+  }
+  .kanban-col-body {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 0 0 6px 6px;
+    padding: 6px;
+    min-height: 80px;
+  }
+  .kanban-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    padding: 7px 8px;
+    margin-bottom: 5px;
+    font-size: 10px;
+  }
+  .kanban-card.active {
+    border-color: var(--teal-accent);
+    background: #f0fdf9;
+  }
+  .kanban-card-name { font-weight: 600; color: var(--gray-800); margin-bottom: 2px; }
+  .kanban-card-meta { color: var(--gray-400); font-size: 9px; }
+  .kanban-count {
+    background: var(--teal-primary);
+    color: white;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+  .kanban-count.empty { background: var(--gray-300); }
+
+  /* SCREEN MOCKUP */
+  .screen-mockup {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 14px;
+  }
+  .screen-titlebar {
+    background: #2d2d2d;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .screen-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .screen-dot.red { background: #ff5f57; }
+  .screen-dot.yellow { background: #febc2e; }
+  .screen-dot.green { background: #28c840; }
+  .screen-titlebar-label { font-size: 10px; color: rgba(255,255,255,0.4); margin-left: 8px; }
+
+  /* PORTAL GRID */
+  .portal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .portal-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .portal-card-icon { font-size: 18px; margin-bottom: 5px; }
+  .portal-card-title { font-size: 11px; font-weight: 700; color: var(--teal-dark); margin-bottom: 3px; }
+  .portal-card-desc { font-size: 10px; color: var(--gray-600); line-height: 1.4; }
+
+  /* BOLETA MOCKUP */
+  .boleta-wrap {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .boleta-header {
+    background: var(--teal-dark);
+    padding: 12px 18px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .boleta-empresa { font-size: 13px; font-weight: 700; }
+  .boleta-mes { font-size: 11px; color: var(--teal-light); }
+  .boleta-empleado {
+    background: var(--gray-50);
+    padding: 8px 18px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    gap: 30px;
+    font-size: 10px;
+    color: var(--gray-600);
+  }
+  .boleta-empleado span strong { color: var(--gray-800); font-weight: 600; }
+  .boleta-table { width: 100%; border-collapse: collapse; }
+  .boleta-table th {
+    background: var(--gray-100);
+    padding: 6px 14px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    text-align: left;
+  }
+  .boleta-table td {
+    padding: 6px 14px;
+    font-size: 11px;
+    border-top: 1px solid var(--gray-100);
+  }
+  .boleta-table tr.total-row td {
+    background: var(--teal-pale);
+    font-weight: 700;
+    color: var(--teal-dark);
+    border-top: 2px solid var(--teal-accent);
+    font-size: 12px;
+  }
+  .boleta-table tr.neto-row td {
+    background: var(--teal-dark);
+    color: white;
+    font-weight: 800;
+    font-size: 13px;
+    border-top: none;
+  }
+  .boleta-table td.amount { text-align: right; }
+  .boleta-table td.deduccion { color: var(--red); }
+
+  /* FLUJO APROBACION */
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .flow-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+  }
+  .flow-step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    margin: 0 auto 4px;
+    font-weight: 700;
+    color: var(--gray-600);
+  }
+  .flow-step-circle.done { background: var(--teal-primary); color: white; }
+  .flow-step-circle.active { background: var(--gold); color: white; }
+  .flow-step-label { font-size: 9px; color: var(--gray-600); line-height: 1.3; }
+  .flow-connector {
+    height: 2px;
+    background: var(--gray-200);
+    flex: 0 0 24px;
+    position: relative;
+    top: -12px;
+  }
+  .flow-connector.done { background: var(--teal-primary); }
+
+  /* CHAT MOCKUP */
+  .chat-mockup {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .chat-avatar {
+    width: 28px; height: 28px;
+    background: var(--teal-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+  }
+  .chat-name { font-size: 12px; font-weight: 700; color: var(--teal-dark); }
+  .chat-status { font-size: 9px; color: var(--green); }
+  .chat-bubble {
+    max-width: 85%;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 11px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .chat-bubble.user {
+    background: var(--teal-primary);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-bubble.ai {
+    background: white;
+    color: var(--gray-800);
+    border: 1px solid var(--gray-200);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-time { font-size: 9px; color: var(--gray-400); margin-top: 3px; }
+
+  /* TIMELINE HORIZONTAL */
+  .timeline-h {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin: 24px 0 32px;
+    position: relative;
+  }
+  .timeline-h::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 24px;
+    right: 24px;
+    height: 2px;
+    background: rgba(255,255,255,0.2);
+    z-index: 0;
+  }
+  .tl-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .tl-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(94,234,212,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-size: 13px;
+    color: var(--teal-light);
+    font-weight: 800;
+  }
+  .tl-label {
+    font-size: 9px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 600;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  /* MODULES GRID */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .module-pill {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .module-pill-icon { font-size: 16px; margin-bottom: 4px; }
+  .module-pill-name { font-size: 9px; font-weight: 600; color: var(--gray-600); line-height: 1.3; }
+
+  /* COVER SPECIFIC */
+  .cover {
+    background: linear-gradient(145deg, var(--teal-dark) 0%, var(--teal-mid) 55%, #1a5c56 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 50px 40px;
+    min-height: 297mm;
+    position: relative;
+  }
+  .cover-deco {
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 320px; height: 320px;
+    opacity: 0.05;
+  }
+  .cover-deco2 {
+    position: absolute;
+    left: -80px; bottom: -80px;
+    width: 360px; height: 360px;
+    opacity: 0.04;
+  }
+
+  /* SCENARIO CARD */
+  .scenario-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(94,234,212,0.2);
+    border-radius: 14px;
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .scenario-avatar {
+    width: 52px; height: 52px;
+    background: var(--teal-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .scenario-info { color: white; }
+  .scenario-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+  .scenario-cargo { font-size: 13px; color: var(--teal-light); margin-bottom: 2px; }
+  .scenario-empresa { font-size: 12px; color: rgba(255,255,255,0.6); }
+
+  /* TWO-COL */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+  .two-col-65 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 14px; }
+
+  /* NOTIF */
+  .notif-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-100);
+  }
+  .notif-icon { font-size: 14px; flex-shrink: 0; }
+  .notif-text { font-size: 11px; color: var(--gray-800); line-height: 1.4; }
+  .notif-time { font-size: 9px; color: var(--gray-400); margin-top: 2px; }
+
+  /* SUMMARY TABLE */
+  .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  .summary-table td { padding: 5px 10px; font-size: 12px; border-bottom: 1px solid var(--gray-100); }
+  .summary-table td:first-child { color: var(--gray-400); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; width: 38%; }
+  .summary-table td:last-child { font-weight: 600; color: var(--gray-800); }
+
+  /* VACATION SALDO */
+  .vac-saldo {
+    background: linear-gradient(135deg, var(--teal-pale), #e0fdf4);
+    border: 1px solid var(--teal-accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .vac-name { font-size: 13px; font-weight: 700; color: var(--teal-dark); }
+  .vac-stats { display: flex; gap: 16px; }
+  .vac-stat { text-align: center; }
+  .vac-stat-num { font-size: 20px; font-weight: 800; color: var(--teal-primary); line-height: 1; }
+  .vac-stat-label { font-size: 9px; color: var(--gray-400); text-transform: uppercase; }
+
+  /* TIPO PERMISOS */
+  .tipo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 12px;
+  }
+  .tipo-chip {
+    background: var(--gray-100);
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 10px;
+    color: var(--gray-600);
+    font-weight: 500;
+  }
+
+  /* CTA FINAL */
+  .cta-banner {
+    background: linear-gradient(135deg, var(--teal-primary), var(--teal-accent));
+    border-radius: 14px;
+    padding: 22px 28px;
+    text-align: center;
+    color: white;
+    margin-top: 16px;
+  }
+  .cta-banner h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .cta-banner p { font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 14px; }
+  .cta-url { font-size: 18px; font-weight: 900; color: var(--teal-dark); background: white; padding: 8px 28px; border-radius: 30px; display: inline-block; }
+
+  /* CLOSING PAGE */
+  .closing-header {
+    background: linear-gradient(145deg, var(--teal-dark), var(--teal-mid));
+    padding: 40px 32px 30px;
+    text-align: center;
+  }
+  .closing-header h2 { font-size: 30px; font-weight: 900; color: white; letter-spacing: -1px; margin-bottom: 6px; }
+  .closing-header p { font-size: 14px; color: var(--teal-light); }
+
+  .closing-content { padding: 28px 32px; }
+
+  .stats-row {
+    display: flex;
+    gap: 0;
+    background: var(--teal-pale);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    border: 1px solid var(--teal-accent);
+  }
+  .stat-cell {
+    flex: 1;
+    padding: 16px;
+    text-align: center;
+    border-right: 1px solid rgba(20,184,166,0.2);
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-cell-num { font-size: 28px; font-weight: 900; color: var(--teal-primary); line-height: 1; }
+  .stat-cell-label { font-size: 10px; color: var(--gray-600); margin-top: 3px; font-weight: 500; }
+
+  /* PAGE FOOTER */
+  .page-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-200);
+    padding: 8px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--gray-400);
+  }
+  .page-footer strong { color: var(--teal-primary); }
+
+  /* CONTENT WITH FOOTER PADDING */
+  .content-with-footer { padding-bottom: 40px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 1 — PORTADA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="cover">
+    <!-- Deco hexagons -->
+    <svg class="cover-deco" viewBox="0 0 200 200"><polygon points="100,10 173,55 173,145 100,190 27,145 27,55" fill="none" stroke="white" stroke-width="2"/><polygon points="100,30 157,63 157,130 100,163 43,130 43,63" fill="none" stroke="white" stroke-width="1.5"/></svg>
+    <svg class="cover-deco2" viewBox="0 0 200 200"><polygon points="100,10 173,55 173,145 100,190 27,145 27,55" fill="none" stroke="white" stroke-width="2"/></svg>
+
+    <!-- Logo -->
+    <div style="margin-bottom:28px;">
+      <svg viewBox="0 0 40 40" width="72" height="72">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--teal-light);letter-spacing:4px;text-transform:uppercase;margin-bottom:8px;">Harmoni ERP</div>
+
+    <h1 style="font-size:52px;font-weight:900;color:white;letter-spacing:-2px;text-align:center;line-height:1;margin-bottom:12px;">El Viaje del<br>Colaborador</h1>
+
+    <p style="font-size:16px;color:rgba(255,255,255,0.7);text-align:center;max-width:460px;line-height:1.6;margin-bottom:32px;">
+      De la Vacante a la Nómina — Cómo Harmoni gestiona el ciclo completo de RRHH, de principio a fin
+    </p>
+
+    <!-- Scenario card -->
+    <div class="scenario-card" style="width:100%;max-width:480px;">
+      <div class="scenario-avatar">👩</div>
+      <div class="scenario-info">
+        <div class="scenario-name">María García Torres</div>
+        <div class="scenario-cargo">Analista de RRHH — Contrato Indefinido · STAFF</div>
+        <div class="scenario-empresa">Minera Andes SAC &nbsp;·&nbsp; DNI: 45678901 &nbsp;·&nbsp; S/ 3,000 mensual</div>
+      </div>
+    </div>
+
+    <!-- Timeline 8 etapas -->
+    <div class="timeline-h" style="width:100%;max-width:560px;">
+      <div class="tl-step"><div class="tl-circle">🔍</div><div class="tl-label">Recluta-<br>miento</div></div>
+      <div class="tl-step"><div class="tl-circle">📋</div><div class="tl-label">Contra-<br>tación</div></div>
+      <div class="tl-step"><div class="tl-circle">🚀</div><div class="tl-label">Onboar-<br>ding</div></div>
+      <div class="tl-step"><div class="tl-circle">🕐</div><div class="tl-label">Asisten-<br>cia</div></div>
+      <div class="tl-step"><div class="tl-circle">🏖️</div><div class="tl-label">Vacacio-<br>nes</div></div>
+      <div class="tl-step"><div class="tl-circle">💰</div><div class="tl-label">Nómina</div></div>
+      <div class="tl-step"><div class="tl-circle">📱</div><div class="tl-label">Portal</div></div>
+      <div class="tl-step"><div class="tl-circle">🤖</div><div class="tl-label">Aten-<br>ción</div></div>
+    </div>
+
+    <div style="font-size:12px;color:rgba(255,255,255,0.4);text-align:center;margin-top:8px;">
+      Documento para clientes &nbsp;·&nbsp; <strong style="color:var(--teal-light);">harmoni.pe</strong> &nbsp;·&nbsp; Marzo 2026
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 2 — RECLUTAMIENTO
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div>
+        <div class="page-header-name">Harmoni</div>
+      </div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 01 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">🔍 Módulo Reclutamiento</div>
+    <h2 class="section-title">01. Reclutamiento &amp; Selección</h2>
+    <p class="section-sub">María postuló directamente desde el portal de empleo público de Minera Andes SAC. El equipo de RRHH gestiona todo el pipeline desde Harmoni, sin hojas de cálculo.</p>
+
+    <!-- KPIs -->
+    <div class="kpi-grid kpi-grid-3">
+      <div class="kpi-card">
+        <div class="kpi-label">Vacantes activas</div>
+        <div class="kpi-value">15</div>
+        <div class="kpi-sub">3 en área RRHH</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Postulantes en pipeline</div>
+        <div class="kpi-value">47</div>
+        <div class="kpi-sub">12 nuevos esta semana</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Tiempo prom. contratación</div>
+        <div class="kpi-value">12 días</div>
+        <div class="kpi-sub">↓ 35% vs. proceso manual</div>
+      </div>
+    </div>
+
+    <!-- Kanban Pipeline -->
+    <div style="font-size:11px;font-weight:700;color:var(--gray-600);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Pipeline de Selección — Vacante: Analista de RRHH</div>
+    <div class="kanban-board">
+      <div class="kanban-col">
+        <div class="kanban-col-header">Recibido <span class="kanban-count">1</span></div>
+        <div class="kanban-col-body">
+          <div class="kanban-card">
+            <div class="kanban-card-name">J. Quispe</div>
+            <div class="kanban-card-meta">Portal · Hoy</div>
+          </div>
+        </div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header">Filtrado <span class="kanban-count">3</span></div>
+        <div class="kanban-col-body">
+          <div class="kanban-card"><div class="kanban-card-name">R. Mamani</div><div class="kanban-card-meta">Referido · 03/03</div></div>
+          <div class="kanban-card"><div class="kanban-card-name">K. Torres</div><div class="kanban-card-meta">Portal · 02/03</div></div>
+          <div class="kanban-card"><div class="kanban-card-name">P. Huanca</div><div class="kanban-card-meta">LinkedIn · 01/03</div></div>
+        </div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header">Entrev. RRHH <span class="kanban-count">2</span></div>
+        <div class="kanban-col-body">
+          <div class="kanban-card"><div class="kanban-card-name">L. Condori</div><div class="kanban-card-meta">05/03 · 10am</div></div>
+          <div class="kanban-card"><div class="kanban-card-name">F. Salas</div><div class="kanban-card-meta">06/03 · 3pm</div></div>
+        </div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header">Entrev. Téc. <span class="kanban-count">1</span></div>
+        <div class="kanban-col-body">
+          <div class="kanban-card"><div class="kanban-card-name">A. Vargas</div><div class="kanban-card-meta">07/03 · 9am</div></div>
+        </div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header">Evaluación <span class="kanban-count">1</span></div>
+        <div class="kanban-col-body">
+          <div class="kanban-card"><div class="kanban-card-name">M. García T.</div><div class="kanban-card-meta">Psicotécnico</div></div>
+        </div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header">Contratado <span class="kanban-count" style="background:#166534;">1</span></div>
+        <div class="kanban-col-body">
+          <div class="kanban-card active">
+            <div class="kanban-card-name" style="color:var(--teal-primary);">M. García T.</div>
+            <div class="kanban-card-meta">09/03/2026 ✅</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card candidata seleccionada -->
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Candidata seleccionada</div>
+      <table class="mockup-table">
+        <tr>
+          <th>Candidata</th><th>Área</th><th>Pretensión</th><th>Fuente</th><th>Puntaje</th><th>Estado</th>
+        </tr>
+        <tr class="highlight-row">
+          <td><strong>María García Torres</strong></td>
+          <td>RRHH</td>
+          <td>S/ 3,000</td>
+          <td>Portal empleo</td>
+          <td><strong>92/100</strong></td>
+          <td><span class="badge badge-green">✅ Contratada</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>Portal de empleo público integrado</strong> — Los candidatos postulan directamente al sistema. RRHH recibe los CVs organizados automáticamente, sin correos ni Excel. Cada postulante tiene trazabilidad completa desde el primer contacto hasta la contratación.</p>
+    </div>
+
+    <div class="quote-box">
+      <p>Con Harmoni, el pipeline de selección es visual y en tiempo real. Cada candidato tiene trazabilidad completa y el equipo de RRHH sabe exactamente dónde está cada proceso.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Reclutamiento &amp; Selección</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 3 — CONTRATACIÓN / ALTA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 02 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">📋 Módulo Personal</div>
+    <h2 class="section-title">02. Alta del Colaborador</h2>
+    <p class="section-sub">Con la candidata seleccionada, RRHH registra el alta en segundos. El sistema valida duplicados de DNI y genera acceso al portal automáticamente.</p>
+
+    <div class="two-col">
+      <!-- Datos principales -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Datos del colaborador</div>
+        <table class="summary-table">
+          <tr><td>DNI</td><td>45678901</td></tr>
+          <tr><td>Apellidos y Nombres</td><td><strong>GARCIA TORRES MARIA</strong></td></tr>
+          <tr><td>Cargo</td><td>Analista de RRHH</td></tr>
+          <tr><td>Área</td><td>Administración</td></tr>
+          <tr><td>Sub Área</td><td>RRHH</td></tr>
+          <tr><td>Tipo Contrato</td><td>Indefinido</td></tr>
+          <tr><td>Tipo Personal</td><td><span class="badge badge-blue">STAFF</span></td></tr>
+          <tr><td>Fecha de Alta</td><td><strong>09/03/2026</strong></td></tr>
+          <tr><td>Sueldo Básico</td><td><strong style="color:var(--teal-primary);">S/ 3,000.00</strong></td></tr>
+          <tr><td>Condición</td><td>Local</td></tr>
+        </table>
+      </div>
+
+      <!-- Datos adicionales -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Datos adicionales</div>
+        <table class="summary-table">
+          <tr><td>AFP</td><td>Prima</td></tr>
+          <tr><td>Comisión AFP</td><td>Sobre flujo</td></tr>
+          <tr><td>Banco</td><td>BCP</td></tr>
+          <tr><td>CCI</td><td>002-1234-567890-01</td></tr>
+          <tr><td>Grupo</td><td>STAFF</td></tr>
+          <tr><td>Turno defecto</td><td>8AM–5PM</td></tr>
+          <tr><td>Asig. Familiar</td><td><span class="badge badge-green">Sí</span></td></tr>
+          <tr><td>Régimen</td><td>General</td></tr>
+          <tr><td>Acceso portal</td><td><span class="badge badge-green">✅ Auto-generado</span></td></tr>
+          <tr><td>Estado</td><td><span class="badge badge-green">Activo</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- KPIs empresa -->
+    <div class="kpi-grid kpi-grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Total colaboradores</div>
+        <div class="kpi-value">235</div>
+        <div class="kpi-sub">Activos al 09/03/2026</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">STAFF</div>
+        <div class="kpi-value">194</div>
+        <div class="kpi-sub">HE → Banco de horas</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">RCO</div>
+        <div class="kpi-value">41</div>
+        <div class="kpi-sub">HE → Nómina (25/35/100%)</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Áreas</div>
+        <div class="kpi-value">12</div>
+        <div class="kpi-sub">Estructura organizacional</div>
+      </div>
+    </div>
+
+    <!-- Ficha generada -->
+    <div class="screen-mockup">
+      <div class="screen-titlebar">
+        <div class="screen-dot red"></div>
+        <div class="screen-dot yellow"></div>
+        <div class="screen-dot green"></div>
+        <span class="screen-titlebar-label">Harmoni ERP · Personal · García Torres María</span>
+      </div>
+      <div style="padding:14px 18px;background:white;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:44px;height:44px;background:var(--teal-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;font-weight:700;">MG</div>
+            <div>
+              <div style="font-size:15px;font-weight:800;color:var(--teal-dark);">García Torres María</div>
+              <div style="font-size:11px;color:var(--gray-600);">Analista de RRHH &nbsp;·&nbsp; Administración-RRHH &nbsp;·&nbsp; STAFF</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <span class="badge badge-green">Activo</span>
+            <span class="badge badge-blue">STAFF</span>
+            <span class="badge badge-teal">Indefinido</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div style="background:var(--gray-50);border-radius:8px;padding:8px 10px;"><div style="font-size:9px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.3px;">DNI</div><div style="font-size:12px;font-weight:700;color:var(--gray-800);">45678901</div></div>
+          <div style="background:var(--gray-50);border-radius:8px;padding:8px 10px;"><div style="font-size:9px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.3px;">Alta</div><div style="font-size:12px;font-weight:700;color:var(--gray-800);">09/03/2026</div></div>
+          <div style="background:var(--gray-50);border-radius:8px;padding:8px 10px;"><div style="font-size:9px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.3px;">Sueldo</div><div style="font-size:12px;font-weight:700;color:var(--teal-primary);">S/ 3,000</div></div>
+          <div style="background:var(--gray-50);border-radius:8px;padding:8px 10px;"><div style="font-size:9px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.3px;">AFP</div><div style="font-size:12px;font-weight:700;color:var(--gray-800);">Prima</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p>El alta tarda <strong>minutos</strong>. El sistema valida duplicados de DNI, asigna al área y grupo, calcula automáticamente AFP/ONP, asignación familiar y genera el acceso al portal del colaborador de forma inmediata.</p>
+    </div>
+
+    <div class="quote-box">
+      <p>Antes del alta, RRHH tardaba horas completando formularios en varios sistemas. Con Harmoni, es un solo flujo integrado: selección → alta → nómina → portal. Sin doble digitación.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Alta del Colaborador</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 4 — ONBOARDING
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 03 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">🚀 Módulo Onboarding</div>
+    <h2 class="section-title">03. Onboarding — Bienvenida Estructurada</h2>
+    <p class="section-sub">Al darse el alta, Harmoni activa automáticamente la plantilla de onboarding asignada al grupo STAFF. Cada paso tiene responsable, fecha límite y notificación automática.</p>
+
+    <!-- Plantilla info + progress -->
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:14px 18px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--teal-dark);">Onboarding General STAFF</div>
+          <div style="font-size:11px;color:var(--gray-600);">8 pasos &nbsp;·&nbsp; Iniciado: 09/03/2026 &nbsp;·&nbsp; Asignado a: García Torres María</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:900;color:var(--teal-primary);">38%</div>
+          <div style="font-size:10px;color:var(--gray-400);">3 de 8 pasos</div>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:38%;"></div></div>
+    </div>
+
+    <!-- Checklist -->
+    <ul class="checklist">
+      <li class="done">
+        <span class="check-icon">✅</span>
+        <span class="check-label done-text">Bienvenida y presentación al equipo</span>
+        <span class="check-resp">RRHH</span>
+        <span class="check-meta">10/03/2026</span>
+      </li>
+      <li class="done">
+        <span class="check-icon">✅</span>
+        <span class="check-label done-text">Firma de contrato y documentos legales</span>
+        <span class="check-resp">RRHH</span>
+        <span class="check-meta">10/03/2026</span>
+      </li>
+      <li class="done">
+        <span class="check-icon">✅</span>
+        <span class="check-label done-text">Alta en sistemas TI y accesos</span>
+        <span class="check-resp">TI/Sistemas</span>
+        <span class="check-meta">11/03/2026</span>
+      </li>
+      <li class="pending">
+        <span class="check-icon">⏳</span>
+        <span class="check-label pending-text">Inducción al área y funciones del cargo</span>
+        <span class="check-resp">Jefe Área</span>
+        <span class="check-meta">12/03/2026</span>
+      </li>
+      <li class="pending">
+        <span class="check-icon">⏳</span>
+        <span class="check-label pending-text">Entrega de EPP y equipos de trabajo</span>
+        <span class="check-resp">Logística</span>
+        <span class="check-meta">13/03/2026</span>
+      </li>
+      <li class="pending">
+        <span class="check-icon">⏳</span>
+        <span class="check-label pending-text">Reunión de expectativas con jefe directo</span>
+        <span class="check-resp">Jefe Directo</span>
+        <span class="check-meta">14/03/2026</span>
+      </li>
+      <li class="pending">
+        <span class="check-icon">⏳</span>
+        <span class="check-label pending-text">Capacitación de seguridad y salud ocupacional</span>
+        <span class="check-resp">SSOMA</span>
+        <span class="check-meta">16/03/2026</span>
+      </li>
+      <li class="pending">
+        <span class="check-icon">⏳</span>
+        <span class="check-label pending-text">Evaluación de inducción (aprobación mínima 70%)</span>
+        <span class="check-resp">RRHH</span>
+        <span class="check-meta">19/03/2026</span>
+      </li>
+    </ul>
+
+    <!-- Stats onboarding empresa -->
+    <div class="kpi-grid kpi-grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Onboardings activos</div>
+        <div class="kpi-value">4</div>
+        <div class="kpi-sub">Este mes</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Completados</div>
+        <div class="kpi-value">28</div>
+        <div class="kpi-sub">En 2026</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-label">Tasa completitud</div>
+        <div class="kpi-value">94%</div>
+        <div class="kpi-sub">Todos los pasos en fecha</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Plantillas config.</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-sub">Por área y grupo</div>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>Plantillas configurables</strong> por área, grupo y cargo. Cada paso tiene responsable asignado, tipo de tarea y fecha límite. Harmoni notifica automáticamente al responsable cuando se acerca la fecha y al gerente si hay retrasos.</p>
+    </div>
+
+    <div class="quote-box">
+      <p>El onboarding estructurado reduce la rotación temprana hasta en un 50%. Con Harmoni, ningún paso se olvida, ningún responsable dice que no sabía, y el nuevo colaborador se siente acompañado desde el primer día.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Onboarding</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 5 — ASISTENCIA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 04 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">🕐 Módulo Asistencia</div>
+    <h2 class="section-title">04. Control de Asistencia Diaria</h2>
+    <p class="section-sub">Desde el primer día, Harmoni registra los ingresos y salidas de María. El sistema sincroniza automáticamente con el reloj biométrico ZKTeco, sin intervención manual.</p>
+
+    <!-- Vista unificada -->
+    <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Vista Unificada de Asistencia — Marzo 2026</div>
+    <table class="mockup-table" style="margin-bottom:16px;">
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Colaborador</th><th>Turno</th><th>Entrada</th><th>Salida</th><th>HE</th><th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>09/03/2026</td>
+          <td><strong>García Torres María</strong></td>
+          <td>8AM–5PM</td>
+          <td>08:02</td>
+          <td>17:10</td>
+          <td style="color:var(--gray-400);">0:00</td>
+          <td><span class="badge badge-green">✅ Presente</span></td>
+        </tr>
+        <tr class="highlight-row">
+          <td>10/03/2026</td>
+          <td><strong>García Torres María</strong></td>
+          <td>8AM–5PM</td>
+          <td>07:58</td>
+          <td>17:30</td>
+          <td style="color:var(--gold);font-weight:700;">0:30</td>
+          <td><span class="badge badge-yellow">⏱ Con HE</span></td>
+        </tr>
+        <tr>
+          <td>11/03/2026</td>
+          <td><strong>García Torres María</strong></td>
+          <td>8AM–5PM</td>
+          <td>08:05</td>
+          <td>18:00</td>
+          <td style="color:var(--orange);font-weight:700;">1:00</td>
+          <td><span class="badge badge-yellow">⏱ Con HE</span></td>
+        </tr>
+        <tr>
+          <td>12/03/2026</td>
+          <td><strong>García Torres María</strong></td>
+          <td>8AM–5PM</td>
+          <td>08:01</td>
+          <td>17:05</td>
+          <td style="color:var(--gray-400);">0:00</td>
+          <td><span class="badge badge-green">✅ Presente</span></td>
+        </tr>
+        <tr>
+          <td>13/03/2026</td>
+          <td><strong>García Torres María</strong></td>
+          <td>8AM–5PM</td>
+          <td>08:00</td>
+          <td>17:15</td>
+          <td style="color:var(--gold);font-weight:700;">0:15</td>
+          <td><span class="badge badge-yellow">⏱ Con HE</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- KPIs del mes empresa -->
+    <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">KPIs del mes — Minera Andes SAC (Marzo 2026)</div>
+    <div class="kpi-grid kpi-grid-4">
+      <div class="kpi-card green">
+        <div class="kpi-label">Presentes hoy</div>
+        <div class="kpi-value">182</div>
+        <div class="kpi-sub">De 235 activos</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">Faltas del mes</div>
+        <div class="kpi-value">21</div>
+        <div class="kpi-sub">Sin justificación: 7</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-label">Permisos</div>
+        <div class="kpi-value">9</div>
+        <div class="kpi-sub">Aprobados RRHH</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">HE Acumuladas</div>
+        <div class="kpi-value">47h</div>
+        <div class="kpi-sub">STAFF: banco horas</div>
+      </div>
+    </div>
+
+    <!-- Regla HE -->
+    <div style="background:white;border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--teal-dark);margin-bottom:8px;">Reglas de Horas Extra — Legislación Peruana (D.Leg. 713)</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div style="background:var(--teal-pale);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:var(--teal-primary);">25%</div>
+          <div style="font-size:10px;color:var(--teal-dark);font-weight:600;">Primeras 2 horas</div>
+          <div style="font-size:9px;color:var(--gray-600);">RCO → Nómina</div>
+        </div>
+        <div style="background:#fef9c3;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:#92400e;">35%</div>
+          <div style="font-size:10px;color:#78350f;font-weight:600;">Horas adicionales</div>
+          <div style="font-size:9px;color:var(--gray-600);">RCO → Nómina</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:#991b1b;">100%</div>
+          <div style="font-size:10px;color:#7f1d1d;font-weight:600;">Feriados / DSO</div>
+          <div style="font-size:9px;color:var(--gray-600);">Todos los grupos</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--gray-600);background:var(--gray-50);border-radius:6px;padding:7px 10px;">
+        <strong>STAFF:</strong> Las HE se acumulan en el <strong>Banco de Horas</strong> para compensación futura, no se pagan en nómina.&nbsp;&nbsp;&nbsp;<strong>RCO:</strong> Las HE se pagan directamente en la planilla del mes.
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>Sincronización biométrica ZKTeco</strong> en tiempo real. El sistema detecta tardanzas, ausencias y horas extra automáticamente. Las HE de STAFF van al banco de horas; las de RCO a la nómina. <strong>Sin doble digitación.</strong></p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Control de Asistencia</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 6 — VACACIONES Y PERMISOS
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 05 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">🏖️ Módulo Vacaciones &amp; Permisos</div>
+    <h2 class="section-title">05. Vacaciones &amp; Permisos</h2>
+    <p class="section-sub">María acumula días de vacaciones desde su primer día. Cuando necesita un permiso, lo solicita desde su portal y el sistema lo enruta automáticamente para aprobación.</p>
+
+    <!-- Saldo vacacional -->
+    <div class="vac-saldo">
+      <div>
+        <div class="vac-name">García Torres María</div>
+        <div style="font-size:11px;color:var(--gray-600);">Alta: 09/03/2026 &nbsp;·&nbsp; Período: 09/03/2026 – 08/03/2027</div>
+      </div>
+      <div class="vac-stats">
+        <div class="vac-stat">
+          <div class="vac-stat-num">2.5</div>
+          <div class="vac-stat-label">Días ganados</div>
+        </div>
+        <div class="vac-stat">
+          <div class="vac-stat-num" style="color:var(--red);">0</div>
+          <div class="vac-stat-label">Días tomados</div>
+        </div>
+        <div class="vac-stat">
+          <div class="vac-stat-num">2.5</div>
+          <div class="vac-stat-label">Saldo disponible</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Formulario solicitud -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Solicitud en proceso</div>
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:10px;padding:14px;">
+          <table class="summary-table">
+            <tr><td>Tipo</td><td><span class="badge badge-blue">Permiso Personal</span></td></tr>
+            <tr><td>Fecha</td><td><strong>15/03/2026</strong></td></tr>
+            <tr><td>Duración</td><td>1 día completo</td></tr>
+            <tr><td>Motivo</td><td>Cita médica especialista</td></tr>
+            <tr><td>Documento</td><td style="color:var(--gray-400);">Adjuntar constancia</td></tr>
+            <tr><td>Estado</td><td><span class="badge badge-yellow">⏳ Pend. Aprobación</span></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- KPIs solicitudes -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">KPIs — Solicitudes Marzo 2026</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="kpi-card">
+            <div class="kpi-label">Activas</div>
+            <div class="kpi-value" style="font-size:28px;">42</div>
+          </div>
+          <div class="kpi-card yellow">
+            <div class="kpi-label">Pendientes</div>
+            <div class="kpi-value" style="font-size:28px;">8</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-label">Aprobadas</div>
+            <div class="kpi-value" style="font-size:28px;">29</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-label">Rechazadas</div>
+            <div class="kpi-value" style="font-size:28px;">5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flujo aprobación -->
+    <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Flujo de aprobación</div>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-step-circle done">👩</div>
+        <div class="flow-step-label">Empleada<br>solicita</div>
+      </div>
+      <div class="flow-connector done"></div>
+      <div class="flow-step">
+        <div class="flow-step-circle active">📋</div>
+        <div class="flow-step-label">Jefe<br>directo</div>
+      </div>
+      <div class="flow-connector"></div>
+      <div class="flow-step">
+        <div class="flow-step-circle">✅</div>
+        <div class="flow-step-label">RRHH<br>aprueba</div>
+      </div>
+      <div class="flow-connector"></div>
+      <div class="flow-step">
+        <div class="flow-step-circle">🔔</div>
+        <div class="flow-step-label">Notifi-<br>cación</div>
+      </div>
+      <div class="flow-connector"></div>
+      <div class="flow-step">
+        <div class="flow-step-circle">📊</div>
+        <div class="flow-step-label">Descuento<br>automático</div>
+      </div>
+    </div>
+
+    <!-- 12 tipos permiso Perú -->
+    <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">12 tipos de permiso según legislación peruana</div>
+    <div class="tipo-grid">
+      <span class="tipo-chip">🌴 Vacaciones anuales</span>
+      <span class="tipo-chip">🙋 Permiso personal</span>
+      <span class="tipo-chip">🏥 Licencia médica</span>
+      <span class="tipo-chip">🤱 Licencia maternidad</span>
+      <span class="tipo-chip">👶 Licencia paternidad</span>
+      <span class="tipo-chip">✝️ Por fallecimiento</span>
+      <span class="tipo-chip">💍 Por matrimonio</span>
+      <span class="tipo-chip">🩸 Donación de sangre</span>
+      <span class="tipo-chip">🗳️ Jornada electoral</span>
+      <span class="tipo-chip">📚 Capacitación</span>
+      <span class="tipo-chip">⚖️ Citación judicial</span>
+      <span class="tipo-chip">🏋️ Deportivo/sindical</span>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>12 tipos de permiso</strong> según legislación peruana. Aprobaciones en cadena con notificaciones automáticas al solicitante y al responsable en cada etapa. El saldo vacacional se actualiza en tiempo real.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Vacaciones &amp; Permisos</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 7 — NÓMINA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 06 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">💰 Módulo Nómina</div>
+    <h2 class="section-title">06. Nómina &amp; Planilla</h2>
+    <p class="section-sub">Cada mes, Harmoni calcula automáticamente la planilla de todos los colaboradores. AFP, IR 5ta categoría, HE, CTS, gratificaciones: todo calculado conforme a la legislación peruana.</p>
+
+    <!-- Ciclo planilla -->
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">
+      <div style="font-size:24px;">📅</div>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--teal-dark);">Ciclo de Planilla — Marzo 2026</div>
+        <div style="font-size:11px;color:var(--gray-600);">Período: <strong>21/02/2026</strong> al <strong>20/03/2026</strong> &nbsp;·&nbsp; Procesamiento: 22/03/2026 &nbsp;·&nbsp; Pago: 25/03/2026</div>
+      </div>
+      <div style="margin-left:auto;">
+        <span class="badge badge-yellow">⏳ En proceso</span>
+      </div>
+    </div>
+
+    <!-- Boleta de pago mockup -->
+    <div class="boleta-wrap">
+      <div class="boleta-header">
+        <div>
+          <div class="boleta-empresa">Minera Andes SAC &nbsp;·&nbsp; RUC 20123456789</div>
+          <div class="boleta-mes">Boleta de Pago — Marzo 2026</div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--teal-light);">
+          Neto a pagar<br>
+          <span style="font-size:20px;font-weight:900;">S/ 2,821.78</span>
+        </div>
+      </div>
+      <div class="boleta-empleado">
+        <span><strong>Apellidos y Nombres:</strong> GARCIA TORRES MARIA</span>
+        <span><strong>DNI:</strong> 45678901</span>
+        <span><strong>Cargo:</strong> Analista de RRHH</span>
+        <span><strong>AFP:</strong> Prima</span>
+      </div>
+      <table class="boleta-table">
+        <thead>
+          <tr>
+            <th style="width:55%;">Concepto</th>
+            <th>Detalle</th>
+            <th class="amount">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Sueldo Básico</td>
+            <td style="font-size:10px;color:var(--gray-400);">30 días</td>
+            <td class="amount">S/ 3,000.00</td>
+          </tr>
+          <tr>
+            <td>Asignación Familiar</td>
+            <td style="font-size:10px;color:var(--gray-400);">10% RMV</td>
+            <td class="amount">S/ 102.50</td>
+          </tr>
+          <tr>
+            <td>Horas Extra 25%</td>
+            <td style="font-size:10px;color:var(--gray-400);">1.75h</td>
+            <td class="amount">S/ 32.81</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="2"><strong>TOTAL HABERES</strong></td>
+            <td class="amount"><strong>S/ 3,135.31</strong></td>
+          </tr>
+          <tr>
+            <td class="deduccion">AFP Prima — Aporte obligatorio (10%)</td>
+            <td style="font-size:10px;color:var(--gray-400);">Sobre remuneración</td>
+            <td class="amount deduccion">-S/ 313.53</td>
+          </tr>
+          <tr>
+            <td class="deduccion">AFP Prima — Comisión sobre flujo (1.47%)</td>
+            <td style="font-size:10px;color:var(--gray-400);"></td>
+            <td class="amount deduccion">-S/ 46.09</td>
+          </tr>
+          <tr>
+            <td class="deduccion">Prima de Seguro SIS AFP</td>
+            <td style="font-size:10px;color:var(--gray-400);"></td>
+            <td class="amount deduccion">-S/ 45.91</td>
+          </tr>
+          <tr>
+            <td class="deduccion">Impuesto a la Renta 5ta Categoría</td>
+            <td style="font-size:10px;color:var(--gray-400);">Por debajo del mínimo</td>
+            <td class="amount deduccion">S/ 0.00</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="2"><strong>TOTAL DESCUENTOS</strong></td>
+            <td class="amount"><strong style="color:var(--red);">-S/ 405.53</strong></td>
+          </tr>
+          <tr class="neto-row">
+            <td colspan="2"><strong>NETO A PAGAR — BCP CCI 002-1234-567890-01</strong></td>
+            <td class="amount"><strong>S/ 2,821.78</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- KPIs planilla -->
+    <div class="kpi-grid kpi-grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Colaboradores en planilla</div>
+        <div class="kpi-value">235</div>
+        <div class="kpi-sub">Marzo 2026</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Masa salarial</div>
+        <div class="kpi-value">S/ 694K</div>
+        <div class="kpi-sub">Bruto mensual</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">AFP calculadas</div>
+        <div class="kpi-value">100%</div>
+        <div class="kpi-sub">Prima / Integra / Profuturo</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Conceptos dinámicos</div>
+        <div class="kpi-value">60+</div>
+        <div class="kpi-sub">Por mes por colaborador</div>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p>Cálculo automático de <strong>AFP (Prima, Integra, Profuturo, Habitat), ONP, IR 5ta Categoría, gratificaciones (julio/diciembre), CTS (mayo/noviembre), horas extra y banco de horas</strong>. Exporta PLAME, T-Registro y archivo de pagos a bancos (BCP, BBVA, Scotiabank).</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Nómina &amp; Planilla</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 8 — PORTAL DEL COLABORADOR
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 07 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">📱 Portal del Empleado</div>
+    <h2 class="section-title">07. Portal del Colaborador — Autogestión</h2>
+    <p class="section-sub">María accede a su portal desde cualquier dispositivo. Sin depender de RRHH para consultas básicas: boletas, vacaciones, préstamos, calendario y documentos en un solo lugar.</p>
+
+    <!-- Screen mockup portal -->
+    <div class="screen-mockup">
+      <div class="screen-titlebar">
+        <div class="screen-dot red"></div>
+        <div class="screen-dot yellow"></div>
+        <div class="screen-dot green"></div>
+        <span class="screen-titlebar-label">portal.harmoni.pe · Mi Portal — García Torres María</span>
+      </div>
+      <!-- Portal topbar -->
+      <div style="background:var(--teal-dark);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:20px;height:20px;background:var(--teal-primary);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:white;">H</div>
+          <span style="font-size:12px;font-weight:700;color:white;">Harmoni</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Mi Portal</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.7);">Hola, María 👋</span>
+          <div style="width:26px;height:26px;background:var(--teal-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;">MG</div>
+        </div>
+      </div>
+      <!-- Portal body -->
+      <div style="background:var(--gray-50);padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <!-- Tarjeta asistencia -->
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:8px;padding:10px;grid-column:span 1;">
+          <div style="font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;margin-bottom:6px;">📊 Mi Asistencia — Marzo</div>
+          <div style="display:flex;justify-content:space-around;">
+            <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--teal-primary);">5</div><div style="font-size:9px;color:var(--gray-400);">Días</div></div>
+            <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--gold);">1:45h</div><div style="font-size:9px;color:var(--gray-400);">HE</div></div>
+            <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--green);">100%</div><div style="font-size:9px;color:var(--gray-400);">Puntual</div></div>
+          </div>
+        </div>
+        <!-- Tarjeta vacaciones -->
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:8px;padding:10px;">
+          <div style="font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;margin-bottom:6px;">🏖️ Saldo Vacacional</div>
+          <div style="font-size:24px;font-weight:900;color:var(--teal-primary);line-height:1;">2.5</div>
+          <div style="font-size:9px;color:var(--gray-600);">días disponibles</div>
+          <div style="margin-top:6px;"><span style="font-size:9px;background:var(--teal-pale);color:var(--teal-primary);padding:2px 8px;border-radius:8px;font-weight:600;">+ 1.25/mes</span></div>
+        </div>
+        <!-- Tarjeta préstamos -->
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:8px;padding:10px;">
+          <div style="font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;margin-bottom:6px;">🏦 Mis Préstamos</div>
+          <div style="font-size:14px;font-weight:700;color:var(--gray-400);">Sin préstamos</div>
+          <div style="font-size:9px;color:var(--gray-400);margin-top:2px;">activos al momento</div>
+        </div>
+        <!-- Tarjeta recibos -->
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:8px;padding:10px;grid-column:span 2;">
+          <div style="font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;margin-bottom:8px;">📄 Mis Recibos de Pago</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--gray-50);border-radius:6px;font-size:10px;">
+              <span>Marzo 2026</span>
+              <span style="font-weight:700;color:var(--teal-primary);">S/ 2,821.78</span>
+              <span style="background:var(--teal-pale);color:var(--teal-primary);padding:2px 8px;border-radius:8px;font-size:9px;font-weight:600;">📥 PDF</span>
+            </div>
+          </div>
+        </div>
+        <!-- Próximos eventos -->
+        <div style="background:white;border:1px solid var(--gray-200);border-radius:8px;padding:10px;">
+          <div style="font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;margin-bottom:6px;">📅 Próximos</div>
+          <div style="font-size:9px;color:var(--gray-600);line-height:1.8;">
+            <div>12/03 · Inducción al área</div>
+            <div>15/03 · Permiso personal</div>
+            <div>19/03 · Eval. inducción</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secciones del portal -->
+    <div class="portal-grid">
+      <div class="portal-card">
+        <div class="portal-card-icon">📄</div>
+        <div class="portal-card-title">Mis Recibos de Pago</div>
+        <div class="portal-card-desc">Descarga boletas en PDF por mes. Historial completo desde la fecha de alta. Firma digital de constancia de lectura.</div>
+      </div>
+      <div class="portal-card">
+        <div class="portal-card-icon">📋</div>
+        <div class="portal-card-title">Mis Solicitudes</div>
+        <div class="portal-card-desc">Solicita vacaciones, permisos, adelantos y préstamos. Ve el estado en tiempo real y el historial completo.</div>
+      </div>
+      <div class="portal-card">
+        <div class="portal-card-icon">📁</div>
+        <div class="portal-card-title">Mi Legajo Digital</div>
+        <div class="portal-card-desc">Contratos, certificados, constancias de trabajo y documentos del legajo digital. Disponibles 24/7.</div>
+      </div>
+      <div class="portal-card">
+        <div class="portal-card-icon">🗓️</div>
+        <div class="portal-card-title">Mi Calendario Laboral</div>
+        <div class="portal-card-desc">Feriados, turnos, vencimientos de contratos y eventos RRHH. Exportable a iCalendar / Google Calendar.</div>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p>El colaborador puede <strong>descargar sus boletas, solicitar vacaciones, ver su saldo y consultar su historial</strong> desde cualquier dispositivo, las 24 horas. RRHH deja de responder preguntas repetitivas y se enfoca en lo estratégico.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Portal del Colaborador</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 9 — COMUNICACIONES Y ATENCIÓN
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand">
+      <svg viewBox="0 0 40 40" width="28" height="28">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+      <div><div class="page-header-name">Harmoni</div></div>
+    </div>
+    <div class="page-header-title">El Viaje del Colaborador</div>
+    <div class="page-header-step">Paso 08 de 08</div>
+  </div>
+
+  <div class="content content-with-footer">
+    <div class="section-badge">🤖 Comunicaciones &amp; Harmoni AI</div>
+    <h2 class="section-title">08. Comunicaciones &amp; Atención al Trabajador</h2>
+    <p class="section-sub">Harmoni no es un sistema pasivo. Notifica, comunica y responde. El asistente de IA atiende al colaborador al instante; el motor de notificaciones mantiene a todos informados.</p>
+
+    <div class="two-col-65">
+      <!-- Chat AI -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Harmoni AI — Asistente Inteligente</div>
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-avatar">AI</div>
+            <div>
+              <div class="chat-name">Harmoni AI</div>
+              <div class="chat-status">● En línea · Respuesta inmediata</div>
+            </div>
+          </div>
+          <div class="chat-bubble user">¿Cuántos días de vacaciones me quedan?</div>
+          <div class="chat-bubble ai">
+            Hola María, tienes <strong>2.5 días</strong> de vacaciones disponibles al 09/03/2026. Tu período de goce es del 09/03/2026 al 08/03/2027. Acumulas <strong>1.25 días por mes</strong>. ¿Quieres solicitar días ahora?
+            <div class="chat-time">09/03/2026 · 10:32am</div>
+          </div>
+          <div class="chat-bubble user">¿Cuándo me pagan este mes?</div>
+          <div class="chat-bubble ai">
+            Tu pago de <strong>Marzo 2026</strong> se procesará el <strong>22/03/2026</strong>. El depósito al BCP se realiza el <strong>25/03/2026</strong>. El neto estimado es <strong>S/ 2,821.78</strong>. La boleta estará disponible en tu portal.
+            <div class="chat-time">09/03/2026 · 10:33am</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notificaciones -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Centro de notificaciones</div>
+        <div class="notif-item">
+          <span class="notif-icon">✅</span>
+          <div>
+            <div class="notif-text"><strong>Tu solicitud de permiso fue aprobada</strong> por Ana López (RRHH). 15/03/2026 confirmado.</div>
+            <div class="notif-time">Hace 2h · In-App + Email</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <span class="notif-icon">🎂</span>
+          <div>
+            <div class="notif-text"><strong>¡Feliz cumpleaños, María!</strong> El equipo de Minera Andes SAC te desea un excelente día.</div>
+            <div class="notif-time">Hoy · In-App</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <span class="notif-icon">📢</span>
+          <div>
+            <div class="notif-text"><strong>Comunicado:</strong> Feriado 28 de Julio — El viernes 25 de julio no es laborable.</div>
+            <div class="notif-time">Ayer · In-App + Email</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <span class="notif-icon">🚀</span>
+          <div>
+            <div class="notif-text"><strong>Próximo paso onboarding:</strong> Inducción al área — mañana 12/03 a las 9am con tu jefe.</div>
+            <div class="notif-time">Hace 6h · In-App</div>
+          </div>
+        </div>
+        <div class="notif-item">
+          <span class="notif-icon">📄</span>
+          <div>
+            <div class="notif-text"><strong>Nueva boleta disponible:</strong> Marzo 2026 — S/ 2,821.78. Descarga desde tu portal.</div>
+            <div class="notif-time">22/03 · In-App + Email</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canales comunicación -->
+    <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Motor de comunicaciones — Canales disponibles</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:4px;">📱</div>
+        <div style="font-size:11px;font-weight:700;color:var(--teal-dark);">In-App</div>
+        <div style="font-size:10px;color:var(--gray-600);">Notificaciones en tiempo real dentro del portal y sistema</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:4px;">📧</div>
+        <div style="font-size:11px;font-weight:700;color:var(--teal-dark);">Email SMTP</div>
+        <div style="font-size:10px;color:var(--gray-600);">Envío automático con plantillas personalizadas por empresa</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:4px;">📋</div>
+        <div style="font-size:11px;font-weight:700;color:var(--teal-dark);">Comunicados Masivos</div>
+        <div style="font-size:10px;color:var(--gray-600);">A toda la empresa, área o grupo. Con acuse de recibo</div>
+      </div>
+    </div>
+
+    <!-- Alertas automáticas -->
+    <div style="background:linear-gradient(135deg,var(--teal-dark),var(--teal-mid));border-radius:10px;padding:14px 18px;color:white;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--teal-light);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Alertas automáticas del sistema</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;"><span style="color:var(--teal-light);">📋</span> Vencimiento de contratos (30/15/7 días)</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;"><span style="color:var(--teal-light);">🏖️</span> Vacaciones no tomadas (riesgo legal)</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;"><span style="color:var(--teal-light);">🎂</span> Cumpleaños de colaboradores</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;"><span style="color:var(--teal-light);">⚠️</span> Faltas injustificadas consecutivas</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;"><span style="color:var(--teal-light);">✅</span> Aprobaciones y rechazos en cadena</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;"><span style="color:var(--teal-light);">💰</span> Boleta de pago publicada</div>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>Harmoni AI responde al instante</strong> consultas de vacaciones, pagos, contratos y más. El sistema notifica automáticamente: aprobaciones, vencimientos, cumpleaños y alertas críticas. <strong>El sistema comunica — no el usuario.</strong></p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Minera Andes SAC &nbsp;·&nbsp; María García Torres &nbsp;·&nbsp; DNI 45678901</span>
+    <span><strong>harmoni.pe</strong> &nbsp;·&nbsp; Comunicaciones &amp; IA</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PÁGINA 10 — CIERRE / RESUMEN
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <!-- Closing header -->
+  <div class="closing-header">
+    <div style="margin-bottom:14px;">
+      <svg viewBox="0 0 40 40" width="52" height="52">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="#5eead4"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="#5eead4"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="#5eead4"/>
+      </svg>
+    </div>
+    <h2>Harmoni — El ERP que trabaja<br>en armonía contigo</h2>
+    <p>Un ciclo completo. Un solo sistema. Desde la vacante hasta la boleta de pago.</p>
+  </div>
+
+  <div class="closing-content">
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-cell">
+        <div class="stat-cell-num">235</div>
+        <div class="stat-cell-label">Colaboradores</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-num">18+</div>
+        <div class="stat-cell-label">Módulos integrados</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-num">171</div>
+        <div class="stat-cell-label">Endpoints API REST</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-num">100%</div>
+        <div class="stat-cell-label">Ley laboral peruana</div>
+      </div>
+    </div>
+
+    <!-- Modules grid -->
+    <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;text-align:center;">Todos los módulos del ecosistema Harmoni</div>
+    <div class="modules-grid">
+      <div class="module-pill"><div class="module-pill-icon">🔍</div><div class="module-pill-name">Recluta-miento</div></div>
+      <div class="module-pill"><div class="module-pill-icon">👥</div><div class="module-pill-name">Personal</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🚀</div><div class="module-pill-name">Onboarding</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🕐</div><div class="module-pill-name">Asistencia</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🏖️</div><div class="module-pill-name">Vacaciones</div></div>
+      <div class="module-pill"><div class="module-pill-icon">💰</div><div class="module-pill-name">Nómina</div></div>
+      <div class="module-pill"><div class="module-pill-icon">📱</div><div class="module-pill-name">Portal</div></div>
+      <div class="module-pill"><div class="module-pill-icon">📊</div><div class="module-pill-name">Analytics</div></div>
+      <div class="module-pill"><div class="module-pill-icon">⚖️</div><div class="module-pill-name">Disciplinaria</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🎯</div><div class="module-pill-name">Evaluaciones</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🎓</div><div class="module-pill-name">Capacitaciones</div></div>
+      <div class="module-pill"><div class="module-pill-icon">💬</div><div class="module-pill-name">Encuestas</div></div>
+      <div class="module-pill"><div class="module-pill-icon">📅</div><div class="module-pill-name">Calendario</div></div>
+      <div class="module-pill"><div class="module-pill-icon">📁</div><div class="module-pill-name">Documentos</div></div>
+      <div class="module-pill"><div class="module-pill-icon">✈️</div><div class="module-pill-name">Viáticos</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🏦</div><div class="module-pill-name">Préstamos</div></div>
+      <div class="module-pill"><div class="module-pill-icon">📈</div><div class="module-pill-name">Salarios</div></div>
+      <div class="module-pill"><div class="module-pill-icon">🔌</div><div class="module-pill-name">API REST</div></div>
+    </div>
+
+    <!-- Lo que hace diferente a Harmoni -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:13px;">
+        <div style="font-size:14px;margin-bottom:5px;">🇵🇪</div>
+        <div style="font-size:12px;font-weight:700;color:var(--teal-dark);margin-bottom:3px;">Hecho para Perú</div>
+        <div style="font-size:11px;color:var(--gray-600);">AFP, ONP, IR 5ta, PLAME, T-Registro, CTS, gratificaciones, legislación laboral peruana completa.</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:13px;">
+        <div style="font-size:14px;margin-bottom:5px;">🔗</div>
+        <div style="font-size:12px;font-weight:700;color:var(--teal-dark);margin-bottom:3px;">Todo integrado</div>
+        <div style="font-size:11px;color:var(--gray-600);">Reclutamiento → Nómina, un flujo continuo sin exportar a Excel ni re-ingresar datos en otro sistema.</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:13px;">
+        <div style="font-size:14px;margin-bottom:5px;">⚙️</div>
+        <div style="font-size:12px;font-weight:700;color:var(--teal-dark);margin-bottom:3px;">Configurable</div>
+        <div style="font-size:11px;color:var(--gray-600);">Feriados, turnos, tipos de permiso, flujos de aprobación, plantillas onboarding: todo parametrizable por empresa.</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:13px;">
+        <div style="font-size:14px;margin-bottom:5px;">🤖</div>
+        <div style="font-size:12px;font-weight:700;color:var(--teal-dark);margin-bottom:3px;">Inteligencia artificial</div>
+        <div style="font-size:11px;color:var(--gray-600);">Asistente AI integrado, OCR para documentos, análisis automático de datos y respuestas al instante.</div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-banner">
+      <h3>¿Listo para modernizar tu gestión de RRHH?</h3>
+      <p>Únete a las empresas que ya gestionan a sus colaboradores con Harmoni. Demo sin compromiso.</p>
+      <div class="cta-url">harmoni.pe</div>
+    </div>
+
+    <!-- Footer final -->
+    <div style="margin-top:14px;text-align:center;display:flex;align-items:center;justify-content:center;gap:10px;">
+      <svg viewBox="0 0 40 40" width="22" height="22">
+        <polygon points="20,3 34.5,11.5 34.5,28.5 20,37 5.5,28.5 5.5,11.5" fill="none" stroke="var(--teal-primary)" stroke-width="1.5"/>
+        <line x1="11.5" y1="5.28" x2="11.5" y2="34.72" stroke="var(--teal-primary)" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="28.5" y1="5.28" x2="28.5" y2="34.72" stroke="var(--teal-primary)" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="11.5" y1="20" x2="28.5" y2="20" stroke="var(--teal-primary)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11.5" cy="5.28" r="2" fill="var(--teal-accent)"/>
+        <circle cx="28.5" cy="5.28" r="2" fill="var(--teal-accent)"/>
+        <circle cx="11.5" cy="34.72" r="2" fill="var(--teal-accent)"/>
+        <circle cx="28.5" cy="34.72" r="2" fill="var(--teal-accent)"/>
+      </svg>
+      <span style="font-size:16px;font-weight:800;color:var(--teal-dark);letter-spacing:-0.5px;">Harmoni ERP</span>
+      <span style="font-size:11px;color:var(--gray-400);">&nbsp;·&nbsp; El Viaje del Colaborador &nbsp;·&nbsp; Marzo 2026 &nbsp;·&nbsp; harmoni.pe</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

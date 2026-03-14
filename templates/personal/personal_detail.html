@@ -970,7 +970,7 @@ function getCookie(name) {
           <tbody>
             {% for p in permisos_recientes %}
             <tr>
-              <td>{{ p.get_tipo_permiso_display|default:p.tipo_permiso }}</td>
+              <td>{{ p.tipo.nombre|default:"-" }}</td>
               <td style="white-space:nowrap;">{{ p.fecha_inicio|date:"d/m/Y" }} → {{ p.fecha_fin|date:"d/m/Y" }}</td>
               <td>{{ p.dias_solicitados|default:"1" }}</td>
               <td>

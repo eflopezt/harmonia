@@ -44,18 +44,18 @@
     margin-bottom: 8px;
     background-color: #f8fafc;
   }
-  .datos-trab table { width: 100%; border-collapse: collapse; }
+  .datos-trab table { width: 527px; border-collapse: collapse; }
   .datos-trab td   { padding: 1.5px 5px; vertical-align: top; }
   .lbl { font-weight: bold; color: #4b5563; width: 22%; font-size: 7.5pt; white-space: nowrap; }
   .val { color: #111827; font-size: 8.5pt; }
   .datos-sep { border-left: 1px solid #e5e7eb; }
 
   /* ── COLUMNAS 3-WAY ──────────────────────────────────────────────────── */
-  .three-col { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  .three-col { width: 527px; border-collapse: collapse; margin-bottom: 8px; }
   .three-col > tbody > tr > td { vertical-align: top; padding: 0; }
-  .col-ing  { width: 36%; padding-right: 5px; }
-  .col-desc { width: 34%; padding: 0 3px; }
-  .col-ap   { width: 30%; padding-left: 5px; }
+  .col-ing  { width: 190px; padding-right: 5px; }
+  .col-desc { width: 178px; padding: 0 3px; }
+  .col-ap   { width: 159px; padding-left: 5px; }
 
   /* ── TABLA CONCEPTO ──────────────────────────────────────────────────── */
   .ct { width: 100%; border-collapse: collapse; }
@@ -90,7 +90,7 @@
   .ct-empty td { color: #9ca3af; text-align: center; font-size: 7.5pt; padding: 6px; font-style: italic; }
 
   /* ── BARRA DE TOTALES ────────────────────────────────────────────────── */
-  .totales-bar { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  .totales-bar { width: 527px; border-collapse: collapse; margin-bottom: 8px; }
   .totales-bar td { padding: 0; }
   .tot-box {
     text-align: center;
@@ -134,11 +134,11 @@
     border: 1px solid #e5e7eb; border-radius: 3px; padding: 5px 10px;
     margin-bottom: 8px; background: #fafafa; font-size: 7.5pt;
   }
-  .pago-info table { width: 100%; border-collapse: collapse; }
+  .pago-info table { width: 527px; border-collapse: collapse; }
   .pago-info td { padding: 1px 5px; }
 
   /* ── FIRMA ───────────────────────────────────────────────────────────── */
-  .firma-area { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .firma-area { width: 527px; border-collapse: collapse; margin-top: 10px; }
   .firma-box {
     border-top: 1px solid #374151; padding-top: 3px;
     text-align: center; font-size: 7.5pt; color: #6b7280;
@@ -171,12 +171,12 @@
 <div class="header">
   <table class="header-inner">
     <tr>
-      <td style="width:65%">
+      <td style="width:342px">
         <div class="header-empresa">{{ empresa_nombre }}</div>
         {% if empresa_ruc %}<div class="header-ruc">RUC: {{ empresa_ruc }}</div>{% endif %}
         {% if empresa_dir %}<div class="header-dir">{{ empresa_dir }}</div>{% endif %}
       </td>
-      <td style="width:35%">
+      <td style="width:185px">
         <div class="header-titulo">Boleta de Pago</div>
         <div class="header-periodo">
           {{ periodo.mes_nombre }} {{ periodo.anio }}
@@ -195,9 +195,9 @@
   <table>
     <tr>
       <td class="lbl">Trabajador:</td>
-      <td class="val" style="width:35%"><b>{{ personal.apellidos_nombres }}</b></td>
+      <td class="val" style="width:184px"><b>{{ personal.apellidos_nombres }}</b></td>
       <td class="lbl datos-sep" style="padding-left:10px;">DNI / CE:</td>
-      <td class="val" style="width:18%">{{ personal.nro_doc }}</td>
+      <td class="val" style="width:95px">{{ personal.nro_doc }}</td>
       <td class="lbl datos-sep" style="padding-left:10px;">Grupo:</td>
       <td class="val">
         {% if personal.grupo_tareo == 'STAFF' %}
@@ -335,19 +335,19 @@
 <!-- BARRA DE TOTALES RESUMEN -->
 <table class="totales-bar">
   <tr>
-    <td style="width:33%; padding-right:3px;">
+    <td style="width:174px; padding-right:3px;">
       <div class="tot-box tot-ing">
         <div class="tot-label">Total Ingresos</div>
         <div class="tot-value">S/ {{ total_ingresos_str }}</div>
       </div>
     </td>
-    <td style="width:33%; padding:0 3px;">
+    <td style="width:174px; padding:0 3px;">
       <div class="tot-box tot-desc">
         <div class="tot-label">Total Descuentos</div>
         <div class="tot-value">S/ {{ total_descuentos_str }}</div>
       </div>
     </td>
-    <td style="width:34%; padding-left:3px;">
+    <td style="width:179px; padding-left:3px;">
       <div class="tot-box tot-ap">
         <div class="tot-label">Aportes Empleador</div>
         <div class="tot-value">S/ {{ total_aportes_str }}</div>
@@ -359,7 +359,7 @@
 <!-- NETO A PAGAR -->
 <table class="neto-bar">
   <tr>
-    <td style="width:35%"><span class="neto-label">NETO A PAGAR</span></td>
+    <td style="width:185px"><span class="neto-label">NETO A PAGAR</span></td>
     <td class="neto-formula">{{ total_ingresos_str }} &minus; {{ total_descuentos_str }}</td>
     <td class="neto-value">S/ {{ neto_str }}</td>
   </tr>
@@ -396,13 +396,13 @@
 <!-- FIRMAS -->
 <table class="firma-area">
   <tr>
-    <td style="width:50%; padding-right:20px;">
+    <td style="width:255px; padding-right:20px;">
       <div class="firma-box">
         <br><br>
         Firma Empleador / RRHH
       </div>
     </td>
-    <td style="width:50%;">
+    <td style="width:272px;">
       <div class="firma-box">
         <br><br>
         Firma Trabajador &mdash; {{ personal.nro_doc }}

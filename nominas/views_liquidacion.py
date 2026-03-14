@@ -31,7 +31,7 @@ from personal.models import Personal
 from .models import PeriodoNomina, RegistroNomina, ConceptoRemunerativo
 
 # ── constantes ────────────────────────────────────────────────────────────────
-RMV        = Decimal('1025.00')
+RMV        = Decimal('1130.00')
 ASIG_FAM   = (RMV * Decimal('0.10')).quantize(Decimal('0.01'), ROUND_HALF_UP)
 ESSALUD    = Decimal('0.09')
 AFP_APORTE = Decimal('0.10')

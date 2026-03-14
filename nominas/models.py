@@ -10,7 +10,7 @@ Base legal:
 - DS 003-97-TR: RMV — Remuneración Mínima Vital
 - Ley 29351: EsSalud 9% aporte empleador
 
-UIT 2026: S/ 5,500  |  RMV 2025: S/ 1,025
+UIT 2026: S/ 5,500  |  RMV 2025: S/ 1,130
 """
 from decimal import Decimal
 
@@ -23,8 +23,8 @@ from personal.models import Personal
 
 # ── Constantes Legales Perú 2026 ─────────────────────────────────────
 UIT_2026 = Decimal('5500.00')   # DS 233-2025-EF
-RMV_2026 = Decimal('1025.00')
-ASIG_FAM = RMV_2026 * Decimal('0.10')   # S/ 102.50
+RMV_2026 = Decimal('1130.00')
+ASIG_FAM = RMV_2026 * Decimal('0.10')   # S/ 113.00
 
 
 # ══════════════════════════════════════════════════════════════════════

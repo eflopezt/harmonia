@@ -114,7 +114,7 @@ def onboarding_crear(request):
         try:
             personal = get_object_or_404(Personal, pk=request.POST['personal_id'])
             plantilla = get_object_or_404(PlantillaOnboarding, pk=request.POST['plantilla_id'])
-            fecha_ingreso = request.POST.get('fecha_ingreso', '') or date.today().isoformat()
+            fecha_ingreso = date.fromisoformat(request.POST.get('fecha_ingreso', '') or date.today().isoformat())
 
             proceso = ProcesoOnboarding.objects.create(
                 personal=personal,
@@ -134,7 +134,7 @@ def onboarding_crear(request):
                     orden=paso_tpl.orden,
                     titulo=paso_tpl.titulo,
                     estado='PENDIENTE',
-                    fecha_limite=proceso.fecha_ingreso + timedelta(days=paso_tpl.dias_plazo),
+                    fecha_limite=fecha_ingreso + timedelta(days=paso_tpl.dias_plazo),
                 )
 
             log_create(request, proceso, f'Onboarding iniciado: {personal.apellidos_nombres}')
@@ -454,7 +454,7 @@ def offboarding_crear(request):
         try:
             personal = get_object_or_404(Personal, pk=request.POST['personal_id'])
             plantilla = get_object_or_404(PlantillaOffboarding, pk=request.POST['plantilla_id'])
-            fecha_cese = request.POST.get('fecha_cese', '') or date.today().isoformat()
+            fecha_cese = date.fromisoformat(request.POST.get('fecha_cese', '') or date.today().isoformat())
 
             proceso = ProcesoOffboarding.objects.create(
                 personal=personal,

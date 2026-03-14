@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re as _re
 import time
 import uuid
 
@@ -84,6 +85,116 @@ def _is_ollama_reachable() -> bool:
 
 
 # ─────────────────────────────────────────────────
+# GESTIÓN DE SESIÓN CONVERSACIONAL
+# ─────────────────────────────────────────────────
+# Almacena el historial completo en Django cache (TTL 30 min).
+# Ventajas sobre el historial del frontend:
+#   • No repite JSON de gráficos ni contenido de archivos en tokens
+#   • Sobrevive recargas de página dentro de la misma sesión de trabajo
+#   • Permite al fallback (sin IA) entender referencias contextuales
+
+_SESSION_TTL  = 1800  # 30 min sin actividad → sesión expira
+_SESSION_MAX  = 40    # turnos máximos conservados
+_SUMMARY_MAX  = 700   # chars por turno en historial comprimido
+
+
+def _sess_valid(sid: str) -> bool:
+    """Valida que el session_id sea alfanumérico + guiones (evita path traversal)."""
+    return bool(sid and _re.match(r'^[\w\-]{4,80}$', sid))
+
+
+def _sess_load(sid: str) -> list:
+    """Carga turnos de conversación desde Django cache."""
+    if not _sess_valid(sid):
+        return []
+    return cache.get(f'ai_s_{sid}', [])
+
+
+def _sess_save(sid: str, turns: list):
+    """Persiste turnos en Django cache."""
+    if not _sess_valid(sid):
+        return
+    cache.set(f'ai_s_{sid}', turns[-_SESSION_MAX:], _SESSION_TTL)
+
+
+def _sess_add(sid: str, role: str, content: str, meta: dict | None = None):
+    """
+    Agrega un turno a la sesión.
+    Crea 'summary' limpiando JSON de gráficos y contenido de archivos adjuntos
+    para no desperdiciar tokens en el historial que se envía al LLM.
+    """
+    summary = _re.sub(r'\[CHART\]\{.*?\}\[/CHART\]', '[gráfico mostrado]', content, flags=_re.DOTALL)
+    summary = _re.sub(r'\[ARCHIVO ADJUNTO:.*?\[FIN ARCHIVO\]', '[archivo adjunto analizado]', summary, flags=_re.DOTALL)
+    summary = _re.sub(r'\[DOWNLOAD:[\w:]+\]', '[documento generado]', summary)
+    summary = _re.sub(r'\[(?:FALLBACK|DONE|MAXIMIZE|CHART_END)\]', '', summary)
+    summary = summary[:_SUMMARY_MAX].strip()
+    turns = _sess_load(sid)
+    turns.append({
+        'role': role,
+        'content': content[:2000],
+        'summary': summary,
+        'meta': meta or {},
+        'ts': int(time.time()),
+    })
+    _sess_save(sid, turns)
+
+
+def _sess_messages(sid: str, max_hist: int = 20) -> list:
+    """
+    Construye lista de messages para el LLM desde la sesión server-side.
+    Usa 'summary' (sin bloat de JSON/archivos) para turnos históricos.
+    NO incluye el turno actual (se añade externamente con ai_message enriquecido).
+    """
+    turns = _sess_load(sid)
+    msgs = []
+    # Excluir el último turno de usuario (= mensaje actual, ya guardado en _sess_add)
+    turns_for_hist = turns[:-1] if turns and turns[-1].get('role') == 'user' else turns
+    for turn in turns_for_hist[-max_hist:]:
+        role = turn.get('role', 'user')
+        content = turn.get('summary', turn.get('content', ''))[:700]
+        if role in ('user', 'assistant') and content:
+            msgs.append({'role': role, 'content': content})
+    return msgs
+
+
+def _sess_wrap(gen, sid: str):
+    """
+    Wrapper de generador SSE: captura el texto producido y lo guarda en sesión
+    al terminar el streaming. Funciona con cualquier stream (IA, fallback, etc.).
+    """
+    chunks = []
+    for chunk in gen:
+        chunks.append(chunk)
+        yield chunk
+    # Extraer texto limpio del SSE acumulado
+    raw = ''.join(chunks)
+    parts = _re.findall(r'^data: (.+)$', raw, _re.MULTILINE)
+    clean = ' '.join(
+        p.replace('\\n', ' ')
+        for p in parts
+        if p and not p.startswith('[')
+    )
+    if clean.strip():
+        _sess_add(sid, 'assistant', clean.strip()[:1200])
+
+
+def _sess_context_summary(sid: str) -> str:
+    """
+    Genera un resumen del contexto reciente de la sesión (para el fallback sin IA).
+    Usado para mensajes contextuales cuando el pattern matching no encuentra respuesta.
+    """
+    turns = _sess_load(sid)
+    if not turns:
+        return ''
+    recent = turns[-6:]  # últimos 3 intercambios
+    lines = []
+    for t in recent:
+        role = 'Tú' if t['role'] == 'user' else 'Harmoni AI'
+        lines.append(f'{role}: {t["summary"][:150]}')
+    return '\n'.join(lines)
+
+
+# ─────────────────────────────────────────────────
 # ESTADO DE IA
 # ─────────────────────────────────────────────────
 
@@ -133,7 +244,7 @@ def ai_context(request):
 # HELPER: Edición de PDF con IA + PyMuPDF
 # ─────────────────────────────────────────────────
 
-def _apply_pdf_edit(message: str, file_context: dict, svc) -> str | None:
+def _apply_pdf_edit(message: str, file_context: dict, svc, history: list = None) -> str | None:
     """
     Usa IA para determinar los cambios de texto en el PDF y los aplica con PyMuPDF.
     Guarda el resultado en Django cache y retorna el edit_id (o None si falló).
@@ -141,6 +252,8 @@ def _apply_pdf_edit(message: str, file_context: dict, svc) -> str | None:
     Flujo:
       1. Obtiene bytes del PDF original desde cache (usando file_id).
       2. Llama a la IA con prompt especializado para obtener replacements JSON.
+         Se incluye el historial de conversación para entender follow-ups como
+         "pero en mayúsculas" o "quiero que edites como te dije".
       3. Aplica los reemplazos vía PyMuPDF (redacción + re-inserción).
       4. Guarda PDF editado en cache con nuevo edit_id (TTL 15 min).
     """
@@ -157,21 +270,45 @@ def _apply_pdf_edit(message: str, file_context: dict, svc) -> str | None:
         return None
 
     extracted_text = file_context.get('content', '')
+    # Si el frontend no envió contenido (referencia silenciosa), recuperar desde cache
+    if not extracted_text and file_id:
+        extracted_text = cache.get(f'ai_pdf_text_{file_id}', '')
 
     # ── 1. Pedir a la IA los reemplazos como JSON ──────────────────────────
     replacements = []
     if svc:
         replacement_system = (
-            'Eres un asistente que genera JSON de reemplazos de texto. '
-            'Siempre respondes ÚNICAMENTE con un JSON array válido, sin texto adicional. '
-            'Ejemplo: [{"old": "TEXTO_ORIGINAL", "new": "TEXTO_NUEVO"}]'
+            'Eres un asistente experto en edición de documentos PDF. '
+            'Siempre respondes ÚNICAMENTE con un JSON array válido, sin texto adicional, '
+            'sin explicaciones, sin markdown. Solo el array JSON puro. '
+            'Formato: [{"old": "TEXTO_EXACTO_EN_PDF", "new": "TEXTO_NUEVO"}]\n'
+            'Reglas:\n'
+            '- Usa el texto EXACTO tal como aparece en el documento (respeta mayúsculas/minúsculas).\n'
+            '- Si el usuario pide "en mayúsculas", el campo "new" debe estar en MAYÚSCULAS.\n'
+            '- Si el usuario pide "en minúsculas", el campo "new" debe estar en minúsculas.\n'
+            '- Si la instrucción es un follow-up (ej: "pero con mayúsculas"), '
+            '  usa el contexto de la conversación para entender qué reemplazos aplican.\n'
+            '- Si no hay reemplazos claros, responde: []'
         )
+
+        # Construir contexto de historial (últimos 8 mensajes para entender follow-ups)
+        history_text = ''
+        if history:
+            turns = []
+            for h in (history or [])[-8:]:
+                role = 'Usuario' if h.get('role') == 'user' else 'Asistente'
+                content = str(h.get('content', ''))[:300]
+                turns.append(f'{role}: {content}')
+            if turns:
+                history_text = 'Historial reciente de la conversación:\n' + '\n'.join(turns) + '\n\n'
+
         replacement_prompt = (
-            f'El documento PDF contiene este texto:\n{extracted_text[:3000]}\n\n'
-            f'El usuario pide: "{message}"\n\n'
-            f'Genera un JSON array con los reemplazos exactos necesarios. '
-            f'Usa el texto EXACTO tal como aparece en el documento. '
-            f'Responde SOLO el JSON array:'
+            f'El documento PDF contiene este texto extraído:\n'
+            f'---\n{extracted_text[:3000]}\n---\n\n'
+            f'{history_text}'
+            f'Instrucción actual del usuario: "{message}"\n\n'
+            f'Genera el JSON array con los reemplazos de texto necesarios. '
+            f'Responde SOLO el array JSON:'
         )
         try:
             ai_response = svc.generate(replacement_prompt, system=replacement_system) or ''
@@ -185,7 +322,8 @@ def _apply_pdf_edit(message: str, file_context: dict, svc) -> str | None:
 
     # Fallback: parsear reemplazos del mensaje si la IA no respondió
     if not replacements:
-        patterns = [
+        # Patrones para extraer OLD→NEW desde el mensaje actual
+        fallback_patterns = [
             # "texto X" por "texto Y"  (con comillas dobles)
             _re.compile(r'"([^"]+)"\s+(?:por|con|a)\s+"([^"]+)"', _re.IGNORECASE),
             # 'texto X' por 'texto Y'  (con comillas simples)
@@ -200,12 +338,40 @@ def _apply_pdf_edit(message: str, file_context: dict, svc) -> str | None:
             # Detectar pares de números tipo DNI/RUC que aparecen como "NNNNNNNN por NNNNNNNN"
             _re.compile(r'\b(\d{8,11})\b.*?\bpor\b.*?\b(\d{8,11})\b', _re.IGNORECASE),
         ]
-        for pat in patterns:
+        for pat in fallback_patterns:
             for m in pat.finditer(message):
                 old_val = m.group(1).strip()
                 new_val = m.group(2).strip()
                 if old_val and new_val and old_val != new_val:
                     replacements.append({'old': old_val, 'new': new_val})
+
+        # ── Fallback especial: "mayusculas/minusculas" sobre reemplazos anteriores ──
+        # Si el mensaje actual no tiene OLD→NEW pero pide cambiar capitalización,
+        # buscar los reemplazos en los últimos mensajes del historial y aplicar la transformación.
+        msg_lower = message.lower()
+        wants_upper = any(kw in msg_lower for kw in ['mayusc', 'mayús', 'en mayus'])
+        wants_lower = any(kw in msg_lower for kw in ['minusc', 'minús', 'en minus'])
+
+        if not replacements and (wants_upper or wants_lower) and history:
+            # Buscar en los últimos 5 mensajes del usuario pares OLD→NEW
+            for past_msg in reversed([h.get('content', '') for h in (history or []) if h.get('role') == 'user'][-5:]):
+                hist_reps = []
+                for pat in fallback_patterns:
+                    for m in pat.finditer(past_msg):
+                        old_v = m.group(1).strip()
+                        new_v = m.group(2).strip()
+                        if old_v and new_v and old_v != new_v:
+                            hist_reps.append({'old': old_v, 'new': new_v})
+                if hist_reps:
+                    # Aplicar transformación de capitalización al "new"
+                    for r in hist_reps:
+                        transformed = r['new'].upper() if wants_upper else r['new'].lower()
+                        # El "old" en el PDF sería el valor original (sin la edición anterior)
+                        # Buscar en el texto extraído el valor que estaba antes
+                        original_in_pdf = r['old']
+                        replacements.append({'old': original_in_pdf, 'new': transformed})
+                    break  # Solo tomamos el último mensaje con reemplazos
+
         # Deduplicar
         seen = set()
         unique_reps = []
@@ -319,12 +485,21 @@ def ai_chat_stream(request):
 
     history = body.get('history', [])
 
+    # ── Sesión conversacional server-side ──
+    # El session_id viene del frontend (generado una vez por tab y persistido en sessionStorage).
+    # Guardamos cada turno para mantener contexto rico entre mensajes, sin repetir JSON/archivos.
+    session_id = body.get('session_id', '')
+    _sess_add(session_id, 'user', message, meta={
+        'has_file': bool(file_context),
+        'file_name': (file_context or {}).get('name', ''),
+    })
+
     svc = get_service()
     ollama_ok = _is_ollama_reachable()
 
     # ── Detectar edición de PDF (antes que todo) ──
     if detect_edit_request(message, file_context):
-        edit_id = _apply_pdf_edit(message, file_context, svc)
+        edit_id = _apply_pdf_edit(message, file_context, svc, history=history)
         if edit_id:
             def pdf_edit_stream():
                 yield 'data: [FALLBACK]\n\n'
@@ -336,11 +511,35 @@ def ai_chat_stream(request):
                 yield f'data: {resp_text}\n\n'
                 yield 'data: [DONE]\n\n'
 
-            resp = StreamingHttpResponse(pdf_edit_stream(), content_type='text/event-stream')
+            resp = StreamingHttpResponse(
+                _sess_wrap(pdf_edit_stream(), session_id),
+                content_type='text/event-stream')
             resp['Cache-Control'] = 'no-cache'
             resp['X-Accel-Buffering'] = 'no'
             return resp
-        # Si falló la edición, continúa con flujo normal (IA explicará por qué)
+        else:
+            # El PDF expiró del caché o file_id inválido — informar al usuario
+            fname = (file_context or {}).get('name', 'el documento')
+
+            def edit_fail_stream():
+                yield 'data: [FALLBACK]\n\n'
+                resp_text = _sse_text(
+                    f'⚠️ No pude aplicar los cambios al PDF **{fname}**. '
+                    'El documento puede haber expirado del caché (TTL: 15 min).\n\n'
+                    '**Sube nuevamente el PDF** y repite la solicitud.\n\n'
+                    'Ejemplos de comandos válidos:\n'
+                    '- "cambia el DNI 45096017 por 70919188"\n'
+                    '- "reemplaza el nombre JUAN PEREZ por MARIA GARCIA"'
+                )
+                yield f'data: {resp_text}\n\n'
+                yield 'data: [DONE]\n\n'
+
+            resp = StreamingHttpResponse(
+                _sess_wrap(edit_fail_stream(), session_id),
+                content_type='text/event-stream')
+            resp['Cache-Control'] = 'no-cache'
+            resp['X-Accel-Buffering'] = 'no'
+            return resp
 
     # ── Detectar export request (antes de todo) ──
     export_req = detect_export_request(message)
@@ -356,7 +555,8 @@ def ai_chat_stream(request):
             yield 'data: [DONE]\n\n'
 
         response = StreamingHttpResponse(
-            export_stream(), content_type='text/event-stream')
+            _sess_wrap(export_stream(), session_id),
+            content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'
         response['X-Accel-Buffering'] = 'no'
         return response
@@ -382,7 +582,8 @@ def ai_chat_stream(request):
                 yield 'data: [DONE]\n\n'
 
             response = StreamingHttpResponse(
-                dashboard_stream(), content_type='text/event-stream')
+                _sess_wrap(dashboard_stream(), session_id),
+                content_type='text/event-stream')
             response['Cache-Control'] = 'no-cache'
             response['X-Accel-Buffering'] = 'no'
             return response
@@ -392,6 +593,10 @@ def ai_chat_stream(request):
     indiv_data = None
     if indiv_type:
         indiv_data = get_individual_ranking(indiv_type, request.user)
+
+    # ── Detectar si quiere fijar un gráfico en el dashboard ──
+    # Debe calcularse ANTES del bloque fallback para que la closure lo capture.
+    wants_pin = detect_pin_to_dashboard(message)
 
     # ── Fallback sin IA si Ollama no está disponible ──
     if not ollama_ok:
@@ -412,7 +617,6 @@ def ai_chat_stream(request):
                 for chart_data in chart_datas:
                     chart_json = json.dumps(chart_data, ensure_ascii=False)
                     yield f'data: [CHART]{chart_json}[/CHART]\n\n'
-                # Breve análisis estático del primer chart
                 first = chart_datas[0]
                 total = sum(first.get('values', []))
                 if total:
@@ -450,27 +654,34 @@ def ai_chat_stream(request):
             elif fallback:
                 yield f'data: {_sse_text(fallback)}\n\n'
             else:
-                no_match = (
-                    'No tengo suficiente informacion para responder '
-                    'esa consulta directamente. Prueba con preguntas como:\n'
-                    '- "¿Cuántos empleados activos hay?"\n'
-                    '- "¿Hay aprobaciones pendientes?"\n'
-                    '- "¿Cómo va la asistencia hoy?"\n'
-                    '- "Muéstrame un gráfico del personal por área"\n\n'
-                    'Para consultas más complejas, configura un proveedor IA en '
-                    '**Asistencia > Configuración > Pestaña IA**.'
-                )
+                # ── Fallback contextual: si hay sesión, mostrar contexto + sugerencias ──
+                ctx = _sess_context_summary(session_id)
+                if ctx:
+                    no_match = (
+                        'No pude responder esa consulta directamente desde la BD. '
+                        'Configura un proveedor IA (Gemini, DeepSeek, OpenAI) en '
+                        '**Configuración → IA** para consultas conversacionales.\n\n'
+                        f'📋 **Contexto de tu sesión:**\n{ctx}'
+                    )
+                else:
+                    no_match = (
+                        'No tengo suficiente información para responder esa consulta. '
+                        'Prueba con:\n'
+                        '- "¿Cuántos empleados activos hay?"\n'
+                        '- "¿Cómo va la asistencia hoy?"\n'
+                        '- "Muéstrame un gráfico del personal por área"\n\n'
+                        'Para consultas conversacionales complejas, configura un proveedor IA en '
+                        '**Configuración → Pestaña IA**.'
+                    )
                 yield f'data: {_sse_text(no_match)}\n\n'
             yield 'data: [DONE]\n\n'
 
         response = StreamingHttpResponse(
-            fallback_stream(), content_type='text/event-stream')
+            _sess_wrap(fallback_stream(), session_id),
+            content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'
         response['X-Accel-Buffering'] = 'no'
         return response
-
-    # ── Detectar si quiere fijar un gráfico en el dashboard ──
-    wants_pin = detect_pin_to_dashboard(message)
 
     # ── Detectar si pide uno o más gráficos ──
     chart_reqs = detect_multiple_chart_requests(message, history)
@@ -494,13 +705,21 @@ def ai_chat_stream(request):
     except Exception:
         pass  # knowledge_service es opcional, no bloquea el chat
 
-    # Limitar historial a los últimos 10 turnos
-    messages = []
-    for msg in history[-10:]:
-        role = msg.get('role', 'user')
-        content = msg.get('content', '')
-        if role in ('user', 'assistant') and content:
-            messages.append({'role': role, 'content': content})
+    # ── Construir historial para el LLM ──
+    # Prioridad: sesión server-side (summaries limpios, sin JSON de gráficos ni archivos).
+    # Fallback: historial del frontend (puede contener bloat pero es lo que hay).
+    messages = _sess_messages(session_id, max_hist=20)
+    if not messages:
+        # Fallback al historial del frontend, limpiando JSON de gráficos
+        for msg in history[-20:]:
+            role = msg.get('role', 'user')
+            content = str(msg.get('content', ''))
+            # Limpiar JSON de gráficos y marcadores SSE del historial del frontend
+            content = _re.sub(r'\[CHART\]\{.*?\}\[/CHART\]', '[gráfico]', content, flags=_re.DOTALL)
+            content = _re.sub(r'\[ARCHIVO ADJUNTO:.*?\[FIN ARCHIVO\]', '[archivo adjunto]', content, flags=_re.DOTALL)
+            content = content[:700]
+            if role in ('user', 'assistant') and content.strip():
+                messages.append({'role': role, 'content': content})
 
     # Construir mensaje enriquecido para el LLM
     ai_message = message
@@ -592,7 +811,7 @@ def ai_chat_stream(request):
                 messages=messages,
                 system=system_prompt,
                 temperature=0.35,
-                num_predict=900,
+                num_predict=1600,  # aumentado para respuestas más completas
             ):
                 yield f'data: {chunk}\n\n'
 
@@ -609,7 +828,6 @@ def ai_chat_stream(request):
             yield 'data: [DONE]\n\n'
         except Exception as e:
             logger.warning(f'ai_chat_stream error: {e}')
-            # Intentar fallback en caso de error de streaming
             fallback = responder_sin_ia(message, request.user)
             if fallback:
                 yield 'data: [FALLBACK]\n\n'
@@ -619,7 +837,7 @@ def ai_chat_stream(request):
             yield 'data: [DONE]\n\n'
 
     response = StreamingHttpResponse(
-        event_stream(),
+        _sess_wrap(event_stream(), session_id),
         content_type='text/event-stream',
     )
     response['Cache-Control'] = 'no-cache'
@@ -1120,9 +1338,10 @@ def ai_upload_file(request):
             was_truncated = len(full_text) > 12000
             preview = full_text[:120].replace('\n', ' ').strip() + ('...' if len(full_text) > 120 else '')
 
-            # Guardar bytes originales en cache para edición posterior (15 min TTL)
+            # Guardar bytes originales Y texto extraído en cache (edición posterior, 15 min TTL)
             file_id = uuid.uuid4().hex[:16]
             cache.set(f'ai_pdf_{file_id}', content_bytes, 900)
+            cache.set(f'ai_pdf_text_{file_id}', truncated, 900)  # texto para IA al editar
 
             return JsonResponse({
                 'ok': True,

@@ -163,7 +163,7 @@ def generar_planilla_excel(queryset, periodo_str=''):
     AFP_RATE = Decimal('0.13')      # ~13% AFP (variable por fondo)
     ONP_RATE = Decimal('0.13')      # 13% ONP fijo
     ESSALUD_RATE = Decimal('0.09')  # 9% ESSALUD (empleador)
-    RMV = Decimal('1025')           # RMV 2026 (configurable)
+    RMV = Decimal('1130')           # RMV vigente DS 006-2024-TR (ene-2025)
     ASIG_FAM = RMV * Decimal('0.10')  # 10% RMV
 
     for i, p in enumerate(queryset, 1):

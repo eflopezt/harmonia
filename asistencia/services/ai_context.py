@@ -585,13 +585,23 @@ def build_system_prompt(user, modules: list[str] | None = None) -> str:
         '10. Normativa inyectada: aplica el conocimiento legal/politico como expertise propio. '
         'No digas "segun la normativa que tengo", "segun mi base de conocimiento" ni similares. '
         'Si la ley aplica, dila directamente: "El DL 713 establece..." o "Por ley...".\n'
-        '11. Si piden GENERAR, MODIFICAR, RELLENAR o RETORNAR un PDF/documento con datos distintos: '
-        'no digas solo "No puedo". Di: "No genero documentos desde el chat. '
-        'Para eso usa el modulo Documentos → Constancias (genera automáticamente con datos del empleado), '
-        'o el Legajo Digital del trabajador. ¿Quieres que busque al empleado en el sistema?"\n'
-        '12. Si el usuario adjunta un documento (PDF, imagen, Excel) y extrae datos clave (DNI, nombre, '
-        'fechas, montos), ofrece siempre buscar ese empleado en la BD: '
-        '"¿Quieres que busque a este empleado en el sistema para ver su expediente?"'
+        '11. EDICION DE PDFs: El sistema PUEDE editar PDFs adjuntos directamente en el chat. '
+        'Si el usuario tiene un PDF activo (adjuntado previamente), puede pedir cambios con frases '
+        'como "cambia", "edita", "reemplaza", "hazlo en mayusculas", "pero con otro nombre", etc. '
+        'El sistema aplica los cambios con PyMuPDF y ofrece descarga. '
+        'NUNCA digas que no puedes editar/modificar un PDF cuando hay uno activo en la conversacion. '
+        'Si el usuario pide un documento NUEVO desde cero (sin PDF adjunto previo), '
+        'sugiere Documentos → Constancias o el Legajo Digital.\n'
+        '12. CONTEXTO CONVERSACIONAL: Eres versatil e inteligente. Mantén el contexto de TODA la '
+        'conversacion. Cuando el usuario diga "el mismo", "eso", "como antes", "como te dije", '
+        '"pero en mayusculas", "ahora con otro dato", entiende la referencia del historial y actua. '
+        'Puedes ayudar con: analisis RRHH, graficos, datos de empleados, leyes laborales peruanas, '
+        'edicion de documentos, exportacion de reportes, y cualquier consulta de RRHH.\n'
+        '13. Si el usuario adjunta un documento y extraes datos clave (DNI, nombre, fechas), '
+        'ofrece buscar ese empleado en la BD: '
+        '"¿Quieres que busque a este empleado en el sistema para ver su expediente?"\n'
+        '14. Respuestas adaptativas: preguntas simples → respuesta breve y directa. '
+        'Analisis complejos → respuesta estructurada con cifras y recomendacion.'
     )
 
     # PLANTILLA
@@ -1372,15 +1382,30 @@ def detect_edit_request(message: str, file_context: dict | None) -> bool:
 
     msg = message.lower()
     edit_kw = [
+        # Verbos de cambio explícito
         'cambia', 'cambie', 'cambiar', 'reemplaza', 'reemplazar', 'reemplaze',
         'edita', 'editar', 'edite', 'modifica', 'modificar', 'modifique',
+        'actualiza', 'actualizar', 'actualice',
+        # Generación de copia
         'genera uno igual', 'genera el mismo', 'genera una copia',
         'mismo documento con', 'crea uno con', 'genera uno con',
+        # Relleno de campos
         'rellena', 'rellenar', 'con el nombre', 'con el dni', 'con el ruc',
         'con los datos de', 'con los datos del', 'con estos datos',
-        'actualiza', 'actualizar', 'actualice',
-        'pon', 'poner', 'coloca', 'colocar', 'poner el nombre',
+        # Posición/inserción
+        'pon', 'ponlo', 'ponla', 'poner', 'coloca', 'colocar', 'poner el nombre',
+        # Referencia al archivo
         'mismo pdf', 'mismo archivo', 'este pdf',
+        # Follow-up / refinamiento (usuario refina un edit anterior)
+        'mayusculas', 'mayúsculas', 'mayuscula', 'mayúscula',
+        'minusculas', 'minúsculas', 'minuscula', 'minúscula',
+        'en mayus', 'en minus',
+        'hazlo', 'hazla', 'hazlos', 'hazlas',
+        'dejalo', 'dejala', 'ponlo en', 'ponla en',
+        'igual pero', 'mismo pero', 'pero en', 'pero con',
+        'ahora con', 'ahora en', 'ahora pon', 'ahora cambia',
+        'en su lugar', 'en vez de', 'en lugar de',
+        'quiero que edites', 'quiero que cambies', 'quiero que modifiques',
     ]
     return any(kw in msg for kw in edit_kw)
 

@@ -52,7 +52,7 @@ ARTICLES = [
 - Jornada máxima ordinaria: **8 horas diarias** o **48 horas semanales**.
 - El empleador puede establecer jornadas menores (por empresa o área).
 - Jornada nocturna (10 pm – 6 am): remuneración mínima = **RMV + 35%** (nocturno).
-- La RMV vigente en Perú es **S/ 1,025** (desde mayo 2022).
+- La RMV vigente en Perú es **S/ 1,130** (desde enero 2025, DS 006-2024-TR).
 - Si el trabajador labora más de 5 horas continuas: derecho a **refrigerio no menor a 45 min** (no computable).
 ''',
     },
@@ -162,7 +162,7 @@ ARTICLES = [
         'tags': 'asignación familiar, 10% rmv, hijos, menores',
         'contenido': '''\
 **Ley 25129 — Asignación Familiar:**
-- Equivale al **10% de la RMV** vigente = S/ 102.50 (con RMV de S/ 1,025).
+- Equivale al **10% de la RMV** vigente = S/ 113.00 (con RMV de S/ 1,130).
 - Aplica a trabajadores con hijos **menores de 18 años** o hasta **24 años** si estudian.
 - Se paga mensualmente junto con la remuneración.
 - No está afecta a descuentos ni forma parte de la base de CTS/gratificación (es un concepto separado).
