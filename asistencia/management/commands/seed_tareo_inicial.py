@@ -113,6 +113,89 @@ class Command(BaseCommand):
                 ],
             },
             {
+                'nombre': 'Foráneo 14×7',
+                'codigo': '14X7',
+                'jornada_tipo': 'ACUMULATIVA',
+                'dias_trabajo_ciclo': 14,
+                'dias_descanso_ciclo': 7,
+                'minutos_almuerzo': 60,
+                'es_nocturno': False,
+                'descripcion': (
+                    'Régimen acumulativo Art. 9 DS 007-2002-TR. '
+                    'L-Sáb: 07:30-18:30 (10h efectivas), Dom: 08:00-12:00. '
+                    'Ciclo 21 días = 3 semanas × 48h = 144h máximas.'
+                ),
+                'horarios': [
+                    {
+                        'nombre': 'Foráneo 14×7 L-Sáb',
+                        'tipo_dia': 'LUNES_SABADO',
+                        'hora_entrada': datetime.time(7, 30),
+                        'hora_salida': datetime.time(18, 30),
+                        'salida_dia_siguiente': False,
+                    },
+                    {
+                        'nombre': 'Foráneo 14×7 Domingo',
+                        'tipo_dia': 'DOMINGO',
+                        'hora_entrada': datetime.time(8, 0),
+                        'hora_salida': datetime.time(12, 0),
+                        'salida_dia_siguiente': False,
+                    },
+                ],
+            },
+            {
+                'nombre': 'Foráneo 10×4',
+                'codigo': '10X4',
+                'jornada_tipo': 'ACUMULATIVA',
+                'dias_trabajo_ciclo': 10,
+                'dias_descanso_ciclo': 4,
+                'minutos_almuerzo': 60,
+                'es_nocturno': False,
+                'descripcion': (
+                    'Régimen acumulativo corto. '
+                    'L-Sáb: 07:30-18:30 (10h efectivas), Dom: 08:00-12:00. '
+                    'Ciclo 14 días = 2 semanas × 48h = 96h máximas.'
+                ),
+                'horarios': [
+                    {
+                        'nombre': 'Foráneo 10×4 L-Sáb',
+                        'tipo_dia': 'LUNES_SABADO',
+                        'hora_entrada': datetime.time(7, 30),
+                        'hora_salida': datetime.time(18, 30),
+                        'salida_dia_siguiente': False,
+                    },
+                    {
+                        'nombre': 'Foráneo 10×4 Domingo',
+                        'tipo_dia': 'DOMINGO',
+                        'hora_entrada': datetime.time(8, 0),
+                        'hora_salida': datetime.time(12, 0),
+                        'salida_dia_siguiente': False,
+                    },
+                ],
+            },
+            {
+                'nombre': 'Foráneo 4×3',
+                'codigo': '4X3',
+                'jornada_tipo': 'ACUMULATIVA',
+                'dias_trabajo_ciclo': 4,
+                'dias_descanso_ciclo': 3,
+                'minutos_almuerzo': 60,
+                'es_nocturno': False,
+                'descripcion': (
+                    'Régimen acumulativo semanal atípico. '
+                    '4 días trabajo × 12h = 48h semanales. '
+                    'L-Jue: 07:00-20:00 (12h efectivas).'
+                ),
+                'horarios': [
+                    {
+                        'nombre': 'Foráneo 4×3 L-Jue',
+                        'tipo_dia': 'LUNES_VIERNES',
+                        'hora_entrada': datetime.time(7, 0),
+                        'hora_salida': datetime.time(20, 0),
+                        'salida_dia_siguiente': False,
+                    },
+                ],
+            },
+            {
                 'nombre': 'Foráneo Turno Noche',
                 'codigo': 'TN',
                 'jornada_tipo': 'NOCTURNA',
@@ -230,7 +313,7 @@ class Command(BaseCommand):
             (datetime.date(2026, 11, 1), 'Día de Todos los Santos',                     'NO_RECUPERABLE'),
             (datetime.date(2026, 12, 8), 'Inmaculada Concepción',                       'NO_RECUPERABLE'),
             (datetime.date(2026, 12, 9), 'Batalla de Ayacucho',                         'NO_RECUPERABLE'),
-            (datetime.date(2025, 12, 25),'Navidad 2025',                                'NO_RECUPERABLE'),
+            (datetime.date(2026, 12, 25), 'Navidad',                                     'NO_RECUPERABLE'),
         ]
 
         created = 0
