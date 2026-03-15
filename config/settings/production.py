@@ -35,7 +35,7 @@ if cors_origins:
     CORS_ALLOWED_ORIGINS = [origin for origin in cors_origins.split(',') if origin]
 
 # Security settings
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True

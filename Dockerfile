@@ -7,10 +7,15 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (build + cairo for xhtml2pdf + mupdf)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libgdk-pixbuf-2.0-dev \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies (production only)
@@ -26,10 +31,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Runtime system deps only (no build-essential)
+# Runtime system deps only (no build tools)
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     libpq5 \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder

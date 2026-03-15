@@ -31,11 +31,11 @@ services:
         reservations:
           memory: 256M
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]
+      test: ["CMD-SHELL", "cat /proc/1/status | grep -q 'State.*S' || exit 1"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 15s
     command: >
       gunicorn config.wsgi:application
         --bind 0.0.0.0:8000
@@ -46,7 +46,6 @@ services:
         --max-requests-jitter 50
         --timeout 300
         --graceful-timeout 30
-        --keepalive 5
         --preload
         --access-logfile -
         --error-logfile -
