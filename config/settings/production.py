@@ -118,25 +118,6 @@ if SENTRY_DSN:
         environment='production',
     )
 
-# Logging
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-}
+# Logging — hereda de base.py, solo ajusta nivel para producción
+LOGGING['root']['level'] = 'WARNING'
+LOGGING['handlers']['console']['level'] = 'WARNING'
