@@ -23,6 +23,16 @@ class EmpresaAdmin(admin.ModelAdmin):
         ('Clasificación', {
             'fields': ('regimen_laboral', 'sector', 'actividad_economica'),
         }),
+        ('Correo electrónico (SMTP)', {
+            'fields': (
+                'email_proveedor',
+                ('email_host', 'email_port'),
+                ('email_use_tls', 'email_use_ssl'),
+                ('email_host_user', 'email_host_password'),
+                ('email_from', 'email_reply_to'),
+            ),
+            'description': 'Configuración SMTP por empresa. Gmail requiere App Password (no la contraseña normal).',
+        }),
         ('Estado', {
             'fields': ('activa', 'es_principal'),
         }),

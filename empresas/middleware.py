@@ -40,5 +40,15 @@ class EmpresaMiddleware:
                 except Exception:
                     pass
 
+        # Setear empresa en thread-local para el email backend
+        if request.empresa_actual:
+            from empresas.email_backend import set_current_empresa
+            set_current_empresa(request.empresa_actual)
+
         response = self.get_response(request)
+
+        # Limpiar thread-local después del request
+        from empresas.email_backend import set_current_empresa
+        set_current_empresa(None)
+
         return response
