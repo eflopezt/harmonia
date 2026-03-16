@@ -44,10 +44,8 @@
     <rect x="0"  y="10" width="12" height="60" rx="2" fill="white"/>
     <!-- Right stem -->
     <rect x="28" y="10" width="12" height="60" rx="2" fill="white"/>
-    <!-- Crossbar -->
-    <rect x="0"  y="28" width="40" height="12" rx="2" fill="white"/>
-    <!-- Cyan arc through crossbar -->
-    <path d="M 10,34 Q 20,44 30,34" stroke="#5eead4" stroke-width="5" fill="none" stroke-linecap="round" filter="url(#softGlow)"/>
+    <!-- Cyan arc (smile) -->
+    <path d="M 10,34 Q 20,60 30,34" stroke="#5eead4" stroke-width="5" fill="none" stroke-linecap="round" filter="url(#softGlow)"/>
   </g>
 
   <!-- "Harmoni" main text -->

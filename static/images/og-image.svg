@@ -88,10 +88,8 @@
   <rect x="559" y="107" width="19" height="86" rx="6" fill="#ffffff"/>
   <!-- H in icon: right stem -->
   <rect x="622" y="107" width="19" height="86" rx="6" fill="#ffffff"/>
-  <!-- H in icon: crossbar white base -->
-  <rect x="559" y="136" width="82" height="20" rx="5" fill="#ffffff"/>
-  <!-- H in icon: cyan arc through crossbar -->
-  <path d="M 559 146 Q 600 126 641 146" stroke="#5eead4" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- H in icon: cyan arc (smile) -->
+  <path d="M 559 146 Q 600 172 641 146" stroke="#5eead4" stroke-width="5" fill="none" stroke-linecap="round"/>
 
   <!-- "Harmoni" wordmark -->
   <text

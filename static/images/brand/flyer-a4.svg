@@ -20,10 +20,8 @@
   <rect x="347" y="52" width="14" height="70" fill="white" rx="2"/>
   <!-- Right stem -->
   <rect x="375" y="52" width="14" height="70" fill="white" rx="2"/>
-  <!-- Crossbar -->
-  <rect x="347" y="83" width="42" height="14" fill="white" rx="2"/>
-  <!-- Cyan arc through crossbar -->
-  <path d="M 354,90 Q 368,105 382,90" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- Cyan arc (smile) -->
+  <path d="M 354,90 Q 368,116 382,90" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
 
   <!-- "Harmoni" wordmark -->
   <text x="397" y="190" font-size="70" font-weight="700" fill="white" text-anchor="middle">Harmoni</text>

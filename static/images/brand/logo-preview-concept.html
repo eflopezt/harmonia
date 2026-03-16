@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Harmoni — Concepto Logo H (sin barra horizontal)</title>
+<style>
+  body { background: #0a1a18; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; color: #fff; }
+  h1 { color: #5eead4; font-size: 22px; margin-bottom: 6px; }
+  p  { color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; max-width: 900px; }
+  .card { background: #134e4a; border-radius: 16px; padding: 32px 24px 20px; text-align: center; border: 1px solid rgba(94,234,212,0.15); }
+  .card:hover { border-color: #5eead4; transition: .2s; }
+  .label { color: #5eead4; font-size: 13px; font-weight: 600; margin-top: 16px; letter-spacing: .5px; }
+  .desc  { color: rgba(255,255,255,0.5); font-size: 11px; margin-top: 4px; }
+  .badge-old { background: rgba(255,100,100,0.15); color: #f87171; font-size: 10px; padding: 2px 8px; border-radius: 99px; display: inline-block; margin-top: 6px; }
+  .badge-new { background: rgba(94,234,212,0.15); color: #5eead4; font-size: 10px; padding: 2px 8px; border-radius: 99px; display: inline-block; margin-top: 6px; }
+  .winner { border-color: #5eead4; box-shadow: 0 0 24px rgba(94,234,212,0.2); }
+  .winner .label { font-size: 14px; }
+  hr { border: none; border-top: 1px solid rgba(94,234,212,0.15); margin: 40px 0 24px; }
+  .section-title { color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h1>Harmoni — Iteraciones del logo H</h1>
+<p>Comparativa: barra horizontal vs solo arco curvilíneo entre los dos pilares</p>
+
+<div class="section-title">— Versión actual (con barra recta + arco)</div>
+<div class="grid" style="grid-template-columns: repeat(2,1fr); max-width:460px; margin-bottom:40px;">
+
+  <!-- ACTUAL: barra recta + arco cyan -->
+  <div class="card">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <!-- stems -->
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <!-- crossbar RECTO -->
+      <rect x="8" y="36" width="64" height="12" rx="3" fill="white"/>
+      <!-- arco cyan encima -->
+      <path d="M 15,42 Q 40,60 65,42" stroke="#5eead4" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="label">Actual</div>
+    <div class="desc">Barra recta + arco</div>
+    <span class="badge-old">antes</span>
+  </div>
+
+  <!-- ACTUAL en oscuro (como se ve en sidebar) -->
+  <div class="card">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="8" y="36" width="64" height="12" rx="3" fill="rgba(255,255,255,0.3)"/>
+      <path d="M 15,42 Q 40,62 65,42" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="label">Actual (sidebar)</div>
+    <div class="desc">Barra semitransparente</div>
+    <span class="badge-old">antes</span>
+  </div>
+</div>
+
+<div class="section-title">— Propuestas: solo arco, sin barra horizontal</div>
+<div class="grid">
+
+  <!-- OPCIÓN A: arco suave (smile leve) -->
+  <div class="card">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <!-- SIN barra — solo arco suave -->
+      <path d="M 15,42 Q 40,56 65,42" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="label">A — Arco suave</div>
+    <div class="desc">Curvatura leve, elegante</div>
+    <span class="badge-new">sin barra</span>
+  </div>
+
+  <!-- OPCIÓN B: arco más pronunciado (smile amplio) -->
+  <div class="card winner">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <!-- Arco pronunciado tipo smile -->
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="label">B — Smile amplio ⭐</div>
+    <div class="desc">Curva generosa, expresiva</div>
+    <span class="badge-new">recomendada</span>
+  </div>
+
+  <!-- OPCIÓN C: arco con grosor doble (bold) -->
+  <div class="card">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <!-- Arco bold + glow -->
+      <path d="M 15,40 Q 40,62 65,40" stroke="rgba(94,234,212,0.25)" stroke-width="16" fill="none" stroke-linecap="round"/>
+      <path d="M 15,40 Q 40,62 65,40" stroke="#5eead4" stroke-width="8" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="label">C — Bold con glow</div>
+    <div class="desc">Arco grueso + halo cyan</div>
+    <span class="badge-new">sin barra</span>
+  </div>
+
+  <!-- OPCIÓN D: arco invertido (arco hacia arriba = puente) -->
+  <div class="card">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <!-- Arco hacia arriba (puente) -->
+      <path d="M 15,50 Q 40,28 65,50" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="label">D — Puente (↑)</div>
+    <div class="desc">Arco hacia arriba, tipo arco iris</div>
+    <span class="badge-new">sin barra</span>
+  </div>
+
+</div>
+
+<hr>
+
+<!-- Preview en tamaños reales -->
+<div class="section-title">— Opción B "Smile amplio" a diferentes tamaños</div>
+<div style="display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin-bottom:40px;">
+
+  <!-- 16px (favicon tiny) -->
+  <div style="text-align:center;">
+    <svg width="16" height="16" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:6px;">16px</div>
+  </div>
+
+  <!-- 32px -->
+  <div style="text-align:center;">
+    <svg width="32" height="36" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:6px;">32px</div>
+  </div>
+
+  <!-- 48px -->
+  <div style="text-align:center;">
+    <svg width="48" height="54" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:6px;">48px</div>
+  </div>
+
+  <!-- 80px -->
+  <div style="text-align:center;">
+    <svg width="80" height="90" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:6px;">80px</div>
+  </div>
+
+  <!-- 120px -->
+  <div style="text-align:center;">
+    <svg width="120" height="135" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:6px;">120px</div>
+  </div>
+
+  <!-- 180px -->
+  <div style="text-align:center;">
+    <svg width="180" height="202" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:6px;">180px</div>
+  </div>
+
+</div>
+
+<!-- Preview con texto "Harmoni" -->
+<div class="section-title">— Logo horizontal con la opción B</div>
+<div style="background: #0d2b27; border-radius:12px; padding:32px 40px; display:inline-flex; align-items:center; gap:16px; margin-bottom:40px;">
+  <svg width="44" height="50" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="8" width="14" height="74" rx="3" fill="white"/>
+    <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+    <path d="M 15,38 Q 40,64 65,38" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </svg>
+  <div>
+    <div style="font-size:28px; font-weight:900; color:white; line-height:1; letter-spacing:-0.5px;">Harmoni</div>
+    <div style="font-size:12px; color:#5eead4; margin-top:2px; letter-spacing:1px;">RRHH &amp; PLANILLAS</div>
+  </div>
+</div>
+
+<div style="color:rgba(255,255,255,0.35); font-size:12px;">
+  Abre en navegador · D:\Harmoni\static\images\brand\logo-preview-concept.html
+</div>
+
+</body>
+</html>

@@ -32,10 +32,8 @@
   <rect x="326" y="196" width="20" height="98" fill="white" rx="3"/>
   <!-- Right stem -->
   <rect x="374" y="196" width="20" height="98" fill="white" rx="3"/>
-  <!-- Crossbar -->
-  <rect x="326" y="237" width="68" height="20" fill="white" rx="3"/>
-  <!-- Cyan arc through crossbar -->
-  <path d="M 336,247 Q 361,272 386,247" stroke="#5eead4" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <!-- Cyan arc (smile) -->
+  <path d="M 336,247 Q 361,273 386,247" stroke="#5eead4" stroke-width="8" fill="none" stroke-linecap="round"/>
 
   <!-- "Harmoni" -->
   <text x="396" y="420" font-size="82" font-weight="900" fill="white" text-anchor="middle">Harmoni</text>

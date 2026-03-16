@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Harmoni — Ajuste de sonrisa</title>
+<style>
+  body { background: #0a1a18; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; margin: 0; padding: 48px; color: #fff; }
+  h1 { color: #5eead4; font-size: 20px; margin-bottom: 4px; }
+  p  { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 40px; }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 48px; }
+  .card {
+    background: #134e4a; border-radius: 16px; padding: 36px 28px 20px;
+    text-align: center; border: 2px solid transparent; cursor: pointer;
+    transition: all .2s; min-width: 140px;
+  }
+  .card:hover { border-color: rgba(94,234,212,0.5); transform: translateY(-2px); }
+  .card.pick { border-color: #5eead4; box-shadow: 0 0 28px rgba(94,234,212,0.25); }
+  .num  { color: #5eead4; font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+  .desc { color: rgba(255,255,255,0.5); font-size: 11px; margin-top: 8px; line-height: 1.5; }
+  .tag  { display: inline-block; margin-top: 8px; font-size: 10px; padding: 2px 10px;
+          border-radius: 99px; background: rgba(94,234,212,0.12); color: #5eead4; }
+
+  hr { border: none; border-top: 1px solid rgba(94,234,212,0.12); margin: 40px 0 32px; }
+  .section { color: rgba(255,255,255,0.35); font-size: 10px; letter-spacing: 2px;
+             text-transform: uppercase; margin-bottom: 20px; }
+
+  /* Logo horizontal preview */
+  .logobar {
+    display: inline-flex; align-items: center; gap: 14px;
+    background: #0d2b27; border-radius: 10px; padding: 20px 28px;
+    margin: 6px; border: 1px solid rgba(94,234,212,0.1);
+  }
+  .wordmark { font-size: 26px; font-weight: 900; color: white; letter-spacing: -.5px; line-height: 1; }
+  .sub      { font-size: 10px; color: #5eead4; letter-spacing: 1.2px; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>Harmoni — Ajuste de sonrisa (estilo A elegante)</h1>
+<p>Todos sin barra horizontal · Solo el arco curvilíneo · De menos a más pronunciado</p>
+
+<div class="section">— Variaciones de profundidad del arco</div>
+<div class="row">
+
+  <!-- S1: muy sutil (casi como A original) -->
+  <div class="card">
+    <div class="num">S1</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,42 Q 40,52 58,42"
+            stroke="#5eead4" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">Mínima<br>casi plana</div>
+  </div>
+
+  <!-- S2: leve (+8px profundidad) -->
+  <div class="card">
+    <div class="num">S2</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,40 Q 40,55 58,40"
+            stroke="#5eead4" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">Sutil<br>tipo A original</div>
+  </div>
+
+  <!-- S3: nota la sonrisa (+13px) ZONA DULCE -->
+  <div class="card pick">
+    <div class="num">S3</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38"
+            stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">Sonrisa clara<br>aún elegante</div>
+    <span class="tag">⭐ zona dulce</span>
+  </div>
+
+  <!-- S4: más notoria (+17px) -->
+  <div class="card">
+    <div class="num">S4</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,36 Q 40,62 58,36"
+            stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">Bien visible<br>expresivo</div>
+  </div>
+
+  <!-- S5: sonrisa plena -->
+  <div class="card">
+    <div class="num">S5</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,34 Q 40,66 58,34"
+            stroke="#5eead4" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">Sonrisa plena<br>más cálido</div>
+  </div>
+
+</div>
+
+<hr>
+
+<!-- VARIANTES DE GROSOR para S3 -->
+<div class="section">— S3 con diferente grosor de trazo</div>
+<div class="row">
+
+  <div class="card">
+    <div class="num" style="font-size:14px;">S3 · fino</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38"
+            stroke="#5eead4" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">stroke 4px<br>delicado</div>
+  </div>
+
+  <div class="card pick">
+    <div class="num" style="font-size:14px;">S3 · medio</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38"
+            stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">stroke 6px<br>equilibrado</div>
+    <span class="tag">⭐ recomendado</span>
+  </div>
+
+  <div class="card">
+    <div class="num" style="font-size:14px;">S3 · bold</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38"
+            stroke="#5eead4" stroke-width="8" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="desc">stroke 8px<br>impactante</div>
+  </div>
+
+  <div class="card">
+    <div class="num" style="font-size:14px;">S3 + glow</div>
+    <svg width="90" height="100" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38"
+            stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+    </svg>
+    <div class="desc">stroke 6px<br>+ efecto glow</div>
+  </div>
+
+</div>
+
+<hr>
+
+<!-- LOGO HORIZONTAL PREVIEW — S3 medio -->
+<div class="section">— Así quedaría en el logo horizontal (S3 · medio)</div>
+<div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 40px;">
+
+  <!-- sobre fondo oscuro -->
+  <div class="logobar">
+    <svg width="40" height="46" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="wordmark">Harmoni</div>
+      <div class="sub">RRHH &amp; PLANILLAS</div>
+    </div>
+  </div>
+
+  <!-- sobre blanco -->
+  <div class="logobar" style="background:white;">
+    <svg width="40" height="46" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="#134e4a"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="#134e4a"/>
+      <path d="M 22,38 Q 40,58 58,38" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="wordmark" style="color:#0d2b27;">Harmoni</div>
+      <div class="sub" style="color:#0f766e;">RRHH &amp; PLANILLAS</div>
+    </div>
+  </div>
+
+  <!-- solo icono grande -->
+  <div class="logobar" style="flex-direction:column; gap:8px;">
+    <svg width="72" height="82" viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8"  y="8" width="14" height="74" rx="3" fill="white"/>
+      <rect x="58" y="8" width="14" height="74" rx="3" fill="white"/>
+      <path d="M 22,38 Q 40,58 58,38" stroke="#5eead4" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10px; color:rgba(255,255,255,0.4);">ícono solo</div>
+  </div>
+
+</div>
+
+<div style="color:rgba(255,255,255,0.3); font-size:11px;">
+  Dile a Claude cuál prefieres → S1 a S5, y si quieres fino / medio / bold / glow · Él actualiza todos los archivos.
+</div>
+
+</body>
+</html>

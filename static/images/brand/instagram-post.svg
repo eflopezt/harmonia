@@ -59,11 +59,8 @@
   <rect x="484" y="258" width="22" height="104" rx="4" fill="white"/>
   <!-- Right vertical bar of H -->
   <rect x="574" y="258" width="22" height="104" rx="4" fill="white"/>
-  <!-- Crossbar of H -->
-  <rect x="484" y="300" width="112" height="20" rx="4" fill="white"/>
-
-  <!-- Cyan arc through crossbar -->
-  <path d="M 476 310 Q 540 270 604 310" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.95"/>
+  <!-- Cyan arc (smile) -->
+  <path d="M 476 310 Q 540 336 604 310" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.95"/>
 
   <!-- ========== HARMONI TEXT ========== -->
   <text x="540" y="430"

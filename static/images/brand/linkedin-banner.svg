@@ -34,10 +34,8 @@
   <rect x="60" y="164" width="12" height="66" fill="white"/>
   <!-- Right stem: 12x66 at 96,164 -->
   <rect x="136" y="164" width="12" height="66" fill="white"/>
-  <!-- Crossbar: 48x12 at 60,197 -->
-  <rect x="60" y="197" width="88" height="12" fill="white"/>
-  <!-- Cyan arc through crossbar -->
-  <path d="M 66,203 Q 104,228 142,203" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- Cyan arc (smile) -->
+  <path d="M 66,203 Q 104,229 142,203" stroke="#5eead4" stroke-width="7" fill="none" stroke-linecap="round"/>
 
   <!-- "Harmoni" 64px bold -->
   <text x="168" y="222" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="64" font-weight="900" fill="white">Harmoni</text>

@@ -13,10 +13,8 @@
   <rect x="10" y="10" width="7" height="28" rx="2.5" fill="#ffffff"/>
   <!-- H mark: right stem -->
   <rect x="31" y="10" width="7" height="28" rx="2.5" fill="#ffffff"/>
-  <!-- H mark: crossbar white base -->
-  <rect x="10" y="20.5" width="28" height="7" rx="2" fill="#ffffff"/>
-  <!-- H mark: cyan accent arc through crossbar -->
-  <path d="M 10 24 Q 24 16 38 24" stroke="#5eead4" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- H mark: cyan accent arc (smile) -->
+  <path d="M 10 24 Q 24 50 38 24" stroke="#5eead4" stroke-width="3" fill="none" stroke-linecap="round"/>
 
   <!-- "Harmoni" wordmark -->
   <text

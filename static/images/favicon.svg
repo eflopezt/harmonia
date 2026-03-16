@@ -11,8 +11,6 @@
   <rect x="7" y="8" width="4" height="16" rx="1.5" fill="#ffffff"/>
   <!-- H right stem -->
   <rect x="21" y="8" width="4" height="16" rx="1.5" fill="#ffffff"/>
-  <!-- H crossbar (white base) -->
-  <rect x="7" y="14" width="18" height="4" rx="1" fill="#ffffff"/>
-  <!-- Cyan accent arc flowing through the crossbar -->
-  <path d="M 7 16 Q 16 11 25 16" stroke="#5eead4" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <!-- Cyan accent arc (smile) -->
+  <path d="M 7 16 Q 16 42 25 16" stroke="#5eead4" stroke-width="2.2" fill="none" stroke-linecap="round"/>
 </svg>
