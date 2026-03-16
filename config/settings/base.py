@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'crispy_forms',
     'crispy_bootstrap5',
+    'django_celery_beat',
+    'django_celery_results',
     
     # Humanize (formato de números)
     'django.contrib.humanize',
