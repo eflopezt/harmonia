@@ -46,6 +46,15 @@
     --border-color: #e2e8f0;
     --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
+
+    /* Enhanced design tokens */
+    --brand-gradient: linear-gradient(135deg, #0f766e 0%, #0d2b27 100%);
+    --brand-gradient-soft: linear-gradient(135deg, #f0fafa 0%, #e6f4f1 100%);
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(15,118,110,0.08);
+    --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.10), 0 8px 24px rgba(15,118,110,0.12);
+    --radius-card: 12px;
+    --radius-btn: 8px;
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* =============================================================================
@@ -1133,10 +1142,15 @@ a:hover {
    13. BOOTSTRAP OVERRIDES — Cards
    ============================================================================= */
 .card {
-    border-radius: 12px;
+    border-radius: var(--radius-card);
     border: 1px solid var(--border-color);
-    box-shadow: var(--card-shadow);
-    transition: box-shadow 0.2s ease;
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-smooth);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
 }
 
 .card-header {
@@ -1161,11 +1175,11 @@ a:hover {
    14. BOOTSTRAP OVERRIDES — Buttons
    ============================================================================= */
 .btn {
-    border-radius: 8px;
+    border-radius: var(--radius-btn);
     font-weight: 500;
     font-size: 0.875rem;
     padding: 0.5rem 1rem;
-    transition: all 0.15s ease;
+    transition: var(--transition-smooth);
     line-height: 1.5;
 }
 

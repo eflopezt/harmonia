@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48">
+  <defs>
+    <linearGradient id="markBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0d2b27"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon: 44x44 rounded square with gradient background -->
+  <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="url(#markBg)"/>
+
+  <!-- H mark: left stem -->
+  <rect x="10" y="10" width="7" height="28" rx="2.5" fill="#ffffff"/>
+  <!-- H mark: right stem -->
+  <rect x="31" y="10" width="7" height="28" rx="2.5" fill="#ffffff"/>
+  <!-- H mark: crossbar white base -->
+  <rect x="10" y="20.5" width="28" height="7" rx="2" fill="#ffffff"/>
+  <!-- H mark: cyan accent arc through crossbar -->
+  <path d="M 10 24 Q 24 16 38 24" stroke="#5eead4" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- "Harmoni" wordmark -->
+  <text
+    x="58"
+    y="28"
+    font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="700"
+    font-size="22"
+    fill="#0d2b27"
+    dominant-baseline="auto"
+    letter-spacing="-0.3"
+  >Harmoni</text>
+
+  <!-- Subtitle -->
+  <text
+    x="59"
+    y="42"
+    font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="400"
+    font-size="11"
+    fill="#64748b"
+    letter-spacing="0.4"
+  >RRHH &amp; Planillas</text>
+</svg>

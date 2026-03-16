@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="pageBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d2b27"/>
+      <stop offset="100%" stop-color="#134e4a"/>
+    </linearGradient>
+    <linearGradient id="markBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0d2b27"/>
+    </linearGradient>
+    <!-- Subtle radial glow behind the logo mark -->
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#5eead4" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#5eead4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#pageBg)"/>
+
+  <!-- Decorative grid dots -->
+  <g opacity="0.08">
+    <!-- Horizontal rows of dots across full canvas -->
+    <g fill="#5eead4">
+      <!-- Row 1 (y=80) -->
+      <circle cx="80"  cy="80"  r="2.5"/> <circle cx="160" cy="80"  r="2.5"/>
+      <circle cx="240" cy="80"  r="2.5"/> <circle cx="320" cy="80"  r="2.5"/>
+      <circle cx="400" cy="80"  r="2.5"/> <circle cx="480" cy="80"  r="2.5"/>
+      <circle cx="560" cy="80"  r="2.5"/> <circle cx="640" cy="80"  r="2.5"/>
+      <circle cx="720" cy="80"  r="2.5"/> <circle cx="800" cy="80"  r="2.5"/>
+      <circle cx="880" cy="80"  r="2.5"/> <circle cx="960" cy="80"  r="2.5"/>
+      <circle cx="1040" cy="80" r="2.5"/> <circle cx="1120" cy="80" r="2.5"/>
+      <!-- Row 2 (y=160) -->
+      <circle cx="80"  cy="160" r="2.5"/> <circle cx="160" cy="160" r="2.5"/>
+      <circle cx="240" cy="160" r="2.5"/> <circle cx="320" cy="160" r="2.5"/>
+      <circle cx="400" cy="160" r="2.5"/> <circle cx="480" cy="160" r="2.5"/>
+      <circle cx="560" cy="160" r="2.5"/> <circle cx="640" cy="160" r="2.5"/>
+      <circle cx="720" cy="160" r="2.5"/> <circle cx="800" cy="160" r="2.5"/>
+      <circle cx="880" cy="160" r="2.5"/> <circle cx="960" cy="160" r="2.5"/>
+      <circle cx="1040" cy="160" r="2.5"/> <circle cx="1120" cy="160" r="2.5"/>
+      <!-- Row 3 (y=240) -->
+      <circle cx="80"  cy="240" r="2.5"/> <circle cx="160" cy="240" r="2.5"/>
+      <circle cx="240" cy="240" r="2.5"/> <circle cx="320" cy="240" r="2.5"/>
+      <circle cx="400" cy="240" r="2.5"/> <circle cx="480" cy="240" r="2.5"/>
+      <circle cx="560" cy="240" r="2.5"/> <circle cx="640" cy="240" r="2.5"/>
+      <circle cx="720" cy="240" r="2.5"/> <circle cx="800" cy="240" r="2.5"/>
+      <circle cx="880" cy="240" r="2.5"/> <circle cx="960" cy="240" r="2.5"/>
+      <circle cx="1040" cy="240" r="2.5"/> <circle cx="1120" cy="240" r="2.5"/>
+      <!-- Row 4 (y=390) -->
+      <circle cx="80"  cy="390" r="2.5"/> <circle cx="160" cy="390" r="2.5"/>
+      <circle cx="240" cy="390" r="2.5"/> <circle cx="320" cy="390" r="2.5"/>
+      <circle cx="400" cy="390" r="2.5"/> <circle cx="480" cy="390" r="2.5"/>
+      <circle cx="560" cy="390" r="2.5"/> <circle cx="640" cy="390" r="2.5"/>
+      <circle cx="720" cy="390" r="2.5"/> <circle cx="800" cy="390" r="2.5"/>
+      <circle cx="880" cy="390" r="2.5"/> <circle cx="960" cy="390" r="2.5"/>
+      <circle cx="1040" cy="390" r="2.5"/> <circle cx="1120" cy="390" r="2.5"/>
+      <!-- Row 5 (y=470) -->
+      <circle cx="80"  cy="470" r="2.5"/> <circle cx="160" cy="470" r="2.5"/>
+      <circle cx="240" cy="470" r="2.5"/> <circle cx="320" cy="470" r="2.5"/>
+      <circle cx="400" cy="470" r="2.5"/> <circle cx="480" cy="470" r="2.5"/>
+      <circle cx="560" cy="470" r="2.5"/> <circle cx="640" cy="470" r="2.5"/>
+      <circle cx="720" cy="470" r="2.5"/> <circle cx="800" cy="470" r="2.5"/>
+      <circle cx="880" cy="470" r="2.5"/> <circle cx="960" cy="470" r="2.5"/>
+      <circle cx="1040" cy="470" r="2.5"/> <circle cx="1120" cy="470" r="2.5"/>
+      <!-- Row 6 (y=550) -->
+      <circle cx="80"  cy="550" r="2.5"/> <circle cx="160" cy="550" r="2.5"/>
+      <circle cx="240" cy="550" r="2.5"/> <circle cx="320" cy="550" r="2.5"/>
+      <circle cx="400" cy="550" r="2.5"/> <circle cx="480" cy="550" r="2.5"/>
+      <circle cx="560" cy="550" r="2.5"/> <circle cx="640" cy="550" r="2.5"/>
+      <circle cx="720" cy="550" r="2.5"/> <circle cx="800" cy="550" r="2.5"/>
+      <circle cx="880" cy="550" r="2.5"/> <circle cx="960" cy="550" r="2.5"/>
+      <circle cx="1040" cy="550" r="2.5"/> <circle cx="1120" cy="550" r="2.5"/>
+    </g>
+  </g>
+
+  <!-- Large decorative circles (background accent) -->
+  <circle cx="1100" cy="100" r="260" fill="#0f766e" opacity="0.08"/>
+  <circle cx="100"  cy="530" r="200" fill="#5eead4"  opacity="0.05"/>
+  <circle cx="1050" cy="560" r="140" fill="#5eead4"  opacity="0.05"/>
+
+  <!-- Glow radial behind center icon -->
+  <ellipse cx="600" cy="245" rx="220" ry="220" fill="url(#glow)"/>
+
+  <!-- Center icon mark: 120x120 rounded square -->
+  <rect x="540" y="90" width="120" height="120" rx="26" ry="26" fill="url(#markBg)"/>
+
+  <!-- H in icon: left stem -->
+  <rect x="559" y="107" width="19" height="86" rx="6" fill="#ffffff"/>
+  <!-- H in icon: right stem -->
+  <rect x="622" y="107" width="19" height="86" rx="6" fill="#ffffff"/>
+  <!-- H in icon: crossbar white base -->
+  <rect x="559" y="136" width="82" height="20" rx="5" fill="#ffffff"/>
+  <!-- H in icon: cyan arc through crossbar -->
+  <path d="M 559 146 Q 600 126 641 146" stroke="#5eead4" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+  <!-- "Harmoni" wordmark -->
+  <text
+    x="600"
+    y="280"
+    font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="800"
+    font-size="86"
+    fill="#ffffff"
+    text-anchor="middle"
+    letter-spacing="-2"
+  >Harmoni</text>
+
+  <!-- Tagline -->
+  <text
+    x="600"
+    y="344"
+    font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="400"
+    font-size="28"
+    fill="#5eead4"
+    text-anchor="middle"
+    letter-spacing="0.5"
+  >Gestión de personas, en armonía</text>
+
+  <!-- Divider line -->
+  <line x1="480" y1="380" x2="720" y2="380" stroke="#5eead4" stroke-width="1" stroke-opacity="0.35"/>
+
+  <!-- Bottom descriptor -->
+  <text
+    x="600"
+    y="420"
+    font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="400"
+    font-size="18"
+    fill="#ffffff"
+    fill-opacity="0.55"
+    text-anchor="middle"
+    letter-spacing="2"
+  >SISTEMA ERP  ·  RRHH  ·  PLANILLAS  ·  PERÚ</text>
+</svg>

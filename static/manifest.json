@@ -1,15 +1,24 @@
 {
   "name": "Harmoni ERP",
   "short_name": "Harmoni",
-  "description": "Sistema de Gestión de Recursos Humanos",
+  "description": "Sistema ERP de RRHH y Planillas para empresas peruanas — Gestión de personas, en armonía",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0d2b27",
-  "theme_color": "#0d2b27",
+  "theme_color": "#0f766e",
   "orientation": "portrait-primary",
-  "lang": "es",
-  "categories": ["business", "productivity"],
+  "lang": "es-PE",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "finance"],
+  "screenshots": [
+    {
+      "src": "/static/images/og-image.svg",
+      "sizes": "1200x630",
+      "type": "image/svg+xml",
+      "label": "Harmoni ERP — Dashboard"
+    }
+  ],
   "icons": [
     {
       "src": "/static/images/favicon.svg",
@@ -21,30 +30,57 @@
       "src": "/static/images/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/static/images/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
       "name": "Dashboard",
+      "short_name": "Inicio",
       "url": "/",
-      "description": "Panel principal"
+      "description": "Panel principal con KPIs",
+      "icons": [{"src": "/static/images/favicon.svg", "sizes": "any"}]
     },
     {
-      "name": "Asistencia",
+      "name": "Registrar Tareo",
+      "short_name": "Tareo",
       "url": "/tareo/",
-      "description": "Control de asistencia"
+      "description": "Control de asistencia diario",
+      "icons": [{"src": "/static/images/favicon.svg", "sizes": "any"}]
     },
     {
       "name": "Personal",
+      "short_name": "Personal",
       "url": "/personal/",
-      "description": "Gestión de personal"
+      "description": "Directorio de colaboradores",
+      "icons": [{"src": "/static/images/favicon.svg", "sizes": "any"}]
+    },
+    {
+      "name": "Nóminas",
+      "short_name": "Nóminas",
+      "url": "/nominas/",
+      "description": "Procesamiento de planillas",
+      "icons": [{"src": "/static/images/favicon.svg", "sizes": "any"}]
     }
-  ]
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }
