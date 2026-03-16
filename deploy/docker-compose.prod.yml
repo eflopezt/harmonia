@@ -1,8 +1,7 @@
-version: '3.9'
-
 # =============================================================================
 # Harmoni ERP — Production Docker Compose (optimizado para VPS 4-8GB)
 # PostgreSQL y Redis corren nativos en el host
+# network_mode: host — containers comparten red del host
 # =============================================================================
 
 services:
@@ -13,23 +12,13 @@ services:
     container_name: harmoni-web
     restart: unless-stopped
     env_file: .env.production
+    network_mode: host
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.production
     volumes:
       - /opt/harmoni/staticfiles:/app/staticfiles
       - /opt/harmoni/media:/app/media
       - /opt/harmoni/logs:/app/logs
-    ports:
-      - "8000:8000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.75"
-          memory: 512M
-        reservations:
-          memory: 256M
     healthcheck:
       test: ["CMD-SHELL", "cat /proc/1/status | grep -q 'State.*S' || exit 1"]
       interval: 30s
@@ -58,20 +47,12 @@ services:
     container_name: harmoni-celery
     restart: unless-stopped
     env_file: .env.production
+    network_mode: host
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.production
     volumes:
       - /opt/harmoni/media:/app/media
       - /opt/harmoni/logs:/app/logs
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.50"
-          memory: 384M
-        reservations:
-          memory: 128M
     command: >
       celery -A config worker
         --loglevel=info
@@ -93,19 +74,11 @@ services:
     container_name: harmoni-beat
     restart: unless-stopped
     env_file: .env.production
+    network_mode: host
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.production
     volumes:
       - /opt/harmoni/logs:/app/logs
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.15"
-          memory: 128M
-        reservations:
-          memory: 64M
     command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     depends_on:
       web:
