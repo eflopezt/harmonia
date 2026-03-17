@@ -108,7 +108,7 @@
             <h6 class="mb-3 fw-semibold">
                 <i class="fas fa-chart-line me-1 text-muted"></i>Tendencia Headcount — Últimos 12 meses
             </h6>
-            <canvas id="chartTrend" height="240"></canvas>
+            <div style="position:relative;height:240px"><canvas id="chartTrend"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4">
@@ -116,7 +116,7 @@
             <h6 class="mb-3 fw-semibold">
                 <i class="fas fa-exchange-alt me-1 text-muted"></i>Altas y Bajas Mensuales
             </h6>
-            <canvas id="chartAltasBajas" height="240"></canvas>
+            <div style="position:relative;height:240px"><canvas id="chartAltasBajas"></canvas></div>
         </div>
     </div>
 </div>
@@ -128,7 +128,7 @@
             <h6 class="mb-3 fw-semibold">
                 <i class="fas fa-clock me-1 text-muted"></i>Distribución por Antigüedad
             </h6>
-            <canvas id="chartAntiguedad" height="200"></canvas>
+            <div style="position:relative;height:200px"><canvas id="chartAntiguedad"></canvas></div>
             <table class="table table-sm mt-2 mb-0" style="font-size:.82rem">
                 <thead><tr>
                     <th style="font-size:.7rem;color:#6b7280">Rango</th>
@@ -165,7 +165,7 @@
             <h6 class="mb-3 fw-semibold">
                 <i class="fas fa-venus-mars me-1 text-muted"></i>Distribución por Género
             </h6>
-            <canvas id="chartGenero" height="200"></canvas>
+            <div style="position:relative;height:200px"><canvas id="chartGenero"></canvas></div>
             <div class="d-flex justify-content-around mt-3" style="font-size:.82rem">
                 <div class="text-center">
                     <div style="font-size:1.4rem;font-weight:700;color:#3b82f6">{{ genero_m }}</div>
@@ -190,7 +190,7 @@
             <h6 class="mb-3 fw-semibold">
                 <i class="fas fa-chart-bar me-1 text-muted"></i>Pirámide de Edad
             </h6>
-            <canvas id="chartPiramide" height="240"></canvas>
+            <div style="position:relative;height:240px"><canvas id="chartPiramide"></canvas></div>
         </div>
         {% else %}
         <div class="chart-container h-100 d-flex flex-column align-items-center justify-content-center text-center">

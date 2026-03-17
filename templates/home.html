@@ -97,6 +97,7 @@
 @media(max-width: 1100px) { .hw-modules { grid-template-columns: repeat(4, 1fr); } }
 @media(max-width:  768px) { .hw-modules { grid-template-columns: repeat(3, 1fr); } }
 @media(max-width:  480px) { .hw-modules { grid-template-columns: repeat(2, 1fr); } }
+@media(max-width:  900px) { .hw-activity-grid { grid-template-columns: 1fr !important; } }
 .hw-mod {
   background: #fff; border: 1px solid #e2e8f0; border-radius: 11px;
   padding: 14px 10px; display: flex; flex-direction: column; align-items: center;
@@ -701,7 +702,7 @@
 </div>
 
 {# ── Actividad reciente + Insights IA ─────────────────────────────── #}
-<div style="display:grid;grid-template-columns:1fr 340px;gap:16px;">
+<div style="display:grid;grid-template-columns:1fr minmax(0,340px);gap:16px;" class="hw-activity-grid">
   <div style="min-width:0">
 
   {% if actividad_reciente %}

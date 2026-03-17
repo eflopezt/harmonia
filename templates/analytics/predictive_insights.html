@@ -188,7 +188,7 @@
           <i class="fas fa-info-circle me-1" style="color:#0f766e"></i>
           Proyección visual de vencimientos
         </div>
-        <canvas id="prediccionChart" height="90"></canvas>
+        <div style="position:relative;height:90px"><canvas id="prediccionChart"></canvas></div>
       </div>
     </div>
   </div>
@@ -237,7 +237,7 @@
     </div>
     {% if area_riesgo %}
     <div style="padding:10px 18px 14px">
-      <canvas id="areaRiesgoChart" height="150"></canvas>
+      <div style="position:relative;height:150px"><canvas id="areaRiesgoChart"></canvas></div>
     </div>
     {% endif %}
   </div>
@@ -273,7 +273,7 @@
           {% endif %}
         </div>
       </div>
-      <canvas id="ausentismoChart" height="120"></canvas>
+      <div style="position:relative;height:120px"><canvas id="ausentismoChart"></canvas></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">
         {% with promedio=semanas_pct %}
         <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
@@ -310,7 +310,7 @@
       <strong>Compa-ratio 100%</strong> = sueldo igual al midpoint de su banda.
       <strong>&lt;80%</strong> = subpagado (riesgo rotación). <strong>&gt;120%</strong> = sobrepagado (riesgo presupuesto).
     </div>
-    <canvas id="compaRatioChart" height="80"></canvas>
+    <div style="position:relative;height:80px"><canvas id="compaRatioChart"></canvas></div>
     <div style="display:flex;gap:14px;margin-top:12px;font-size:.7rem;color:#6b7280">
       <span style="display:flex;align-items:center;gap:5px">
         <span style="width:12px;height:3px;background:#dc2626;display:inline-block;border-radius:2px"></span> Bajo banda (&lt;80%)

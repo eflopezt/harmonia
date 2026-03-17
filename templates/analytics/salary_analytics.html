@@ -188,7 +188,7 @@
             <p class="chart-title">
                 <i class="fas fa-chart-bar me-1 text-muted"></i>Distribución por Rango Salarial
             </p>
-            <canvas id="chartDistribucion" height="260"></canvas>
+            <div style="position:relative;height:260px"><canvas id="chartDistribucion"></canvas></div>
         </div>
     </div>
     <div class="col-lg-6">
@@ -196,7 +196,7 @@
             <p class="chart-title">
                 <i class="fas fa-building me-1 text-muted"></i>Promedio Salarial por Área
             </p>
-            <canvas id="chartAreaAvg" height="260"></canvas>
+            <div style="position:relative;height:260px"><canvas id="chartAreaAvg"></canvas></div>
         </div>
     </div>
 </div>
@@ -209,7 +209,7 @@
                 <i class="fas fa-balance-scale me-1 text-muted"></i>Distribución vs UIT 2026
                 <small class="text-muted fw-normal">(UIT = S/ {{ uit_2026|floatformat:0|intcomma }})</small>
             </p>
-            <canvas id="chartUIT" height="220"></canvas>
+            <div style="position:relative;height:220px"><canvas id="chartUIT"></canvas></div>
         </div>
     </div>
     <div class="col-lg-7">
