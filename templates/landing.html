@@ -1,0 +1,402 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harmoni — Sistema ERP de RRHH y Planillas</title>
+    <meta name="description" content="Harmoni ERP: gestión de personal, planillas, asistencia y más para empresas peruanas. Cumple con SUNAT, AFP, ONP, EsSalud. Prueba gratis.">
+    <meta name="keywords" content="ERP RRHH, planillas Perú, gestión personal, software recursos humanos, nóminas, asistencia, SUNAT">
+    <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
+    <meta property="og:title" content="Harmoni — ERP de RRHH para empresas peruanas">
+    <meta property="og:description" content="Gestiona personal, planillas, asistencia y más. Con IA integrada. Cumple normativa peruana.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://harmoni.pe">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+        --primary: #0f766e;
+        --primary-dark: #115e59;
+        --primary-light: #14b8a6;
+        --accent: #06b6d4;
+        --dark: #0d2b27;
+        --gray-50: #f8fafc;
+        --gray-100: #f1f5f9;
+        --gray-400: #94a3b8;
+        --gray-600: #475569;
+        --gray-800: #1e293b;
+        --gray-900: #0f172a;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family:'Inter',system-ui,sans-serif; color:var(--gray-800); line-height:1.6; background:#fff; }
+
+    /* ── Nav ── */
+    .nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:16px 0; transition:all .3s; }
+    .nav.scrolled { background:rgba(255,255,255,.95); backdrop-filter:blur(12px); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .nav-inner { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+    .nav-logo { font-size:1.5rem; font-weight:800; color:#fff; text-decoration:none; display:flex; align-items:center; gap:8px; }
+    .nav.scrolled .nav-logo { color:var(--primary); }
+    .nav-logo img { height:32px; }
+    .nav-links { display:flex; gap:32px; align-items:center; }
+    .nav-links a { color:rgba(255,255,255,.85); text-decoration:none; font-size:.9rem; font-weight:500; transition:color .2s; }
+    .nav.scrolled .nav-links a { color:var(--gray-600); }
+    .nav-links a:hover { color:#fff; }
+    .nav.scrolled .nav-links a:hover { color:var(--primary); }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 24px; border-radius:8px; font-size:.9rem; font-weight:600; text-decoration:none; transition:all .2s; border:none; cursor:pointer; }
+    .btn-primary { background:var(--primary); color:#fff; }
+    .btn-primary:hover { background:var(--primary-dark); transform:translateY(-1px); box-shadow:0 4px 12px rgba(15,118,110,.3); }
+    .btn-outline { background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.4); }
+    .btn-outline:hover { background:rgba(255,255,255,.1); border-color:#fff; }
+    .nav.scrolled .btn-outline { color:var(--primary); border-color:var(--primary); }
+    .btn-lg { padding:14px 32px; font-size:1rem; border-radius:10px; }
+    .btn-white { background:#fff; color:var(--primary); }
+    .btn-white:hover { background:var(--gray-100); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+
+    /* ── Hero ── */
+    .hero { background:linear-gradient(135deg, var(--dark) 0%, #134e4a 50%, var(--primary) 100%); min-height:100vh; display:flex; align-items:center; position:relative; overflow:hidden; }
+    .hero::before { content:''; position:absolute; top:-50%; right:-20%; width:800px; height:800px; background:radial-gradient(circle, rgba(6,182,212,.12) 0%, transparent 70%); }
+    .hero::after { content:''; position:absolute; bottom:-30%; left:-10%; width:600px; height:600px; background:radial-gradient(circle, rgba(20,184,166,.08) 0%, transparent 70%); }
+    .hero-inner { max-width:1200px; margin:0 auto; padding:120px 24px 80px; display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; position:relative; z-index:1; }
+    .hero-badge { display:inline-flex; align-items:center; gap:8px; padding:6px 16px; background:rgba(6,182,212,.15); border:1px solid rgba(6,182,212,.3); border-radius:100px; font-size:.8rem; color:var(--accent); font-weight:500; margin-bottom:20px; }
+    .hero h1 { font-size:3.2rem; font-weight:800; line-height:1.1; color:#fff; margin-bottom:20px; }
+    .hero h1 span { background:linear-gradient(135deg, var(--accent), var(--primary-light)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero-sub { font-size:1.15rem; color:rgba(255,255,255,.7); margin-bottom:32px; max-width:500px; }
+    .hero-actions { display:flex; gap:12px; flex-wrap:wrap; }
+    .hero-stats { display:flex; gap:40px; margin-top:40px; }
+    .hero-stat-num { font-size:2rem; font-weight:800; color:#fff; }
+    .hero-stat-label { font-size:.8rem; color:rgba(255,255,255,.5); }
+    .hero-visual { display:flex; justify-content:center; align-items:center; }
+    .hero-mockup { width:100%; max-width:520px; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.1); }
+
+    /* ── Section ── */
+    .section { padding:100px 24px; }
+    .section-inner { max-width:1200px; margin:0 auto; }
+    .section-label { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--primary); margin-bottom:12px; }
+    .section-title { font-size:2.4rem; font-weight:800; color:var(--gray-900); margin-bottom:16px; line-height:1.2; }
+    .section-sub { font-size:1.05rem; color:var(--gray-600); max-width:600px; margin-bottom:48px; }
+    .section-center { text-align:center; }
+    .section-center .section-sub { margin-left:auto; margin-right:auto; }
+    .bg-gray { background:var(--gray-50); }
+
+    /* ── Features ── */
+    .features-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+    .feature-card { background:#fff; border-radius:12px; padding:32px; border:1px solid #e2e8f0; transition:all .2s; }
+    .feature-card:hover { transform:translateY(-4px); box-shadow:0 12px 24px rgba(0,0,0,.06); border-color:var(--primary-light); }
+    .feature-icon { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; margin-bottom:16px; }
+    .feature-card h3 { font-size:1.1rem; font-weight:700; margin-bottom:8px; color:var(--gray-900); }
+    .feature-card p { font-size:.9rem; color:var(--gray-600); line-height:1.6; }
+
+    /* ── Compliance ── */
+    .compliance-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+    .compliance-item { text-align:center; padding:24px 16px; background:#fff; border-radius:10px; border:1px solid #e2e8f0; }
+    .compliance-item i { font-size:1.5rem; color:var(--primary); margin-bottom:8px; }
+    .compliance-item h4 { font-size:.9rem; font-weight:700; margin-bottom:4px; }
+    .compliance-item p { font-size:.78rem; color:var(--gray-600); }
+
+    /* ── Pricing ── */
+    .pricing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; align-items:start; }
+    .pricing-card { background:#fff; border-radius:16px; padding:36px; border:1px solid #e2e8f0; position:relative; }
+    .pricing-card.popular { border-color:var(--primary); box-shadow:0 8px 30px rgba(15,118,110,.12); transform:scale(1.03); }
+    .pricing-card.popular::before { content:'Popular'; position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; font-size:.75rem; font-weight:700; padding:4px 16px; border-radius:100px; }
+    .pricing-name { font-size:1.1rem; font-weight:700; margin-bottom:4px; }
+    .pricing-desc { font-size:.85rem; color:var(--gray-600); margin-bottom:16px; }
+    .pricing-price { font-size:2.5rem; font-weight:800; color:var(--gray-900); margin-bottom:4px; }
+    .pricing-price span { font-size:.9rem; font-weight:500; color:var(--gray-400); }
+    .pricing-period { font-size:.8rem; color:var(--gray-400); margin-bottom:24px; }
+    .pricing-features { list-style:none; margin-bottom:24px; }
+    .pricing-features li { padding:8px 0; font-size:.88rem; color:var(--gray-600); display:flex; align-items:center; gap:10px; }
+    .pricing-features li i { color:var(--primary); font-size:.85rem; }
+    .pricing-btn { display:block; text-align:center; }
+
+    /* ── CTA ── */
+    .cta { background:linear-gradient(135deg, var(--dark), var(--primary-dark)); padding:80px 24px; text-align:center; }
+    .cta h2 { font-size:2.2rem; font-weight:800; color:#fff; margin-bottom:12px; }
+    .cta p { font-size:1.05rem; color:rgba(255,255,255,.7); margin-bottom:32px; max-width:500px; margin-left:auto; margin-right:auto; }
+
+    /* ── Footer ── */
+    .footer { background:var(--gray-900); color:var(--gray-400); padding:48px 24px 24px; }
+    .footer-inner { max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:24px; }
+    .footer-logo { font-size:1.2rem; font-weight:700; color:#fff; }
+    .footer-links { display:flex; gap:24px; }
+    .footer-links a { color:var(--gray-400); text-decoration:none; font-size:.85rem; transition:color .2s; }
+    .footer-links a:hover { color:#fff; }
+    .footer-copy { width:100%; text-align:center; padding-top:24px; border-top:1px solid rgba(255,255,255,.08); font-size:.8rem; margin-top:16px; }
+
+    /* ── Responsive ── */
+    @media(max-width:900px) {
+        .hero-inner { grid-template-columns:1fr; text-align:center; }
+        .hero h1 { font-size:2.4rem; }
+        .hero-sub { margin-left:auto; margin-right:auto; }
+        .hero-actions { justify-content:center; }
+        .hero-stats { justify-content:center; }
+        .hero-visual { display:none; }
+        .features-grid { grid-template-columns:1fr; }
+        .compliance-grid { grid-template-columns:repeat(2,1fr); }
+        .pricing-grid { grid-template-columns:1fr; max-width:400px; margin:0 auto; }
+        .pricing-card.popular { transform:none; }
+        .nav-links { display:none; }
+        .section-title { font-size:1.8rem; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav" id="nav">
+    <div class="nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="{% static 'images/favicon.svg' %}" alt="Harmoni">
+            Harmoni
+        </a>
+        <div class="nav-links">
+            <a href="#features">Funcionalidades</a>
+            <a href="#compliance">Normativa</a>
+            <a href="#pricing">Planes</a>
+            <a href="{% url 'login' %}" class="btn btn-outline">Iniciar Sesion</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-inner">
+        <div>
+            <div class="hero-badge">
+                <i class="fas fa-bolt"></i> Con IA integrada
+            </div>
+            <h1>Gestion de personas, <span>en armonia</span></h1>
+            <p class="hero-sub">
+                ERP de RRHH y planillas para empresas peruanas. Asistencia, nominas, vacaciones, reclutamiento y mas — todo en un solo sistema.
+            </p>
+            <div class="hero-actions">
+                <a href="https://wa.me/51977538028?text=Hola%2C%20quiero%20una%20demo%20de%20Harmoni" class="btn btn-white btn-lg" target="_blank">
+                    <i class="fab fa-whatsapp"></i> Solicitar Demo
+                </a>
+                <a href="{% url 'login' %}" class="btn btn-outline btn-lg">
+                    Ingresar <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div>
+                    <div class="hero-stat-num">22</div>
+                    <div class="hero-stat-label">Modulos integrados</div>
+                </div>
+                <div>
+                    <div class="hero-stat-num">100%</div>
+                    <div class="hero-stat-label">Normativa peruana</div>
+                </div>
+                <div>
+                    <div class="hero-stat-num">24/7</div>
+                    <div class="hero-stat-label">IA asistente</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <img src="{% static 'images/og-image.svg' %}" alt="Harmoni Dashboard" class="hero-mockup">
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="section bg-gray" id="features">
+    <div class="section-inner section-center">
+        <div class="section-label">Funcionalidades</div>
+        <h2 class="section-title">Todo lo que necesitas para gestionar tu equipo</h2>
+        <p class="section-sub">22 modulos integrados que cubren desde el reclutamiento hasta la liquidacion, con cumplimiento total de la normativa laboral peruana.</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background:#0f766e18;color:var(--primary)"><i class="fas fa-users"></i></div>
+                <h3>Gestion de Personal</h3>
+                <p>Fichas de empleados, contratos, areas, subareas. Control completo del ciclo de vida laboral.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:#3b82f618;color:#3b82f6"><i class="fas fa-calculator"></i></div>
+                <h3>Nominas y Planillas</h3>
+                <p>Calculo automatico de AFP, ONP, EsSalud, IR 5ta, gratificaciones, CTS. Boletas en PDF.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:#f59e0b18;color:#f59e0b"><i class="fas fa-clock"></i></div>
+                <h3>Asistencia y Tareo</h3>
+                <p>Marcaciones biometricas, banco de horas, regimenes atipicos (14x7, 21x7), horas extra.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:#8b5cf618;color:#8b5cf6"><i class="fas fa-umbrella-beach"></i></div>
+                <h3>Vacaciones y Permisos</h3>
+                <p>Solicitudes, aprobaciones, saldos vacacionales, licencias. Flujo de aprobacion configurable.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:#10b98118;color:#10b981"><i class="fas fa-chart-line"></i></div>
+                <h3>Analytics y KPIs</h3>
+                <p>Dashboard ejecutivo, headcount, rotacion, predicciones. Toma decisiones basadas en datos.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:#06b6d418;color:#06b6d4"><i class="fas fa-robot"></i></div>
+                <h3>IA Integrada</h3>
+                <p>Chat con IA que conoce tu data, genera reportes, responde preguntas de RRHH y analiza documentos.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Compliance -->
+<section class="section" id="compliance">
+    <div class="section-inner section-center">
+        <div class="section-label">Normativa</div>
+        <h2 class="section-title">100% alineado con la legislacion peruana</h2>
+        <p class="section-sub">Todos los calculos siguen la normativa vigente. Actualizaciones automaticas cuando cambia la ley.</p>
+
+        <div class="compliance-grid">
+            <div class="compliance-item">
+                <i class="fas fa-landmark"></i>
+                <h4>SUNAT / PLAME</h4>
+                <p>Exportacion compatible con T-Registro y PLAME</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-shield-alt"></i>
+                <h4>AFP / ONP</h4>
+                <p>Tasas 2026 actualizadas: Habitat, Integra, Prima, Profuturo</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-heartbeat"></i>
+                <h4>EsSalud 9%</h4>
+                <p>Calculo automatico del aporte empleador</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-receipt"></i>
+                <h4>IR 5ta Categoria</h4>
+                <p>Escala progresiva, UIT 2026 = S/ 5,500</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-gift"></i>
+                <h4>Gratificaciones</h4>
+                <p>Julio y Diciembre, bonificacion 9% (Ley 29351)</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-piggy-bank"></i>
+                <h4>CTS</h4>
+                <p>Mayo y Noviembre, calculo segun DL 650</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-business-time"></i>
+                <h4>Jornadas Atipicas</h4>
+                <p>5x2, 14x7, 21x7, 10x4 (DS 007-2002-TR)</p>
+            </div>
+            <div class="compliance-item">
+                <i class="fas fa-file-contract"></i>
+                <h4>Contratos</h4>
+                <p>12 tipos: indefinido, plazo fijo, obra, suplencia, etc.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section class="section bg-gray" id="pricing">
+    <div class="section-inner section-center">
+        <div class="section-label">Planes</div>
+        <h2 class="section-title">Elige el plan que mejor se adapte</h2>
+        <p class="section-sub">Sin contratos anuales. Escala cuando crezcas.</p>
+
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <div class="pricing-name">Starter</div>
+                <div class="pricing-desc">Ideal para empresas pequenas</div>
+                <div class="pricing-price">S/ 149<span>/mes</span></div>
+                <div class="pricing-period">Hasta 30 empleados</div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check"></i> Personal y contratos</li>
+                    <li><i class="fas fa-check"></i> Asistencia y tareo</li>
+                    <li><i class="fas fa-check"></i> Planillas basicas</li>
+                    <li><i class="fas fa-check"></i> Vacaciones y permisos</li>
+                    <li><i class="fas fa-check"></i> Soporte por email</li>
+                </ul>
+                <a href="https://wa.me/51977538028?text=Quiero%20el%20plan%20Starter" class="btn btn-outline btn-lg pricing-btn" style="color:var(--primary);border-color:var(--primary)">Empezar</a>
+            </div>
+
+            <div class="pricing-card popular">
+                <div class="pricing-name">Profesional</div>
+                <div class="pricing-desc">Para empresas en crecimiento</div>
+                <div class="pricing-price">S/ 349<span>/mes</span></div>
+                <div class="pricing-period">Hasta 100 empleados</div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check"></i> Todo de Starter</li>
+                    <li><i class="fas fa-check"></i> Nominas completas + boletas</li>
+                    <li><i class="fas fa-check"></i> Analytics y KPIs</li>
+                    <li><i class="fas fa-check"></i> Workflows de aprobacion</li>
+                    <li><i class="fas fa-check"></i> IA asistente</li>
+                    <li><i class="fas fa-check"></i> Soporte prioritario</li>
+                </ul>
+                <a href="https://wa.me/51977538028?text=Quiero%20el%20plan%20Profesional" class="btn btn-primary btn-lg pricing-btn">Empezar</a>
+            </div>
+
+            <div class="pricing-card">
+                <div class="pricing-name">Enterprise</div>
+                <div class="pricing-desc">Para grandes operaciones</div>
+                <div class="pricing-price">A medida</div>
+                <div class="pricing-period">Empleados ilimitados</div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check"></i> Todo de Profesional</li>
+                    <li><i class="fas fa-check"></i> Multi-empresa</li>
+                    <li><i class="fas fa-check"></i> API REST completa</li>
+                    <li><i class="fas fa-check"></i> Integraciones custom</li>
+                    <li><i class="fas fa-check"></i> SLA garantizado</li>
+                    <li><i class="fas fa-check"></i> Soporte dedicado</li>
+                </ul>
+                <a href="https://wa.me/51977538028?text=Quiero%20info%20del%20plan%20Enterprise" class="btn btn-outline btn-lg pricing-btn" style="color:var(--primary);border-color:var(--primary)">Contactar</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+    <h2>Empieza a gestionar tu equipo en armonia</h2>
+    <p>Agenda una demo personalizada y descubre como Harmoni puede simplificar tu gestion de RRHH.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="https://wa.me/51977538028?text=Hola%2C%20quiero%20una%20demo%20de%20Harmoni" class="btn btn-white btn-lg" target="_blank">
+            <i class="fab fa-whatsapp"></i> WhatsApp
+        </a>
+        <a href="mailto:eflopezt@gmail.com?subject=Demo%20Harmoni%20ERP" class="btn btn-outline btn-lg">
+            <i class="fas fa-envelope"></i> Email
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-logo">Harmoni</div>
+        <div class="footer-links">
+            <a href="#features">Funcionalidades</a>
+            <a href="#pricing">Planes</a>
+            <a href="https://wa.me/51977538028" target="_blank">Contacto</a>
+            <a href="{% url 'login' %}">Ingresar</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2026 Harmoni ERP. Todos los derechos reservados.
+        </div>
+    </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+</script>
+</body>
+</html>

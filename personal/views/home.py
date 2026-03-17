@@ -190,13 +190,12 @@ def _get_frase_dia(hoy: date) -> dict:
     }
 
 
-@login_required
 def home(request):
-    """Vista principal del sistema — Dashboard contextual.
+    """Vista principal — Landing pública o Dashboard según autenticación."""
+    if not request.user.is_authenticated:
+        return render(request, 'landing.html')
 
-    Si el usuario NO es staff/superuser y NO tiene áreas a cargo,
-    se lo redirige al Portal del Colaborador (su espacio personal).
-    """
+    # ── Dashboard (requiere login) ──────────────────────────────────────────
     # ── Enrutamiento de 3 niveles ─────────────────────────────────────────────
     # Nivel 1: is_superuser / is_staff   → dashboard RRHH completo (continúa)
     # Nivel 2: Jefe de área (con áreas a cargo) → dashboard de equipo (is_jefe=True)

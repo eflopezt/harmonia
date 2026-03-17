@@ -6,6 +6,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render
 from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_GET
 
@@ -33,6 +34,13 @@ def robots_txt(request):
         "Crawl-delay: 10",
     ]
     return HttpResponse("\n".join(lines), content_type="text/plain")
+
+def landing(request):
+    """Landing page pública — si ya está autenticado, va al dashboard."""
+    if request.user.is_authenticated:
+        from django.shortcuts import redirect
+        return redirect('home')
+    return render(request, 'landing.html')
 
 urlpatterns = [
     path('health/', health_check, name='health_check'),
