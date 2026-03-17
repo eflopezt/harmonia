@@ -69,7 +69,10 @@ def firma_crear(request):
         tipo         = request.POST.get("tipo", "OTRO")
         descripcion  = request.POST.get("descripcion", "").strip()
         archivo      = request.FILES.get("archivo_pdf")
-        dias_exp     = int(request.POST.get("dias_expiracion", 30))
+        try:
+            dias_exp = int(request.POST.get("dias_expiracion", 30))
+        except (ValueError, TypeError):
+            dias_exp = 30
 
         if not personal_id or not nombre or not archivo:
             messages.error(request, "Trabajador, nombre y archivo PDF son requeridos.")

@@ -1323,8 +1323,10 @@ def ai_upload_file(request):
                 return JsonResponse({'ok': False, 'error': 'PyMuPDF no instalado. pip install pymupdf'})
 
             doc = fitz.open(stream=content_bytes, filetype='pdf')
-            pages_text = [page.get_text() for page in doc]
-            doc.close()
+            try:
+                pages_text = [page.get_text() for page in doc]
+            finally:
+                doc.close()
             full_text = '\n'.join(pages_text).strip()
 
             if not full_text:

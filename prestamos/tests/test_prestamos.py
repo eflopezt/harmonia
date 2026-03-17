@@ -21,10 +21,11 @@ class PrestamoTestMixin:
     """Shared setup for prestamo tests."""
 
     def _create_area(self, nombre="Administracion"):
-        return Area.objects.create(nombre=nombre)
+        area, _ = Area.objects.get_or_create(nombre=nombre)
+        return area
 
     def _create_personal(self, nro_doc="12345678", nombre="Lopez Torres, Edwin"):
-        area = self._create_area()
+        self._create_area()
         return Personal.objects.create(
             nro_doc=nro_doc,
             apellidos_nombres=nombre,

@@ -19,6 +19,14 @@ def _get_empleado(user):
     return getattr(user, 'personal_data', None)
 
 
+def _safe_int(value, default):
+    """Convierte value a int de forma segura, retornando default si falla."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
 @login_required
 def portal_home(request):
     empleado = _get_empleado(request.user)
@@ -218,8 +226,8 @@ def mi_asistencia(request):
 
     if empleado:
         hoy = date.today()
-        anio = int(request.GET.get('anio', hoy.year))
-        mes = int(request.GET.get('mes', hoy.month))
+        anio = _safe_int(request.GET.get('anio', hoy.year), hoy.year)
+        mes = _safe_int(request.GET.get('mes', hoy.month), hoy.month)
 
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
@@ -288,8 +296,8 @@ def mi_roster(request):
 
     if empleado:
         hoy = date.today()
-        anio = int(request.GET.get('anio', hoy.year))
-        mes = int(request.GET.get('mes', hoy.month))
+        anio = _safe_int(request.GET.get('anio', hoy.year), hoy.year)
+        mes = _safe_int(request.GET.get('mes', hoy.month), hoy.month)
 
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
@@ -393,8 +401,8 @@ def mis_justificaciones(request):
 
     if empleado:
         hoy = date.today()
-        anio = int(request.GET.get('anio', hoy.year))
-        mes = int(request.GET.get('mes', hoy.month))
+        anio = _safe_int(request.GET.get('anio', hoy.year), hoy.year)
+        mes = _safe_int(request.GET.get('mes', hoy.month), hoy.month)
 
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
@@ -514,8 +522,8 @@ def mis_solicitudes_he(request):
 
     if empleado:
         hoy = date.today()
-        anio = int(request.GET.get('anio', hoy.year))
-        mes = int(request.GET.get('mes', hoy.month))
+        anio = _safe_int(request.GET.get('anio', hoy.year), hoy.year)
+        mes = _safe_int(request.GET.get('mes', hoy.month), hoy.month)
 
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
@@ -657,7 +665,7 @@ def mis_papeletas(request):
 
     if empleado:
         hoy = date.today()
-        anio = int(request.GET.get('anio', hoy.year))
+        anio = _safe_int(request.GET.get('anio', hoy.year), hoy.year)
         estado_filter = request.GET.get('estado', '')
         tipo_filter = request.GET.get('tipo', '')
 

@@ -1434,7 +1434,10 @@ def delete_widget(request, pk):
 @solo_admin
 def api_tendencias(request):
     """Retorna tendencias de los últimos N meses."""
-    meses = int(request.GET.get('meses', 12))
+    try:
+        meses = int(request.GET.get('meses', 12))
+    except (ValueError, TypeError):
+        meses = 12
     snapshots = KPISnapshot.objects.order_by('-periodo')[:meses][::-1]
     data = {
         'labels': [s.periodo.strftime('%b %Y') for s in snapshots],

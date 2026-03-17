@@ -4,10 +4,13 @@ Analytics — Servicios de cálculo de KPIs.
 Genera snapshots mensuales a partir de datos reales de los módulos.
 Cada función calcula métricas específicas sin dependencia entre ellas.
 """
+import logging
 from datetime import date, timedelta
 from decimal import Decimal
 from django.db.models import Count, Sum, Avg, Q, F
 from django.utils import timezone
+
+logger = logging.getLogger('analytics.services')
 
 
 def calcular_headcount(periodo_inicio, periodo_fin):
@@ -224,8 +227,8 @@ def generar_alertas():
             )
             if created:
                 alertas_creadas.append(alerta)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Error generando alertas de vacaciones: %s', exc)
 
     # ── Alerta: Documentos vencidos ──
     try:
@@ -248,8 +251,8 @@ def generar_alertas():
             )
             if created:
                 alertas_creadas.append(alerta)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Error generando alertas de documentos: %s', exc)
 
     # ── Alerta: Contratos por vencer ──────────────────────────────────
     try:
@@ -283,8 +286,8 @@ def generar_alertas():
                 if created:
                     alertas_creadas.append(alerta)
                 break  # solo la alerta más urgente (menor umbral que aplica)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Error generando alertas de contratos por vencer: %s', exc)
 
     # ── Alerta: Contratos vencidos sin renovar ────────────────────────
     try:
@@ -309,8 +312,8 @@ def generar_alertas():
             )
             if created:
                 alertas_creadas.append(alerta)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Error generando alertas de contratos vencidos: %s', exc)
 
     # ── Alerta: Período de prueba por terminar (<= 15 días) ───────────
     try:
@@ -346,7 +349,7 @@ def generar_alertas():
             )
             if created:
                 alertas_creadas.append(alerta)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Error generando alertas de período de prueba: %s', exc)
 
     return alertas_creadas

@@ -25,7 +25,8 @@ class SalariosTestMixin:
     """Shared setup for salarios tests."""
 
     def _create_area(self, nombre="Operaciones"):
-        return Area.objects.create(nombre=nombre)
+        area, _ = Area.objects.get_or_create(nombre=nombre)
+        return area
 
     def _create_personal(self, nro_doc="87654321", nombre="Garcia Ramos, Ana"):
         self._create_area()
@@ -138,7 +139,7 @@ class BandaSalarialCalculationsTest(SalariosTestMixin, TestCase):
             maximo=Decimal("2200.00"),
         )
         # (2200 - 1800) / 1800 * 100 = 22.2
-        assert banda.amplitud == 22.2
+        assert float(banda.amplitud) == 22.2
 
     def test_amplitud_zero_minimo(self):
         banda = self._create_banda(

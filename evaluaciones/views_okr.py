@@ -35,7 +35,10 @@ def okr_panel(request):
     # Filtros
     nivel       = request.GET.get('nivel', '')
     status      = request.GET.get('status', 'ACTIVO')
-    anio        = int(request.GET.get('anio', date.today().year))
+    try:
+        anio    = int(request.GET.get('anio', date.today().year))
+    except (ValueError, TypeError):
+        anio    = date.today().year
     area_id     = request.GET.get('area', '')
     personal_id = request.GET.get('personal', '')
 
@@ -361,9 +364,12 @@ def mis_okrs(request):
     mis_objetivos = []
     krs_asignados = []
 
-    if empleado:
+    try:
         anio = int(request.GET.get('anio', date.today().year))
+    except (ValueError, TypeError):
+        anio = date.today().year
 
+    if empleado:
         mis_objetivos = ObjetivoClave.objects.filter(
             personal=empleado, anio=anio,
         ).prefetch_related('resultados_clave').order_by('trimestre', 'titulo')
@@ -380,7 +386,7 @@ def mis_okrs(request):
         'empleado':      empleado,
         'mis_objetivos': mis_objetivos,
         'krs_asignados': krs_asignados,
-        'anio_filtro':   int(request.GET.get('anio', date.today().year)),
+        'anio_filtro':   anio,
         'anios':         list(range(date.today().year - 1, date.today().year + 2)),
     }
     return render(request, 'evaluaciones/mis_okrs.html', context)

@@ -521,8 +521,11 @@ def saldos_exportar_excel(request):
 def vacaciones_calendario(request):
     """Vista de calendario mensual de vacaciones aprobadas."""
     hoy = date.today()
-    anio = int(request.GET.get('anio', hoy.year))
-    mes = int(request.GET.get('mes', hoy.month))
+    try:
+        anio = int(request.GET.get('anio', hoy.year))
+        mes = int(request.GET.get('mes', hoy.month))
+    except (ValueError, TypeError):
+        anio, mes = hoy.year, hoy.month
 
     import calendar as cal_mod
     # Primero y último día del mes

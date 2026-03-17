@@ -64,8 +64,11 @@ def cierre_wizard(request, pk):
 def cierre_crear(request):
     """Crea un nuevo período de cierre."""
     if request.method == 'POST':
-        anio = int(request.POST.get('anio', 0))
-        mes = int(request.POST.get('mes', 0))
+        try:
+            anio = int(request.POST.get('anio', 0))
+            mes = int(request.POST.get('mes', 0))
+        except (ValueError, TypeError):
+            anio, mes = 0, 0
 
         if not (1 <= mes <= 12 and anio >= 2020):
             messages.error(request, 'Año o mes inválido.')

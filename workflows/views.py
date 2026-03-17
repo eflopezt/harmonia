@@ -444,6 +444,10 @@ def etapa_crear(request, flujo_pk):
     from django.db.models import Max
     flujo = get_object_or_404(FlujoTrabajo, pk=flujo_pk)
     if request.method == 'POST':
+        try:
+            tiempo_limite = int(request.POST.get('tiempo_limite_horas', 72) or 72)
+        except (ValueError, TypeError):
+            tiempo_limite = 72
         ultimo_orden = flujo.etapas.aggregate(m=Max('orden'))['m'] or 0
         EtapaFlujo.objects.create(
             flujo=flujo,
@@ -452,7 +456,7 @@ def etapa_crear(request, flujo_pk):
             tipo_aprobador=request.POST.get('tipo_aprobador', 'SUPERUSER'),
             aprobador_usuario_id=request.POST.get('aprobador_usuario') or None,
             aprobador_grupo_id=request.POST.get('aprobador_grupo') or None,
-            tiempo_limite_horas=int(request.POST.get('tiempo_limite_horas', 72)),
+            tiempo_limite_horas=tiempo_limite,
             accion_vencimiento=request.POST.get('accion_vencimiento', 'ESPERAR'),
             requiere_comentario=request.POST.get('requiere_comentario') == '1',
             notificar_solicitante_al_decidir=True,

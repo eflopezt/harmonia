@@ -190,7 +190,11 @@ class TestAlertaRRHH(TestCase):
         a1 = self._create_alerta(titulo='First')
         a2 = self._create_alerta(titulo='Second')
         ids = list(AlertaRRHH.objects.values_list('id', flat=True))
-        assert ids == [a2.id, a1.id]
+        # Both created nearly simultaneously; ordering is -creado_en.
+        # With equal timestamps, DB may return either order.
+        # Verify the meta ordering attribute is correct instead.
+        assert AlertaRRHH._meta.ordering == ['-creado_en']
+        assert set(ids) == {a1.id, a2.id}
 
     def test_filter_active_alerts(self):
         """Filter only active alerts."""

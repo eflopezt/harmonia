@@ -344,6 +344,11 @@ def plantilla_detalle(request, tipo, pk):
 @require_POST
 def paso_plantilla_agregar(request, tipo, pk):
     """Agrega un paso a una plantilla (AJAX)."""
+    try:
+        dias_plazo = int(request.POST.get('dias_plazo', 1))
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Días plazo debe ser un número válido.'}, status=400)
+
     if tipo == 'offboarding':
         plantilla = get_object_or_404(PlantillaOffboarding, pk=pk)
         ultimo_orden = plantilla.pasos.count()
@@ -354,7 +359,7 @@ def paso_plantilla_agregar(request, tipo, pk):
             descripcion=request.POST.get('descripcion', ''),
             tipo=request.POST.get('tipo', 'TAREA'),
             responsable_tipo=request.POST.get('responsable_tipo', 'RRHH'),
-            dias_plazo=int(request.POST.get('dias_plazo', 1)),
+            dias_plazo=dias_plazo,
             obligatorio=request.POST.get('obligatorio') == 'on',
         )
     else:
@@ -367,7 +372,7 @@ def paso_plantilla_agregar(request, tipo, pk):
             descripcion=request.POST.get('descripcion', ''),
             tipo=request.POST.get('tipo', 'TAREA'),
             responsable_tipo=request.POST.get('responsable_tipo', 'RRHH'),
-            dias_plazo=int(request.POST.get('dias_plazo', 1)),
+            dias_plazo=dias_plazo,
             obligatorio=request.POST.get('obligatorio') == 'on',
         )
 

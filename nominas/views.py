@@ -16,6 +16,7 @@ logger = logging.getLogger('nominas.views')
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
 from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -312,8 +313,12 @@ def periodo_crear(request):
     """Formulario para crear un nuevo período."""
     if request.method == 'POST':
         tipo  = request.POST.get('tipo', 'REGULAR')
-        anio  = int(request.POST.get('anio', timezone.now().year))
-        mes   = int(request.POST.get('mes', timezone.now().month))
+        try:
+            anio  = int(request.POST.get('anio', timezone.now().year))
+            mes   = int(request.POST.get('mes', timezone.now().month))
+        except (ValueError, TypeError):
+            messages.error(request, 'Año o mes inválido.')
+            return redirect('nominas_panel')
         desc  = request.POST.get('descripcion', '')
         fi    = request.POST.get('fecha_inicio') or None
         ff    = request.POST.get('fecha_fin') or None
@@ -570,37 +575,43 @@ def registro_editar(request, pk):
         return redirect('nominas_registro_detalle', pk=pk)
 
     if request.method == 'POST':
-        reg.dias_trabajados   = int(request.POST.get('dias_trabajados', 30))
-        reg.horas_extra_25    = Decimal(request.POST.get('horas_extra_25', '0'))
-        reg.horas_extra_35    = Decimal(request.POST.get('horas_extra_35', '0'))
-        reg.horas_extra_100   = Decimal(request.POST.get('horas_extra_100', '0'))
-        reg.asignacion_familiar = 'asignacion_familiar' in request.POST
-        reg.otros_ingresos    = Decimal(request.POST.get('otros_ingresos', '0'))
-        reg.descuento_prestamo= Decimal(request.POST.get('descuento_prestamo', '0'))
-        reg.otros_descuentos  = Decimal(request.POST.get('otros_descuentos', '0'))
-        reg.save()
+        try:
+            reg.dias_trabajados   = int(request.POST.get('dias_trabajados', 30))
+            reg.horas_extra_25    = Decimal(request.POST.get('horas_extra_25', '0'))
+            reg.horas_extra_35    = Decimal(request.POST.get('horas_extra_35', '0'))
+            reg.horas_extra_100   = Decimal(request.POST.get('horas_extra_100', '0'))
+            reg.asignacion_familiar = 'asignacion_familiar' in request.POST
+            reg.otros_ingresos    = Decimal(request.POST.get('otros_ingresos', '0'))
+            reg.descuento_prestamo= Decimal(request.POST.get('descuento_prestamo', '0'))
+            reg.otros_descuentos  = Decimal(request.POST.get('otros_descuentos', '0'))
+        except (ValueError, ArithmeticError):
+            messages.error(request, 'Valores numéricos inválidos.')
+            return redirect('nominas_registro_editar', pk=pk)
 
-        # Recalcular
-        conceptos = ConceptoRemunerativo.objects.filter(activo=True).order_by('tipo', 'orden')
-        resultado = engine.calcular_registro(reg, conceptos)
+        with transaction.atomic():
+            reg.save()
 
-        reg.lineas.all().delete()
-        for l in resultado['lineas']:
-            LineaNomina.objects.create(
-                registro=reg,
-                concepto=l['concepto'],
-                base_calculo=l['base_calculo'],
-                porcentaje_aplicado=l['porcentaje_aplicado'],
-                monto=l['monto'],
-                observacion=l['observacion'],
-            )
-        reg.total_ingresos      = resultado['total_ingresos']
-        reg.total_descuentos    = resultado['total_descuentos']
-        reg.neto_a_pagar        = resultado['neto_a_pagar']
-        reg.aporte_essalud      = resultado['aporte_essalud']
-        reg.costo_total_empresa = resultado['costo_total_empresa']
-        reg.estado = 'CALCULADO'
-        reg.save()
+            # Recalcular
+            conceptos = ConceptoRemunerativo.objects.filter(activo=True).order_by('tipo', 'orden')
+            resultado = engine.calcular_registro(reg, conceptos)
+
+            reg.lineas.all().delete()
+            for l in resultado['lineas']:
+                LineaNomina.objects.create(
+                    registro=reg,
+                    concepto=l['concepto'],
+                    base_calculo=l['base_calculo'],
+                    porcentaje_aplicado=l['porcentaje_aplicado'],
+                    monto=l['monto'],
+                    observacion=l['observacion'],
+                )
+            reg.total_ingresos      = resultado['total_ingresos']
+            reg.total_descuentos    = resultado['total_descuentos']
+            reg.neto_a_pagar        = resultado['neto_a_pagar']
+            reg.aporte_essalud      = resultado['aporte_essalud']
+            reg.costo_total_empresa = resultado['costo_total_empresa']
+            reg.estado = 'CALCULADO'
+            reg.save()
 
         messages.success(request, 'Registro recalculado correctamente.')
         return redirect('nominas_registro_detalle', pk=pk)
@@ -1167,9 +1178,15 @@ def flujo_caja_panel(request):
             n_meses = max(1, n_meses)
         except (ValueError, AttributeError):
             hasta_param = ''
-            n_meses = int(request.GET.get('meses', 18))
+            try:
+                n_meses = int(request.GET.get('meses', 18))
+            except (ValueError, TypeError):
+                n_meses = 18
     else:
-        n_meses = int(request.GET.get('meses', 18))
+        try:
+            n_meses = int(request.GET.get('meses', 18))
+        except (ValueError, TypeError):
+            n_meses = 18
     n_meses = max(1, min(n_meses, 60))
 
     # Fecha fin proyección

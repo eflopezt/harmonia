@@ -256,7 +256,10 @@ def medida_resolver(request, pk):
     medida = get_object_or_404(MedidaDisciplinaria, pk=pk)
     if medida.estado in ('NOTIFICADA', 'EN_DESCARGO', 'DESCARGO_RECIBIDO'):
         resolucion = request.POST.get('resolucion', '')
-        dias_suspension = int(request.POST.get('dias_suspension', 0) or 0)
+        try:
+            dias_suspension = int(request.POST.get('dias_suspension', 0) or 0)
+        except (ValueError, TypeError):
+            dias_suspension = 0
         fecha_cese = request.POST.get('fecha_cese') or None
 
         medida.dias_suspension = dias_suspension
@@ -390,7 +393,10 @@ def exportar_reporte_disciplinario(request):
     except ImportError:
         return HttpResponse('openpyxl no instalado.', status=500)
 
-    anio = int(request.GET.get('anio', date.today().year))
+    try:
+        anio = int(request.GET.get('anio', date.today().year))
+    except (ValueError, TypeError):
+        anio = date.today().year
 
     medidas = (
         MedidaDisciplinaria.objects
@@ -946,7 +952,10 @@ def disciplinaria_reporte_area(request):
     Endpoint AJAX para Chart.js.
     Retorna conteo de medidas disciplinarias por área del año actual.
     """
-    anio = int(request.GET.get('anio', date.today().year))
+    try:
+        anio = int(request.GET.get('anio', date.today().year))
+    except (ValueError, TypeError):
+        anio = date.today().year
 
     data = (
         MedidaDisciplinaria.objects

@@ -1095,8 +1095,11 @@ def mis_requerimientos(request):
 def calendario_capacitaciones(request):
     """Vista de calendario mensual de capacitaciones."""
     hoy = date.today()
-    mes = int(request.GET.get('mes', hoy.month))
-    anio = int(request.GET.get('anio', hoy.year))
+    try:
+        mes = int(request.GET.get('mes', hoy.month))
+        anio = int(request.GET.get('anio', hoy.year))
+    except (ValueError, TypeError):
+        mes, anio = hoy.month, hoy.year
 
     # Navegación prev/next
     if mes == 1:
