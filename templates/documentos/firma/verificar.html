@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Verificar Firma Digital{% endblock %}
+
+{% block extra_css %}
+<style>
+.verify-container { max-width: 700px; margin: 0 auto; }
+.verify-result {
+  border-radius: 14px; padding: 1.5rem; text-align: center;
+}
+.verify-result.valid { background: #f0fdf4; border: 2px solid #86efac; }
+.verify-result.invalid { background: #fef2f2; border: 2px solid #fca5a5; }
+.verify-result.not-found { background: #f8fafc; border: 2px solid #e2e8f0; }
+.verify-result .result-icon { font-size: 3rem; margin-bottom: .5rem; }
+.hash-box {
+  background: #f1f5f9; border-radius: 8px; padding: .5rem .75rem;
+  font-family: monospace; font-size: .78rem; word-break: break-all;
+  border: 1px solid #e2e8f0;
+}
+.hash-match { background: #dcfce7; border-color: #86efac; }
+.hash-mismatch { background: #fee2e2; border-color: #fca5a5; }
+.firma-preview-img {
+  max-width: 200px; max-height: 100px;
+  border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="verify-container">
+
+    {# Header #}
+    <div class="text-center mb-4">
+      <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+           style="width:64px;height:64px;background:linear-gradient(135deg,#0d2b27,#134e4a);">
+        <i class="fas fa-shield-alt" style="font-size:1.5rem;color:#5eead4;"></i>
+      </div>
+      <h3 class="fw-bold mb-1">Verificar Firma Digital</h3>
+      <p class="text-muted">Comprobar autenticidad e integridad de un documento firmado</p>
+    </div>
+
+    {# Search form #}
+    <div class="card mb-4">
+      <div class="card-body">
+        <form method="get" class="d-flex gap-2">
+          <input type="text" name="hash" class="form-control" value="{{ hash_buscar|default:'' }}"
+                 placeholder="Ingrese token o hash SHA-256 del documento...">
+          <button type="submit" class="btn btn-primary flex-shrink-0">
+            <i class="fas fa-search me-1"></i>Verificar
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {# Verification result #}
+    {% if firma %}
+      {% if verificacion %}
+      {# Firma found and signed #}
+      <div class="verify-result {% if verificacion.valida %}valid{% else %}invalid{% endif %} mb-4">
+        {% if verificacion.valida %}
+        <div class="result-icon text-success"><i class="fas fa-check-circle"></i></div>
+        <h4 class="fw-bold text-success mb-1">Firma Valida</h4>
+        <p class="text-muted mb-0">Este documento fue firmado digitalmente y es autentico.</p>
+        {% else %}
+        <div class="result-icon text-danger"><i class="fas fa-times-circle"></i></div>
+        <h4 class="fw-bold text-danger mb-1">Firma Invalida</h4>
+        <p class="text-muted mb-0">No se pudo verificar la autenticidad de este documento.</p>
+        {% endif %}
+      </div>
+
+      {# Document details #}
+      <div class="card mb-4">
+        <div class="card-header bg-transparent">
+          <h6 class="fw-bold mb-0">
+            <i class="fas fa-file-alt me-2" style="color:var(--primary-color)"></i>Datos del Documento
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <div class="text-muted small">Titulo</div>
+              <div class="fw-semibold">{{ firma.titulo_documento }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted small">Tipo</div>
+              <div>{{ firma.get_tipo_documento_display }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted small">Firmante</div>
+              <div class="fw-semibold">{{ firma.firmante.apellidos_nombres }}</div>
+              <div class="text-muted small">DNI: {{ firma.firmante.nro_doc }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted small">Fecha de firma</div>
+              <div>{{ firma.firmado_en|date:"d/m/Y H:i:s" }}</div>
+              {% if firma.ip_address %}
+              <div class="text-muted small">IP: {{ firma.ip_address }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if firma.firma_imagen %}
+          <div class="mt-3 pt-3 border-top">
+            <div class="text-muted small mb-2">Imagen de firma</div>
+            <img src="{{ firma.firma_imagen }}" alt="Firma" class="firma-preview-img">
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {# Hash comparison #}
+      <div class="card mb-4">
+        <div class="card-header bg-transparent">
+          <h6 class="fw-bold mb-0">
+            <i class="fas fa-fingerprint me-2" style="color:var(--primary-color)"></i>Integridad del Documento
+          </h6>
+        </div>
+        <div class="card-body">
+          {% if verificacion.integridad is not None %}
+            {% if verificacion.integridad %}
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <i class="fas fa-check-circle text-success fa-lg"></i>
+              <span class="fw-semibold text-success">Integridad verificada — el documento no ha sido modificado</span>
+            </div>
+            {% else %}
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <i class="fas fa-exclamation-triangle text-danger fa-lg"></i>
+              <span class="fw-semibold text-danger">Integridad comprometida — el documento fue modificado despues de la firma</span>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <i class="fas fa-info-circle text-muted fa-lg"></i>
+              <span class="text-muted">No se pudo verificar la integridad (tipo de documento no soporta recalculo de hash)</span>
+            </div>
+          {% endif %}
+
+          <div class="mb-2">
+            <div class="text-muted small mb-1">Hash original (al momento de firmar)</div>
+            <div class="hash-box {% if verificacion.integridad %}hash-match{% elif verificacion.integridad == False %}hash-mismatch{% endif %}">
+              {{ verificacion.hash_original|default:"N/D" }}
+            </div>
+          </div>
+
+          {% if verificacion.hash_actual %}
+          <div>
+            <div class="text-muted small mb-1">Hash actual (recalculado)</div>
+            <div class="hash-box {% if verificacion.integridad %}hash-match{% elif verificacion.integridad == False %}hash-mismatch{% endif %}">
+              {{ verificacion.hash_actual }}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% elif firma.estado == 'PENDIENTE' %}
+      <div class="verify-result not-found mb-4">
+        <div class="result-icon text-warning"><i class="fas fa-clock"></i></div>
+        <h4 class="fw-bold text-warning mb-1">Pendiente de Firma</h4>
+        <p class="text-muted mb-0">Este documento aun no ha sido firmado.</p>
+      </div>
+
+      {% elif firma.estado == 'VENCIDO' %}
+      <div class="verify-result invalid mb-4">
+        <div class="result-icon text-secondary"><i class="fas fa-hourglass-end"></i></div>
+        <h4 class="fw-bold text-secondary mb-1">Firma Vencida</h4>
+        <p class="text-muted mb-0">El plazo para firmar este documento ha expirado.</p>
+      </div>
+
+      {% elif firma.estado == 'RECHAZADO' %}
+      <div class="verify-result invalid mb-4">
+        <div class="result-icon text-danger"><i class="fas fa-ban"></i></div>
+        <h4 class="fw-bold text-danger mb-1">Firma Rechazada</h4>
+        <p class="text-muted mb-0">El firmante rechazo este documento.</p>
+      </div>
+      {% endif %}
+
+    {% elif hash_buscar %}
+      {# Not found #}
+      <div class="verify-result not-found mb-4">
+        <div class="result-icon text-muted"><i class="fas fa-search"></i></div>
+        <h4 class="fw-bold text-muted mb-1">No Encontrado</h4>
+        <p class="text-muted mb-0">No se encontro ninguna firma digital con ese token o hash.</p>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

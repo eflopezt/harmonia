@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Solicitar Firma Digital{% endblock %}
+
+{% block extra_css %}
+<style>
+.solicitar-container { max-width: 750px; margin: 0 auto; }
+.solicitar-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 14px;
+}
+.solicitar-card .card-body { padding: 2rem; }
+.form-header-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; background: linear-gradient(135deg, #0d2b27, #134e4a); color: #5eead4;
+}
+.tipo-doc-card {
+  border: 2px solid #e5e7eb; border-radius: 10px;
+  padding: 1rem; cursor: pointer; transition: all .2s;
+  text-align: center;
+}
+.tipo-doc-card:hover { border-color: var(--primary-color); }
+.tipo-doc-card.active { border-color: var(--primary-color); background: #f0fdfa; }
+.tipo-doc-card i { font-size: 1.3rem; color: var(--primary-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="solicitar-container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="fw-bold mb-0">
+          <i class="fas fa-paper-plane me-2" style="color:var(--primary-color)"></i>
+          Solicitar Firma Digital
+        </h2>
+        <small class="text-muted">Enviar solicitud de firma a un trabajador</small>
+      </div>
+      <a href="{% url 'firma_interna_panel' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Panel Firmas
+      </a>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="solicitar-card card">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="form-header-icon">
+            <i class="fas fa-signature"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0">Datos de la Solicitud</h5>
+            <p class="text-muted small mb-0">Configure el documento y el firmante</p>
+          </div>
+        </div>
+
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="row g-3">
+            {# Trabajador #}
+            <div class="col-12">
+              <label class="form-label fw-semibold">Trabajador <span class="text-danger">*</span></label>
+              <select name="personal_id" class="form-select" required id="selectPersonal">
+                <option value="">Seleccione un trabajador...</option>
+                {% for p in personal_list %}
+                <option value="{{ p.pk }}">{{ p.apellidos_nombres }} ({{ p.nro_doc }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {# Titulo #}
+            <div class="col-12">
+              <label class="form-label fw-semibold">Titulo del documento <span class="text-danger">*</span></label>
+              <input type="text" name="titulo" class="form-control" required
+                     placeholder="Ej: Contrato de trabajo, Constancia laboral, Reglamento interno...">
+            </div>
+
+            {# Tipo de documento #}
+            <div class="col-12">
+              <label class="form-label fw-semibold">Tipo de documento</label>
+              <div class="row g-2" id="tipoDocSelector">
+                <div class="col-md-4">
+                  <div class="tipo-doc-card active" data-tipo="CONSTANCIA" onclick="selectTipo('CONSTANCIA')">
+                    <i class="fas fa-file-certificate d-block mb-1"></i>
+                    <div class="fw-semibold small">Constancia</div>
+                    <div class="text-muted" style="font-size:.72rem;">Generada por el sistema</div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="tipo-doc-card" data-tipo="DOCUMENTO" onclick="selectTipo('DOCUMENTO')">
+                    <i class="fas fa-file-upload d-block mb-1"></i>
+                    <div class="fw-semibold small">Documento</div>
+                    <div class="text-muted" style="font-size:.72rem;">Archivo del legajo</div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="tipo-doc-card" data-tipo="LABORAL" onclick="selectTipo('LABORAL')">
+                    <i class="fas fa-gavel d-block mb-1"></i>
+                    <div class="fw-semibold small">Doc. Laboral</div>
+                    <div class="text-muted" style="font-size:.72rem;">Reglamento, politica, etc.</div>
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" name="tipo_documento" id="tipoDocInput" value="CONSTANCIA">
+            </div>
+
+            {# Constancia selector #}
+            <div class="col-12" id="constanciaGroup">
+              <label class="form-label fw-semibold">Constancia generada</label>
+              <select name="constancia_id" class="form-select" id="selectConstancia">
+                <option value="">Seleccione una constancia...</option>
+                {% for c in constancias %}
+                <option value="{{ c.pk }}">{{ c.plantilla.nombre }} — {{ c.personal.apellidos_nombres }} ({{ c.fecha_generacion|date:"d/m/Y" }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {# Document ID (hidden, for DOCUMENTO type) #}
+            <div class="col-12 d-none" id="documentoGroup">
+              <label class="form-label fw-semibold">ID del documento</label>
+              <input type="number" name="documento_id" class="form-control"
+                     placeholder="ID del documento del legajo">
+              <div class="form-text">Ingrese el ID del DocumentoTrabajador a firmar</div>
+            </div>
+
+            {# Laboral ID (hidden, for LABORAL type) #}
+            <div class="col-12 d-none" id="laboralGroup">
+              <label class="form-label fw-semibold">ID del documento laboral</label>
+              <input type="number" name="doc_laboral_id" class="form-control"
+                     placeholder="ID del documento laboral">
+              <div class="form-text">Ingrese el ID del DocumentoLaboral a firmar</div>
+            </div>
+
+            {# Expiration #}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Dias de expiracion</label>
+              <input type="number" name="dias_expiracion" class="form-control" value="15"
+                     min="1" max="90">
+              <div class="form-text">El link de firma vencera en este numero de dias</div>
+            </div>
+
+            {# Notes #}
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notas para el firmante</label>
+              <textarea name="notas" class="form-control" rows="3"
+                        placeholder="Instrucciones o notas opcionales..."></textarea>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4 pt-3 border-top">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-paper-plane me-1"></i>Crear Solicitud
+            </button>
+            <a href="{% url 'firma_interna_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectTipo(tipo) {
+  document.getElementById('tipoDocInput').value = tipo;
+  document.querySelectorAll('.tipo-doc-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.tipo-doc-card[data-tipo="${tipo}"]`).classList.add('active');
+
+  document.getElementById('constanciaGroup').classList.toggle('d-none', tipo !== 'CONSTANCIA');
+  document.getElementById('documentoGroup').classList.toggle('d-none', tipo !== 'DOCUMENTO');
+  document.getElementById('laboralGroup').classList.toggle('d-none', tipo !== 'LABORAL');
+
+  // Show/hide constancia group
+  if (tipo === 'CONSTANCIA') {
+    document.getElementById('constanciaGroup').classList.remove('d-none');
+  }
+}
+</script>
+{% endblock %}

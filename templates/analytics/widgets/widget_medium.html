@@ -1,0 +1,113 @@
+{# Widget Medium — mini chart or stat card with list #}
+{# Context: widget.data, widget.title, widget.icon, widget.color #}
+<div class="card widget-card widget-medium h-100" data-widget-id="{{ widget.id }}">
+  <div class="card-header bg-transparent border-0 pb-0 pt-3 px-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0" style="font-size:.88rem;">
+        <i class="fas {{ widget.icon }} me-2" style="color:{{ widget.color }};"></i>{{ widget.title }}
+      </h6>
+      <button class="btn btn-link btn-sm p-0 text-muted widget-refresh" data-widget-id="{{ widget.id }}"
+              title="Actualizar" style="font-size:.8rem;">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body pt-2 px-3 pb-3">
+    {% if widget.data.error %}
+    <div class="text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>{{ widget.data.error }}</div>
+    {% elif widget.data.labels %}
+      {# Chart data — render canvas for Chart.js #}
+      <canvas class="widget-chart" id="chart-{{ widget.id }}"
+              data-labels='{{ widget.data.labels|safe }}'
+              data-values='{{ widget.data.values|safe }}'
+              data-colors='{{ widget.data.colors|safe }}'
+              data-chart-labels='{{ widget.data.chart_labels|safe }}'
+              data-chart-values='{{ widget.data.chart_values|safe }}'
+              style="max-height:180px;width:100%;"></canvas>
+    {% elif widget.data.hoy is not None or widget.data.lista is not None or widget.data.alertas is not None %}
+      {# List data — birthdays, contracts, alerts #}
+      {% if widget.data.total_hoy is not None %}
+        {# Birthdays #}
+        {% if widget.data.total_hoy > 0 %}
+        <div class="mb-2">
+          <span class="badge bg-danger-subtle text-danger" style="font-size:.75rem;">
+            <i class="fas fa-birthday-cake me-1"></i>{{ widget.data.total_hoy }} hoy
+          </span>
+        </div>
+        {% for p in widget.data.hoy %}
+        <div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:.82rem;">
+          <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+               style="width:30px;height:30px;background:#fce7f3;color:#ec4899;font-size:.7rem;">
+            <i class="fas fa-birthday-cake"></i>
+          </div>
+          <div class="flex-grow-1 text-truncate">
+            <div class="fw-semibold">{{ p.nombre_corto }}</div>
+          </div>
+          <span class="badge bg-light text-muted">{{ p.edad }} a.</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-muted small text-center py-2">
+          <i class="fas fa-birthday-cake opacity-25 d-block mb-1" style="font-size:1.5rem;"></i>
+          Sin cumpleanos hoy
+        </div>
+        {% endif %}
+        {% if widget.data.proximos %}
+        <div class="mt-2 small text-muted">
+          <div class="fw-semibold mb-1">Proximos 7 dias:</div>
+          {% for p in widget.data.proximos %}
+          <div class="py-1">{{ p.nombre_corto }} <span class="text-muted">(en {{ p.dias }}d)</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      {% elif widget.data.lista is not None %}
+        {# Contracts expiring #}
+        <div class="d-flex gap-2 mb-2">
+          <span class="badge bg-danger-subtle text-danger" style="font-size:.72rem;">
+            <i class="fas fa-exclamation me-1"></i>{{ widget.data.urgentes }} en 7d
+          </span>
+          <span class="badge bg-warning-subtle text-warning" style="font-size:.72rem;">
+            {{ widget.data.en_30d }} en 30d
+          </span>
+          <span class="badge bg-info-subtle text-info" style="font-size:.72rem;">
+            {{ widget.data.en_60d }} en 60d
+          </span>
+        </div>
+        {% for p in widget.data.lista %}
+        <div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:.82rem;">
+          <div class="flex-grow-1 text-truncate">{{ p.nombre_corto }}</div>
+          <span class="badge {% if p.dias <= 7 %}bg-danger{% elif p.dias <= 30 %}bg-warning{% else %}bg-info{% endif %}"
+                style="font-size:.7rem;">{{ p.fecha_fin_contrato }}</span>
+        </div>
+        {% endfor %}
+
+      {% elif widget.data.alertas is not None %}
+        {# Alerts #}
+        {% if widget.data.criticas > 0 %}
+        <div class="mb-2">
+          <span class="badge bg-danger" style="font-size:.72rem;">
+            {{ widget.data.criticas }} critica{{ widget.data.criticas|pluralize:"s" }}
+          </span>
+          <span class="badge bg-secondary ms-1" style="font-size:.72rem;">{{ widget.data.total }} total</span>
+        </div>
+        {% endif %}
+        {% for a in widget.data.alertas %}
+        <div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:.82rem;">
+          <i class="fas fa-exclamation-triangle {% if a.severidad == 'CRITICAL' %}text-danger{% elif a.severidad == 'HIGH' %}text-warning{% else %}text-info{% endif %}"
+             style="font-size:.7rem;"></i>
+          <div class="flex-grow-1 text-truncate">{{ a.titulo }}</div>
+          <span class="text-muted" style="font-size:.7rem;">{{ a.creado_en }}</span>
+        </div>
+        {% endfor %}
+        {% if not widget.data.alertas %}
+        <div class="text-center text-muted small py-3">
+          <i class="fas fa-check-circle text-success"></i> Sin alertas activas
+        </div>
+        {% endif %}
+      {% endif %}
+    {% else %}
+      <div class="text-center text-muted small py-3">Sin datos disponibles</div>
+    {% endif %}
+  </div>
+</div>

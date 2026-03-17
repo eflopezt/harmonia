@@ -1,0 +1,180 @@
+{# Widget Catalog Modal — for adding widgets to the dashboard #}
+<div class="modal fade" id="widgetCatalogModal" tabindex="-1" aria-labelledby="widgetCatalogLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title fw-bold" id="widgetCatalogLabel">
+            <i class="fas fa-th-large me-2" style="color:var(--primary-color)"></i>Catalogo de Widgets
+          </h5>
+          <p class="text-muted small mb-0">Selecciona widgets para agregar a tu dashboard</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body pt-2">
+        {# Filter bar #}
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+          <button class="btn btn-sm btn-outline-primary active widget-cat-filter" data-category="all">
+            Todos
+          </button>
+          <button class="btn btn-sm btn-outline-secondary widget-cat-filter" data-category="personal">
+            <i class="fas fa-users me-1"></i>Personal
+          </button>
+          <button class="btn btn-sm btn-outline-secondary widget-cat-filter" data-category="asistencia">
+            <i class="fas fa-fingerprint me-1"></i>Asistencia
+          </button>
+          <button class="btn btn-sm btn-outline-secondary widget-cat-filter" data-category="nominas">
+            <i class="fas fa-file-invoice-dollar me-1"></i>Nominas
+          </button>
+          <button class="btn btn-sm btn-outline-secondary widget-cat-filter" data-category="vacaciones">
+            <i class="fas fa-umbrella-beach me-1"></i>Vacaciones
+          </button>
+          <button class="btn btn-sm btn-outline-secondary widget-cat-filter" data-category="aprobaciones">
+            <i class="fas fa-tasks me-1"></i>Aprobaciones
+          </button>
+          <button class="btn btn-sm btn-outline-secondary widget-cat-filter" data-category="analytics">
+            <i class="fas fa-chart-bar me-1"></i>Analytics
+          </button>
+        </div>
+
+        {# Widget grid #}
+        <div class="row g-3" id="widgetCatalogGrid">
+          {# Items rendered via JS from catalog data #}
+        </div>
+
+        {# Empty state #}
+        <div class="text-center py-4 text-muted d-none" id="widgetCatalogEmpty">
+          <i class="fas fa-puzzle-piece opacity-25 d-block mb-2" style="font-size:2rem;"></i>
+          No hay widgets disponibles en esta categoria
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary" id="btnAddWidgets" disabled>
+          <i class="fas fa-plus me-1"></i>Agregar seleccionados (<span id="widgetSelCount">0</span>)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  let catalogData = [];
+  let selectedWidgets = new Set();
+  let activeWidgets = new Set();
+
+  function initCatalog(catalog, currentWidgets) {
+    catalogData = catalog || [];
+    activeWidgets = new Set(currentWidgets || []);
+    selectedWidgets.clear();
+    renderGrid('all');
+    updateAddBtn();
+  }
+
+  function renderGrid(category) {
+    const grid = document.getElementById('widgetCatalogGrid');
+    const empty = document.getElementById('widgetCatalogEmpty');
+    const items = category === 'all'
+      ? catalogData
+      : catalogData.filter(w => w.category === category);
+
+    if (items.length === 0) {
+      grid.innerHTML = '';
+      empty.classList.remove('d-none');
+      return;
+    }
+    empty.classList.add('d-none');
+
+    grid.innerHTML = items.map(w => {
+      const isActive = activeWidgets.has(w.id);
+      const isSelected = selectedWidgets.has(w.id);
+      const sizeLabel = w.size === 'small' ? 'Pequeno' : w.size === 'medium' ? 'Mediano' : 'Grande';
+      const sizeBadge = w.size === 'small' ? 'bg-info-subtle text-info' : w.size === 'medium' ? 'bg-primary-subtle text-primary' : 'bg-warning-subtle text-warning';
+
+      return `
+        <div class="col-md-6 col-lg-4 widget-catalog-item" data-category="${w.category}">
+          <div class="card h-100 ${isActive ? 'border-success' : ''} ${isSelected ? 'border-primary shadow-sm' : ''}"
+               style="cursor:${isActive ? 'default' : 'pointer'};opacity:${isActive ? '.7' : '1'};"
+               onclick="${isActive ? '' : `toggleWidget('${w.id}')`}">
+            <div class="card-body p-3">
+              <div class="d-flex align-items-start gap-2">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:36px;height:36px;background:${w.color}15;">
+                  <i class="fas ${w.icon}" style="color:${w.color};font-size:.9rem;"></i>
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                  <div class="fw-semibold" style="font-size:.85rem;">${w.title}</div>
+                  <div class="text-muted" style="font-size:.75rem;">${w.description}</div>
+                  <div class="mt-1 d-flex gap-1">
+                    <span class="badge ${sizeBadge}" style="font-size:.65rem;">${sizeLabel}</span>
+                    ${isActive ? '<span class="badge bg-success-subtle text-success" style="font-size:.65rem;">Activo</span>' : ''}
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  ${isActive
+                    ? '<i class="fas fa-check-circle text-success"></i>'
+                    : (isSelected
+                      ? '<i class="fas fa-check-square text-primary"></i>'
+                      : '<i class="far fa-square text-muted"></i>')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.toggleWidget = function(widgetId) {
+    if (selectedWidgets.has(widgetId)) {
+      selectedWidgets.delete(widgetId);
+    } else {
+      selectedWidgets.add(widgetId);
+    }
+    const activeFilter = document.querySelector('.widget-cat-filter.active');
+    renderGrid(activeFilter ? activeFilter.dataset.category : 'all');
+    updateAddBtn();
+  };
+
+  function updateAddBtn() {
+    const btn = document.getElementById('btnAddWidgets');
+    const count = document.getElementById('widgetSelCount');
+    if (btn && count) {
+      count.textContent = selectedWidgets.size;
+      btn.disabled = selectedWidgets.size === 0;
+    }
+  }
+
+  // Category filter buttons
+  document.querySelectorAll('.widget-cat-filter').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.widget-cat-filter').forEach(b => {
+        b.classList.remove('active', 'btn-outline-primary');
+        b.classList.add('btn-outline-secondary');
+      });
+      this.classList.remove('btn-outline-secondary');
+      this.classList.add('active', 'btn-outline-primary');
+      renderGrid(this.dataset.category);
+    });
+  });
+
+  // Add button
+  const addBtn = document.getElementById('btnAddWidgets');
+  if (addBtn) {
+    addBtn.addEventListener('click', function() {
+      const newWidgets = Array.from(selectedWidgets);
+      if (newWidgets.length === 0) return;
+
+      const event = new CustomEvent('widgetsAdded', { detail: { widgets: newWidgets } });
+      document.dispatchEvent(event);
+
+      const modal = bootstrap.Modal.getInstance(document.getElementById('widgetCatalogModal'));
+      if (modal) modal.hide();
+    });
+  }
+
+  // Expose init function
+  window.initWidgetCatalog = initCatalog;
+})();
+</script>

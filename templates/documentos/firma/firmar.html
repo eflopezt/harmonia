@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Firmar Documento{% endblock %}
+{% block page_title %}<h1 class="topbar-h1"><i class="fas fa-signature me-2 text-primary"></i>Firmar Documento</h1>{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto">
+    <div class="card mb-3"><div class="card-body">
+        <h5><i class="fas fa-file-alt me-2 text-muted"></i>{{ documento.titulo|default:"Documento" }}</h5>
+        <div style="max-height:300px;overflow-y:auto;font-size:.9rem;color:#475569">{{ documento.contenido_html|safe }}</div>
+    </div></div>
+    <div class="card"><div class="card-body">
+        <h5><i class="fas fa-pen-fancy me-2" style="color:#0f766e"></i>Tu firma</h5>
+        <p class="text-muted small">Dibuja tu firma en el recuadro.</p>
+        <canvas id="sigCanvas" style="border:2px dashed #cbd5e1;border-radius:8px;width:100%;height:200px;cursor:crosshair;touch-action:none"></canvas>
+        <div class="mt-2 d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="sigPad.clear()"><i class="fas fa-eraser"></i> Limpiar</button>
+            <button class="btn btn-sm btn-primary ms-auto" id="btnFirmar"><i class="fas fa-check"></i> Firmar</button>
+        </div>
+        <small class="text-muted mt-2 d-block"><i class="fas fa-shield-alt"></i> Firma con fecha, hora e IP para validacion legal.</small>
+    </div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/signature-pad.js' %}"></script>
+<script>
+const sigPad=new SignaturePad(document.getElementById('sigCanvas'));
+document.getElementById('btnFirmar').onclick=function(){
+if(sigPad.isEmpty()){alert('Dibuja tu firma');return}
+this.disabled=true;const fd=new FormData();
+fd.append('firma_base64',sigPad.toDataURL());
+fd.append('csrfmiddlewaretoken','{{ csrf_token }}');
+fetch(window.location.href,{method:'POST',body:fd})
+.then(r=>r.json()).then(d=>{if(d.ok)location.href=d.redirect||'/documentos/';else{alert(d.error);this.disabled=false}})
+.catch(()=>{alert('Error');this.disabled=false})};
+</script>
+{% endblock %}

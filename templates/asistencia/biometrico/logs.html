@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Historial de Sincronizacion{% endblock %}
+
+{% block extra_css %}
+<style>
+.sync-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .75rem; padding: .2rem .5rem; border-radius: 6px; font-weight: 600;
+}
+.sync-badge.ok   { background: #dcfce7; color: #15803d; }
+.sync-badge.fail { background: #fee2e2; color: #b91c1c; }
+.sync-badge.partial { background: #fef3c7; color: #b45309; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">
+        <i class="fas fa-history me-2" style="color:var(--primary-color)"></i>
+        Historial de Sincronizacion
+      </h2>
+      <small class="text-muted">
+        Registro de todas las sincronizaciones de dispositivos biometricos
+      </small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'asistencia_biometrico_panel' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Panel Biometrico
+      </a>
+    </div>
+  </div>
+
+  {# Filters #}
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <form method="get" class="row g-2 align-items-center">
+        <div class="col-auto">
+          <select name="dispositivo" class="form-select form-select-sm">
+            <option value="">Todos los dispositivos</option>
+            {% for d in dispositivos %}
+            <option value="{{ d.pk }}" {% if dispositivo_filtro == d.pk|stringformat:"d" %}selected{% endif %}>
+              {{ d.nombre }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos los estados</option>
+            <option value="ok" {% if estado_filtro == 'ok' %}selected{% endif %}>Exitoso</option>
+            <option value="error" {% if estado_filtro == 'error' %}selected{% endif %}>Error</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="date" name="desde" class="form-control form-control-sm" value="{{ desde|default:'' }}"
+                 placeholder="Desde">
+        </div>
+        <div class="col-auto">
+          <input type="date" name="hasta" class="form-control form-control-sm" value="{{ hasta|default:'' }}"
+                 placeholder="Hasta">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Filtrar</button>
+          <a href="{% url 'asistencia_biometrico_logs' %}" class="btn btn-sm btn-outline-secondary ms-1">Limpiar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Sync history table #}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Fecha/Hora</th>
+            <th>Dispositivo</th>
+            <th>Estado</th>
+            <th class="text-center">Total</th>
+            <th class="text-center">Nuevas</th>
+            <th class="text-center">Duplicadas</th>
+            <th class="text-center">Sin Match</th>
+            <th>Detalle</th>
+            <th>Usuario</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td>
+              <span class="small">{{ log.fecha|date:"d/m/Y H:i:s" }}</span>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ log.dispositivo_nombre }}</div>
+              <div class="text-muted small">{{ log.dispositivo_ip }}</div>
+            </td>
+            <td>
+              {% if log.ok %}
+              <span class="sync-badge {% if log.sin_match > 0 %}partial{% else %}ok{% endif %}">
+                <i class="fas {% if log.sin_match > 0 %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %}"></i>
+                {% if log.sin_match > 0 %}Parcial{% else %}Exitoso{% endif %}
+              </span>
+              {% else %}
+              <span class="sync-badge fail">
+                <i class="fas fa-times-circle"></i>Error
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="fw-semibold">{{ log.total|default:"0" }}</span>
+            </td>
+            <td class="text-center">
+              {% if log.nuevos > 0 %}
+              <span class="text-success fw-semibold">+{{ log.nuevos }}</span>
+              {% else %}
+              <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="text-muted">{{ log.omitidos|default:"0" }}</span>
+            </td>
+            <td class="text-center">
+              {% if log.sin_match > 0 %}
+              <span class="text-warning fw-semibold">{{ log.sin_match }}</span>
+              {% else %}
+              <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if log.error %}
+              <span class="text-danger small">{{ log.error|truncatechars:60 }}</span>
+              {% else %}
+              <span class="text-muted small">--</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="small text-muted">{{ log.usuario|default:"Sistema" }}</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              <i class="fas fa-history fa-3x mb-3 d-block opacity-25"></i>
+              No hay registros de sincronizacion
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Pagination #}
+  {% if page_obj %}
+  <nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center">
+      {% if page_obj.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.dispositivo %}&dispositivo={{ request.GET.dispositivo }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">
+          <i class="fas fa-chevron-left"></i>
+        </a>
+      </li>
+      {% endif %}
+      <li class="page-item disabled">
+        <span class="page-link">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      </li>
+      {% if page_obj.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.dispositivo %}&dispositivo={{ request.GET.dispositivo }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">
+          <i class="fas fa-chevron-right"></i>
+        </a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
+{% endblock %}

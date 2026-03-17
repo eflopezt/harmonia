@@ -1,0 +1,82 @@
+{# Widget Small — KPI card: number + label + trend arrow #}
+{# Context: widget.data, widget.title, widget.icon, widget.color #}
+<div class="card widget-card widget-small h-100" data-widget-id="{{ widget.id }}"
+     style="border-left: 4px solid {{ widget.color }};">
+  <div class="card-body py-3 px-3">
+    {% if widget.data.error %}
+    <div class="text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>{{ widget.data.error }}</div>
+    {% else %}
+    <div class="d-flex justify-content-between align-items-start">
+      <div class="flex-grow-1">
+        <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size:.72rem;letter-spacing:.5px;">
+          {{ widget.title }}
+        </div>
+        <div class="fw-bold" style="font-size:1.75rem;line-height:1;color:{{ widget.color }};">
+          {% if widget.data.total is not None %}
+            {{ widget.data.total|default:"0" }}
+          {% elif widget.data.presentes is not None %}
+            {{ widget.data.pct_asistencia|default:"0" }}%
+          {% elif widget.data.pendientes is not None %}
+            {{ widget.data.pendientes|default:"0" }}
+          {% elif widget.data.tardanzas is not None %}
+            {{ widget.data.tardanzas|default:"0" }}
+          {% elif widget.data.tasa is not None %}
+            {{ widget.data.tasa }}%
+          {% elif widget.data.neto is not None %}
+            S/ {{ widget.data.neto|floatformat:0 }}
+          {% else %}
+            --
+          {% endif %}
+        </div>
+
+        {# Secondary stats line #}
+        <div class="text-muted mt-1" style="font-size:.78rem;">
+          {% if widget.data.staff is not None %}
+            <span class="me-2">Staff: {{ widget.data.staff }}</span>
+            <span>RCO: {{ widget.data.rco }}</span>
+          {% elif widget.data.presentes is not None %}
+            <span class="me-2"><i class="fas fa-check text-success me-1"></i>{{ widget.data.presentes }}</span>
+            <span class="me-2"><i class="fas fa-times text-danger me-1"></i>{{ widget.data.faltas }}</span>
+            <span><i class="fas fa-clock text-warning me-1"></i>{{ widget.data.permisos }}</span>
+          {% elif widget.data.proximas is not None %}
+            <span>{{ widget.data.proximas }} aprobadas proximamente</span>
+          {% elif widget.data.papeletas is not None %}
+            <span class="me-2">Papeletas: {{ widget.data.papeletas }}</span>
+            <span>HE: {{ widget.data.horas_extra }}</span>
+          {% elif widget.data.periodo is not None %}
+            <span>{{ widget.data.periodo }}</span>
+            {% if widget.data.trabajadores %}
+              <span class="ms-2">{{ widget.data.trabajadores }} trab.</span>
+            {% endif %}
+          {% elif widget.data.total_presentes is not None %}
+            <span>{{ widget.data.pct }}% del total</span>
+          {% elif widget.data.total_empleados is not None %}
+            <span>{{ widget.data.altas }} altas / {{ widget.data.bajas }} bajas</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="flex-shrink-0 ms-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center"
+             style="width:44px;height:44px;background:{{ widget.color }}15;">
+          <i class="fas {{ widget.icon }}" style="color:{{ widget.color }};font-size:1.1rem;"></i>
+        </div>
+      </div>
+    </div>
+
+    {# Trend arrow #}
+    {% if widget.data.tendencia is not None %}
+    <div class="mt-2 pt-2 border-top" style="font-size:.76rem;">
+      {% if widget.data.tendencia > 0 %}
+        <span class="text-success"><i class="fas fa-arrow-up me-1"></i>+{{ widget.data.tendencia }} este mes</span>
+      {% elif widget.data.tendencia < 0 %}
+        <span class="text-danger"><i class="fas fa-arrow-down me-1"></i>{{ widget.data.tendencia }} este mes</span>
+      {% else %}
+        <span class="text-muted"><i class="fas fa-minus me-1"></i>Sin cambios</span>
+      {% endif %}
+      <span class="text-muted ms-2">{{ widget.data.altas_mes }} altas / {{ widget.data.bajas_mes }} bajas</span>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>

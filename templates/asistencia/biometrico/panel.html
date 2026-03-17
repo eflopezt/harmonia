@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}Panel Biometrico{% endblock %}
+
+{% block extra_css %}
+<style>
+.device-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.device-card:hover { border-color: var(--primary-color); box-shadow: 0 4px 20px rgba(15,118,110,.15); }
+.device-card .card-body { padding: 1.4rem; }
+
+.device-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .78rem; padding: .25rem .65rem; border-radius: 30px; font-weight: 600;
+}
+.device-status.online  { background: #dcfce7; color: #15803d; }
+.device-status.offline { background: #fee2e2; color: #b91c1c; }
+.device-status.error   { background: #fef3c7; color: #b45309; }
+.device-status.unknown { background: #f1f5f9; color: #64748b; }
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+}
+.status-dot.online  { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.5); }
+.status-dot.offline { background: #ef4444; }
+.status-dot.error   { background: #f59e0b; }
+.status-dot.unknown { background: #94a3b8; }
+
+.icon-device {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; background: linear-gradient(135deg, #0d2b27, #134e4a); color: #5eead4;
+}
+.stat-pill {
+  background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px;
+  padding: .25rem .6rem; font-size: .8rem; color: #0f766e;
+}
+.stat-pill.warn { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">
+        <i class="fas fa-fingerprint me-2" style="color:var(--primary-color)"></i>
+        Panel Biometrico
+      </h2>
+      <small class="text-muted">
+        Gestion de dispositivos ZKTeco — estado de conexion y sincronizacion
+      </small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'asistencia_relojes_lista' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-list me-1"></i>Lista Completa
+      </a>
+      <a href="{% url 'asistencia_biometrico_agregar' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Agregar Dispositivo
+      </a>
+    </div>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {# Summary stats #}
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold" style="color:var(--primary-color);">{{ stats.total|default:"0" }}</div>
+        <div class="text-muted small">Total Dispositivos</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-success">{{ stats.online|default:"0" }}</div>
+        <div class="text-muted small">En Linea</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-danger">{{ stats.offline|default:"0" }}</div>
+        <div class="text-muted small">Desconectados</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-warning">{{ stats.sin_procesar|default:"0" }}</div>
+        <div class="text-muted small">Marcaciones Pendientes</div>
+      </div>
+    </div>
+  </div>
+
+  {# Device grid #}
+  {% if not dispositivos %}
+  <div class="text-center py-5">
+    <div class="mb-3" style="font-size: 3rem; color: #cbd5e1;">
+      <i class="fas fa-fingerprint"></i>
+    </div>
+    <h5 class="text-muted">No hay dispositivos configurados</h5>
+    <p class="text-muted small">Agrega tu primer reloj ZKTeco para sincronizar marcaciones.</p>
+    <a href="{% url 'asistencia_biometrico_agregar' %}" class="btn btn-primary">
+      <i class="fas fa-plus me-2"></i>Agregar primer dispositivo
+    </a>
+  </div>
+  {% else %}
+
+  <div class="row g-3">
+    {% for device in dispositivos %}
+    <div class="col-md-6 col-xl-4">
+      <div class="device-card card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="icon-device flex-shrink-0">
+              <i class="fas fa-fingerprint"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h6 class="fw-bold mb-0 text-truncate">{{ device.nombre }}</h6>
+                {% if not device.activo %}
+                <span class="badge bg-secondary">Inactivo</span>
+                {% endif %}
+              </div>
+              <div class="text-muted small">
+                <i class="fas fa-network-wired me-1"></i>
+                {{ device.ip }}:{{ device.puerto }}
+              </div>
+              {% if device.ubicacion %}
+              <div class="text-muted small">
+                <i class="fas fa-map-marker-alt me-1"></i>{{ device.ubicacion }}
+              </div>
+              {% endif %}
+            </div>
+            <div class="device-status {% if device.estado_conexion == 'CONECTADO' %}online{% elif device.estado_conexion == 'ERROR' %}error{% elif device.estado_conexion == 'DESCONECTADO' %}offline{% else %}unknown{% endif %}">
+              <span class="status-dot {% if device.estado_conexion == 'CONECTADO' %}online{% elif device.estado_conexion == 'ERROR' %}error{% elif device.estado_conexion == 'DESCONECTADO' %}offline{% else %}unknown{% endif %}"></span>
+              {{ device.get_estado_conexion_display }}
+            </div>
+          </div>
+
+          {# Device stats #}
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="stat-pill">
+              <i class="fas fa-clock me-1"></i>{{ device.total_marc|default:"0" }} marcaciones
+            </span>
+            {% if device.sin_procesar > 0 %}
+            <span class="stat-pill warn">
+              <i class="fas fa-exclamation me-1"></i>{{ device.sin_procesar }} sin procesar
+            </span>
+            {% endif %}
+          </div>
+
+          {# Device info #}
+          {% if device.numero_serie or device.modelo_dispositivo %}
+          <div class="text-muted small mb-3">
+            {% if device.modelo_dispositivo %}
+            <span class="me-2"><i class="fas fa-microchip me-1"></i>{{ device.modelo_dispositivo }}</span>
+            {% endif %}
+            {% if device.numero_serie %}
+            <span><i class="fas fa-barcode me-1"></i>{{ device.numero_serie }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {# Last sync #}
+          <div class="text-muted small mb-3">
+            {% if device.ultima_sincronizacion %}
+            <i class="fas fa-sync me-1"></i>Ultima sync: {{ device.ultima_sincronizacion|date:"d/m/Y H:i" }}
+            {% else %}
+            <i class="fas fa-sync me-1 text-warning"></i>
+            <span class="text-warning">Nunca sincronizado</span>
+            {% endif %}
+          </div>
+
+          {# Action buttons #}
+          <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'asistencia_relojes_detalle' device.pk %}"
+               class="btn btn-primary btn-sm flex-grow-1">
+              <i class="fas fa-external-link-alt me-1"></i>Detalle
+            </a>
+            {% if device.activo %}
+            <button class="btn btn-outline-success btn-sm btn-test-device"
+                    data-pk="{{ device.pk }}" data-nombre="{{ device.nombre }}"
+                    title="Probar conexion">
+              <i class="fas fa-plug"></i>
+            </button>
+            <button class="btn btn-outline-primary btn-sm btn-sync-device"
+                    data-pk="{{ device.pk }}" data-nombre="{{ device.nombre }}"
+                    title="Sincronizar marcaciones">
+              <i class="fas fa-sync"></i>
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+{# Toast #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="deviceToast" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="deviceToastMsg">...</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showToast(msg, ok) {
+  const el = document.getElementById('deviceToast');
+  el.classList.remove('bg-success', 'bg-danger', 'bg-warning');
+  el.classList.add(ok ? 'bg-success' : 'bg-danger');
+  document.getElementById('deviceToastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, {delay: 4000}).show();
+}
+
+function csrfToken() {
+  return document.cookie.split(';').map(c => c.trim())
+    .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+document.querySelectorAll('.btn-test-device').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const pk = btn.dataset.pk;
+    const nombre = btn.dataset.nombre;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+      const r = await fetch(`/asistencia/relojes/${pk}/test/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      });
+      const data = await r.json();
+      showToast(data.ok ? `${nombre}: ${data.detail}` : `${nombre}: ${data.detail}`, data.ok);
+      if (data.ok) setTimeout(() => location.reload(), 1500);
+    } catch(e) {
+      showToast(`Error de red: ${e.message}`, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+});
+
+document.querySelectorAll('.btn-sync-device').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const pk = btn.dataset.pk;
+    const nombre = btn.dataset.nombre;
+    if (!confirm(`Sincronizar marcaciones de "${nombre}"?\n\nSe descargaran todas las marcaciones del dispositivo.`)) return;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+      const r = await fetch(`/asistencia/relojes/${pk}/sync/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      });
+      const data = await r.json();
+      if (data.ok) {
+        showToast(`${nombre}: ${data.nuevos} nuevas, ${data.omitidos} duplicadas`, true);
+        setTimeout(() => location.reload(), 2000);
+      } else {
+        showToast(`Error: ${data.error}`, false);
+      }
+    } catch(e) {
+      showToast(`Error de red: ${e.message}`, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+});
+</script>
+{% endblock %}

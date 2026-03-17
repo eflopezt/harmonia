@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Agregar Dispositivo Biometrico{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 14px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.form-card .card-body { padding: 2rem; }
+.form-header-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; background: linear-gradient(135deg, #0d2b27, #134e4a); color: #5eead4;
+}
+.test-result {
+  border-radius: 10px; padding: .8rem 1.2rem; font-size: .88rem;
+  margin-top: 1rem; display: none;
+}
+.test-result.ok { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
+.test-result.fail { background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">
+        <i class="fas fa-plus-circle me-2" style="color:var(--primary-color)"></i>
+        Agregar Dispositivo
+      </h2>
+      <small class="text-muted">Configurar un nuevo reloj biometrico ZKTeco</small>
+    </div>
+    <a href="{% url 'asistencia_biometrico_panel' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Volver al Panel
+    </a>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="form-card card">
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <div class="form-header-icon">
+          <i class="fas fa-fingerprint"></i>
+        </div>
+        <div>
+          <h5 class="fw-bold mb-0">Datos del Dispositivo</h5>
+          <p class="text-muted small mb-0">Ingresa la configuracion de red del reloj biometrico</p>
+        </div>
+      </div>
+
+      <form method="post" id="formAgregar">
+        {% csrf_token %}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Nombre del dispositivo <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" required
+                   placeholder="Ej: Reloj Entrada Principal"
+                   value="{{ form.nombre.value|default:'' }}">
+            <div class="form-text">Nombre descriptivo para identificar el dispositivo</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Ubicacion</label>
+            <input type="text" name="ubicacion" class="form-control"
+                   placeholder="Ej: Puerta principal, 1er piso"
+                   value="{{ form.ubicacion.value|default:'' }}">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Direccion IP <span class="text-danger">*</span></label>
+            <input type="text" name="ip" id="inputIp" class="form-control" required
+                   placeholder="192.168.1.100" pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                   value="{{ form.ip.value|default:'' }}">
+            <div class="form-text">IPv4 del dispositivo en la red local</div>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Puerto</label>
+            <input type="number" name="puerto" id="inputPuerto" class="form-control"
+                   value="{{ form.puerto.value|default:'4370' }}" min="1" max="65535">
+            <div class="form-text">Default: 4370</div>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Timeout (s)</label>
+            <input type="number" name="timeout" class="form-control"
+                   value="{{ form.timeout.value|default:'10' }}" min="3" max="60">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Protocolo</label>
+            <select name="protocolo" class="form-select">
+              <option value="TCP" {% if form.protocolo.value == 'TCP' %}selected{% endif %}>TCP (recomendado)</option>
+              <option value="UDP" {% if form.protocolo.value == 'UDP' %}selected{% endif %}>UDP</option>
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Campo de ID empleado</label>
+            <select name="campo_id_empleado" class="form-select">
+              <option value="USER_ID">DNI / Nro Documento (USER_ID)</option>
+              <option value="CARD">Nro de Tarjeta (CARD)</option>
+            </select>
+            <div class="form-text">Como se identifica al trabajador en el dispositivo</div>
+          </div>
+
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="activo" id="chkActivo" checked>
+              <label class="form-check-label" for="chkActivo">Dispositivo activo</label>
+            </div>
+          </div>
+        </div>
+
+        {# Test connection #}
+        <div class="border-top mt-4 pt-3">
+          <button type="button" class="btn btn-outline-success btn-sm" id="btnTestConn">
+            <i class="fas fa-plug me-1"></i>Probar Conexion
+          </button>
+          <span class="text-muted small ms-2">Verifica la conexion antes de guardar</span>
+
+          <div class="test-result" id="testResult">
+            <i class="fas fa-check-circle me-1" id="testIcon"></i>
+            <span id="testMsg"></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4 pt-3 border-top">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Guardar Dispositivo
+          </button>
+          <a href="{% url 'asistencia_biometrico_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('btnTestConn').addEventListener('click', async function() {
+  const ip = document.getElementById('inputIp').value.trim();
+  const puerto = document.getElementById('inputPuerto').value.trim() || '4370';
+
+  if (!ip) {
+    alert('Ingresa la direccion IP primero.');
+    return;
+  }
+
+  const btn = this;
+  const result = document.getElementById('testResult');
+  const icon = document.getElementById('testIcon');
+  const msg = document.getElementById('testMsg');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Probando...';
+  result.style.display = 'none';
+
+  try {
+    const csrf = document.cookie.split(';').map(c => c.trim())
+      .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+
+    const r = await fetch('{% url "asistencia_biometrico_test" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: JSON.stringify({ ip: ip, puerto: parseInt(puerto) }),
+    });
+    const data = await r.json();
+
+    result.style.display = 'block';
+    if (data.ok) {
+      result.className = 'test-result ok';
+      icon.className = 'fas fa-check-circle me-1';
+      msg.textContent = data.detail;
+    } else {
+      result.className = 'test-result fail';
+      icon.className = 'fas fa-times-circle me-1';
+      msg.textContent = data.detail || 'No se pudo conectar al dispositivo.';
+    }
+  } catch(e) {
+    result.style.display = 'block';
+    result.className = 'test-result fail';
+    icon.className = 'fas fa-times-circle me-1';
+    msg.textContent = 'Error de red: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plug me-1"></i>Probar Conexion';
+  }
+});
+</script>
+{% endblock %}
