@@ -172,3 +172,27 @@ class DashboardWidget(models.Model):
 
     def __str__(self):
         return f"{self.titulo} ({self.user.username})"
+
+
+class DashboardLayout(models.Model):
+    """
+    Almacena la configuracion de layout del dashboard personalizable por usuario.
+    Guarda la lista ordenada de widget_ids activos y sus posiciones en el grid.
+    """
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='dashboard_layout',
+        verbose_name="Usuario")
+    widget_ids = models.JSONField(
+        default=list, verbose_name="IDs de widgets activos",
+        help_text="Lista ordenada de widget_id strings del catalogo")
+    config = models.JSONField(
+        default=dict, verbose_name="Configuracion extra",
+        help_text="Tamanos personalizados, columnas, etc.")
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Layout Dashboard"
+        verbose_name_plural = "Layouts Dashboard"
+
+    def __str__(self):
+        return f"Layout de {self.user.username} ({len(self.widget_ids)} widgets)"

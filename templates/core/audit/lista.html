@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Audit List Styles ── */
+.audit-stats .stat-card {
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+    transition: transform .15s;
+}
+.audit-stats .stat-card:hover { transform: translateY(-2px); }
+.stat-total  { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
+.stat-create { background: linear-gradient(135deg, #f0fdf4, #dcfce7); }
+.stat-update { background: linear-gradient(135deg, #eff6ff, #dbeafe); }
+.stat-delete { background: linear-gradient(135deg, #fef2f2, #fee2e2); }
+.stat-number { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.stat-label  { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin-top: 2px; }
+
+.audit-table { font-size: .82rem; }
+.audit-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
+.audit-table td { vertical-align: middle; }
+
+.badge-action { font-weight: 600; font-size: .68rem; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: .03em; }
+.badge-CREATE  { background: #dcfce7; color: #166534; }
+.badge-UPDATE  { background: #dbeafe; color: #1e40af; }
+.badge-DELETE  { background: #fee2e2; color: #991b1b; }
+
+.audit-desc { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-module { font-size: .72rem; background: #f3f4f6; color: #374151; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+.audit-ip { font-family: monospace; font-size: .72rem; color: #9ca3af; }
+.audit-time { font-size: .72rem; color: #6b7280; white-space: nowrap; }
+
+.filter-card { border: none; background: #f9fafb; border-radius: 10px; }
+.filter-card .form-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+
+.page-link-audit { font-size: .8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {# ── Header ── #}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-teal-dark rounded-2 p-2">
+                <i class="fas fa-shield-halved text-accent fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h4 mb-0 fw-bold">{{ titulo }}</h1>
+                <small class="text-muted">
+                    Trazabilidad completa de todas las operaciones del sistema.
+                    {{ total_filtrado|default:"0" }} registro{{ total_filtrado|pluralize:"s" }} encontrado{{ total_filtrado|pluralize:"s" }}.
+                </small>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'audit_export' %}?{{ request.GET.urlencode }}"
+               class="btn btn-sm btn-outline-success" title="Exportar a Excel">
+                <i class="fas fa-file-excel me-1"></i>Exportar Excel
+            </a>
+        </div>
+    </div>
+
+    {# ── Stats ── #}
+    <div class="row g-3 mb-4 audit-stats">
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-total">
+                <div class="stat-number text-dark">{{ stats.total|default:"0" }}</div>
+                <div class="stat-label">Total Registros</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-create">
+                <div class="stat-number" style="color:#166534">{{ stats.total_creates|default:"0" }}</div>
+                <div class="stat-label">Creaciones</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-update">
+                <div class="stat-number" style="color:#1e40af">{{ stats.total_updates|default:"0" }}</div>
+                <div class="stat-label">Modificaciones</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card stat-delete">
+                <div class="stat-number" style="color:#991b1b">{{ stats.total_deletes|default:"0" }}</div>
+                <div class="stat-label">Eliminaciones</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Filtros ── #}
+    <div class="card filter-card shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label mb-0">Accion</label>
+                    <select name="accion" class="form-select form-select-sm" style="width:130px">
+                        <option value="">Todas</option>
+                        <option value="CREATE" {% if filtro_accion == 'CREATE' %}selected{% endif %}>Creacion</option>
+                        <option value="UPDATE" {% if filtro_accion == 'UPDATE' %}selected{% endif %}>Modificacion</option>
+                        <option value="DELETE" {% if filtro_accion == 'DELETE' %}selected{% endif %}>Eliminacion</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-0">Modulo</label>
+                    <select name="modelo" class="form-select form-select-sm" style="width:160px">
+                        <option value="">Todos</option>
+                        {% for m in modelos %}
+                        <option value="{{ m.pk }}" {% if filtro_modelo == m.pk|stringformat:"d" %}selected{% endif %}>{{ m.model|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-0">Usuario</label>
+                    <select name="usuario" class="form-select form-select-sm" style="width:150px">
+                        <option value="">Todos</option>
+                        {% for u in usuarios %}
+                        <option value="{{ u.pk }}" {% if filtro_usuario == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-0">Desde</label>
+                    <input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="form-control form-control-sm" style="width:145px">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-0">Hasta</label>
+                    <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="form-control form-control-sm" style="width:145px">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-0">Buscar</label>
+                    <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" placeholder="Descripcion o usuario..." style="width:200px">
+                </div>
+                <div class="col-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-primary"><i class="fas fa-search me-1"></i>Filtrar</button>
+                    {% if filtro_accion or filtro_usuario or filtro_modelo or buscar or fecha_desde or fecha_hasta %}
+                    <a href="{% url 'audit_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times me-1"></i>Limpiar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── Tabla ── #}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 audit-table">
+                    <thead>
+                        <tr>
+                            <th style="width:55px">#</th>
+                            <th style="width:145px">Fecha / Hora</th>
+                            <th style="width:100px">Accion</th>
+                            <th style="width:120px">Modulo</th>
+                            <th>Descripcion</th>
+                            <th style="width:110px">Usuario</th>
+                            <th style="width:120px">IP</th>
+                            <th style="width:60px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in page_obj %}
+                        <tr>
+                            <td class="text-muted small">{{ log.pk }}</td>
+                            <td class="audit-time">{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+                            <td><span class="badge-action badge-{{ log.accion }}">{{ log.get_accion_display }}</span></td>
+                            <td>
+                                <a href="{% url 'audit_list' %}?modelo={{ log.content_type_id }}" class="audit-module text-decoration-none">
+                                    {{ log.content_type.model|title }}
+                                </a>
+                            </td>
+                            <td class="audit-desc" title="{{ log.descripcion }}">{{ log.descripcion }}</td>
+                            <td class="small">
+                                {% if log.usuario %}
+                                <a href="{% url 'audit_list' %}?usuario={{ log.usuario_id }}" class="text-decoration-none">
+                                    {{ log.usuario.username }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">sistema</span>
+                                {% endif %}
+                            </td>
+                            <td class="audit-ip">{{ log.ip_address|default:"--" }}</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'audit_detail' log.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Ver detalle">
+                                        <i class="fas fa-eye" style="font-size:.7rem"></i>
+                                    </a>
+                                    <a href="{% url 'audit_timeline' log.content_type_id log.object_id %}" class="btn btn-sm btn-outline-info py-0 px-1" title="Ver timeline del objeto">
+                                        <i class="fas fa-stream" style="font-size:.7rem"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="fas fa-shield-halved fa-2x d-block mb-2 opacity-25"></i>
+                                No hay registros de auditoria{% if filtro_accion or filtro_usuario or filtro_modelo or buscar or fecha_desde or fecha_hasta %} con esos filtros{% endif %}.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# ── Paginacion ── #}
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-2">
+            <small class="text-muted">
+                Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ total_filtrado }}
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link page-link-audit" href="?page=1{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link page-link-audit" href="?page={{ page_obj.previous_page_number }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num == page_obj.number %}
+                        <li class="page-item active"><span class="page-link page-link-audit">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:"-4" and num < page_obj.number|add:"4" %}
+                        <li class="page-item">
+                            <a class="page-link page-link-audit" href="?page={{ num }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link page-link-audit" href="?page={{ page_obj.next_page_number }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link page-link-audit" href="?page={{ page_obj.paginator.num_pages }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

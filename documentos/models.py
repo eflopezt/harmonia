@@ -951,6 +951,172 @@ class DossierItem(models.Model):
 
 
 
+class FirmaDigital(models.Model):
+    """
+    Firma digital con captura en canvas (signature pad).
+    Almacena la imagen de la firma como base64 PNG + hash SHA-256
+    del documento al momento de firmar para verificacion de integridad.
+
+    Legalmente util: hash_documento demuestra que el documento
+    no fue modificado despues de la firma.
+
+    Base legal:
+    - Ley 27269: Ley de Firmas y Certificados Digitales (Peru)
+    - DS 052-2008-PCM: Reglamento de firma electronica
+    """
+
+    TIPO_DOCUMENTO_CHOICES = [
+        ('CONSTANCIA', 'Constancia Generada'),
+        ('DOCUMENTO', 'Documento del Trabajador'),
+        ('LABORAL', 'Documento Laboral'),
+        ('BOLETA', 'Boleta de Pago'),
+        ('OTRO', 'Otro'),
+    ]
+
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente de firma'),
+        ('FIRMADO', 'Firmado'),
+        ('RECHAZADO', 'Rechazado'),
+        ('VENCIDO', 'Link vencido'),
+    ]
+
+    # Referencia al documento (flexible: puede ser constancia, doc laboral, etc.)
+    tipo_documento = models.CharField(
+        max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='CONSTANCIA',
+    )
+    constancia = models.ForeignKey(
+        ConstanciaGenerada, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='firmas',
+        verbose_name='Constancia (si aplica)',
+    )
+    documento_trabajador = models.ForeignKey(
+        DocumentoTrabajador, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='firmas',
+        verbose_name='Documento del trabajador (si aplica)',
+    )
+    documento_laboral = models.ForeignKey(
+        'documentos.DocumentoLaboral', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='firmas',
+        verbose_name='Documento laboral (si aplica)',
+    )
+    titulo_documento = models.CharField(
+        max_length=300, blank=True,
+        help_text='Titulo descriptivo del documento firmado.',
+    )
+
+    # Firmante
+    firmante = models.ForeignKey(
+        'personal.Personal', on_delete=models.CASCADE,
+        related_name='firmas_digitales',
+        verbose_name='Firmante',
+    )
+
+    # Firma capturada
+    firma_imagen = models.TextField(
+        blank=True,
+        help_text='Imagen de la firma en base64 (data:image/png;base64,...)',
+    )
+
+    # Integridad del documento
+    hash_documento = models.CharField(
+        max_length=64, blank=True, db_index=True,
+        help_text='SHA-256 del contenido del documento al momento de firmar.',
+    )
+
+    # Trazabilidad
+    ip_address = models.GenericIPAddressField(
+        null=True, blank=True,
+        verbose_name='Direccion IP',
+    )
+    user_agent = models.TextField(
+        blank=True,
+        verbose_name='User-Agent del navegador',
+    )
+
+    # Token unico para link de firma (sin login requerido)
+    token = models.CharField(
+        max_length=64, unique=True, db_index=True,
+        help_text='Token unico para URL de firma.',
+    )
+
+    # Estado y fechas
+    estado = models.CharField(
+        max_length=15, choices=ESTADO_CHOICES, default='PENDIENTE',
+    )
+    solicitado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+        verbose_name='Solicitado por',
+    )
+    solicitado_en = models.DateTimeField(auto_now_add=True)
+    firmado_en = models.DateTimeField(null=True, blank=True)
+    vence_en = models.DateField(
+        null=True, blank=True,
+        help_text='Fecha limite para firmar.',
+    )
+    motivo_rechazo = models.TextField(blank=True)
+    notas = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-solicitado_en']
+        verbose_name = 'Firma Digital (Interna)'
+        verbose_name_plural = 'Firmas Digitales (Internas)'
+        indexes = [
+            models.Index(fields=['firmante', 'estado']),
+            models.Index(fields=['token']),
+            models.Index(fields=['hash_documento']),
+        ]
+
+    def __str__(self):
+        return f'Firma: {self.titulo_documento} - {self.firmante} [{self.get_estado_display()}]'
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            import secrets
+            self.token = secrets.token_urlsafe(48)
+        super().save(*args, **kwargs)
+
+    @property
+    def esta_vencido(self):
+        from datetime import date
+        if self.vence_en and self.estado == 'PENDIENTE':
+            return date.today() > self.vence_en
+        return False
+
+    @property
+    def color_estado(self):
+        return {
+            'PENDIENTE': 'warning',
+            'FIRMADO': 'success',
+            'RECHAZADO': 'danger',
+            'VENCIDO': 'secondary',
+        }.get(self.estado, 'secondary')
+
+    @property
+    def icono_estado(self):
+        return {
+            'PENDIENTE': 'fa-clock',
+            'FIRMADO': 'fa-check-circle',
+            'RECHAZADO': 'fa-times-circle',
+            'VENCIDO': 'fa-calendar-times',
+        }.get(self.estado, 'fa-file')
+
+    @property
+    def documento_referencia(self):
+        """Retorna el objeto documento relacionado (cualquiera de los tipos)."""
+        if self.constancia:
+            return self.constancia
+        if self.documento_trabajador:
+            return self.documento_trabajador
+        if self.documento_laboral:
+            return self.documento_laboral
+        return None
+
+    def verificar_integridad(self, contenido_actual_hash):
+        """Verifica que el hash del documento no haya cambiado."""
+        return self.hash_documento == contenido_actual_hash
+
+
 class DocumentoFirmaDigital(models.Model):
     """
     Documento enviado a ZapSign para firma electronica.

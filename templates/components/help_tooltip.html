@@ -1,0 +1,41 @@
+{% comment %}
+  Harmoni ERP — Help Tooltip Component
+  Usage: {% include 'components/help_tooltip.html' with key='personal_list' %}
+  Renders a "?" icon that shows a popover with contextual help.
+{% endcomment %}
+{% load static %}
+
+{% if help_data %}
+<span class="harmoni-help-tooltip"
+      data-help-key="{{ help_key|default:key }}"
+      tabindex="0"
+      role="button"
+      aria-label="Ayuda: {{ help_data.title }}"
+      title="Ayuda">
+    <i class="fas fa-question-circle"></i>
+    <span class="harmoni-help-popover">
+        <span class="help-popover-header">
+            <i class="fas {{ help_data.icon|default:'fa-question-circle' }}"></i>
+            <strong>{{ help_data.title }}</strong>
+        </span>
+        <span class="help-popover-body">
+            {{ help_data.description }}
+        </span>
+        {% if help_data.tips %}
+        <span class="help-popover-tips">
+            {% for tip in help_data.tips|slice:":3" %}
+            <span class="help-tip-item">
+                <i class="fas fa-lightbulb"></i> {{ tip }}
+            </span>
+            {% endfor %}
+        </span>
+        {% endif %}
+        <span class="help-popover-footer">
+            <button type="button" class="help-popover-more"
+                    onclick="event.stopPropagation(); window.HarmoniHelp && HarmoniHelp.openPanel('{{ help_key|default:key }}')">
+                <i class="fas fa-book-open me-1"></i>Ver mas ayuda
+            </button>
+        </span>
+    </span>
+</span>
+{% endif %}

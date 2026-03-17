@@ -78,6 +78,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'empresas.middleware_subdomain.SubdomainMiddleware',
     'empresas.middleware.EmpresaMiddleware',
+    'empresas.middleware_billing.BillingMiddleware',
     'core.middleware.AuditMiddleware',
 ]
 

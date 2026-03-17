@@ -1,10 +1,17 @@
 """URLs del módulo core."""
 from django.urls import path
 from core import views
+from core import views_audit
 from core import views_reports
 
 urlpatterns = [
-    path('auditoria/', views.audit_log_view, name='audit_log'),
+    # Auditoría avanzada
+    path('auditoria/', views_audit.audit_log_list, name='audit_list'),
+    path('auditoria/detalle/<int:pk>/', views_audit.audit_log_detail, name='audit_detail'),
+    path('auditoria/timeline/<int:content_type_id>/<int:object_id>/', views_audit.audit_log_timeline, name='audit_timeline'),
+    path('auditoria/exportar/', views_audit.audit_log_export, name='audit_export'),
+    # Legacy redirect (keep old name working)
+    path('auditoria/legacy/', views.audit_log_view, name='audit_log'),
     path('buscar/', views.global_search, name='global_search'),
     path('buscar/pagina/', views.busqueda_pagina, name='busqueda_pagina'),
     path('preferencias/', views.preferencias_usuario, name='preferencias_usuario'),

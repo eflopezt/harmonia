@@ -284,6 +284,7 @@ class ConfirmacionLectura(models.Model):
 class PreferenciaNotificacion(models.Model):
     """
     Preferencias de notificación por empleado.
+    Incluye toggles por canal y por tipo/módulo de notificación.
     """
 
     FRECUENCIA_CHOICES = [
@@ -295,9 +296,26 @@ class PreferenciaNotificacion(models.Model):
     personal = models.OneToOneField(Personal, on_delete=models.CASCADE,
                                      related_name='preferencia_notificacion',
                                      verbose_name="Personal")
+
+    # ── Canales ──
     recibir_email = models.BooleanField(default=True, verbose_name="Recibir emails")
     recibir_in_app = models.BooleanField(default=True, verbose_name="Recibir notificaciones in-app")
     recibir_whatsapp = models.BooleanField(default=True, verbose_name="Recibir WhatsApp")
+    recibir_push = models.BooleanField(default=True, verbose_name="Recibir push en navegador")
+
+    # ── Por tipo/módulo (toggles in-app) ──
+    notif_vacaciones = models.BooleanField(default=True, verbose_name="Vacaciones")
+    notif_nominas = models.BooleanField(default=True, verbose_name="Nóminas / Boletas")
+    notif_workflows = models.BooleanField(default=True, verbose_name="Aprobaciones / Workflows")
+    notif_asistencia = models.BooleanField(default=True, verbose_name="Asistencia / Tareo")
+    notif_comunicados = models.BooleanField(default=True, verbose_name="Comunicados")
+    notif_sistema = models.BooleanField(default=True, verbose_name="Sistema / Alertas")
+    notif_evaluaciones = models.BooleanField(default=True, verbose_name="Evaluaciones")
+    notif_capacitaciones = models.BooleanField(default=True, verbose_name="Capacitaciones")
+    notif_disciplinaria = models.BooleanField(default=True, verbose_name="Disciplinaria")
+    notif_onboarding = models.BooleanField(default=True, verbose_name="Onboarding")
+
+    # ── Comportamiento ──
     frecuencia_resumen = models.CharField(max_length=10, choices=FRECUENCIA_CHOICES,
                                           default='INMEDIATO',
                                           verbose_name="Frecuencia de resumen")
@@ -305,6 +323,8 @@ class PreferenciaNotificacion(models.Model):
                                                 verbose_name="Silencio desde")
     horario_silencio_fin = models.TimeField(null=True, blank=True,
                                              verbose_name="Silencio hasta")
+    sonido_habilitado = models.BooleanField(default=True, verbose_name="Sonido de notificación")
+    toast_habilitado = models.BooleanField(default=True, verbose_name="Toast emergente")
 
     class Meta:
         verbose_name = "Preferencia de Notificación"

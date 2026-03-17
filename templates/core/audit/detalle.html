@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-header { border-left: 4px solid; padding-left: 1rem; }
+.detail-header.CREATE { border-color: #22c55e; }
+.detail-header.UPDATE { border-color: #3b82f6; }
+.detail-header.DELETE { border-color: #ef4444; }
+
+.badge-action-lg { font-weight: 600; font-size: .8rem; padding: 4px 12px; border-radius: 5px; text-transform: uppercase; }
+.badge-CREATE { background: #dcfce7; color: #166534; }
+.badge-UPDATE { background: #dbeafe; color: #1e40af; }
+.badge-DELETE { background: #fee2e2; color: #991b1b; }
+
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+.meta-item .meta-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; margin-bottom: 2px; }
+.meta-item .meta-value { font-size: .9rem; font-weight: 500; color: #1f2937; }
+.meta-item .meta-value a { text-decoration: none; }
+
+.diff-table { font-size: .85rem; }
+.diff-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; background: #f9fafb; }
+.diff-table .field-name { font-weight: 600; color: #374151; font-family: monospace; font-size: .8rem; }
+.diff-old { background: #fef2f2; color: #991b1b; }
+.diff-new { background: #f0fdf4; color: #166534; }
+.diff-arrow { color: #9ca3af; font-size: .65rem; }
+
+.nav-adjacent a { font-size: .8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {# ── Breadcrumb ── #}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{% url 'audit_list' %}">Auditoria</a></li>
+            <li class="breadcrumb-item active">Registro #{{ log.pk }}</li>
+        </ol>
+    </nav>
+
+    {# ── Header ── #}
+    <div class="detail-header {{ log.accion }} mb-4">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <h1 class="h4 mb-0 fw-bold">Registro de Auditoria #{{ log.pk }}</h1>
+            <span class="badge-action-lg badge-{{ log.accion }}">{{ log.get_accion_display }}</span>
+        </div>
+        <p class="text-muted mb-0 mt-1">{{ log.descripcion }}</p>
+    </div>
+
+    <div class="row g-4">
+
+        {# ── Metadata ── #}
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-2">
+                    <h6 class="mb-0 fw-semibold"><i class="fas fa-info-circle text-muted me-2"></i>Informacion del Evento</h6>
+                </div>
+                <div class="card-body">
+                    <div class="meta-grid">
+                        <div class="meta-item">
+                            <div class="meta-label">Fecha y Hora</div>
+                            <div class="meta-value">{{ log.timestamp|date:"d/m/Y H:i:s" }}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Accion</div>
+                            <div class="meta-value">
+                                <span class="badge-action-lg badge-{{ log.accion }}">{{ log.get_accion_display }}</span>
+                            </div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Usuario</div>
+                            <div class="meta-value">
+                                {% if log.usuario %}
+                                <i class="fas fa-user-circle text-muted me-1"></i>
+                                {{ log.usuario.get_full_name|default:log.usuario.username }}
+                                <small class="text-muted">({{ log.usuario.username }})</small>
+                                {% else %}
+                                <span class="text-muted">Sistema</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Direccion IP</div>
+                            <div class="meta-value font-monospace">{{ log.ip_address|default:"No registrada" }}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Modulo / Modelo</div>
+                            <div class="meta-value">
+                                <span class="badge bg-secondary bg-opacity-10 text-dark">{{ log.content_type.app_label }}</span>
+                                {{ log.content_type.model|title }}
+                            </div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">ID del Objeto</div>
+                            <div class="meta-value">
+                                #{{ log.object_id }}
+                                <a href="{% url 'audit_timeline' log.content_type_id log.object_id %}"
+                                   class="ms-2 small" title="Ver timeline completo">
+                                    <i class="fas fa-stream"></i> Timeline
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Detalle de cambios (diff) ── #}
+            {% if log.cambios %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-2">
+                    <h6 class="mb-0 fw-semibold"><i class="fas fa-exchange-alt text-muted me-2"></i>Campos Modificados ({{ log.cambios|length }})</h6>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0 diff-table">
+                        <thead>
+                            <tr>
+                                <th style="width:25%">Campo</th>
+                                <th style="width:35%">Valor Anterior</th>
+                                <th style="width:5%"></th>
+                                <th style="width:35%">Valor Nuevo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campo, vals in log.cambios.items %}
+                            <tr>
+                                <td class="field-name">{{ campo }}</td>
+                                <td class="diff-old">
+                                    {% if vals.old is None or vals.old == "" %}
+                                    <span class="text-muted fst-italic">vacio</span>
+                                    {% else %}
+                                    {{ vals.old }}
+                                    {% endif %}
+                                </td>
+                                <td class="text-center diff-arrow"><i class="fas fa-arrow-right"></i></td>
+                                <td class="diff-new">
+                                    {% if vals.new is None or vals.new == "" %}
+                                    <span class="text-muted fst-italic">vacio</span>
+                                    {% else %}
+                                    {{ vals.new }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% elif log.accion == 'CREATE' %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <i class="fas fa-plus-circle fa-2x text-success opacity-50 mb-2 d-block"></i>
+                    <p class="text-muted mb-0">Este registro es una <strong>creacion</strong>. No hay cambios de campos que mostrar.</p>
+                </div>
+            </div>
+            {% elif log.accion == 'DELETE' %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <i class="fas fa-trash-alt fa-2x text-danger opacity-50 mb-2 d-block"></i>
+                    <p class="text-muted mb-0">Este registro es una <strong>eliminacion</strong>. El objeto fue removido del sistema.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── Sidebar: historial del objeto ── #}
+        <div class="col-lg-4">
+            {# Navegación adyacente #}
+            <div class="card border-0 shadow-sm mb-3 nav-adjacent">
+                <div class="card-body py-2 d-flex justify-content-between">
+                    {% if prev_log %}
+                    <a href="{% url 'audit_detail' prev_log.pk %}" class="text-decoration-none">
+                        <i class="fas fa-chevron-left me-1"></i>Anterior
+                    </a>
+                    {% else %}
+                    <span class="text-muted"><i class="fas fa-chevron-left me-1"></i>Anterior</span>
+                    {% endif %}
+                    {% if next_log %}
+                    <a href="{% url 'audit_detail' next_log.pk %}" class="text-decoration-none">
+                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                    </a>
+                    {% else %}
+                    <span class="text-muted">Siguiente<i class="fas fa-chevron-right ms-1"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-2">
+                    <h6 class="mb-0 fw-semibold"><i class="fas fa-stream text-muted me-2"></i>Historial del Objeto</h6>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 450px; overflow-y: auto;">
+                    {% for entry in same_object_logs %}
+                    <a href="{% url 'audit_detail' entry.pk %}"
+                       class="list-group-item list-group-item-action py-2 {% if entry.pk == log.pk %}active{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge-action badge-{{ entry.accion }}" style="font-size:.6rem; padding:1px 5px;">
+                                    {{ entry.get_accion_display }}
+                                </span>
+                                <small class="ms-1 {% if entry.pk == log.pk %}text-white{% else %}text-muted{% endif %}">
+                                    {{ entry.usuario.username|default:"sistema" }}
+                                </small>
+                            </div>
+                            <small class="{% if entry.pk == log.pk %}text-white-50{% else %}text-muted{% endif %}" style="font-size:.68rem">
+                                {{ entry.timestamp|date:"d/m H:i" }}
+                            </small>
+                        </div>
+                        <small class="d-block mt-1 {% if entry.pk == log.pk %}text-white-50{% else %}text-muted{% endif %}" style="font-size:.72rem;">
+                            {{ entry.descripcion|truncatechars:60 }}
+                        </small>
+                    </a>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted py-3">
+                        Sin historial adicional.
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if same_object_logs|length > 0 %}
+                <div class="card-footer bg-white text-center py-2">
+                    <a href="{% url 'audit_timeline' log.content_type_id log.object_id %}" class="small text-decoration-none">
+                        <i class="fas fa-stream me-1"></i>Ver timeline completo
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

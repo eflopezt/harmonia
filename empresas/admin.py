@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from .models import Empresa
+from .models_billing import Plan, Suscripcion, HistorialPago
 
 
 @admin.register(Empresa)
@@ -50,3 +51,30 @@ class EmpresaAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
     change_list_template = 'admin/empresas/empresa/change_list.html'
+
+
+@admin.register(Plan)
+class PlanAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'codigo', 'precio_mensual', 'max_empleados', 'orden', 'activo', 'destacado')
+    list_filter = ('activo', 'destacado')
+    list_editable = ('orden', 'activo', 'destacado')
+    search_fields = ('nombre', 'codigo')
+    prepopulated_fields = {'codigo': ('nombre',)}
+
+
+@admin.register(Suscripcion)
+class SuscripcionAdmin(admin.ModelAdmin):
+    list_display = ('empresa', 'plan', 'estado', 'ciclo', 'fecha_inicio', 'proximo_pago')
+    list_filter = ('estado', 'ciclo', 'plan')
+    search_fields = ('empresa__razon_social', 'empresa__ruc')
+    raw_id_fields = ('empresa',)
+    readonly_fields = ('creado_en', 'actualizado_en')
+
+
+@admin.register(HistorialPago)
+class HistorialPagoAdmin(admin.ModelAdmin):
+    list_display = ('pk', 'suscripcion', 'monto', 'metodo_pago', 'estado', 'fecha_pago', 'referencia')
+    list_filter = ('estado', 'metodo_pago')
+    search_fields = ('referencia', 'suscripcion__empresa__razon_social')
+    readonly_fields = ('creado_en', 'actualizado_en')
+    date_hierarchy = 'fecha_pago'
