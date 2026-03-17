@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Firmas Digitales Internas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">
+        <i class="fas fa-signature me-2" style="color:var(--primary-color)"></i>
+        {{ titulo }}
+      </h2>
+      <small class="text-muted">Firma digital interna con Signature Pad — sin proveedor externo</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'firma_interna_verificar' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-shield-alt me-1"></i>Verificar
+      </a>
+      <a href="{% url 'firma_interna_solicitar' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i>Solicitar Firma
+      </a>
+    </div>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {# Stats #}
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-dark">{{ stats.total }}</div>
+        <div class="text-muted small">Total</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-warning">{{ stats.pendientes }}</div>
+        <div class="text-muted small">Pendientes</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-success">{{ stats.firmados }}</div>
+        <div class="text-muted small">Firmados</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card text-center py-3 h-100">
+        <div class="display-6 fw-bold text-danger">{{ stats.rechazados }}</div>
+        <div class="text-muted small">Rechazados/Vencidos</div>
+      </div>
+    </div>
+  </div>
+
+  {# Filters #}
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <form method="get" class="row g-2 align-items-center">
+        <div class="col-auto">
+          <input type="text" name="q" value="{{ q }}" placeholder="Buscar trabajador..."
+                 class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+          <select name="estado" class="form-select form-select-sm">
+            <option value="">Todos los estados</option>
+            {% for val, label in estado_choices %}
+            <option value="{{ val }}" {% if estado_filtro == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Filtrar</button>
+          <a href="{% url 'firma_interna_panel' %}" class="btn btn-sm btn-outline-secondary ms-1">Limpiar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Table #}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Firmante</th>
+            <th>Documento</th>
+            <th>Estado</th>
+            <th>Solicitado</th>
+            <th>Firmado</th>
+            <th>Vence</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in firmas %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ f.firmante.apellidos_nombres }}</div>
+              <div class="text-muted small">{{ f.firmante.nro_doc }}</div>
+            </td>
+            <td>
+              <div>{{ f.titulo_documento }}</div>
+              <div class="text-muted small">{{ f.get_tipo_documento_display }}</div>
+            </td>
+            <td>
+              {% if f.estado == 'PENDIENTE' %}
+              <span class="badge bg-warning"><i class="fas fa-clock me-1"></i>Pendiente</span>
+              {% elif f.estado == 'FIRMADO' %}
+              <span class="badge bg-success"><i class="fas fa-check me-1"></i>Firmado</span>
+              {% elif f.estado == 'VENCIDO' %}
+              <span class="badge bg-secondary"><i class="fas fa-hourglass-end me-1"></i>Vencido</span>
+              {% elif f.estado == 'RECHAZADO' %}
+              <span class="badge bg-danger"><i class="fas fa-ban me-1"></i>Rechazado</span>
+              {% endif %}
+            </td>
+            <td><span class="small">{{ f.solicitado_en|date:"d/m/Y H:i" }}</span></td>
+            <td>
+              {% if f.firmado_en %}
+              <span class="small">{{ f.firmado_en|date:"d/m/Y H:i" }}</span>
+              {% else %}
+              <span class="text-muted small">--</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if f.vence_en %}
+              <span class="small {% if f.esta_vencido %}text-danger{% endif %}">{{ f.vence_en|date:"d/m/Y" }}</span>
+              {% else %}
+              <span class="text-muted small">--</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center flex-wrap">
+                {% if f.estado == 'PENDIENTE' %}
+                <a href="/documentos/firma-interna/firmar/{{ f.token }}/"
+                   class="btn btn-sm btn-outline-primary" title="Copiar link de firma"
+                   onclick="event.preventDefault();navigator.clipboard.writeText(this.href);alert('Link copiado al portapapeles');">
+                  <i class="fas fa-link"></i>
+                </a>
+                {% endif %}
+                {% if f.estado == 'FIRMADO' %}
+                <a href="{% url 'firma_interna_verificar_token' f.token %}"
+                   class="btn btn-sm btn-outline-success" title="Verificar">
+                  <i class="fas fa-shield-alt"></i>
+                </a>
+                <a href="{% url 'firma_interna_descargar' f.token %}"
+                   class="btn btn-sm btn-success" title="Descargar PDF firmado">
+                  <i class="fas fa-download"></i>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="fas fa-signature fa-3x mb-3 d-block opacity-25"></i>
+              No hay solicitudes de firma. <a href="{% url 'firma_interna_solicitar' %}">Crear la primera</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
