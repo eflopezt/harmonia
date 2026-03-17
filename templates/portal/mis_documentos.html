@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "portal/base_portal.html" %}
 
 {% block title %}Mis Documentos{% endblock %}
 
-{% block extra_css %}
+{% block mobile_title %}Mis Documentos{% endblock %}
+
+{% block portal_extra_css %}
 <style>
 .doc-card { border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; margin-bottom:8px; }
 .doc-card .doc-icon { font-size:1.1rem; width:28px; text-align:center; }
@@ -16,7 +18,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block portal_content %}
 
 {% if not empleado %}
 <div class="alert alert-warning">

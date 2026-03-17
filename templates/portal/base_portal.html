@@ -1,398 +1,318 @@
-<!DOCTYPE html>
-<html lang="es">
-{% load static %}
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>{% block title %}Mi Portal{% endblock %} — Harmoni</title>
+{% extends 'base.html' %}
+{#
+    Portal Mobile Base Template
+    ────────────────────────────
+    Extends the standard base.html (keeping full desktop sidebar + topbar),
+    but adds mobile-specific enhancements:
+    - Sticky portal header with avatar (replaces hamburger + sidebar on mobile)
+    - Bottom tab navigation (Inicio, Boletas, Vacaciones, Asistencia, Perfil)
+    - Slide-up full menu for secondary items
+    - Touch-optimized spacing and font sizes
+    - Content padding adjusted for bottom nav
+#}
 
-    <!-- Favicon & PWA -->
-    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#0d2b27">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Harmoni">
-    <link rel="apple-touch-icon" href="{% static 'images/favicon.svg' %}">
+{% block extra_css %}
+<style>
+/* ═══════════════════════════════════════════════════════════
+   Portal Mobile Enhancements
+   Applied only on screens < 992px (below Bootstrap lg)
+   ═══════════════════════════════════════════════════════════ */
 
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+/* ─── Mobile portal header (replaces sidebar toggle) ─── */
+.portal-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 1035;
+    background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
+    color: #fff;
+    padding: 10px 16px;
+    display: none; /* hidden on desktop */
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.portal-mobile-header .pmh-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(94,234,212,.25); color: #5eead4;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; font-weight: 700; flex-shrink: 0;
+}
+.portal-mobile-header .pmh-title {
+    flex: 1; min-width: 0;
+}
+.portal-mobile-header .pmh-title h1 {
+    font-size: .95rem; font-weight: 600; margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: #fff;
+}
+.portal-mobile-header .pmh-title small {
+    font-size: .68rem; opacity: .7; display: block;
+}
+.portal-mobile-header .pmh-actions {
+    display: flex; gap: 6px; flex-shrink: 0;
+}
+.portal-mobile-header .pmh-actions a,
+.portal-mobile-header .pmh-actions button {
+    color: rgba(255,255,255,.8); background: none; border: none;
+    font-size: 1.05rem; padding: 4px 6px; cursor: pointer;
+    text-decoration: none; position: relative;
+    -webkit-tap-highlight-color: transparent;
+}
+.portal-mobile-header .notif-dot {
+    position: absolute; top: 2px; right: 0;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #f59e0b; border: 2px solid #0d2b27;
+}
 
-    <!-- Font Awesome 6 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+/* ─── Bottom Tab Navigation ─── */
+.portal-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    z-index: 1040;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    display: none; /* hidden on desktop */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -2px 12px rgba(0,0,0,.08);
+}
+.portal-bottom-nav .pbn-tab {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    padding: 7px 4px 5px;
+    text-decoration: none;
+    color: #94a3b8;
+    font-size: .62rem;
+    font-weight: 500;
+    transition: color .15s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+}
+.portal-bottom-nav .pbn-tab i {
+    font-size: 1.1rem;
+    margin-bottom: 1px;
+}
+.portal-bottom-nav .pbn-tab.active {
+    color: #0f766e;
+}
+.portal-bottom-nav .pbn-tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 2.5px;
+    background: #0f766e;
+    border-radius: 0 0 3px 3px;
+}
+.portal-bottom-nav .pbn-tab .pbn-badge {
+    position: absolute;
+    top: 3px;
+    right: calc(50% - 16px);
+    background: #dc2626;
+    color: #fff;
+    font-size: .5rem;
+    font-weight: 700;
+    padding: 1px 3px;
+    border-radius: 6px;
+    line-height: 1.2;
+    min-width: 12px;
+    text-align: center;
+}
 
-    <!-- Harmoni ERP CSS -->
-    <link rel="stylesheet" href="{% static 'css/harmoni.css' %}?v=4">
+/* ─── Slide-up Menu ─── */
+.portal-mobile-menu {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1050;
+    display: none;
+}
+.portal-mobile-menu.show { display: flex; flex-direction: column; }
+.portal-mobile-menu .pmm-backdrop {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,.4);
+}
+.portal-mobile-menu .pmm-panel {
+    position: relative;
+    margin-top: auto;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.portal-mobile-menu .pmm-panel .pmm-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 8px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #334155;
+    font-size: .88rem;
+    -webkit-tap-highlight-color: transparent;
+}
+.portal-mobile-menu .pmm-panel .pmm-link:active {
+    background: #f0fdfa;
+}
+.portal-mobile-menu .pmm-panel .pmm-link i {
+    width: 22px; text-align: center; color: #64748b; font-size: .9rem;
+}
 
-    <style>
-    /* ═══════════════════════════════════════════════════════════
-       Portal Mobile Layout — Simplified for employee self-service
-       ═══════════════════════════════════════════════════════════ */
+/* ─── Mobile-only show rules ─── */
+@media (max-width: 991.98px) {
+    .portal-mobile-header { display: flex; }
+    .portal-bottom-nav { display: flex; }
 
-    /* Hide admin sidebar on portal pages on mobile */
-    @media (max-width: 991.98px) {
-        .harmoni-sidebar { display: none !important; }
-        .sidebar-overlay { display: none !important; }
-        .harmoni-main { margin-left: 0 !important; }
-    }
+    /* Hide default topbar on portal pages (mobile header replaces it) */
+    .harmoni-topbar { display: none !important; }
 
-    /* Portal mobile header */
-    .portal-mobile-header {
-        position: sticky;
-        top: 0;
-        z-index: 1030;
-        background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
-        color: #fff;
-        padding: 12px 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,.15);
-    }
-    .portal-mobile-header .pmh-avatar {
-        width: 36px; height: 36px; border-radius: 50%;
-        background: rgba(94,234,212,.25); color: #5eead4;
-        display: flex; align-items: center; justify-content: center;
-        font-size: .95rem; font-weight: 700; flex-shrink: 0;
-    }
-    .portal-mobile-header .pmh-title {
-        flex: 1; min-width: 0;
-    }
-    .portal-mobile-header .pmh-title h1 {
-        font-size: 1rem; font-weight: 600; margin: 0;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .portal-mobile-header .pmh-title small {
-        font-size: .72rem; opacity: .7;
-    }
-    .portal-mobile-header .pmh-actions {
-        display: flex; gap: 8px; flex-shrink: 0;
-    }
-    .portal-mobile-header .pmh-actions a,
-    .portal-mobile-header .pmh-actions button {
-        color: rgba(255,255,255,.8); background: none; border: none;
-        font-size: 1.1rem; padding: 4px; cursor: pointer;
-        text-decoration: none; position: relative;
-    }
-    .portal-mobile-header .pmh-actions .notif-dot {
-        position: absolute; top: 0; right: -2px;
-        width: 8px; height: 8px; border-radius: 50%;
-        background: #f59e0b; border: 2px solid #0d2b27;
-    }
+    /* Hide sidebar completely on mobile portal */
+    .harmoni-sidebar { display: none !important; }
+    .sidebar-overlay { display: none !important; }
+    .harmoni-main { margin-left: 0 !important; }
 
-    /* On desktop, show normal topbar and sidebar */
-    @media (min-width: 992px) {
-        .portal-mobile-header { display: none; }
-        .portal-bottom-nav { display: none !important; }
-    }
-
-    /* Portal content area */
-    .portal-content {
-        padding: 16px;
-        padding-bottom: 80px; /* space for bottom nav on mobile */
-        max-width: 800px;
-        margin: 0 auto;
-    }
-    @media (min-width: 992px) {
-        .portal-content {
-            padding: 24px 32px;
-            padding-bottom: 24px;
-        }
-    }
-
-    /* ─── Bottom Tab Navigation (mobile only) ─── */
-    .portal-bottom-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0; right: 0;
-        z-index: 1040;
-        background: #fff;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
-        box-shadow: 0 -2px 12px rgba(0,0,0,.08);
-    }
-    .portal-bottom-nav .pbn-tab {
-        flex: 1;
-        display: flex; flex-direction: column; align-items: center;
-        justify-content: center;
-        padding: 8px 4px 6px;
-        text-decoration: none;
-        color: #94a3b8;
-        font-size: .65rem;
-        font-weight: 500;
-        transition: color .15s;
-        -webkit-tap-highlight-color: transparent;
-        position: relative;
-    }
-    .portal-bottom-nav .pbn-tab i {
-        font-size: 1.15rem;
-        margin-bottom: 2px;
-    }
-    .portal-bottom-nav .pbn-tab.active {
-        color: #0f766e;
-    }
-    .portal-bottom-nav .pbn-tab.active::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 20%; right: 20%;
-        height: 3px;
-        background: #0f766e;
-        border-radius: 0 0 3px 3px;
-    }
-    .portal-bottom-nav .pbn-tab .pbn-badge {
-        position: absolute;
-        top: 4px;
-        right: calc(50% - 18px);
-        background: #dc2626;
-        color: #fff;
-        font-size: .55rem;
-        font-weight: 700;
-        padding: 1px 4px;
-        border-radius: 8px;
-        line-height: 1.2;
-        min-width: 14px;
-        text-align: center;
-    }
-
-    /* ─── Touch-optimized cards ─── */
-    .portal-touch-card {
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        overflow: hidden;
-        margin-bottom: 12px;
-    }
-    .portal-touch-card-hdr {
-        padding: 14px 16px;
-        border-bottom: 1px solid #f1f5f9;
-        font-weight: 600;
-        font-size: .9rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .portal-touch-card-body {
-        padding: 16px;
-    }
-
-    /* Touch-friendly buttons */
-    .portal-btn-touch {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-        padding: 14px 16px;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        text-decoration: none;
-        color: #334155;
-        font-size: .88rem;
-        font-weight: 500;
-        transition: all .15s;
-        -webkit-tap-highlight-color: transparent;
-        cursor: pointer;
-    }
-    .portal-btn-touch:hover,
-    .portal-btn-touch:active {
-        background: #f0fdfa;
-        border-color: #99f6e4;
-        color: #0f766e;
-    }
-    .portal-btn-touch .pbt-icon {
-        width: 40px; height: 40px;
-        border-radius: 10px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
-    }
-    .portal-btn-touch .pbt-chevron {
-        margin-left: auto;
-        color: #cbd5e1;
-        font-size: .7rem;
+    /* Add bottom padding for fixed bottom nav */
+    .harmoni-content {
+        padding-bottom: 72px !important;
     }
 
-    /* ─── Mobile-friendly KPI strip ─── */
-    .portal-kpi-strip {
-        display: flex;
-        gap: 8px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        padding: 2px 0;
-        margin-bottom: 16px;
+    /* Slightly tighter content padding */
+    .harmoni-content {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
     }
-    .portal-kpi-strip::-webkit-scrollbar { display: none; }
-    .portal-kpi-strip .pks-item {
-        flex: 0 0 auto;
-        min-width: 100px;
-        text-align: center;
-        padding: 12px 14px;
-        border-radius: 10px;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        text-decoration: none;
-        color: inherit;
-    }
-    .portal-kpi-strip .pks-num {
-        font-size: 1.3rem;
-        font-weight: 700;
-        line-height: 1.1;
-    }
-    .portal-kpi-strip .pks-lbl {
-        font-size: .68rem;
-        color: #64748b;
-        margin-top: 2px;
-    }
+}
 
-    /* Responsive table adjustments for portal */
-    @media (max-width: 576px) {
-        .portal-content .table th,
-        .portal-content .table td {
-            padding: .4rem .5rem;
-            font-size: .78rem;
-        }
-        .portal-content .table .d-mobile-hide {
-            display: none !important;
-        }
-    }
+/* ─── Touch-friendly utility classes ─── */
+.portal-touch-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+.portal-touch-card-hdr {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-weight: 600;
+    font-size: .9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.portal-touch-card-body {
+    padding: 16px;
+}
 
-    /* Pull-to-refresh hint */
-    .portal-refresh-hint {
-        text-align: center;
-        padding: 8px;
-        font-size: .72rem;
-        color: #94a3b8;
-    }
+/* Touch-friendly action buttons */
+.portal-btn-touch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #334155;
+    font-size: .88rem;
+    font-weight: 500;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+}
+.portal-btn-touch:hover,
+.portal-btn-touch:active {
+    background: #f0fdfa;
+    border-color: #99f6e4;
+    color: #0f766e;
+}
+.portal-btn-touch .pbt-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.portal-btn-touch .pbt-chevron {
+    margin-left: auto;
+    color: #cbd5e1;
+    font-size: .7rem;
+}
 
-    /* User menu dropdown on mobile portal header */
-    .portal-mobile-menu {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 1050;
-        display: none;
-    }
-    .portal-mobile-menu.show { display: flex; flex-direction: column; }
-    .portal-mobile-menu .pmm-backdrop {
-        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,.4);
-    }
-    .portal-mobile-menu .pmm-panel {
-        position: relative;
-        margin-top: auto;
-        background: #fff;
-        border-radius: 16px 16px 0 0;
-        padding: 20px 16px;
-        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-        max-height: 70vh;
-        overflow-y: auto;
-    }
-    .portal-mobile-menu .pmm-panel a {
-        display: flex; align-items: center; gap: 12px;
-        padding: 12px 8px;
-        border-radius: 8px;
-        text-decoration: none;
-        color: #334155;
-        font-size: .9rem;
-    }
-    .portal-mobile-menu .pmm-panel a:active {
-        background: #f0fdfa;
-    }
-    .portal-mobile-menu .pmm-panel a i {
-        width: 24px; text-align: center; color: #64748b;
-    }
-    </style>
+/* ─── Horizontal scrollable KPI strip ─── */
+.portal-kpi-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px 0;
+    margin-bottom: 16px;
+}
+.portal-kpi-strip::-webkit-scrollbar { display: none; }
+.portal-kpi-strip .pks-item {
+    flex: 0 0 auto;
+    min-width: 100px;
+    text-align: center;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    color: inherit;
+}
+.portal-kpi-strip .pks-num {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.portal-kpi-strip .pks-lbl {
+    font-size: .68rem;
+    color: #64748b;
+    margin-top: 2px;
+}
 
-    {% block extra_css %}{% endblock %}
-</head>
-<body>
+/* ─── Responsive table adjustments ─── */
+@media (max-width: 576px) {
+    .portal-content .table th,
+    .portal-content .table td {
+        padding: .35rem .4rem;
+        font-size: .76rem;
+    }
+}
+</style>
+{% block portal_extra_css %}{% endblock %}
+{% endblock %}
 
-{% if user.is_authenticated %}
-<!-- ═══ MOBILE PORTAL HEADER (visible < 992px) ═══ -->
-<div class="portal-mobile-header d-lg-none">
+{% block content %}
+<!-- ═══ MOBILE PORTAL HEADER ═══ -->
+<div class="portal-mobile-header">
     {% if empleado %}
     <div class="pmh-avatar">{{ empleado.apellidos_nombres|first|upper }}</div>
+    {% else %}
+    <div class="pmh-avatar"><i class="fas fa-user" style="font-size:.75rem"></i></div>
+    {% endif %}
     <div class="pmh-title">
         <h1>{% block mobile_title %}Mi Portal{% endblock %}</h1>
-        <small>{{ empleado.cargo|default:"" }}</small>
+        <small>{% if empleado %}{{ empleado.cargo|default:"" }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}</small>
     </div>
-    {% else %}
-    <div class="pmh-avatar"><i class="fas fa-user" style="font-size:.8rem"></i></div>
-    <div class="pmh-title">
-        <h1>{% block mobile_title_fallback %}Mi Portal{% endblock %}</h1>
-        <small>{{ user.get_full_name|default:user.username }}</small>
-    </div>
-    {% endif %}
     <div class="pmh-actions">
         <a href="{% url 'mis_notificaciones_com' %}" title="Notificaciones">
             <i class="fas fa-bell"></i>
             {% if notif_count %}<span class="notif-dot"></span>{% endif %}
         </a>
-        <button type="button" onclick="document.getElementById('portalMobileMenu').classList.add('show')" title="Menú">
+        <button type="button" id="portalMenuBtn" title="Menú">
             <i class="fas fa-ellipsis-v"></i>
         </button>
     </div>
 </div>
 
-<!-- ═══ DESKTOP: reuse sidebar + topbar from base ═══ -->
-<aside class="harmoni-sidebar d-none d-lg-flex" id="harmoniSidebar">
-    {% include "portal/_sidebar_content.html" %}
-</aside>
+{% block portal_content %}{% endblock %}
 
-<div class="harmoni-main">
-    <!-- Desktop top bar -->
-    <header class="harmoni-topbar d-none d-lg-flex">
-        <div class="topbar-title">
-            {% block page_title %}{% endblock %}
-        </div>
-        <div class="topbar-actions">
-            <div class="dropdown">
-                <button class="topbar-user-btn" data-bs-toggle="dropdown" aria-expanded="false">
-                    <span class="topbar-avatar">{{ user.get_full_name|default:user.username|make_list|first }}</span>
-                    <span class="topbar-username">{{ user.first_name|default:user.username }}</span>
-                    <i class="fas fa-chevron-down" style="font-size:.55rem; opacity:.6"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <li><a class="dropdown-item" href="{% url 'mi_perfil' %}"><i class="fas fa-user me-2 text-muted"></i>Mi Perfil</a></li>
-                    <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="fas fa-key me-2 text-muted"></i>Cambiar Clave</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <form method="post" action="{% url 'logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</button>
-                        </form>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </header>
-{% endif %}
-
-    <!-- Content -->
-    <main class="portal-content">
-        {% if messages %}
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="font-size:.85rem;">
-                {% if message.tags == 'success' %}<i class="fas fa-check-circle me-2"></i>
-                {% elif message.tags == 'error' or message.tags == 'danger' %}<i class="fas fa-exclamation-circle me-2"></i>
-                {% elif message.tags == 'warning' %}<i class="fas fa-exclamation-triangle me-2"></i>
-                {% else %}<i class="fas fa-info-circle me-2"></i>{% endif %}
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
-            {% endfor %}
-        {% endif %}
-
-        {% block content %}{% endblock %}
-    </main>
-
-{% if user.is_authenticated %}
-</div><!-- /.harmoni-main -->
-
-<!-- ═══ BOTTOM TAB NAVIGATION (mobile only) ═══ -->
-<nav class="portal-bottom-nav d-lg-none">
+<!-- ═══ BOTTOM TAB NAVIGATION ═══ -->
+<nav class="portal-bottom-nav">
     <a href="{% url 'portal_home' %}" class="pbn-tab {% block tab_inicio %}{% endblock %}">
         <i class="fas fa-home"></i>
         <span>Inicio</span>
@@ -404,7 +324,6 @@
     <a href="{% url 'portal_mis_vacaciones' %}" class="pbn-tab {% block tab_vacaciones %}{% endblock %}">
         <i class="fas fa-umbrella-beach"></i>
         <span>Vacaciones</span>
-        {% if total_pendientes %}<span class="pbn-badge">{{ total_pendientes }}</span>{% endif %}
     </a>
     <a href="{% url 'mi_asistencia' %}" class="pbn-tab {% block tab_asistencia %}{% endblock %}">
         <i class="fas fa-clock"></i>
@@ -417,69 +336,86 @@
 </nav>
 
 <!-- ═══ MOBILE SLIDE-UP MENU ═══ -->
-<div class="portal-mobile-menu d-lg-none" id="portalMobileMenu">
-    <div class="pmm-backdrop" onclick="this.parentElement.classList.remove('show')"></div>
+<div class="portal-mobile-menu" id="portalMobileMenu">
+    <div class="pmm-backdrop"></div>
     <div class="pmm-panel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="fw-bold mb-0">Menú</h6>
-            <button class="btn btn-link text-muted p-0" onclick="this.closest('.portal-mobile-menu').classList.remove('show')">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0" style="font-size:.95rem;">Menú Portal</h6>
+            <button class="btn btn-link text-muted p-0" id="portalMenuClose" style="font-size:1.1rem;">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <a href="{% url 'portal_home' %}"><i class="fas fa-home"></i> Inicio</a>
-        <a href="{% url 'mi_perfil' %}"><i class="fas fa-user"></i> Mi Perfil</a>
-        <a href="{% url 'mi_asistencia' %}"><i class="fas fa-clock"></i> Mi Asistencia</a>
-        <a href="{% url 'portal_mi_nomina' %}"><i class="fas fa-file-invoice-dollar"></i> Mis Recibos</a>
-        <a href="{% url 'portal_mis_vacaciones' %}"><i class="fas fa-umbrella-beach"></i> Mis Vacaciones</a>
-        <a href="{% url 'mis_papeletas' %}"><i class="fas fa-file-alt"></i> Mis Papeletas</a>
-        <a href="{% url 'mis_justificaciones' %}"><i class="fas fa-clipboard-check"></i> Justificaciones</a>
-        <a href="{% url 'mis_solicitudes_he' %}"><i class="fas fa-hourglass-half"></i> Solicitudes HE</a>
-        <a href="{% url 'mi_banco_horas' %}"><i class="fas fa-piggy-bank"></i> Banco de Horas</a>
-        <a href="{% url 'mis_documentos' %}"><i class="fas fa-folder-open"></i> Mis Documentos</a>
-        <a href="{% url 'portal_mis_evaluaciones' %}"><i class="fas fa-star"></i> Evaluaciones</a>
-        <a href="{% url 'portal_mis_capacitaciones' %}"><i class="fas fa-graduation-cap"></i> Capacitaciones</a>
-        <a href="{% url 'organigrama' %}"><i class="fas fa-sitemap"></i> Organigrama</a>
-        <a href="{% url 'directorio' %}"><i class="fas fa-address-book"></i> Directorio</a>
-        <a href="{% url 'mi_timeline' %}"><i class="fas fa-stream"></i> Mi Timeline</a>
+        <a href="{% url 'portal_home' %}" class="pmm-link"><i class="fas fa-home"></i> Inicio</a>
+        <a href="{% url 'mi_perfil' %}" class="pmm-link"><i class="fas fa-user"></i> Mi Perfil</a>
+        <a href="{% url 'mi_asistencia' %}" class="pmm-link"><i class="fas fa-clock"></i> Mi Asistencia</a>
+        <a href="{% url 'portal_mi_nomina' %}" class="pmm-link"><i class="fas fa-file-invoice-dollar"></i> Mis Recibos</a>
+        <a href="{% url 'portal_mis_vacaciones' %}" class="pmm-link"><i class="fas fa-umbrella-beach"></i> Mis Vacaciones</a>
+        <a href="{% url 'mis_papeletas' %}" class="pmm-link"><i class="fas fa-file-alt"></i> Mis Papeletas</a>
+        <a href="{% url 'mis_justificaciones' %}" class="pmm-link"><i class="fas fa-clipboard-check"></i> Justificaciones</a>
+        <a href="{% url 'mis_solicitudes_he' %}" class="pmm-link"><i class="fas fa-hourglass-half"></i> Solicitudes HE</a>
+        <a href="{% url 'mi_banco_horas' %}" class="pmm-link"><i class="fas fa-piggy-bank"></i> Banco de Horas</a>
+        <a href="{% url 'mis_documentos' %}" class="pmm-link"><i class="fas fa-folder-open"></i> Mis Documentos</a>
+        <a href="{% url 'portal_mis_evaluaciones' %}" class="pmm-link"><i class="fas fa-star"></i> Evaluaciones</a>
+        <a href="{% url 'portal_mis_capacitaciones' %}" class="pmm-link"><i class="fas fa-graduation-cap"></i> Capacitaciones</a>
+        <a href="{% url 'organigrama' %}" class="pmm-link"><i class="fas fa-sitemap"></i> Organigrama</a>
+        <a href="{% url 'directorio' %}" class="pmm-link"><i class="fas fa-address-book"></i> Directorio</a>
+        <a href="{% url 'mi_timeline' %}" class="pmm-link"><i class="fas fa-stream"></i> Mi Timeline</a>
         <hr class="my-2">
-        <a href="{% url 'password_change' %}"><i class="fas fa-key"></i> Cambiar Contraseña</a>
-        <form method="post" action="{% url 'logout' %}" class="d-inline">
+        <a href="{% url 'password_change' %}" class="pmm-link"><i class="fas fa-key"></i> Cambiar Contraseña</a>
+        <form method="post" action="{% url 'logout' %}" style="margin:0;">
             {% csrf_token %}
-            <button type="submit" style="display:flex;align-items:center;gap:12px;padding:12px 8px;border-radius:8px;text-decoration:none;color:#dc2626;font-size:.9rem;background:none;border:none;width:100%;">
-                <i class="fas fa-sign-out-alt" style="width:24px;text-align:center;"></i> Cerrar Sesión
+            <button type="submit" class="pmm-link" style="width:100%;border:none;background:none;color:#dc2626;cursor:pointer;">
+                <i class="fas fa-sign-out-alt" style="color:#dc2626;"></i> Cerrar Sesión
             </button>
         </form>
     </div>
 </div>
-{% endif %}
+{% endblock %}
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}
 <script>
 (function() {
     'use strict';
-    // Auto-detect active bottom tab
+    // ── Auto-detect active bottom tab ──
     var path = window.location.pathname;
     document.querySelectorAll('.pbn-tab').forEach(function(tab) {
-        if (tab.getAttribute('href') && path.indexOf(tab.getAttribute('href')) === 0 && tab.getAttribute('href') !== '/mi-portal/' || tab.getAttribute('href') === path) {
+        var href = tab.getAttribute('href');
+        if (!href) return;
+        // Exact match for home, prefix match for others
+        if (href === path || (href !== '/mi-portal/' && path.indexOf(href) === 0)) {
             tab.classList.add('active');
         }
     });
 
-    // Close mobile menu on backdrop click or swipe down
+    // ── Mobile slide-up menu ──
     var menu = document.getElementById('portalMobileMenu');
+    var menuBtn = document.getElementById('portalMenuBtn');
+    var menuClose = document.getElementById('portalMenuClose');
+    var backdrop = menu ? menu.querySelector('.pmm-backdrop') : null;
+
+    function openMenu() { if (menu) menu.classList.add('show'); }
+    function closeMenu() { if (menu) menu.classList.remove('show'); }
+
+    if (menuBtn) menuBtn.addEventListener('click', openMenu);
+    if (menuClose) menuClose.addEventListener('click', closeMenu);
+    if (backdrop) backdrop.addEventListener('click', closeMenu);
+
+    // Swipe down to close
     if (menu) {
         var panel = menu.querySelector('.pmm-panel');
         var startY = 0;
-        panel.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; });
-        panel.addEventListener('touchmove', function(e) {
-            if (e.touches[0].clientY - startY > 80) {
-                menu.classList.remove('show');
-            }
-        });
+        if (panel) {
+            panel.addEventListener('touchstart', function(e) {
+                startY = e.touches[0].clientY;
+            }, {passive: true});
+            panel.addEventListener('touchmove', function(e) {
+                if (e.touches[0].clientY - startY > 80) {
+                    closeMenu();
+                }
+            }, {passive: true});
+        }
     }
 })();
 </script>
-{% block extra_js %}{% endblock %}
-</body>
-</html>
+{% block portal_extra_js %}{% endblock %}
+{% endblock %}

@@ -20,7 +20,8 @@ class PlantillaNotificacionAdmin(admin.ModelAdmin):
 class NotificacionAdmin(admin.ModelAdmin):
     list_display = ['asunto', 'destinatario', 'tipo', 'estado', 'creado_en']
     list_filter = ['tipo', 'estado', 'creado_en']
-    search_fields = ['asunto', 'destinatario__apellidos_nombres', 'destinatario_email']
+    search_fields = ['asunto', 'destinatario__apellidos_nombres', 'destinatario_email',
+                     'destinatario_telefono']
     raw_id_fields = ['destinatario', 'plantilla']
     readonly_fields = ['creado_en']
 
@@ -43,8 +44,8 @@ class ConfirmacionLecturaAdmin(admin.ModelAdmin):
 
 @admin.register(PreferenciaNotificacion)
 class PreferenciaNotificacionAdmin(admin.ModelAdmin):
-    list_display = ['personal', 'recibir_email', 'recibir_in_app', 'frecuencia_resumen']
-    list_filter = ['recibir_email', 'recibir_in_app', 'frecuencia_resumen']
+    list_display = ['personal', 'recibir_email', 'recibir_in_app', 'recibir_whatsapp', 'frecuencia_resumen']
+    list_filter = ['recibir_email', 'recibir_in_app', 'recibir_whatsapp', 'frecuencia_resumen']
     raw_id_fields = ['personal']
 
 

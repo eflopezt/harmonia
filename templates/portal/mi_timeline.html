@@ -1,13 +1,15 @@
-{% extends "base.html" %}
+{% extends "portal/base_portal.html" %}
 {% load humanize %}
 
 {% block title %}Mi Historia — {{ empleado.apellidos_nombres|default:"Portal" }}{% endblock %}
+
+{% block mobile_title %}Mi Historia{% endblock %}
 
 {% block page_title %}
 <h1 class="topbar-h1"><i class="fas fa-stream me-2 text-primary"></i>Mi Historia</h1>
 {% endblock %}
 
-{% block extra_css %}
+{% block portal_extra_css %}
 <style>
 /* ── Header ─────────────────────────────────────────────── */
 .tl-header {
@@ -111,7 +113,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block portal_content %}
 
 {% if not empleado %}
 <div class="alert alert-warning d-flex align-items-center gap-3">

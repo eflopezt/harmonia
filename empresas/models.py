@@ -183,6 +183,10 @@ class Empresa(models.Model):
         return self.nombre_comercial or self.razon_social
 
     @property
+    def tiene_whatsapp_configurado(self):
+        return self.whatsapp_provider != 'NONE'
+
+    @property
     def tiene_email_configurado(self):
         return (
             self.email_proveedor != 'NONE'

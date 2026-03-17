@@ -11,7 +11,7 @@
 <h1 class="topbar-h1"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Mis Recibos de Sueldo</h1>
 {% endblock %}
 
-{% block extra_css %}
+{% block portal_extra_css %}
 <style>
 .nomina-header {
     background: linear-gradient(135deg, #0d2b27 0%, #134e4a 100%);
@@ -50,7 +50,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block portal_content %}
 
 {% if not empleado %}
 <div class="alert alert-warning d-flex align-items-center gap-3">
@@ -212,25 +212,25 @@
             <thead class="table-light">
                 <tr>
                     <th class="ps-3">Período</th>
-                    <th>Tipo</th>
-                    <th class="text-end">Días</th>
-                    <th class="text-end">Ingresos</th>
-                    <th class="text-end">Descuentos</th>
+                    <th class="d-none d-sm-table-cell">Tipo</th>
+                    <th class="text-end d-none d-md-table-cell">Días</th>
+                    <th class="text-end d-none d-md-table-cell">Ingresos</th>
+                    <th class="text-end d-none d-md-table-cell">Descuentos</th>
                     <th class="text-end">Neto</th>
-                    <th class="text-center">Estado</th>
-                    <th class="pe-3 text-center">Boleta</th>
+                    <th class="text-center d-none d-sm-table-cell">Estado</th>
+                    <th class="pe-3 text-center">PDF</th>
                 </tr>
             </thead>
             <tbody>
                 {% for reg in registros %}
                 <tr class="periodo-row">
-                    <td class="ps-3 small fw-semibold">{{ reg.periodo.mes_nombre }} {{ reg.periodo.anio }}</td>
-                    <td><span class="badge bg-light text-dark border" style="font-size:.7rem">{{ reg.periodo.get_tipo_display }}</span></td>
-                    <td class="text-end small">{{ reg.dias_trabajados }}</td>
-                    <td class="text-end small" style="color:#059669">S/ {{ reg.total_ingresos|floatformat:2 }}</td>
-                    <td class="text-end small" style="color:#dc2626">S/ {{ reg.total_descuentos|floatformat:2 }}</td>
+                    <td class="ps-3 small fw-semibold">{{ reg.periodo.mes_nombre|truncatechars:5 }} {{ reg.periodo.anio }}</td>
+                    <td class="d-none d-sm-table-cell"><span class="badge bg-light text-dark border" style="font-size:.7rem">{{ reg.periodo.get_tipo_display }}</span></td>
+                    <td class="text-end small d-none d-md-table-cell">{{ reg.dias_trabajados }}</td>
+                    <td class="text-end small d-none d-md-table-cell" style="color:#059669">S/ {{ reg.total_ingresos|floatformat:2 }}</td>
+                    <td class="text-end small d-none d-md-table-cell" style="color:#dc2626">S/ {{ reg.total_descuentos|floatformat:2 }}</td>
                     <td class="text-end small fw-bold" style="color:#0f766e">S/ {{ reg.neto_a_pagar|floatformat:2 }}</td>
-                    <td class="text-center">
+                    <td class="text-center d-none d-sm-table-cell">
                         <span class="badge bg-{% if reg.estado == 'APROBADO' %}success{% elif reg.estado == 'REVISADO' %}info{% elif reg.estado == 'OBSERVADO' %}warning text-dark{% else %}secondary{% endif %}" style="font-size:.68rem">
                             {{ reg.get_estado_display }}
                         </span>
