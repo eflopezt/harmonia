@@ -1,0 +1,41 @@
+{# Chart Line — line/area chart widget #}
+{# Context: widget.data.chart_labels, widget.data.chart_values or widget.data.labels, widget.data.netos/brutos #}
+<div class="card widget-card widget-{{ widget.size }} h-100" data-widget-id="{{ widget.id }}">
+  <div class="card-header bg-transparent border-0 pb-0 pt-3 px-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0" style="font-size:.88rem;">
+        <i class="fas {{ widget.icon }} me-2" style="color:{{ widget.color }};"></i>{{ widget.title }}
+      </h6>
+      <button class="btn btn-link btn-sm p-0 text-muted widget-refresh" data-widget-id="{{ widget.id }}"
+              title="Actualizar" style="font-size:.8rem;">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body pt-2 px-3 pb-3">
+    {% if widget.data.error %}
+    <div class="text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>{{ widget.data.error }}</div>
+    {% elif widget.data.chart_labels or widget.data.labels %}
+
+    {# Stats summary above chart #}
+    {% if widget.data.pct_asistencia is not None %}
+    <div class="d-flex gap-3 mb-2" style="font-size:.8rem;">
+      <span><strong>{{ widget.data.pct_asistencia }}%</strong> asistencia</span>
+      <span class="text-success">{{ widget.data.presentes }} presentes</span>
+      <span class="text-danger">{{ widget.data.faltas }} faltas</span>
+    </div>
+    {% endif %}
+
+    <canvas class="widget-chart" id="chart-{{ widget.id }}"
+            style="max-height:{% if widget.size == 'large' %}240{% else %}160{% endif %}px;width:100%;"
+            data-type="line"
+            data-labels='{{ widget.data.chart_labels|default:widget.data.labels|safe }}'
+            data-values='{{ widget.data.chart_values|safe }}'
+            data-netos='{{ widget.data.netos|safe }}'
+            data-brutos='{{ widget.data.brutos|safe }}'
+            data-color='{{ widget.color }}'></canvas>
+    {% else %}
+    <div class="text-center text-muted small py-3">Sin datos de tendencia</div>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,28 @@
+{# Chart Doughnut — doughnut/pie chart widget #}
+{# Context: widget.data.labels, widget.data.values, widget.data.colors #}
+<div class="card widget-card widget-medium h-100" data-widget-id="{{ widget.id }}">
+  <div class="card-header bg-transparent border-0 pb-0 pt-3 px-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0" style="font-size:.88rem;">
+        <i class="fas {{ widget.icon }} me-2" style="color:{{ widget.color }};"></i>{{ widget.title }}
+      </h6>
+      <button class="btn btn-link btn-sm p-0 text-muted widget-refresh" data-widget-id="{{ widget.id }}"
+              title="Actualizar" style="font-size:.8rem;">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body pt-2 px-3 pb-3">
+    {% if widget.data.error %}
+    <div class="text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>{{ widget.data.error }}</div>
+    {% elif widget.data.labels %}
+    <canvas class="widget-chart" id="chart-{{ widget.id }}" style="max-height:180px;width:100%;"
+            data-type="doughnut"
+            data-labels='{{ widget.data.labels|safe }}'
+            data-values='{{ widget.data.values|safe }}'
+            data-colors='{{ widget.data.colors|safe }}'></canvas>
+    {% else %}
+    <div class="text-center text-muted small py-3">Sin datos</div>
+    {% endif %}
+  </div>
+</div>

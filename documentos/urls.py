@@ -4,6 +4,7 @@ URLs del módulo Documentos - Legajo Digital.
 from django.urls import path
 from documentos import views
 from documentos import views_firma
+from documentos import views_firma_interna
 from documentos import views_cese
 
 urlpatterns = [
@@ -91,6 +92,15 @@ urlpatterns = [
     path('firma/<int:pk>/sincronizar/', views_firma.firma_sincronizar, name='firma_sincronizar'),
     path('firma/<int:pk>/cancelar/', views_firma.firma_cancelar, name='firma_cancelar'),
     path('firma/sincronizar-todos/', views_firma.firma_sincronizar_todos, name='firma_sincronizar_todos'),
+
+    # ── Firma Digital Interna (Signature Pad) ──
+    path('firma-interna/', views_firma_interna.firma_interna_panel, name='firma_interna_panel'),
+    path('firma-interna/solicitar/', views_firma_interna.solicitar_firma, name='firma_interna_solicitar'),
+    path('firma-interna/firmar/<str:token>/', views_firma_interna.firmar_documento, name='firma_interna_firmar'),
+    path('firma-interna/firmar/<str:token>/ajax/', views_firma_interna.firmar_ajax, name='firma_interna_firmar_ajax'),
+    path('firma-interna/verificar/', views_firma_interna.verificar_firma, name='firma_interna_verificar'),
+    path('firma-interna/verificar/<str:token>/', views_firma_interna.verificar_firma, name='firma_interna_verificar_token'),
+    path('firma-interna/descargar/<str:token>/', views_firma_interna.descargar_firmado, name='firma_interna_descargar'),
 
     # ── Flujo de Cese — equivalente digital de la macro Excel ─────────────────
     path('cese/', views_cese.pdf_cese_panel,    name='pdf_cese_panel'),

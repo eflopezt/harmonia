@@ -70,3 +70,9 @@ from asistencia.views.relojes import (  # noqa: F401
     ajax_procesar_reloj,
     ajax_usuarios_reloj,
 )
+from asistencia.views.biometrico import (  # noqa: F401
+    panel_biometrico,
+    agregar_dispositivo,
+    test_dispositivo,
+    logs_sincronizacion,
+)

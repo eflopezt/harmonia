@@ -98,6 +98,12 @@ urlpatterns = [
     path('justificaciones/<int:pk>/revisar/', views.justificacion_revisar, name='asistencia_justificacion_revisar'),
     path('justificaciones/<int:pk>/eliminar/', views.justificacion_eliminar, name='asistencia_justificacion_eliminar'),
 
+    # ── Panel Biométrico ──
+    path('biometrico/', views.panel_biometrico, name='asistencia_biometrico_panel'),
+    path('biometrico/agregar/', views.agregar_dispositivo, name='asistencia_biometrico_agregar'),
+    path('biometrico/test/', views.test_dispositivo, name='asistencia_biometrico_test'),
+    path('biometrico/logs/', views.logs_sincronizacion, name='asistencia_biometrico_logs'),
+
     # Endpoints AJAX
     path('ajax/staff-data/', views.ajax_staff_data, name='asistencia_ajax_staff'),
     path('ajax/rco-data/', views.ajax_rco_data, name='asistencia_ajax_rco'),
