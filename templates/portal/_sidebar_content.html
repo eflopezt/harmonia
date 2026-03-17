@@ -1,0 +1,93 @@
+{% load static %}
+{# Simplified sidebar content for portal base template (desktop only).
+   This is a lightweight version showing only portal-related nav items. #}
+
+<!-- Brand -->
+<div class="sidebar-header">
+    <a href="{% url 'portal_home' %}" class="sidebar-brand-link d-flex align-items-center text-decoration-none">
+        <div class="sidebar-logo">
+            <svg width="26" height="26" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="sb-bg" cx="50%" cy="45%" r="65%">
+                  <stop offset="0%" stop-color="#1b4a43"/>
+                  <stop offset="100%" stop-color="#081a17"/>
+                </radialGradient>
+                <linearGradient id="sb-arc" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%"  stop-color="#0d9488"/>
+                  <stop offset="50%" stop-color="#5eead4"/>
+                  <stop offset="100%" stop-color="#0d9488"/>
+                </linearGradient>
+              </defs>
+              <rect width="40" height="40" fill="url(#sb-bg)" rx="8"/>
+              <path d="M 5,20 Q 20,30 35,20" stroke="url(#sb-arc)" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+              <rect x="7"  y="5" width="7" height="28" rx="3.5" fill="white"/>
+              <rect x="26" y="5" width="7" height="28" rx="3.5" fill="white"/>
+            </svg>
+        </div>
+        <div class="ms-2">
+            <div class="sidebar-brand-text">Harmoni</div>
+            <div class="sidebar-brand-subtitle">Mi Portal</div>
+        </div>
+    </a>
+</div>
+
+<!-- Nav -->
+<div class="sidebar-body">
+    <nav>
+        <div class="nav-section">
+            <a href="{% url 'home' %}" class="nav-item" data-match="^/$">
+                <i class="fas fa-th-large"></i><span>Dashboard</span>
+            </a>
+        </div>
+
+        <div class="nav-section" style="margin-top:4px;">
+            <div class="nav-section-body" style="display:block;">
+                <a href="{% url 'portal_home' %}" class="nav-item" data-match="^/mi-portal/$">
+                    <i class="fas fa-home"></i><span>Mi Resumen</span>
+                </a>
+                <a href="{% url 'mi_perfil' %}" class="nav-item" data-match="/mi-portal/perfil">
+                    <i class="fas fa-id-card"></i><span>Mi Perfil</span>
+                </a>
+                <a href="{% url 'mi_asistencia' %}" class="nav-item" data-match="/mi-portal/asistencia">
+                    <i class="fas fa-clock"></i><span>Mi Asistencia</span>
+                </a>
+                <a href="{% url 'mi_banco_horas' %}" class="nav-item" data-match="/mi-portal/banco-horas">
+                    <i class="fas fa-piggy-bank"></i><span>Banco de Horas</span>
+                </a>
+                <a href="{% url 'portal_mi_nomina' %}" class="nav-item" data-match="/mi-portal/mi-nomina">
+                    <i class="fas fa-file-invoice-dollar"></i><span>Mis Recibos</span>
+                </a>
+                <a href="{% url 'portal_mis_vacaciones' %}" class="nav-item" data-match="/mi-portal/mis-vacaciones">
+                    <i class="fas fa-umbrella-beach"></i><span>Mis Vacaciones</span>
+                </a>
+                <a href="{% url 'mis_papeletas' %}" class="nav-item" data-match="/mi-portal/papeletas">
+                    <i class="fas fa-file-alt"></i><span>Mis Papeletas</span>
+                </a>
+                <a href="{% url 'mis_justificaciones' %}" class="nav-item" data-match="/mi-portal/justificaciones">
+                    <i class="fas fa-pen-square"></i><span>Justificaciones</span>
+                </a>
+                <a href="{% url 'mis_solicitudes_he' %}" class="nav-item" data-match="/mi-portal/solicitudes-he">
+                    <i class="fas fa-hourglass-half"></i><span>Solicitudes HE</span>
+                </a>
+                <a href="{% url 'mis_documentos' %}" class="nav-item" data-match="/mi-portal/documentos">
+                    <i class="fas fa-folder-open"></i><span>Mis Documentos</span>
+                </a>
+                <a href="{% url 'portal_mis_evaluaciones' %}" class="nav-item" data-match="/mi-portal/mis-evaluaciones">
+                    <i class="fas fa-star"></i><span>Evaluaciones</span>
+                </a>
+                <a href="{% url 'portal_mis_capacitaciones' %}" class="nav-item" data-match="/mi-portal/mis-capacitaciones">
+                    <i class="fas fa-graduation-cap"></i><span>Capacitaciones</span>
+                </a>
+                <a href="{% url 'organigrama' %}" class="nav-item" data-match="/mi-portal/organigrama">
+                    <i class="fas fa-sitemap"></i><span>Organigrama</span>
+                </a>
+                <a href="{% url 'directorio' %}" class="nav-item" data-match="/mi-portal/directorio">
+                    <i class="fas fa-address-book"></i><span>Directorio</span>
+                </a>
+                <a href="{% url 'mi_timeline' %}" class="nav-item" data-match="/mi-portal/timeline">
+                    <i class="fas fa-stream"></i><span>Mi Timeline</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+</div>

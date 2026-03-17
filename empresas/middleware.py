@@ -1,8 +1,11 @@
 """
 Middleware de multi-empresa para Harmoni.
 
-Inyecta request.empresa_actual con la empresa activa en la sesión.
-Si no hay empresa en sesión, usa la empresa principal.
+Inyecta request.empresa_actual con la empresa activa.
+Prioridad de resolución:
+  1. Subdomain (set by SubdomainMiddleware → request.empresa_subdomain)
+  2. Sesión (empresa_actual_id)
+  3. Empresa principal (es_principal=True)
 """
 
 
@@ -18,7 +21,12 @@ class EmpresaMiddleware:
     def __call__(self, request):
         request.empresa_actual = None
 
-        if request.user.is_authenticated:
+        # 1. Subdomain takes priority (already resolved by SubdomainMiddleware)
+        empresa_from_subdomain = getattr(request, 'empresa_subdomain', None)
+        if empresa_from_subdomain:
+            request.empresa_actual = empresa_from_subdomain
+        elif request.user.is_authenticated:
+            # 2. Session-based lookup
             empresa_id = request.session.get('empresa_actual_id')
             if empresa_id:
                 try:
@@ -27,7 +35,7 @@ class EmpresaMiddleware:
                 except Exception:
                     pass
 
-            # Si no hay empresa en sesión, buscar la principal
+            # 3. Fallback to principal empresa
             if not request.empresa_actual:
                 try:
                     from empresas.models import Empresa

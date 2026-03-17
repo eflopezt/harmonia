@@ -535,6 +535,120 @@ def periodo_exportar(request, pk):
     return response
 
 
+# ─── Exportaciones PLAME / T-Registro SUNAT ───────────────────────────────────
+
+@login_required
+@solo_admin
+def periodo_exportar_plame(request, pk):
+    """
+    Descarga archivo ZIP con los archivos PLAME del periodo.
+    Incluye: remuneraciones, retenciones 5ta, jornada laboral.
+    """
+    from .exports_plame import generar_plame_completo
+
+    periodo = get_object_or_404(PeriodoNomina, pk=pk)
+
+    if periodo.estado not in ('CALCULADO', 'APROBADO', 'CERRADO'):
+        messages.warning(request, 'El período debe estar calculado o aprobado para exportar PLAME.')
+        return redirect('nominas_periodo_detalle', pk=pk)
+
+    resultado = generar_plame_completo(periodo)
+    periodo_str = resultado['periodo_str']
+
+    # Generar ZIP con todos los archivos
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        rem_content, rem_count = resultado['remuneraciones']
+        if rem_count > 0:
+            zf.writestr(
+                f'0601_remuneraciones_{periodo_str}.txt',
+                rem_content.encode('latin-1', errors='replace')
+            )
+
+        ret_content, ret_count = resultado['retenciones_5ta']
+        if ret_count > 0:
+            zf.writestr(
+                f'0605_retenciones_5ta_{periodo_str}.txt',
+                ret_content.encode('latin-1', errors='replace')
+            )
+
+        jor_content, jor_count = resultado['jornada']
+        if jor_count > 0:
+            zf.writestr(
+                f'0701_jornada_{periodo_str}.txt',
+                jor_content.encode('latin-1', errors='replace')
+            )
+
+        # Archivo resumen informativo
+        resumen = (
+            f'PLAME - Periodo {periodo_str}\r\n'
+            f'Generado: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}\r\n'
+            f'Periodo: {periodo}\r\n'
+            f'Estado: {periodo.get_estado_display()}\r\n'
+            f'---\r\n'
+            f'Archivo 0601 (Remuneraciones): {rem_count} registros\r\n'
+            f'Archivo 0605 (Retenciones 5ta): {ret_count} registros\r\n'
+            f'Archivo 0701 (Jornada): {jor_count} registros\r\n'
+        )
+        zf.writestr(f'_RESUMEN_{periodo_str}.txt', resumen.encode('utf-8'))
+
+    zip_buffer.seek(0)
+    nombre_zip = f'PLAME_{periodo_str}_{periodo.get_tipo_display().replace(" ", "_")}.zip'
+
+    response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{nombre_zip}"'
+
+    logger.info(
+        f'PLAME exportado: periodo={periodo_str}, '
+        f'registros={resultado["total_registros"]}, '
+        f'usuario={request.user}'
+    )
+    messages.success(
+        request,
+        f'PLAME exportado: {resultado["total_registros"]} trabajadores. '
+        f'Archivos: remuneraciones ({rem_count}), retenciones 5ta ({ret_count}), '
+        f'jornada ({jor_count}).'
+    )
+
+    return response
+
+
+@login_required
+@solo_admin
+def periodo_exportar_tregistro(request, pk):
+    """
+    Descarga archivo T-Registro (altas) de los trabajadores del periodo.
+    """
+    from .exports_tregistro import generar_tregistro_desde_periodo
+
+    periodo = get_object_or_404(PeriodoNomina, pk=pk)
+
+    if periodo.estado not in ('CALCULADO', 'APROBADO', 'CERRADO'):
+        messages.warning(request, 'El período debe estar calculado o aprobado para exportar T-Registro.')
+        return redirect('nominas_periodo_detalle', pk=pk)
+
+    content, count = generar_tregistro_desde_periodo(periodo)
+    periodo_str = f'{periodo.anio}{periodo.mes:02d}'
+
+    if count == 0:
+        messages.warning(request, 'No hay trabajadores activos para exportar en T-Registro.')
+        return redirect('nominas_periodo_detalle', pk=pk)
+
+    nombre = f'T-Registro_Altas_{periodo_str}.txt'
+    response = HttpResponse(
+        content.encode('latin-1', errors='replace'),
+        content_type='text/plain; charset=iso-8859-1'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+
+    logger.info(
+        f'T-Registro exportado: periodo={periodo_str}, '
+        f'registros={count}, usuario={request.user}'
+    )
+
+    return response
+
+
 # ─── Registro individual ───────────────────────────────────────────────────────
 
 @login_required

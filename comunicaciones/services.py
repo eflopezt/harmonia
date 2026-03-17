@@ -63,6 +63,11 @@ class NotificacionService:
                      or destinatario.correo_personal
                      or '')
 
+        # Resolver telefono del destinatario (para WhatsApp)
+        telefono = ''
+        if destinatario:
+            telefono = getattr(destinatario, 'celular', '') or ''
+
         if tipo == 'AMBOS':
             notif_app = Notificacion.objects.create(
                 destinatario=destinatario,
@@ -98,6 +103,7 @@ class NotificacionService:
         notif = Notificacion.objects.create(
             destinatario=destinatario,
             destinatario_email=email,
+            destinatario_telefono=telefono,
             asunto=asunto,
             cuerpo=cuerpo,
             tipo=tipo,
@@ -109,6 +115,8 @@ class NotificacionService:
 
         if tipo == 'EMAIL':
             NotificacionService._enviar_email(notif)
+        elif tipo == 'WHATSAPP':
+            NotificacionService._enviar_whatsapp(notif)
 
         return notif
 
@@ -270,6 +278,69 @@ class NotificacionService:
             notificacion.error_detalle = str(e)[:500]
             notificacion.save(update_fields=['estado', 'error_detalle'])
             logger.error(f"Error enviando email a {email_to}: {e}")
+
+    # ── WhatsApp interno ─────────────────────────────────────
+
+    @staticmethod
+    def _enviar_whatsapp(notificacion):
+        """
+        Envía un mensaje de WhatsApp usando WhatsAppService.
+        Actualiza el estado de la notificación a ENVIADA o FALLIDA.
+        """
+        from comunicaciones.whatsapp_service import WhatsAppService
+
+        # Resolver telefono
+        telefono = notificacion.destinatario_telefono
+        if not telefono and notificacion.destinatario:
+            telefono = getattr(notificacion.destinatario, 'celular', '')
+
+        if not telefono:
+            notificacion.estado = 'FALLIDA'
+            notificacion.error_detalle = 'Destinatario sin numero de telefono/celular'
+            notificacion.save(update_fields=['estado', 'error_detalle'])
+            return
+
+        # Resolve empresa for per-company WhatsApp config
+        empresa = None
+        if notificacion.destinatario:
+            empresa = getattr(notificacion.destinatario, 'empresa', None)
+
+        # Strip HTML tags for WhatsApp (plain text)
+        import re
+        texto = re.sub(r'<[^>]+>', '', notificacion.cuerpo)
+        texto = texto.strip()
+
+        # Prepend asunto if meaningful
+        if notificacion.asunto:
+            texto = f"*{notificacion.asunto}*\n\n{texto}"
+
+        try:
+            result = WhatsAppService.send_message(telefono, texto, empresa=empresa)
+
+            if result.get('ok'):
+                notificacion.estado = 'ENVIADA'
+                notificacion.enviada_en = timezone.now()
+                notificacion.metadata = notificacion.metadata or {}
+                notificacion.metadata['whatsapp_message_id'] = result.get('message_id')
+                notificacion.metadata['whatsapp_provider'] = result.get('provider')
+                notificacion.save(update_fields=['estado', 'enviada_en', 'metadata'])
+                logger.info(
+                    f"WhatsApp enviado: {notificacion.asunto} -> {telefono} "
+                    f"via {result.get('provider')}"
+                )
+            else:
+                notificacion.estado = 'FALLIDA'
+                notificacion.error_detalle = result.get('detail', 'Error desconocido')[:500]
+                notificacion.save(update_fields=['estado', 'error_detalle'])
+                logger.error(
+                    f"Error enviando WhatsApp a {telefono}: {result.get('detail')}"
+                )
+
+        except Exception as e:
+            notificacion.estado = 'FALLIDA'
+            notificacion.error_detalle = str(e)[:500]
+            notificacion.save(update_fields=['estado', 'error_detalle'])
+            logger.error(f"Error enviando WhatsApp a {telefono}: {e}")
 
     # ── Alias crear() ────────────────────────────────────────
 

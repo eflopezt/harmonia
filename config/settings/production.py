@@ -14,7 +14,7 @@ if not SECRET_KEY or SECRET_KEY.startswith('django-insecure'):
 
 ALLOWED_HOSTS = [host for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host]
 
-# Siempre permitir plataformas de deploy
+# Siempre permitir plataformas de deploy y wildcard subdomains for multi-tenant
 for host in ['.onrender.com', '.harmoni.pe', '.nexotalent.pe']:
     if host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(host)
@@ -28,6 +28,8 @@ else:
         f'https://{h}' for h in ALLOWED_HOSTS if h and not h.startswith('.')
     ]
     CSRF_TRUSTED_ORIGINS.append('https://*.onrender.com')
+    CSRF_TRUSTED_ORIGINS.append('https://*.harmoni.pe')
+    CSRF_TRUSTED_ORIGINS.append('https://*.nexotalent.pe')
 
 # CORS settings - restrictive in production (optional)
 cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')

@@ -102,6 +102,44 @@ class Empresa(models.Model):
         help_text='Dirección de respuesta (opcional)',
     )
 
+    # ── Configuración WhatsApp ────────────────────────────────
+    WHATSAPP_PROVIDER_CHOICES = [
+        ('NONE', 'Sin WhatsApp'),
+        ('META_CLOUD', 'Meta Cloud API'),
+        ('OPENCLAW', 'OpenClaw Gateway'),
+    ]
+
+    whatsapp_provider = models.CharField(
+        max_length=12, choices=WHATSAPP_PROVIDER_CHOICES,
+        default='NONE', verbose_name='Proveedor WhatsApp',
+    )
+    whatsapp_access_token = models.CharField(
+        max_length=500, blank=True, default='',
+        verbose_name='WhatsApp Access Token',
+        help_text='Token permanente de la Meta Business App (solo para Meta Cloud API)',
+    )
+    whatsapp_phone_id = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name='WhatsApp Phone Number ID',
+        help_text='ID del numero en Meta Developer Console (no el numero real)',
+    )
+    openclaw_gateway_url = models.CharField(
+        max_length=200, blank=True, default='http://localhost:19000',
+        verbose_name='OpenClaw Gateway URL',
+        help_text='URL del gateway OpenClaw (default: http://localhost:19000)',
+    )
+    openclaw_gateway_token = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='OpenClaw Gateway Token',
+        help_text='Token de autenticacion para OpenClaw (si aplica)',
+    )
+
+    # Multi-tenant subdomain
+    subdominio = models.SlugField(
+        max_length=50, unique=True, blank=True, null=True,
+        help_text='Subdominio para acceso (ej: miempresa → miempresa.harmoni.pe)',
+    )
+
     # Estado
     activa       = models.BooleanField(default=True)
     es_principal = models.BooleanField(

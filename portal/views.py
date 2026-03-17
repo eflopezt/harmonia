@@ -16,7 +16,15 @@ from personal.models import Roster, Personal, Area, SubArea
 
 def _get_empleado(user):
     """Retorna el Personal vinculado al usuario, o None."""
-    return getattr(user, 'personal_data', None)
+    emp = getattr(user, 'personal_data', None)
+    if emp is not None:
+        # Ensure subarea/area are pre-loaded to avoid N+1 in templates
+        from django.db.models import prefetch_related_objects
+        try:
+            prefetch_related_objects([emp], 'subarea__area')
+        except Exception:
+            pass
+    return emp
 
 
 def _safe_int(value, default):
@@ -232,11 +240,11 @@ def mi_asistencia(request):
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
 
-        registros = RegistroTareo.objects.filter(
+        registros = list(RegistroTareo.objects.filter(
             personal=empleado,
             fecha__gte=fecha_inicio,
             fecha__lte=fecha_fin,
-        ).order_by('fecha')
+        ).order_by('fecha'))
 
         total_he = sum(
             (r.he_25 or 0) + (r.he_35 or 0) + (r.he_100 or 0)
@@ -246,7 +254,7 @@ def mi_asistencia(request):
         # Años disponibles para el selector
         primer_registro = RegistroTareo.objects.filter(
             personal=empleado
-        ).order_by('fecha').first()
+        ).order_by('fecha').only('fecha').first()
         anio_inicio = primer_registro.fecha.year if primer_registro else hoy.year
 
         context.update({
@@ -407,11 +415,11 @@ def mis_justificaciones(request):
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
 
-        justificaciones = JustificacionNoMarcaje.objects.filter(
+        justificaciones = list(JustificacionNoMarcaje.objects.filter(
             personal=empleado,
             fecha__gte=fecha_inicio,
             fecha__lte=fecha_fin,
-        ).order_by('-fecha')
+        ).order_by('-fecha'))
 
         # Días del mes con registro para mostrar al trabajador
         registros_mes = RegistroTareo.objects.filter(
@@ -528,15 +536,15 @@ def mis_solicitudes_he(request):
         fecha_inicio = date(anio, mes, 1)
         fecha_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
 
-        solicitudes = SolicitudHE.objects.filter(
+        solicitudes = list(SolicitudHE.objects.filter(
             personal=empleado,
             fecha__gte=fecha_inicio,
             fecha__lte=fecha_fin,
-        ).order_by('-fecha')
+        ).order_by('-fecha'))
 
         primer_registro = SolicitudHE.objects.filter(
             personal=empleado,
-        ).order_by('fecha').first()
+        ).order_by('fecha').only('fecha').first()
         anio_inicio = primer_registro.fecha.year if primer_registro else hoy.year
 
         # Verificar si el control HE está activo
@@ -678,7 +686,7 @@ def mis_papeletas(request):
         if tipo_filter:
             qs = qs.filter(tipo_permiso=tipo_filter)
 
-        papeletas = qs.order_by('-fecha_inicio')
+        papeletas = list(qs.order_by('-fecha_inicio'))
 
         pendientes = RegistroPapeleta.objects.filter(
             personal=empleado, estado='PENDIENTE',

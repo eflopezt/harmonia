@@ -453,6 +453,40 @@
   <a href="{% url 'nominas_periodo_boletas_zip' periodo.pk %}" class="btn btn-outline-danger btn-sm">
     <i class="fas fa-file-archive me-1"></i>Boletas ZIP
   </a>
+
+  {# SUNAT / PLAME #}
+  <div class="action-bar-divider"></div>
+  <div class="dropdown d-inline">
+    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="fas fa-landmark me-1"></i>SUNAT
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <h6 class="dropdown-header">
+          <i class="fas fa-file-alt me-1"></i>PLAME (PDT 601)
+        </h6>
+      </li>
+      <li>
+        <a class="dropdown-item" href="{% url 'nominas_periodo_plame' periodo.pk %}">
+          <i class="fas fa-download me-2 text-primary"></i>Descargar PLAME (ZIP)
+          <br><small class="text-muted ms-4">Remuneraciones + Retenciones + Jornada</small>
+        </a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <h6 class="dropdown-header">
+          <i class="fas fa-users me-1"></i>T-Registro
+        </h6>
+      </li>
+      <li>
+        <a class="dropdown-item" href="{% url 'nominas_periodo_tregistro' periodo.pk %}">
+          <i class="fas fa-user-plus me-2 text-success"></i>Exportar T-Registro (Altas)
+          <br><small class="text-muted ms-4">Datos de trabajadores del periodo</small>
+        </a>
+      </li>
+    </ul>
+  </div>
   {% endif %}
 
   {# Resumen estadístico #}

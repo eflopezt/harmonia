@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin conexión — Harmoni ERP</title>
+    <meta name="theme-color" content="#0d2b27">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0d2b27 0%, #1a4a43 50%, #0d2b27 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .offline-container {
+            text-align: center;
+            max-width: 420px;
+            width: 100%;
+        }
+
+        /* Logo */
+        .offline-logo {
+            margin-bottom: 32px;
+        }
+        .offline-logo svg {
+            filter: drop-shadow(0 4px 16px rgba(94, 234, 212, 0.25));
+        }
+
+        .offline-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Icon */
+        .offline-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(94, 234, 212, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .offline-icon svg {
+            width: 36px;
+            height: 36px;
+            color: #5eead4;
+        }
+
+        /* Text */
+        .offline-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .offline-message {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        /* Retry button */
+        .offline-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #0f766e, #0d9488);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 4px 16px rgba(15, 118, 110, 0.4);
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .offline-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(15, 118, 110, 0.5);
+        }
+
+        .offline-btn:active {
+            transform: translateY(0);
+        }
+
+        .offline-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Tips */
+        .offline-tips {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .offline-tips-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+        }
+
+        .offline-tips ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        .offline-tips li {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .offline-tips li::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #5eead4;
+            flex-shrink: 0;
+        }
+
+        /* Pulse animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse { animation: pulse 2s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+
+        <!-- Logo -->
+        <div class="offline-logo">
+            <svg width="56" height="56" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="bg" cx="50%" cy="45%" r="65%">
+                        <stop offset="0%" stop-color="#1b4a43"/>
+                        <stop offset="100%" stop-color="#081a17"/>
+                    </radialGradient>
+                    <linearGradient id="arc" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#0d9488"/>
+                        <stop offset="50%" stop-color="#5eead4"/>
+                        <stop offset="100%" stop-color="#0d9488"/>
+                    </linearGradient>
+                </defs>
+                <rect width="40" height="40" fill="url(#bg)" rx="8"/>
+                <path d="M 5,20 Q 20,30 35,20" stroke="url(#arc)" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+                <rect x="7" y="5" width="7" height="28" rx="3.5" fill="white"/>
+                <rect x="26" y="5" width="7" height="28" rx="3.5" fill="white"/>
+            </svg>
+            <div class="offline-brand">Harmoni</div>
+        </div>
+
+        <!-- Offline icon -->
+        <div class="offline-icon pulse">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="1" y1="1" x2="23" y2="23"/>
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+                <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                <line x1="12" y1="20" x2="12.01" y2="20"/>
+            </svg>
+        </div>
+
+        <!-- Message -->
+        <h1 class="offline-title">Sin conexión</h1>
+        <p class="offline-message">
+            No se pudo conectar al servidor de Harmoni.<br>
+            Verifica tu conexión a Internet e intenta de nuevo.
+        </p>
+
+        <!-- Retry button -->
+        <button class="offline-btn" onclick="window.location.reload()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Reintentar
+        </button>
+
+        <!-- Tips -->
+        <div class="offline-tips">
+            <div class="offline-tips-title">Sugerencias</div>
+            <ul>
+                <li>Verifica tu conexión WiFi o datos móviles</li>
+                <li>Intenta recargar la página en unos segundos</li>
+                <li>Las páginas visitadas recientemente están disponibles offline</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Auto-retry when connection comes back
+        window.addEventListener('online', function() {
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>

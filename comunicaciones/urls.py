@@ -4,6 +4,7 @@ URLs del módulo Comunicaciones Inteligentes.
 from django.urls import path
 from . import views
 from . import views_notif
+from . import views_whatsapp
 
 urlpatterns = [
     # ── Admin: Notificaciones ──
@@ -23,6 +24,12 @@ urlpatterns = [
     # ── Admin: SMTP ──
     path('config-smtp/', views.config_smtp, name='com_config_smtp'),
     path('config-smtp/test/', views.test_smtp, name='com_test_smtp'),
+
+    # ── Admin: WhatsApp ──
+    path('whatsapp/', views_whatsapp.whatsapp_config, name='com_whatsapp_config'),
+    path('whatsapp/test/', views_whatsapp.whatsapp_test, name='com_whatsapp_test'),
+    path('whatsapp/test-connection/', views_whatsapp.whatsapp_test_connection, name='com_whatsapp_test_connection'),
+    path('whatsapp/send-employee/', views_whatsapp.whatsapp_send_to_employee, name='com_whatsapp_send_employee'),
 
     # ── Portal: mis notificaciones ──
     path('mis-notificaciones/', views.mis_notificaciones, name='mis_notificaciones_com'),

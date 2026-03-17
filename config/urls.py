@@ -42,7 +42,12 @@ def landing(request):
         return redirect('home')
     return render(request, 'landing.html')
 
+def offline_view(request):
+    """Offline fallback page for PWA."""
+    return render(request, 'offline.html')
+
 urlpatterns = [
+    path('offline/', offline_view, name='offline'),
     path('health/', health_check, name='health_check'),
     path('robots.txt', robots_txt, name='robots_txt'),
     path('admin/', admin.site.urls),

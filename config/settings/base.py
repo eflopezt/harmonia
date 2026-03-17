@@ -76,9 +76,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'empresas.middleware_subdomain.SubdomainMiddleware',
     'empresas.middleware.EmpresaMiddleware',
     'core.middleware.AuditMiddleware',
 ]
+
+# Multi-tenant subdomain routing
+# Root domains that support subdomain-based tenant resolution
+HARMONI_TENANT_DOMAINS = ['harmoni.pe', 'nexotalent.pe']
 
 ROOT_URLCONF = 'config.urls'
 

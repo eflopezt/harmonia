@@ -3,6 +3,7 @@ URLs del portal de autoservicio del colaborador.
 """
 from django.urls import path
 from . import views
+from . import api_views
 from calendario.views import mi_calendario, mi_calendario_eventos
 from onboarding.views import mi_onboarding as mi_onboarding_portal
 from salarios.views import mi_historial_salarial
@@ -46,4 +47,9 @@ urlpatterns = [
     path('mis-capacitaciones/', views.mis_capacitaciones, name='portal_mis_capacitaciones'),
     # Mis Vacaciones
     path('mis-vacaciones/', views.mis_vacaciones, name='portal_mis_vacaciones'),
+    # ── API endpoints for mobile ──
+    path('api/me/', api_views.api_portal_me, name='api_portal_me'),
+    path('api/boletas/', api_views.api_portal_boletas, name='api_portal_boletas'),
+    path('api/asistencia/', api_views.api_portal_asistencia, name='api_portal_asistencia'),
+    path('api/vacaciones/', api_views.api_portal_vacaciones, name='api_portal_vacaciones'),
 ]

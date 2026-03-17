@@ -1,5 +1,6 @@
 /* =============================================================================
-   RESPONSIVE MOBILE IMPROVEMENTS
+   RESPONSIVE MOBILE IMPROVEMENTS — Harmoni ERP PWA
+   v2: Bottom nav, sidebar improvements, touch UX, safe areas
    ============================================================================= */
 
 /* Asegurar que la vista no tenga scroll horizontal innecesario */
@@ -9,291 +10,438 @@ html {
 
 body {
     overflow-x: hidden;
+    /* iOS safe areas */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
-/* Mejorar legibilidad en pantallas pequeñas */
+/* ═══ PWA Standalone Mode Adjustments ═══ */
+@media all and (display-mode: standalone) {
+    /* Extra top padding for status bar in standalone mode */
+    .harmoni-topbar {
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+}
+
+/* ═══ Tablet breakpoint (768px - 991px) ═══ */
+@media (max-width: 991.98px) {
+    /* Sidebar: off-canvas on tablet/mobile */
+    .harmoni-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        position: fixed;
+        z-index: 1050;
+    }
+
+    .harmoni-sidebar.show {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1049;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.28s ease;
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+    }
+
+    .sidebar-overlay.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* Main content takes full width */
+    .harmoni-main {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Topbar adjustments */
+    .harmoni-topbar {
+        left: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Sidebar toggle button visibility */
+    .sidebar-toggle {
+        display: flex !important;
+    }
+
+    /* Global search: hide kbd hint on mobile */
+    .global-search-kbd {
+        display: none !important;
+    }
+
+    /* Topbar username hide on small tablets */
+    .topbar-username {
+        display: none !important;
+    }
+}
+
+/* ═══ Mobile breakpoint (< 768px) ═══ */
 @media (max-width: 768px) {
     /* Navbar mejorado */
     .navbar {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
-    
+
     .navbar-brand {
         padding: 0.5rem 0.75rem;
     }
-    
+
     .navbar .navbar-nav .nav-link {
         padding: 0.5rem 0.75rem !important;
         font-size: 0.9rem;
     }
-    
-    /* Sidebar colapsable */
-    .sidebar {
-        max-width: 100%;
-        position: relative;
-        border-radius: 0;
-    }
-    
-    .sidebar.collapse {
-        display: none;
-    }
-    
-    .sidebar.collapse.show {
-        display: block;
-        max-height: none;
-    }
-    
-    /* Mejor espaciado vertical en listas */
-    .sidebar .nav-item {
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .sidebar .nav-item:last-child {
-        border-bottom: none;
-    }
-    
-    /* Contenido principal sin márgenes excesivos */
+
+    /* Contenido principal sin margenes excesivos */
     main {
         width: 100% !important;
         margin-left: 0 !important;
         padding-left: 0 !important;
     }
-    
+
     .content-wrapper {
         padding: 1rem 0.75rem;
     }
-    
+
+    /* Harmoni content padding for topbar */
+    .harmoni-content {
+        padding: 14px 12px !important;
+    }
+
     /* Tablas horizontales scrollables */
     .table-responsive {
         border: none;
         margin: -0.75rem;
         margin-top: 0.75rem;
     }
-    
+
     .table {
         margin-bottom: 0;
     }
-    
-    /* Mejoras en DataTables para móvil */
+
+    /* Mejoras en DataTables para movil */
     .dataTables_wrapper .dataTables_paginate .paginate_button {
         padding: 0.35rem 0.5rem;
         margin: 0.2rem;
     }
-    
+
     .dataTables_wrapper .dataTables_length,
     .dataTables_wrapper .dataTables_filter {
         margin-bottom: 0.5rem;
     }
-    
+
     .dataTables_wrapper .dataTables_length select,
     .dataTables_wrapper .dataTables_filter input {
         max-width: 100%;
     }
-    
+
     /* Botones en fila con mejor espaciado */
     .btn-group-vertical .btn,
     .btn-toolbar .btn {
         margin: 0.25rem;
     }
-    
+
     /* Cards mejor espaciadas */
     .card {
         border-radius: 0.35rem;
     }
-    
+
     .card-title {
         margin-bottom: 0.75rem;
         font-size: 1rem;
     }
-    
+
     /* Formularios optimizados */
     .form-group, .mb-3 {
         margin-bottom: 1rem;
     }
-    
+
     .form-control, .form-select {
         font-size: 16px; /* Previene zoom en iOS */
         border-radius: 0.35rem;
     }
-    
+
     /* Input groups */
     .input-group {
         display: flex;
         flex-wrap: wrap;
     }
-    
+
     .input-group > .form-control,
     .input-group > .form-select {
         flex: 1;
         min-width: 150px;
     }
-    
+
     /* Badges mejor visibles */
     .badge {
         padding: 0.35rem 0.65rem;
         font-size: 0.75rem;
     }
-    
+
     /* Dropdowns mejor posicionados */
     .dropdown-menu {
         max-width: 90vw;
-        left: 5vw !important;
-        right: auto !important;
     }
-    
+
     /* Modales responsivos */
     .modal-dialog {
         margin: 0.5rem;
     }
-    
+
     .modal-content {
         border-radius: 0.35rem;
     }
-    
-    /* Acordeones más claros */
+
+    /* Acordeones mas claros */
     .accordion-button {
         font-size: 0.95rem;
         padding: 0.75rem 1rem;
     }
-    
+
     .accordion-body {
         padding: 1rem;
     }
-    
-    /* Texto seleccionable pero sin efectos molestos */
-    -webkit-user-select: text;
-    user-select: text;
+
+    /* Global search: compact on mobile */
+    .global-search {
+        flex: 1;
+        margin: 0 8px;
+    }
+
+    .global-search-input {
+        font-size: 0.85rem !important;
+    }
+
+    /* Command palette: full-width on mobile */
+    .cmd-container {
+        margin: 8px;
+        max-width: calc(100vw - 16px);
+        border-radius: 10px;
+    }
+
+    .cmd-input {
+        font-size: 0.95rem;
+    }
+
+    /* Notif dropdown: full width on mobile */
+    #notifDropdown {
+        width: calc(100vw - 24px) !important;
+        right: -60px !important;
+    }
 }
 
-/* Pantallas muy pequeñas (menos de 576px) */
+/* ═══ Small phones (< 576px) ═══ */
 @media (max-width: 576px) {
     .navbar-brand {
         font-size: 1rem;
     }
-    
+
     .navbar-brand i {
         margin-right: 0.25rem;
     }
-    
+
     .content-wrapper {
         padding: 0.75rem 0.5rem;
     }
-    
-    /* Botones apilados en móvil */
-    .btn {
+
+    .harmoni-content {
+        padding: 10px 8px !important;
+    }
+
+    /* Botones: NOT full width by default (was breaking layouts) */
+    /* Only stack in specific contexts */
+    .card-body > .btn:not(.btn-group .btn),
+    .d-grid .btn {
         display: block;
         width: 100%;
         margin-bottom: 0.5rem;
     }
-    
+
     .btn-group .btn {
         width: auto;
         display: inline-block;
     }
-    
-    /* Reducir padding en pequeños elementos */
+
+    /* Reducir padding en pequenos elementos */
     .card {
         margin-bottom: 0.75rem;
     }
-    
+
     .card-body {
         padding: 0.75rem;
     }
-    
+
     .card-header {
         padding: 0.75rem;
     }
-    
-    /* Tabla comprimida en móvil */
+
+    /* Tabla comprimida en movil */
     .table {
         font-size: 0.8rem;
     }
-    
+
     .table th, .table td {
         padding: 0.4rem;
     }
-    
-    /* Ocultar columnas innecesarias en móvil */
+
+    /* Ocultar columnas innecesarias en movil */
     .d-none-mobile {
         display: none !important;
     }
-    
+
     /* Formularios apilados */
-    .row > [class*="col-"] {
+    .row > [class*="col-md-"],
+    .row > [class*="col-lg-"] {
         width: 100%;
         margin-bottom: 0.75rem;
     }
-    
-    /* Páginación mejor en móvil */
+
+    /* Paginacion mejor en movil */
     .pagination {
         flex-wrap: wrap;
         gap: 0.25rem;
     }
-    
+
     .page-item {
         margin: 0;
     }
-    
+
     .page-link {
         padding: 0.35rem 0.5rem;
         font-size: 0.85rem;
     }
+
+    /* Topbar compact */
+    .topbar-title h1 {
+        font-size: 0.95rem !important;
+    }
+
+    /* Sidebar: wider on phones */
+    .harmoni-sidebar {
+        width: 280px !important;
+    }
 }
 
-/* Pantallas muy pequeñas (menos de 360px) */
+/* ═══ Very small phones (< 360px) ═══ */
 @media (max-width: 360px) {
     body {
         font-size: 12px;
     }
-    
+
     h1 { font-size: 1.25rem; }
     h2 { font-size: 1.1rem; }
     h3 { font-size: 1rem; }
-    
+
     .navbar-brand {
         font-size: 0.9rem;
     }
-    
+
     .content-wrapper {
         padding: 0.5rem;
     }
-    
+
     .table {
         font-size: 0.75rem;
     }
-    
+
     .btn {
         padding: 0.4rem 0.5rem;
         font-size: 0.8rem;
     }
+
+    .harmoni-sidebar {
+        width: 260px !important;
+    }
 }
 
-/* Optimización para dispositivos touch */
+/* ═══ Touch Device Optimization ═══ */
 @media (hover: none) and (pointer: coarse) {
-    /* Aumentar área de toque */
-    .btn, .nav-link, .page-link {
+    /* Aumentar area de toque - 44px minimum per Apple HIG */
+    .nav-item,
+    .nav-section-toggle,
+    .sidebar-tab {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    .page-link {
         min-height: 44px;
         min-width: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
-    
-    /* Quitar hover states molestos */
-    a:active, button:active {
-        opacity: 0.8;
+
+    /* Remove hover effects that linger on touch */
+    .btn:hover,
+    .nav-item:hover,
+    .card:hover {
+        transform: none !important;
     }
-    
-    /* Evitar efectos que no sean útiles en touch */
-    .btn:hover {
-        transform: none;
+
+    /* Active states for touch feedback */
+    .btn:active,
+    .nav-item:active,
+    .bottom-nav-item:active {
+        opacity: 0.75;
+        transition: opacity 0.1s;
+    }
+
+    /* Prevent text selection on interactive elements */
+    .btn,
+    .nav-item,
+    .sidebar-tab,
+    .bottom-nav-item {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: rgba(15, 118, 110, 0.1);
+    }
+
+    /* Larger checkbox/radio for touch */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Swipe-friendly sidebar nav items */
+    .harmoni-sidebar .nav-item {
+        padding: 10px 16px !important;
     }
 }
 
-/* Scrolling suave en iOS */
--webkit-overflow-scrolling: touch;
+/* ═══ Landscape on mobile ═══ */
+@media (max-height: 500px) and (orientation: landscape) {
+    .harmoni-bottom-nav {
+        display: none !important;
+    }
 
-/* Mejorar legibilidad en conexiones lentas */
+    .harmoni-content {
+        padding-bottom: 16px !important;
+    }
+
+    .harmoni-sidebar {
+        overflow-y: auto;
+    }
+}
+
+/* ═══ iOS Scrolling ═══ */
+.harmoni-sidebar,
+.harmoni-content,
+.cmd-results,
+.modal-body {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ═══ Reduced data preference ═══ */
 @media (prefers-reduced-data: reduce) {
     * {
         background-attachment: scroll !important;
@@ -302,41 +450,68 @@ body {
     }
 }
 
-/* Preferencia de contraste alto */
+/* ═══ High contrast preference ═══ */
 @media (prefers-contrast: more) {
     .btn, .form-control, .card {
         border-width: 2px;
     }
-    
+
     .text-muted {
         color: #555 !important;
     }
+
+    .bottom-nav-item {
+        border-top: 2px solid #333;
+    }
 }
 
-/* Accesibilidad: focus visible mejorado */
+/* ═══ Reduced motion preference ═══ */
+@media (prefers-reduced-motion: reduce) {
+    .harmoni-sidebar {
+        transition: none !important;
+    }
+
+    .sidebar-overlay {
+        transition: none !important;
+    }
+
+    .harmoni-a2hs {
+        animation: none !important;
+    }
+}
+
+/* ═══ Accessibility: focus visible ═══ */
 *:focus-visible {
-    outline: 2px solid var(--secondary-color);
+    outline: 2px solid #0f766e;
     outline-offset: 2px;
 }
 
-/* Eliminar outline en focus no visible */
 *:focus:not(:focus-visible) {
     outline: none;
 }
 
-/* Print styles */
+/* ═══ Print styles ═══ */
 @media print {
-    .navbar, .sidebar, .content-wrapper > .alert {
-        display: none;
+    .navbar,
+    .sidebar,
+    .harmoni-sidebar,
+    .harmoni-bottom-nav,
+    .harmoni-a2hs,
+    .harmoni-ai-toggle,
+    .harmoni-ai-panel,
+    .sidebar-overlay,
+    .content-wrapper > .alert {
+        display: none !important;
     }
-    
+
     body {
         padding: 0;
         margin: 0;
     }
-    
-    main {
-        width: 100%;
-        padding: 0;
+
+    main, .harmoni-main, .harmoni-content {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 }

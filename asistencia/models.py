@@ -1375,6 +1375,15 @@ class ConfiguracionSistema(models.Model):
         help_text="@username para canales públicos o -100XXXXXXX para privados.")
 
     # ── Integraciones: WhatsApp Business Cloud API ───────────────────────────
+    WHATSAPP_PROVIDER_CHOICES = [
+        ('NONE', 'Sin WhatsApp'),
+        ('META_CLOUD', 'Meta Cloud API'),
+        ('OPENCLAW', 'OpenClaw Gateway'),
+    ]
+    whatsapp_provider = models.CharField(
+        max_length=12, choices=WHATSAPP_PROVIDER_CHOICES, default='NONE',
+        verbose_name="Proveedor WhatsApp",
+        help_text="Seleccione el proveedor para enviar mensajes de WhatsApp.")
     whatsapp_phone_number_id = models.CharField(
         max_length=100, blank=True, default='',
         verbose_name="WhatsApp Phone Number ID",
@@ -1387,6 +1396,14 @@ class ConfiguracionSistema(models.Model):
         max_length=500, blank=True, default='',
         verbose_name="Número(s) Destino WhatsApp",
         help_text="Formato 51XXXXXXXXX. Separar por coma para múltiples destinatarios.")
+    openclaw_gateway_url = models.CharField(
+        max_length=200, blank=True, default='http://localhost:19000',
+        verbose_name="OpenClaw Gateway URL",
+        help_text="URL del gateway OpenClaw para envío de WhatsApp.")
+    openclaw_gateway_token = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name="OpenClaw Gateway Token",
+        help_text="Token de autenticación para OpenClaw (si aplica).")
 
     actualizado_en = models.DateTimeField(auto_now=True)
     actualizado_por = models.ForeignKey(

@@ -1,7 +1,11 @@
-{% extends 'base.html' %}
+{% extends 'portal/base_portal.html' %}
 {% load humanize harmoni_tags %}
 
 {% block title %}Mi Portal{% endblock %}
+
+{% block mobile_title %}Mi Portal{% endblock %}
+
+{% block tab_inicio %}active{% endblock %}
 
 {% block page_title %}
 <h1 class="topbar-h1"><i class="fas fa-user-circle me-2 text-primary"></i>Mi Portal</h1>

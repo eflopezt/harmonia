@@ -23,6 +23,7 @@ class PlantillaNotificacion(models.Model):
     TIPO_CHOICES = [
         ('EMAIL', 'Email'),
         ('IN_APP', 'In-App'),
+        ('WHATSAPP', 'WhatsApp'),
         ('AMBOS', 'Ambos'),
     ]
     MODULO_CHOICES = [
@@ -84,6 +85,7 @@ class Notificacion(models.Model):
     TIPO_CHOICES = [
         ('EMAIL', 'Email'),
         ('IN_APP', 'In-App'),
+        ('WHATSAPP', 'WhatsApp'),
     ]
     ESTADO_CHOICES = [
         ('PENDIENTE', 'Pendiente'),
@@ -102,6 +104,10 @@ class Notificacion(models.Model):
     )
     asunto = models.CharField(max_length=200, verbose_name="Asunto")
     cuerpo = models.TextField(verbose_name="Cuerpo (HTML)")
+    destinatario_telefono = models.CharField(
+        max_length=20, blank=True, default='', verbose_name="Telefono destinatario",
+        help_text="Numero WhatsApp en formato internacional sin '+' (ej: 51999888777)"
+    )
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='IN_APP',
                             verbose_name="Tipo")
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='PENDIENTE',
@@ -291,6 +297,7 @@ class PreferenciaNotificacion(models.Model):
                                      verbose_name="Personal")
     recibir_email = models.BooleanField(default=True, verbose_name="Recibir emails")
     recibir_in_app = models.BooleanField(default=True, verbose_name="Recibir notificaciones in-app")
+    recibir_whatsapp = models.BooleanField(default=True, verbose_name="Recibir WhatsApp")
     frecuencia_resumen = models.CharField(max_length=10, choices=FRECUENCIA_CHOICES,
                                           default='INMEDIATO',
                                           verbose_name="Frecuencia de resumen")

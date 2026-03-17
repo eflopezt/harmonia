@@ -4,13 +4,13 @@ from .models import Empresa
 
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display  = ('razon_social', 'ruc', 'regimen_laboral', 'sector', 'activa', 'es_principal')
+    list_display  = ('razon_social', 'ruc', 'subdominio', 'regimen_laboral', 'sector', 'activa', 'es_principal')
     list_filter   = ('activa', 'es_principal', 'regimen_laboral', 'sector')
-    search_fields = ('ruc', 'razon_social', 'nombre_comercial')
+    search_fields = ('ruc', 'razon_social', 'nombre_comercial', 'subdominio')
     readonly_fields = ('creado_en', 'actualizado_en', 'creado_por')
     fieldsets = (
         ('Identificación', {
-            'fields': ('ruc', 'razon_social', 'nombre_comercial', 'codigo_empleador'),
+            'fields': ('ruc', 'razon_social', 'nombre_comercial', 'subdominio', 'codigo_empleador'),
         }),
         ('Dirección', {
             'fields': ('direccion', 'ubigeo', 'distrito', 'provincia', 'departamento'),

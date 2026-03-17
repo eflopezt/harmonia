@@ -18,6 +18,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8001',
     'https://*.app.github.dev',
     'https://*.githubpreview.dev',
+    # Multi-tenant subdomain dev testing (use *.lvh.me which resolves to 127.0.0.1)
+    'http://*.lvh.me:8000',
+    'http://lvh.me:8000',
 ]
 
 # Database - SQLite for development
