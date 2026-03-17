@@ -67,7 +67,7 @@ def notificaciones_panel(request):
     comunicados_recientes = []
     total_comunicados = 0
     try:
-        comunicados_recientes = list(ComunicadoMasivo.objects.order_by('-creado_en')[:5])
+        comunicados_recientes = list(ComunicadoMasivo.objects.select_related('creado_por').order_by('-creado_en')[:5])
         total_comunicados = ComunicadoMasivo.objects.filter(estado='ENVIADO').count()
     except Exception:
         pass
@@ -604,18 +604,34 @@ def mis_comunicados(request):
         return redirect('portal_home')
 
     # Comunicados enviados donde el empleado es destinatario
-    comunicados_enviados = ComunicadoMasivo.objects.filter(estado='ENVIADO')
+    # Filter at the DB level to avoid N+1 (one query per comunicado)
+    area_id = empleado.subarea.area_id if empleado.subarea else None
+    grupo = empleado.grupo_tareo
 
-    # Filtrar solo los que correspondan al empleado
+    q_todos = Q(destinatarios_tipo='TODOS')
+    q_individual = Q(destinatarios_tipo='INDIVIDUAL', personal_individual=empleado)
+    q_grupo = Q(destinatarios_tipo='GRUPO', grupo=grupo) if grupo else Q(pk__in=[])
+    q_area = Q(destinatarios_tipo='AREA', areas__pk=area_id) if area_id else Q(pk__in=[])
+
+    comunicados_enviados = (
+        ComunicadoMasivo.objects
+        .filter(estado='ENVIADO')
+        .filter(q_todos | q_individual | q_grupo | q_area)
+        .distinct()
+        .order_by('-creado_en')
+    )
+
+    # Prefetch confirmaciones for this employee in bulk
+    confirmados_ids = set(
+        ConfirmacionLectura.objects
+        .filter(personal=empleado, confirmado=True, comunicado__in=comunicados_enviados)
+        .values_list('comunicado_id', flat=True)
+    )
+
     mis = []
     for com in comunicados_enviados:
-        destinatarios = com._resolver_destinatarios()
-        if destinatarios.filter(pk=empleado.pk).exists():
-            # Verificar si ya confirmó
-            com.ya_confirmado = ConfirmacionLectura.objects.filter(
-                comunicado=com, personal=empleado, confirmado=True
-            ).exists()
-            mis.append(com)
+        com.ya_confirmado = com.pk in confirmados_ids
+        mis.append(com)
 
     return render(request, 'comunicaciones/mis_comunicados.html', {
         'titulo': 'Mis Comunicados',

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <!-- Fondo -->
+    <radialGradient id="bgGrad" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#1a4a44"/>
+      <stop offset="100%" stop-color="#0d2b27"/>
+    </radialGradient>
+
+    <!-- Gradiente del arco: coral izquierda → cyan derecha -->
+    <linearGradient id="smileGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#e05a4e"/>
+      <stop offset="45%"  stop-color="#c0725a"/>
+      <stop offset="100%" stop-color="#5eead4"/>
+    </linearGradient>
+
+    <!-- Glow del arco -->
+    <filter id="arcGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Glow suave pilares -->
+    <filter id="pillarGlow" x="-20%" y="-5%" width="140%" height="110%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fondo -->
+  <rect width="200" height="200" fill="url(#bgGrad)"/>
+
+  <!-- Pilar izquierdo -->
+  <rect x="52" y="38" width="22" height="112" rx="11" fill="white" filter="url(#pillarGlow)"/>
+
+  <!-- Pilar derecho -->
+  <rect x="126" y="38" width="22" height="112" rx="11" fill="white" filter="url(#pillarGlow)"/>
+
+  <!--
+    Arco sonrisa:
+    - Empieza en x=38 (16px a la IZQUIERDA del pilar izquierdo que está en x=52)
+    - Termina en x=162 (14px a la DERECHA del pilar derecho que termina en x=148)
+    - Control point Q 100,138 — curva pronunciada hacia abajo
+    - Los extremos están a la misma altura del centro de los pilares (~y=100)
+  -->
+  <path
+    d="M 38,97 Q 100,145 162,97"
+    stroke="url(#smileGrad)"
+    stroke-width="9"
+    stroke-linecap="round"
+    fill="none"
+    filter="url(#arcGlow)"
+  />
+</svg>

@@ -2,6 +2,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .models import Empresa
@@ -92,6 +93,9 @@ def seleccionar_empresa(request):
     """
     empresa_id = request.POST.get('empresa_id')
     next_url   = request.POST.get('next', '/')
+    # Prevent open redirect — only allow internal URLs
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = '/'
 
     if empresa_id:
         try:

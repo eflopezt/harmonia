@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%"  stop-color="#1b4a43"/>
+      <stop offset="100%" stop-color="#0c2822"/>
+    </radialGradient>
+
+    <!-- Gradiente del arco: coral cálido → naranja centro → teal frío -->
+    <linearGradient id="arc" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#d95f4b"/>
+      <stop offset="38%"  stop-color="#c97055"/>
+      <stop offset="55%"  stop-color="#a07868"/>
+      <stop offset="100%" stop-color="#4ecbb8"/>
+    </linearGradient>
+
+    <!-- Glow difuso y amplio — igual al de Google -->
+    <filter id="bloom" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Glow suave para pilares -->
+    <filter id="soft" x="-15%" y="-5%" width="130%" height="110%">
+      <feGaussianBlur stdDeviation="1" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fondo -->
+  <rect width="200" height="200" rx="0" fill="url(#bg)"/>
+
+  <!-- Pilar izquierdo: x=53..75, más delgado y elegante -->
+  <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft)"/>
+
+  <!-- Pilar derecho: x=126..148 -->
+  <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft)"/>
+
+  <!--
+    ARCO SONRISA v3 — parámetros calibrados al de Google:
+    • Inicio x=49  (4px fuera del borde izq del pilar izq en x=53) — overhang mínimo
+    • Final  x=151 (4px fuera del borde der del pilar der en x=147)
+    • Y endpoints = 93 (centro-alto de los pilares, no demasiado abajo)
+    • Control point x=100, y=136 — smile natural, no exagerado
+    • stroke-width=8.5 + bloom difuso replicando el glow de Google
+  -->
+  <path
+    d="M 49,93 Q 100,136 151,93"
+    stroke="url(#arc)"
+    stroke-width="8.5"
+    stroke-linecap="round"
+    fill="none"
+    filter="url(#bloom)"
+  />
+</svg>

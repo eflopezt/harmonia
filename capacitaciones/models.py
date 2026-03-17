@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 
 from personal.models import Personal
@@ -89,7 +89,10 @@ class Capacitacion(models.Model):
     material_url = models.URLField(blank=True, verbose_name="URL Material")
     material_archivo = models.FileField(
         upload_to='capacitaciones/material/%Y/%m/',
-        blank=True, null=True, verbose_name="Material (archivo)"
+        blank=True, null=True, verbose_name="Material (archivo)",
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'jpg', 'png'],
+        )],
     )
 
     creado_por = models.ForeignKey(
@@ -155,7 +158,10 @@ class AsistenciaCapacitacion(models.Model):
     # Certificado
     certificado = models.FileField(
         upload_to='capacitaciones/certificados/%Y/%m/',
-        blank=True, null=True, verbose_name="Certificado"
+        blank=True, null=True, verbose_name="Certificado",
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        )],
     )
     fecha_certificado = models.DateField(null=True, blank=True)
 

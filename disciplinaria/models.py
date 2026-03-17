@@ -11,6 +11,7 @@ Base legal:
 from datetime import date, timedelta
 
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 from personal.models import Personal
@@ -85,7 +86,10 @@ class MedidaDisciplinaria(models.Model):
     )
     evidencias = models.FileField(
         upload_to='disciplinaria/evidencias/%Y/%m/',
-        blank=True, null=True, verbose_name="Evidencias"
+        blank=True, null=True, verbose_name="Evidencias",
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'mp4', 'mp3'],
+        )]
     )
 
     # Carta de preaviso (para despido - Art. 31 DS 003-97-TR)
@@ -96,7 +100,10 @@ class MedidaDisciplinaria(models.Model):
     )
     documento_preaviso = models.FileField(
         upload_to='disciplinaria/cartas/%Y/%m/',
-        blank=True, null=True, verbose_name="Carta de Preaviso"
+        blank=True, null=True, verbose_name="Carta de Preaviso",
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'doc', 'docx'],
+        )]
     )
 
     # Plazo descargo
@@ -123,7 +130,10 @@ class MedidaDisciplinaria(models.Model):
     )
     documento_resolucion = models.FileField(
         upload_to='disciplinaria/resoluciones/%Y/%m/',
-        blank=True, null=True, verbose_name="Documento Resolución"
+        blank=True, null=True, verbose_name="Documento Resolución",
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'doc', 'docx'],
+        )]
     )
 
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR')
@@ -224,7 +234,10 @@ class Descargo(models.Model):
     texto = models.TextField(verbose_name="Texto del Descargo")
     archivos_adjuntos = models.FileField(
         upload_to='disciplinaria/descargos/%Y/%m/',
-        blank=True, null=True, verbose_name="Adjuntos"
+        blank=True, null=True, verbose_name="Adjuntos",
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        )]
     )
 
     estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default='PRESENTADO')

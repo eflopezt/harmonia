@@ -21,7 +21,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('asistencia', '0023_add_uit_rmv_to_config'),
+        ('tareo', '0023_add_uit_rmv_to_config'),
     ]
 
     operations = [

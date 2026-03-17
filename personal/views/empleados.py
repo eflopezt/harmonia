@@ -514,8 +514,8 @@ def personal_import(request):
 
             except Exception as e:
                 messages.error(request, f'Error al procesar el archivo: {str(e)}')
-                import traceback
-                print(traceback.format_exc())
+                import logging
+                logging.getLogger(__name__).exception('Error importando personal desde Excel')
                 return redirect('personal_import')
     else:
         form = ImportExcelForm()

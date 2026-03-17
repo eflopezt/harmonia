@@ -936,13 +936,15 @@ def hr_ask(request):
             fecha_nacimiento__month=hoy.month,
             fecha_nacimiento__day=hoy.day,
         )
+        # Get upcoming birthdays in the next 7 days (ORM-safe, no .extra())
+        upcoming_dates = [(hoy + timedelta(days=d)) for d in range(1, 8)]
+        from django.db.models import Q
+        q_upcoming = Q()
+        for d in upcoming_dates:
+            q_upcoming |= Q(fecha_nacimiento__month=d.month, fecha_nacimiento__day=d.day)
         cumple_semana = Personal.objects.filter(
-            estado='Activo',
-            fecha_nacimiento__isnull=False,
-        ).extra(where=[
-            "CAST(strftime('%m', fecha_nacimiento) AS INTEGER) = %s "
-            "AND CAST(strftime('%d', fecha_nacimiento) AS INTEGER) BETWEEN %s AND %s"
-        ], params=[hoy.month, hoy.day, min(hoy.day + 7, 31)]).exclude(
+            Q(estado='Activo', fecha_nacimiento__isnull=False) & q_upcoming
+        ).exclude(
             fecha_nacimiento__month=hoy.month,
             fecha_nacimiento__day=hoy.day,
         )[:5]

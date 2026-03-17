@@ -561,7 +561,10 @@ def registro_detalle(request, pk):
 @solo_admin
 def registro_editar(request, pk):
     """Editar ajustes manuales de un registro y recalcular."""
-    reg = get_object_or_404(RegistroNomina, pk=pk)
+    reg = get_object_or_404(
+        RegistroNomina.objects.select_related('personal', 'periodo'),
+        pk=pk,
+    )
     if reg.periodo.estado in ('APROBADO', 'CERRADO', 'ANULADO'):
         messages.error(request, 'El período está aprobado o cerrado, no se puede editar.')
         return redirect('nominas_registro_detalle', pk=pk)

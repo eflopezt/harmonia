@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Harmoni — Opciones de color para el arco</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #091a18;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    padding: 48px 40px;
+    color: #fff;
+  }
+  .header { margin-bottom: 12px; }
+  .header h1 { font-size: 18px; color: #5eead4; font-weight: 700; }
+  .header p  { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 6px; line-height: 1.6; }
+
+  .critica {
+    background: rgba(255,255,255,0.04);
+    border-left: 3px solid #f87171;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 24px 0 40px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.7;
+  }
+  .critica strong { color: #fca5a5; }
+  .critica span   { color: #5eead4; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 24px;
+  }
+  .card {
+    background: #0f2e2a;
+    border-radius: 16px;
+    padding: 28px 20px 20px;
+    text-align: center;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all .25s;
+  }
+  .card:hover { border-color: rgba(94,234,212,0.4); transform: translateY(-3px); }
+  .card.best  { border-color: #5eead4; box-shadow: 0 0 32px rgba(94,234,212,0.2); }
+
+  .label { font-size: 13px; font-weight: 700; color: #5eead4; margin-bottom: 16px; }
+  .name  { font-size: 16px; font-weight: 800; color: white; margin-top: 14px; }
+  .desc  { font-size: 11.5px; color: rgba(255,255,255,0.45); margin-top: 6px; line-height: 1.6; }
+  .pros  { font-size: 11px; color: #86efac; margin-top: 8px; }
+  .cons  { font-size: 11px; color: #fca5a5; margin-top: 2px; }
+  .badge {
+    display: inline-block; margin-top: 10px;
+    font-size: 10px; padding: 3px 10px; border-radius: 99px;
+    background: rgba(94,234,212,0.12); color: #5eead4;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Harmoni — Análisis de color del arco</h1>
+  <p>6 propuestas. Abre este archivo en el navegador y dile a Claude cuál te convence.</p>
+</div>
+
+<div class="critica">
+  <strong>Autocrítica del arco coral→naranja→teal actual:</strong><br>
+  El gradiente coral/rojo fue copiado de la imagen de Google pero <strong>no pertenece a la marca</strong>.
+  Harmoni no tiene ningún tono cálido en su paleta (todo es teal frío + blanco).
+  El color intermedio (<span>#a07868</span>) queda como un marrón sucio que no es ni cálido ni frío.
+  Resultado: el logo se siente <strong>prestado de otra marca</strong>, no genera identidad propia.
+  Un buen logo usa los colores con intención — cada color debe tener un porqué.
+</div>
+
+<div class="grid">
+
+  <!-- OPCIÓN 1: Cyan puro con glow -->
+  <div class="card best">
+    <div class="label">A — Marca pura</div>
+    <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg1" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stop-color="#1b4a43"/>
+          <stop offset="100%" stop-color="#0c2822"/>
+        </radialGradient>
+        <filter id="glow1" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft1" x="-15%" y="-5%" width="130%" height="110%">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="200" height="200" fill="url(#bg1)"/>
+      <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft1)"/>
+      <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft1)"/>
+      <path d="M 49,93 Q 100,136 151,93"
+        stroke="#5eead4" stroke-width="8.5" stroke-linecap="round" fill="none" filter="url(#glow1)"/>
+    </svg>
+    <div class="name">Cyan marca</div>
+    <div class="desc">El color exacto de la<br>paleta Harmoni</div>
+    <div class="pros">✓ 100% coherente con la marca<br>✓ Limpio, memorable, seguro<br>✓ Funciona en blanco y negro</div>
+    <span class="badge">⭐ recomendado</span>
+  </div>
+
+  <!-- OPCIÓN 2: Blanco a cyan (continuidad con pilares) -->
+  <div class="card">
+    <div class="label">B — Perla a cyan</div>
+    <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg2" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stop-color="#1b4a43"/><stop offset="100%" stop-color="#0c2822"/>
+        </radialGradient>
+        <linearGradient id="arc2" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#e8fffe"/>
+          <stop offset="50%"  stop-color="#5eead4"/>
+          <stop offset="100%" stop-color="#e8fffe"/>
+        </linearGradient>
+        <filter id="glow2" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="11" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft2" x="-15%" y="-5%" width="130%" height="110%">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="200" height="200" fill="url(#bg2)"/>
+      <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft2)"/>
+      <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft2)"/>
+      <path d="M 49,93 Q 100,136 151,93"
+        stroke="url(#arc2)" stroke-width="8.5" stroke-linecap="round" fill="none" filter="url(#glow2)"/>
+    </svg>
+    <div class="name">Perla → Cyan</div>
+    <div class="desc">Nace blanco (como los<br>pilares), brilla cyan</div>
+    <div class="pros">✓ Continuidad visual con pilares<br>✓ Sensación premium, suave</div>
+    <div class="cons">− Puede verse muy claro en fondos brillantes</div>
+  </div>
+
+  <!-- OPCIÓN 3: Cyan oscuro a cyan claro (profundidad) -->
+  <div class="card">
+    <div class="label">C — Familia teal</div>
+    <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg3" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stop-color="#1b4a43"/><stop offset="100%" stop-color="#0c2822"/>
+        </radialGradient>
+        <linearGradient id="arc3" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#0d9488"/>
+          <stop offset="50%"  stop-color="#5eead4"/>
+          <stop offset="100%" stop-color="#0d9488"/>
+        </linearGradient>
+        <filter id="glow3" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft3" x="-15%" y="-5%" width="130%" height="110%">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="200" height="200" fill="url(#bg3)"/>
+      <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft3)"/>
+      <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft3)"/>
+      <path d="M 49,93 Q 100,136 151,93"
+        stroke="url(#arc3)" stroke-width="8.5" stroke-linecap="round" fill="none" filter="url(#glow3)"/>
+    </svg>
+    <div class="name">Teal profundo</div>
+    <div class="desc">Teal oscuro en bordes,<br>cyan brillante al centro</div>
+    <div class="pros">✓ Tiene profundidad y dimensión<br>✓ Totalmente en la paleta</div>
+    <div class="cons">− Menos contraste que la opción A</div>
+  </div>
+
+  <!-- OPCIÓN 4: Dorado/ámbar — contraste intencional -->
+  <div class="card">
+    <div class="label">D — Acento dorado</div>
+    <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg4" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stop-color="#1b4a43"/><stop offset="100%" stop-color="#0c2822"/>
+        </radialGradient>
+        <linearGradient id="arc4" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#f59e0b"/>
+          <stop offset="50%"  stop-color="#fcd34d"/>
+          <stop offset="100%" stop-color="#f59e0b"/>
+        </linearGradient>
+        <filter id="glow4" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft4" x="-15%" y="-5%" width="130%" height="110%">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="200" height="200" fill="url(#bg4)"/>
+      <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft4)"/>
+      <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft4)"/>
+      <path d="M 49,93 Q 100,136 151,93"
+        stroke="url(#arc4)" stroke-width="8.5" stroke-linecap="round" fill="none" filter="url(#glow4)"/>
+    </svg>
+    <div class="name">Dorado ámbar</div>
+    <div class="desc">Cálido, humano, diferente.<br>Contraste deliberado</div>
+    <div class="pros">✓ Muy memorable, único<br>✓ Calidez humana (RRHH)</div>
+    <div class="cons">− Requiere añadir ámbar a la paleta<br>− Riesgo de verse diferente a la app</div>
+  </div>
+
+  <!-- OPCIÓN 5: Verde lima — energía, modernidad -->
+  <div class="card">
+    <div class="label">E — Lima/verde</div>
+    <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg5" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stop-color="#1b4a43"/><stop offset="100%" stop-color="#0c2822"/>
+        </radialGradient>
+        <linearGradient id="arc5" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#5eead4"/>
+          <stop offset="50%"  stop-color="#a3e635"/>
+          <stop offset="100%" stop-color="#5eead4"/>
+        </linearGradient>
+        <filter id="glow5" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft5" x="-15%" y="-5%" width="130%" height="110%">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="200" height="200" fill="url(#bg5)"/>
+      <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft5)"/>
+      <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft5)"/>
+      <path d="M 49,93 Q 100,136 151,93"
+        stroke="url(#arc5)" stroke-width="8.5" stroke-linecap="round" fill="none" filter="url(#glow5)"/>
+    </svg>
+    <div class="name">Cyan → Lima</div>
+    <div class="desc">Energético, tech,<br>startup feel</div>
+    <div class="pros">✓ Muy moderno, dinámico</div>
+    <div class="cons">− Demasiado "tech startup"<br>− Puede verse juvenil para ERP</div>
+  </div>
+
+  <!-- OPCIÓN 6: Violeta/lila suave — confianza, corporativo -->
+  <div class="card">
+    <div class="label">F — Violeta suave</div>
+    <svg viewBox="0 0 200 200" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg6" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stop-color="#1b4a43"/><stop offset="100%" stop-color="#0c2822"/>
+        </radialGradient>
+        <linearGradient id="arc6" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#5eead4"/>
+          <stop offset="50%"  stop-color="#c084fc"/>
+          <stop offset="100%" stop-color="#5eead4"/>
+        </linearGradient>
+        <filter id="glow6" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft6" x="-15%" y="-5%" width="130%" height="110%">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="200" height="200" fill="url(#bg6)"/>
+      <rect x="53" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft6)"/>
+      <rect x="126" y="36" width="21" height="116" rx="10.5" fill="white" filter="url(#soft6)"/>
+      <path d="M 49,93 Q 100,136 151,93"
+        stroke="url(#arc6)" stroke-width="8.5" stroke-linecap="round" fill="none" filter="url(#glow6)"/>
+    </svg>
+    <div class="name">Cyan → Violeta</div>
+    <div class="desc">Sofisticado, AI-forward,<br>corporativo moderno</div>
+    <div class="pros">✓ Asociado a IA y confianza<br>✓ Diferenciador de competencia</div>
+    <div class="cons">− Rompe con la paleta teal<br>− Puede confundirse con apps de fintech</div>
+  </div>
+
+</div>
+
+<div style="margin-top:36px; padding:16px 20px; background:rgba(94,234,212,0.06); border-radius:10px; font-size:12px; color:rgba(255,255,255,0.4);">
+  Dile a Claude: "quiero la opción A", "quiero la B" o "mezcla A con D" — y actualiza todos los archivos.
+</div>
+
+</body>
+</html>
