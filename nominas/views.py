@@ -444,6 +444,22 @@ def periodo_aprobar(request, pk):
 
 @login_required
 @solo_admin
+@require_POST
+def periodo_cerrar(request, pk):
+    """Cierra el período definitivamente (no permite más cambios)."""
+    periodo = get_object_or_404(PeriodoNomina, pk=pk)
+    if periodo.estado != 'APROBADO':
+        messages.error(request, 'Solo se puede cerrar un período en estado APROBADO.')
+        return redirect('nominas_periodo_detalle', pk=pk)
+
+    periodo.estado = 'CERRADO'
+    periodo.save(update_fields=['estado'])
+    messages.success(request, f'Período {periodo} cerrado definitivamente.')
+    return redirect('nominas_periodo_detalle', pk=pk)
+
+
+@login_required
+@solo_admin
 def periodo_exportar(request, pk):
     """Exporta el período a CSV compatible con Excel (BOM UTF-8)."""
     periodo = get_object_or_404(PeriodoNomina, pk=pk)

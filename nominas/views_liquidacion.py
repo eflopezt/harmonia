@@ -46,14 +46,22 @@ def _rd(v) -> Decimal:
 
 def _meses_semestre_gratif(fecha_cese: date) -> int:
     """
-    Meses cumplidos en el semestre de gratificación vigente a la fecha de cese.
+    Meses COMPLETOS en el semestre de gratificación vigente a la fecha de cese.
+    Ley 27735: solo se computan meses íntegros trabajados.
     Semestre 1: enero–junio (pago julio).
     Semestre 2: julio–diciembre (pago diciembre).
     Mínimo 0, máximo 6.
     """
+    import calendar
     m = fecha_cese.month
     inicio_sem = 1 if m <= 6 else 7
-    return max(0, m - inicio_sem + 1)
+    # Meses completos previos al mes de cese
+    meses_completos = max(0, m - inicio_sem)
+    # El mes de cese cuenta solo si trabajó hasta el último día
+    ultimo_dia_mes = calendar.monthrange(fecha_cese.year, fecha_cese.month)[1]
+    if fecha_cese.day >= ultimo_dia_mes:
+        meses_completos += 1
+    return min(meses_completos, 6)
 
 
 def _meses_semestre_cts(fecha_cese: date) -> int:

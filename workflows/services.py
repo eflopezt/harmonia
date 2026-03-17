@@ -165,8 +165,11 @@ def verificar_vencimientos():
         elif accion == 'ESCALAR':
             escalar_a = instancia.etapa_actual.escalar_a
             if escalar_a:
-                instancia.etapa_actual.aprobador_usuario = escalar_a
-                instancia.etapa_actual.tipo_aprobador    = 'USUARIO'
+                # Guardar escalación en metadata de la instancia (NO mutar el template EtapaFlujo)
+                instancia.metadata = instancia.metadata or {}
+                instancia.metadata['escalado_a_user_id'] = escalar_a.pk
+                instancia.metadata['escalado_a_username'] = escalar_a.username
+                instancia.metadata['tipo_aprobador_override'] = 'USUARIO'
                 instancia.etapa_vence_en = ahora + timedelta(hours=24)
                 instancia.save()
                 PasoFlujo.objects.create(

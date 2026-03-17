@@ -17,6 +17,7 @@ urlpatterns = [
     path('periodos/<int:pk>/', views.periodo_detalle, name='nominas_periodo_detalle'),
     path('periodos/<int:pk>/generar/', views.periodo_generar, name='nominas_periodo_generar'),
     path('periodos/<int:pk>/aprobar/', views.periodo_aprobar, name='nominas_periodo_aprobar'),
+    path('periodos/<int:pk>/cerrar/', views.periodo_cerrar, name='nominas_periodo_cerrar'),
     path('periodos/<int:pk>/exportar/', views.periodo_exportar, name='nominas_periodo_exportar'),
     path('periodos/<int:pk>/resumen/', views.periodo_resumen_ajax, name='nominas_periodo_resumen'),
     path('periodos/<int:pk>/boletas.zip', views.periodo_boletas_zip, name='nominas_periodo_boletas_zip'),

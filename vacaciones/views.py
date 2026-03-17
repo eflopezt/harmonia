@@ -189,7 +189,10 @@ def vacacion_aprobar(request, pk):
     """Aprobar solicitud de vacaciones."""
     solicitud = get_object_or_404(SolicitudVacacion, pk=pk)
     if solicitud.estado in ('BORRADOR', 'PENDIENTE'):
-        solicitud.aprobar(request.user)
+        try:
+            solicitud.aprobar(request.user)
+        except ValueError as e:
+            return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 
         from core.audit import log_update
         log_update(request, solicitud, {'estado': {'old': 'PENDIENTE', 'new': 'APROBADA'}},

@@ -218,14 +218,24 @@ class SolicitudVacacion(models.Model):
         super().save(*args, **kwargs)
 
     def aprobar(self, usuario):
-        """Aprueba la solicitud y descuenta del saldo."""
+        """Aprueba la solicitud y descuenta del saldo. Valida disponibilidad."""
+        # Validar saldo suficiente
+        if self.saldo and self.dias_calendario > self.saldo.dias_pendientes:
+            raise ValueError(
+                f'Saldo insuficiente: solicita {self.dias_calendario} días '
+                f'pero solo tiene {self.saldo.dias_pendientes} disponibles.'
+            )
         self.estado = 'APROBADA'
         self.aprobado_por = usuario
         self.fecha_aprobacion = date.today()
         self.save(update_fields=['estado', 'aprobado_por', 'fecha_aprobacion'])
-        # Descontar del saldo
+        # Descontar del saldo con lock para evitar race conditions
         if self.saldo:
-            self.saldo.dias_gozados += self.dias_calendario
+            from django.db.models import F
+            type(self.saldo).objects.filter(pk=self.saldo.pk).update(
+                dias_gozados=F('dias_gozados') + self.dias_calendario
+            )
+            self.saldo.refresh_from_db()
             self.saldo.recalcular()
 
     def rechazar(self, usuario, motivo=''):

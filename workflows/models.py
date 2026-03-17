@@ -189,6 +189,10 @@ class InstanciaFlujo(models.Model):
     def puede_aprobar(self, usuario):
         if not self.etapa_actual or self.estado != 'EN_PROCESO':
             return False
+        # Si la instancia fue escalada, el usuario escalado puede aprobar
+        meta = self.metadata or {}
+        if meta.get('escalado_a_user_id') == usuario.pk:
+            return True
         aprobadores = self.etapa_actual.get_aprobadores(self.objeto)
         return any(a.pk == usuario.pk for a in aprobadores)
 
