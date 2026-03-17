@@ -1090,8 +1090,8 @@ def sctr_editar(request, pk):
             poliza.aporte_pct             = Decimal(request.POST.get('aporte_pct', '0'))
             poliza.trabajadores_cubiertos = int(request.POST.get('trabajadores_cubiertos', '0'))
             poliza.dias_alerta            = int(request.POST.get('dias_alerta', '30'))
-        except (ValueError, Exception):
-            pass
+        except (ValueError, TypeError):
+            messages.warning(request, 'Algunos valores numéricos no son válidos, se mantienen los anteriores.')
 
         if request.FILES.get('archivo'):
             poliza.archivo = request.FILES['archivo']
