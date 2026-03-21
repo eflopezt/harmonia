@@ -43,6 +43,9 @@ logger = logging.getLogger(__name__)
 CERO = Decimal('0')
 DOS  = Decimal('2')
 
+# Jornada sábado LOCAL/LIMA hardcodeada (no existe jornada_sabado_horas en ConfiguracionSistema)
+JORNADA_SABADO_LOCAL = Decimal('5.5')
+
 CODIGOS_SIN_HE = {
     'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF',
     'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI',
@@ -56,11 +59,15 @@ DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _jornada_correcta(config, condicion: str, dia_semana: int) -> Decimal:
-    """Jornada diaria correcta según condición y día de semana."""
+    """
+    Jornada diaria correcta según condición y día de semana.
+    Nota: ConfiguracionSistema solo tiene jornada_local_horas y jornada_foraneo_horas.
+    El sábado LOCAL/LIMA = 5.5h está hardcodeado (media jornada, sin almuerzo).
+    """
     if condicion == 'FORANEO':
         return Decimal(str(config.jornada_foraneo_horas))
     if dia_semana == 5:                          # sábado
-        return Decimal(str(config.jornada_sabado_horas))
+        return JORNADA_SABADO_LOCAL              # 5.5h — sin descuento almuerzo
     if dia_semana == 6:                          # domingo
         return CERO                              # no aplica (paga 100% igual)
     return Decimal(str(config.jornada_local_horas))
@@ -77,6 +84,10 @@ def _recalcular_horas(
     """
     Replica processor._calcular_horas() con los valores correctos de jornada.
     Devuelve (horas_efectivas, horas_normales, he_25, he_35, he_100).
+
+    Caso especial — horas_marcadas=None (EXCEL/papeleta sin biométrico):
+      - Código productivo (NOR, A, T…): jornada completa, sin HE
+      - Código en CODIGOS_SIN_HE: cero (ausencia, permiso, etc.)
     """
     # SS (sin salida): presente sin marca de salida → paga jornada completa, sin HE
     if codigo == 'SS':
@@ -84,8 +95,12 @@ def _recalcular_horas(
         return j, j, CERO, CERO, CERO
 
     # Códigos que no generan horas
-    if codigo in CODIGOS_SIN_HE or not horas_marcadas or horas_marcadas <= CERO:
+    if codigo in CODIGOS_SIN_HE:
         return CERO, CERO, CERO, CERO, CERO
+
+    # Sin biométrico pero código productivo (fuente EXCEL/papeleta) → jornada completa
+    if not horas_marcadas or horas_marcadas <= CERO:
+        return jornada_h, jornada_h, CERO, CERO, CERO
 
     horas_m = Decimal(str(horas_marcadas))
 
@@ -294,7 +309,6 @@ class Command(BaseCommand):
             )
 
             # Compensaciones (papeletas CHE) — idéntico a processor
-            from asistencia.models import RegistroAsistencia  # si existe
             try:
                 from asistencia.models import PapeletaPermiso
                 che_map = defaultdict(Decimal)
@@ -418,7 +432,7 @@ class Command(BaseCommand):
         self.stdout.write(
             f'  Condiciones     : {", ".join(condiciones)}\n'
             f'  Jornada Lun-Vie : {config.jornada_local_horas}h\n'
-            f'  Jornada Sábado  : {config.jornada_sabado_horas}h\n'
+            f'  Jornada Sábado  : {JORNADA_SABADO_LOCAL}h (hardcoded)\n'
             f'  Modo            : '
             f'{"SOLO BANCO" if solo_banco else "SOLO TAREO" if solo_tareo else "COMPLETO"}\n'
         )
