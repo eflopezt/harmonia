@@ -17,6 +17,17 @@ DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 info "=== FASE 2: Instalación de servicios + optimización ==="
 
+# ─── Cargar credenciales desde archivo seguro ──────────────────────────────
+SECRETS_FILE="${DEPLOY_DIR}/.secrets"
+if [ ! -f "$SECRETS_FILE" ]; then
+    error "Archivo de credenciales no encontrado: ${SECRETS_FILE}"
+    error "Crea el archivo con: PG_HARMONI_PASS, PG_NEXOTALENT_PASS, REDIS_PASS"
+fi
+source "$SECRETS_FILE"
+: "${PG_HARMONI_PASS:?Variable PG_HARMONI_PASS no definida en .secrets}"
+: "${PG_NEXOTALENT_PASS:?Variable PG_NEXOTALENT_PASS no definida en .secrets}"
+: "${REDIS_PASS:?Variable REDIS_PASS no definida en .secrets}"
+
 # ─── 1. PostgreSQL 16 + pgvector ─────────────────────────────────────────────
 info "Instalando PostgreSQL 16..."
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
@@ -33,13 +44,13 @@ sudo cp "${DEPLOY_DIR}/postgres/postgresql.conf" /etc/postgresql/16/main/conf.d/
 
 # Configurar bases de datos
 info "Configurando bases de datos..."
-sudo -u postgres psql << 'SQLEOF'
+sudo -u postgres psql << SQLEOF
 -- === Harmoni ERP ===
-DO $$ BEGIN
+DO \$\$ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'harmoni') THEN
-        CREATE ROLE harmoni WITH LOGIN PASSWORD 'H4rm0n1_Pr0d_2026!';
+        CREATE ROLE harmoni WITH LOGIN PASSWORD '${PG_HARMONI_PASS}';
     END IF;
-END $$;
+END \$\$;
 CREATE DATABASE harmoni_db OWNER harmoni;
 GRANT ALL PRIVILEGES ON DATABASE harmoni_db TO harmoni;
 \c harmoni_db
@@ -47,11 +58,11 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- === NexoTalent ===
-DO $$ BEGIN
+DO \$\$ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'nexotalent') THEN
-        CREATE ROLE nexotalent WITH LOGIN PASSWORD 'N3x0T4l3nt_Pr0d_2026!';
+        CREATE ROLE nexotalent WITH LOGIN PASSWORD '${PG_NEXOTALENT_PASS}';
     END IF;
-END $$;
+END \$\$;
 CREATE DATABASE nexotalent_db OWNER nexotalent;
 GRANT ALL PRIVILEGES ON DATABASE nexotalent_db TO nexotalent;
 \c nexotalent_db
@@ -78,7 +89,7 @@ sudo cp "${DEPLOY_DIR}/redis/redis.conf" /etc/redis/redis.conf
 
 sudo systemctl enable redis-server
 sudo systemctl restart redis-server
-redis-cli -a "H4rm0n1_R3d1s_2026!" ping
+redis-cli -a "${REDIS_PASS}" ping
 info "Redis instalado y optimizado ✓ (maxmemory: 200mb, policy: allkeys-lru)"
 
 # ─── 3. Docker + Docker Compose ──────────────────────────────────────────────

@@ -70,6 +70,19 @@ from asistencia.views.relojes import (  # noqa: F401
     ajax_procesar_reloj,
     ajax_usuarios_reloj,
 )
+from asistencia.views.reporte_individual import (  # noqa: F401
+    reporte_panel,
+    reporte_individual_pdf,
+    reporte_masivo_pdf,
+    enviar_reporte_email,
+    enviar_reportes_masivo_email,
+)
+from asistencia.views.calendario import (  # noqa: F401
+    calendario_grid,
+    ajax_calendario_detalle,
+    ajax_calendario_cambiar,
+    calendario_exportar,
+)
 from asistencia.views.biometrico import (  # noqa: F401
     panel_biometrico,
     agregar_dispositivo,

@@ -76,7 +76,7 @@ def vista_rco(request):
     # Summary by person (buscar applied, solo_he NOT applied to keep all totals)
     resumen = list(
         qs_filtrado
-        .values('dni', 'nombre_archivo')
+        .values('dni', 'nombre_archivo', 'personal_id')
         .annotate(
             total_he_25=Sum('he_25'),
             total_he_35=Sum('he_35'),

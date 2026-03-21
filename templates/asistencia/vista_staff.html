@@ -241,7 +241,9 @@ thead tr.header-groups th { background: #243455; }
                                class="text-decoration-none text-dark fw-semibold" title="Ver detalle de {{ p.nombre }}">
                                 {{ p.nombre }}
                             </a>
-                            <span class="dni-sub d-block">{{ p.nro_doc }}</span>
+                            <span class="dni-sub d-block">{{ p.nro_doc }}
+                                <a href="{% url 'asistencia_reporte_pdf' p.personal_id %}?anio={{ anio_sel }}&mes={{ mes_sel }}&grupo=STAFF" target="_blank" class="text-danger ms-1" title="Descargar PDF"><i class="fas fa-file-pdf"></i></a>
+                            </span>
                         </td>
                         <td class="text-center border-end">
                             {% if p.condicion == 'FORANEO' %}
@@ -252,32 +254,33 @@ thead tr.header-groups th { background: #243455; }
                         </td>
                         <!-- Días -->
                         <td class="text-center fw-semibold num-col">{{ p.dias_trabajados }}</td>
-                        <td class="text-center num-col {% if p.dias_ss %}text-warning fw-semibold{% else %}text-muted{% endif %}">
+                        <td class="text-center num-col {% if p.dias_ss %}text-warning fw-semibold{% else %}text-muted{% endif %}" data-order="{{ p.dias_ss|default:0 }}">
                             {% if p.dias_ss %}{{ p.dias_ss }}{% else %}—{% endif %}
                         </td>
-                        <td class="text-center num-col {% if p.dias_dl %}text-primary{% else %}text-muted{% endif %}">
+                        <td class="text-center num-col {% if p.dias_dl %}text-primary{% else %}text-muted{% endif %}" data-order="{{ p.dias_dl|default:0 }}">
                             {% if p.dias_dl %}{{ p.dias_dl }}{% else %}—{% endif %}
                         </td>
-                        <td class="text-center num-col {% if p.dias_che %}text-success fw-semibold{% else %}text-muted{% endif %}">
+                        <td class="text-center num-col {% if p.dias_che %}text-success fw-semibold{% else %}text-muted{% endif %}" data-order="{{ p.dias_che|default:0 }}">
                             {% if p.dias_che %}{{ p.dias_che }}{% else %}—{% endif %}
                         </td>
-                        <td class="text-center num-col {% if p.dias_vac %}text-info{% else %}text-muted{% endif %}">
+                        <td class="text-center num-col {% if p.dias_vac %}text-info{% else %}text-muted{% endif %}" data-order="{{ p.dias_vac|default:0 }}">
                             {% if p.dias_vac %}{{ p.dias_vac }}{% else %}—{% endif %}
                         </td>
                         <!-- Ausencias combinadas: DM + LSG + FA -->
                         <td class="text-center border-end num-col
                             {% if aus %}text-danger fw-bold{% else %}text-muted{% endif %}"
-                            title="DM={{ p.dias_dm }} · LSG={{ p.dias_lsg }} · FA={{ p.dias_fa }}">
+                            title="DM={{ p.dias_dm }} · LSG={{ p.dias_lsg }} · FA={{ p.dias_fa }}"
+                            data-order="{{ aus|default:0 }}">
                             {% if aus %}{{ aus }}{% else %}—{% endif %}
                         </td>
                         <!-- HE -->
-                        <td class="text-end num-col" style="color:#856404">
+                        <td class="text-end num-col" style="color:#856404" data-order="{{ p.he_25|default:0 }}">
                             {% if p.he_25 %}{{ p.he_25|floatformat:1 }}{% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
-                        <td class="text-end num-col" style="color:#cc5500">
+                        <td class="text-end num-col" style="color:#cc5500" data-order="{{ p.he_35|default:0 }}">
                             {% if p.he_35 %}{{ p.he_35|floatformat:1 }}{% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
-                        <td class="text-end num-col text-danger border-end">
+                        <td class="text-end num-col text-danger border-end" data-order="{{ p.he_100|default:0 }}">
                             {% if p.he_100 %}{{ p.he_100|floatformat:1 }}{% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
                         <!-- Banco -->
@@ -368,7 +371,10 @@ $(document).ready(function() {
             paginate: { previous: '‹', next: '›' },
             decimal: ',', thousands: '.'
         },
-        columnDefs: [{ orderable: false, targets: [1] }]
+        columnDefs: [
+            { orderable: false, targets: [1] },
+            { type: 'num', targets: [2,3,4,5,6,7,8,9,10,11] }
+        ]
     });
 });
 </script>

@@ -104,6 +104,19 @@ urlpatterns = [
     path('biometrico/test/', views.test_dispositivo, name='asistencia_biometrico_test'),
     path('biometrico/logs/', views.logs_sincronizacion, name='asistencia_biometrico_logs'),
 
+    # Reportes Individuales
+    path('reportes/', views.reporte_panel, name='asistencia_reportes'),
+    path('reportes/<int:personal_id>/pdf/', views.reporte_individual_pdf, name='asistencia_reporte_pdf'),
+    path('reportes/<int:personal_id>/enviar/', views.enviar_reporte_email, name='asistencia_reporte_enviar'),
+    path('reportes/masivo/', views.reporte_masivo_pdf, name='asistencia_reporte_masivo'),
+    path('reportes/enviar-masivo/', views.enviar_reportes_masivo_email, name='asistencia_reporte_enviar_masivo'),
+
+    # Calendario Grid
+    path('calendario/', views.calendario_grid, name='asistencia_calendario'),
+    path('calendario/exportar/', views.calendario_exportar, name='asistencia_calendario_export'),
+    path('ajax/calendario/celda/<int:registro_id>/', views.ajax_calendario_detalle, name='asistencia_calendario_celda'),
+    path('ajax/calendario/cambiar/<int:registro_id>/', views.ajax_calendario_cambiar, name='asistencia_calendario_cambiar'),
+
     # Endpoints AJAX
     path('ajax/staff-data/', views.ajax_staff_data, name='asistencia_ajax_staff'),
     path('ajax/rco-data/', views.ajax_rco_data, name='asistencia_ajax_rco'),

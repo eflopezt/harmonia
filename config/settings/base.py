@@ -108,11 +108,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Password validation - Mínimo 6 caracteres (permite DNI como contraseña)
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {'min_length': 6},
+        'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
 
@@ -165,8 +171,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour',
+        'anon': '50/hour',
+        'user': '500/hour',
     },
 }
 
@@ -187,8 +193,8 @@ SPECTACULAR_SETTINGS = {
         'Todos los endpoints de listado usan paginación por número de página '
         '(`page` query param, 50 items por defecto).\n\n'
         '## Rate Limiting\n\n'
-        '- Usuarios anónimos: 100 requests/hora\n'
-        '- Usuarios autenticados: 1,000 requests/hora'
+        '- Usuarios anónimos: 50 requests/hora\n'
+        '- Usuarios autenticados: 500 requests/hora'
     ),
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
@@ -293,7 +299,8 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos
+CELERY_TASK_SOFT_TIME_LIMIT = 300  # 5 minutos
+CELERY_TASK_TIME_LIMIT = 600  # 10 minutos
 
 # Celery Beat — Tareas periódicas
 from celery.schedules import crontab

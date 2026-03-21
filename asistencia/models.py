@@ -1924,3 +1924,22 @@ class MarcacionBiometrica(models.Model):
     @property
     def hora(self):
         return self.timestamp.time()
+
+
+class CambioCodigoLog(models.Model):
+    """Audit log para cambios manuales de codigo_dia desde el calendario."""
+    registro = models.ForeignKey(RegistroTareo, on_delete=models.CASCADE, related_name='cambios_log')
+    codigo_anterior = models.CharField(max_length=20)
+    codigo_nuevo = models.CharField(max_length=20)
+    observacion = models.TextField(blank=True)
+    sustento = models.FileField(upload_to='asistencia/sustentos/%Y/%m/', blank=True, null=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        verbose_name = 'Cambio de Código'
+        verbose_name_plural = 'Cambios de Código'
+
+    def __str__(self):
+        return f'{self.registro.dni} {self.registro.fecha}: {self.codigo_anterior} → {self.codigo_nuevo}'

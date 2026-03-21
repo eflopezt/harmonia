@@ -242,19 +242,21 @@
                             <tr>
                                 <td class="text-muted small">{{ forloop.counter }}</td>
                                 <td class="fw-semibold">{{ r.nombre_archivo }}</td>
-                                <td class="text-muted small">{{ r.dni }}</td>
-                                <td class="he-cell {% if r.total_he_25 %}he-25{% else %}he-zero{% endif %}">
+                                <td class="text-muted small">{{ r.dni }}
+                                    <a href="{% url 'asistencia_reporte_pdf' r.personal_id %}?anio={{ anio_sel }}&mes={{ mes_sel }}&grupo=RCO" target="_blank" class="text-danger ms-1" title="PDF"><i class="fas fa-file-pdf"></i></a>
+                                </td>
+                                <td class="he-cell {% if r.total_he_25 %}he-25{% else %}he-zero{% endif %}" data-order="{{ r.total_he_25|default:0 }}">
                                     {{ r.total_he_25|floatformat:2 }}
                                 </td>
-                                <td class="he-cell {% if r.total_he_35 %}he-35{% else %}he-zero{% endif %}">
+                                <td class="he-cell {% if r.total_he_35 %}he-35{% else %}he-zero{% endif %}" data-order="{{ r.total_he_35|default:0 }}">
                                     {{ r.total_he_35|floatformat:2 }}
                                 </td>
-                                <td class="he-cell {% if r.total_he_100 %}he-100{% else %}he-zero{% endif %}">
+                                <td class="he-cell {% if r.total_he_100 %}he-100{% else %}he-zero{% endif %}" data-order="{{ r.total_he_100|default:0 }}">
                                     {{ r.total_he_100|floatformat:2 }}
                                 </td>
-                                <td class="he-cell fw-bold">{{ r.total_he|floatformat:2 }}</td>
-                                <td class="text-end text-muted small">{{ r.total_horas|floatformat:1 }}</td>
-                                <td class="text-center">{{ r.dias_trabajados }}</td>
+                                <td class="he-cell fw-bold" data-order="{{ r.total_he|default:0 }}">{{ r.total_he|floatformat:2 }}</td>
+                                <td class="text-end text-muted small" data-order="{{ r.total_horas|default:0 }}">{{ r.total_horas|floatformat:1 }}</td>
+                                <td class="text-center" data-order="{{ r.dias_trabajados|default:0 }}">{{ r.dias_trabajados }}</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -351,9 +353,10 @@
 <script>
 $(document).ready(function() {
     $('#tablaResumen').DataTable({
-        paging: false, searching: false, info: false,
+        paging: false, searching: true, info: true,
         order: [[6, 'desc']],
-        language: { decimal: ',', emptyTable: 'Sin datos' }
+        language: { decimal: ',', emptyTable: 'Sin datos', search: 'Buscar:', info: '_TOTAL_ personas' },
+        columnDefs: [{ type: 'num', targets: [3,4,5,6,7,8] }]
     });
     // Adjust columns when summary tab becomes visible
     $('#tab-resumen-btn').on('shown.bs.tab', function() {

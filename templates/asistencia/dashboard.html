@@ -177,6 +177,50 @@
     </div>
 </div>
 
+<!-- ── Accesos Rápidos ────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <a href="{% url 'asistencia_calendario' %}?mes={{ mes_sel }}&anio={{ anio_sel }}" class="text-decoration-none">
+            <div class="card tareo-card h-100 border-start border-4" style="border-color:#0f766e !important">
+                <div class="card-body d-flex align-items-center gap-3 py-2">
+                    <div class="stat-icon" style="background:rgba(15,118,110,.1);color:#0f766e"><i class="fas fa-calendar-alt"></i></div>
+                    <div><div class="fw-bold" style="color:#0f766e">Calendario</div><div class="text-muted" style="font-size:.72rem">Grilla diaria</div></div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{% url 'asistencia_reportes' %}?mes={{ mes_sel }}&anio={{ anio_sel }}" class="text-decoration-none">
+            <div class="card tareo-card h-100 border-start border-4 border-danger">
+                <div class="card-body d-flex align-items-center gap-3 py-2">
+                    <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="fas fa-file-pdf"></i></div>
+                    <div><div class="fw-bold text-danger">Reportes PDF</div><div class="text-muted" style="font-size:.72rem">Individual / Masivo</div></div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{% url 'asistencia_papeletas' %}" class="text-decoration-none">
+            <div class="card tareo-card h-100 border-start border-4 border-warning">
+                <div class="card-body d-flex align-items-center gap-3 py-2">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-file-alt"></i></div>
+                    <div><div class="fw-bold text-warning">Papeletas</div><div class="text-muted" style="font-size:.72rem">Permisos y licencias</div></div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{% url 'asistencia_kpis' %}?mes={{ mes_sel }}&anio={{ anio_sel }}" class="text-decoration-none">
+            <div class="card tareo-card h-100 border-start border-4 border-info">
+                <div class="card-body d-flex align-items-center gap-3 py-2">
+                    <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="fas fa-chart-line"></i></div>
+                    <div><div class="fw-bold text-info">KPIs</div><div class="text-muted" style="font-size:.72rem">Dashboard analítico</div></div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
 <!-- ── Desglose HE ────────────────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">

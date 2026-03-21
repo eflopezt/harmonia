@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Calendario de Asistencia{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══ HERO ══ */
+.hero-cal{background:linear-gradient(135deg,#0a1a16 0%,#0f766e 50%,#134e4a 100%);border-radius:.75rem;position:relative;overflow:hidden}
+.hero-cal::before{content:'';position:absolute;top:-50%;right:-20%;width:400px;height:400px;background:radial-gradient(circle,rgba(20,184,166,.15),transparent 70%);pointer-events:none}
+
+/* ══ KPI CARDS ══ */
+.kpi-glass{background:rgba(255,255,255,.08);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);border-radius:.75rem;padding:1rem 1.25rem;transition:all .2s}
+.kpi-glass:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+.kpi-glass .kpi-val{font-size:1.6rem;font-weight:800;line-height:1}
+.kpi-glass .kpi-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+
+/* ══ FILTER BAR ══ */
+.filter-bar{background:rgba(255,255,255,.95);backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,.06);border-radius:.75rem;padding:.75rem 1rem}
+.filter-bar select,.filter-bar input{font-size:.82rem;border-radius:.5rem}
+
+/* ══ CALENDAR TABLE ══ */
+.cal-wrapper{overflow-x:auto;border-radius:.75rem;border:1px solid rgba(0,0,0,.08);background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.cal-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+.cal-table th,.cal-table td{padding:0;text-align:center;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+
+/* Header */
+.cal-table thead th{position:sticky;top:0;z-index:10;background:#1a2b47;color:#fff;font-size:.68rem;font-weight:600;padding:6px 2px;white-space:nowrap}
+.cal-table thead th.day-header{width:36px;min-width:36px;max-width:36px}
+.cal-table thead th.finde{background:#162340}
+.cal-table thead th.feriado-h{background:#7c3aed!important}
+.cal-table thead .dow{font-size:.6rem;opacity:.65;font-weight:400;display:block}
+
+/* Sticky employee column */
+.cal-table .col-emp{position:sticky;left:0;z-index:5;background:#fff;min-width:220px;max-width:260px;text-align:left;padding:4px 8px;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid #e2e8f0}
+.cal-table thead .col-emp{z-index:15;background:#1a2b47;min-width:220px}
+.cal-table tbody tr:hover .col-emp{background:#f0fdf4}
+.col-emp .emp-name{font-weight:600;color:#1e293b}
+.col-emp .emp-dni{font-size:.65rem;color:#94a3b8;font-weight:400}
+.col-emp .emp-cond{font-size:.58rem;padding:1px 5px;border-radius:6px;font-weight:600;margin-left:4px}
+.emp-cond.LOCAL{background:#cce5ff;color:#004085}
+.emp-cond.FORANEO{background:#d4edda;color:#1a6631}
+.emp-cond.LIMA{background:#fff3cd;color:#856404}
+
+/* Cells */
+.cal-cell{width:36px;height:32px;padding:0!important;position:relative;cursor:pointer;transition:all .12s}
+.cal-cell:hover{transform:scale(1.25);z-index:3;box-shadow:0 4px 12px rgba(0,0,0,.2);border-radius:4px}
+.cal-cell .code{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:.62rem;font-weight:700;letter-spacing:.02em;line-height:1}
+.cal-cell.finde{background:#f8fafc}
+
+/* Code colors */
+.code-present{background:#d1fae5;color:#065f46}.code-present:hover{background:#a7f3d0}
+.code-falta{background:#fee2e2;color:#991b1b}.code-falta:hover{background:#fecaca}
+.code-vac{background:#dbeafe;color:#1e40af}.code-vac:hover{background:#bfdbfe}
+.code-descanso{background:#f3f4f6;color:#6b7280}.code-descanso:hover{background:#e5e7eb}
+.code-medico{background:#fef3c7;color:#92400e}.code-medico:hover{background:#fde68a}
+.code-comp{background:#ffedd5;color:#9a3412}.code-comp:hover{background:#fed7aa}
+.code-lsg{background:#ede9fe;color:#5b21b6}.code-lsg:hover{background:#ddd6fe}
+.code-licencia{background:#cffafe;color:#155e75}.code-licencia:hover{background:#a5f3fc}
+.code-feriado{background:#fce7f3;color:#9d174d}.code-feriado:hover{background:#fbcfe8}
+.code-lima{background:#e0f2fe;color:#0369a1}.code-lima:hover{background:#bae6fd}
+.code-other{background:#f5f5f5;color:#666}.code-other:hover{background:#e8e8e8}
+.code-empty{background:#fafafa;color:#d4d4d4}
+
+/* Totals columns */
+.col-total{font-size:.75rem;font-weight:700;padding:4px 6px!important;white-space:nowrap}
+.col-total.trab{color:#065f46;background:#ecfdf5}
+.col-total.falta{color:#991b1b;background:#fef2f2}
+.col-total.he{color:#0369a1;background:#f0f9ff}
+
+/* Summary row */
+.cal-table tfoot td{position:sticky;bottom:0;background:#1e293b;color:#fff;font-size:.62rem;font-weight:600;padding:4px 2px;z-index:10}
+.cal-table tfoot .col-emp{background:#1e293b;color:#fff;z-index:15}
+.pct-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.15);margin-top:2px}
+.pct-fill{height:100%;border-radius:2px;background:#10b981;transition:width .3s}
+
+/* Row hover */
+.cal-table tbody tr{transition:background .1s}
+.cal-table tbody tr:hover{background:rgba(15,118,110,.03)}
+
+/* ══ MODAL ══ */
+.modal-detail .modal-content{border:none;border-radius:1rem;overflow:hidden}
+.modal-detail .modal-header{background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;border:none;padding:1.25rem 1.5rem}
+.modal-detail .badge-code{font-size:1.1rem;padding:6px 16px;border-radius:10px;font-weight:700}
+.timeline-item{border-left:2px solid #e2e8f0;padding-left:1rem;margin-left:.5rem;padding-bottom:.75rem}
+.timeline-item:last-child{border-left-color:transparent}
+.timeline-dot{width:10px;height:10px;border-radius:50%;background:#0f766e;position:absolute;left:-6px}
+
+/* ══ LEYENDA ══ */
+.legend{display:flex;flex-wrap:wrap;gap:6px;padding:.5rem 0}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:.68rem;color:#64748b}
+.legend-dot{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:768px){
+.col-emp{min-width:160px!important;max-width:160px!important}
+.cal-cell{width:30px;height:28px}
+.cal-cell .code{font-size:.55rem}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="hero-cal p-3 mb-4 text-white">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+        <h2 class="mb-1 fw-bold">
+            <i class="fas fa-calendar-alt me-2 opacity-75"></i>
+            Calendario de Asistencia
+            <span class="ms-2 badge bg-white bg-opacity-10 fw-semibold" style="font-size:.75rem">
+                {{ mes_nombre }} {{ anio }}
+            </span>
+        </h2>
+        <p class="mb-0 opacity-75" style="font-size:.82rem">
+            Grilla diaria · {{ total_empleados }} empleados · Click en celda para detalle
+        </p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a href="{% url 'asistencia_calendario_export' %}?anio={{ anio }}&mes={{ mes }}&grupo={{ grupo }}"
+           class="btn btn-sm btn-outline-light">
+            <i class="fas fa-file-excel me-1"></i> Exportar
+        </a>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mt-3">
+    <div class="col-6 col-md-3">
+        <div class="kpi-glass">
+            <div class="kpi-val text-white">{{ total_empleados }}</div>
+            <div class="kpi-lbl text-white">Empleados</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-glass">
+            <div class="kpi-val" style="color:#6ee7b7">{{ total_presentes|intcomma }}</div>
+            <div class="kpi-lbl text-white">Días Trabajados</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-glass">
+            <div class="kpi-val" style="color:#fca5a5">{{ total_faltas }}</div>
+            <div class="kpi-lbl text-white">Faltas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="kpi-glass">
+            <div class="kpi-val" style="color:#67e8f9">{{ pct_global }}%</div>
+            <div class="kpi-lbl text-white">Tasa Asistencia</div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar mb-3">
+<form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+    <select name="mes" class="form-select form-select-sm" style="width:120px">
+        {% for m_val, m_name in meses_list %}
+        <option value="{{ m_val }}" {% if m_val == mes %}selected{% endif %}>{{ m_name }}</option>
+        {% endfor %}
+    </select>
+    <select name="anio" class="form-select form-select-sm" style="width:90px">
+        {% for a in anios %}
+        <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+    </select>
+    <select name="grupo" class="form-select form-select-sm" style="width:110px">
+        <option value="TODOS" {% if grupo == 'TODOS' %}selected{% endif %}>Todos</option>
+        <option value="STAFF" {% if grupo == 'STAFF' %}selected{% endif %}>STAFF</option>
+        <option value="RCO" {% if grupo == 'RCO' %}selected{% endif %}>RCO</option>
+    </select>
+    <select name="area" class="form-select form-select-sm" style="width:160px">
+        <option value="">Todas las áreas</option>
+        {% for a in areas %}
+        <option value="{{ a.id }}" {% if area_id|stringformat:"s" == a.id|stringformat:"s" %}selected{% endif %}>{{ a.nombre }}</option>
+        {% endfor %}
+    </select>
+    <select name="condicion" class="form-select form-select-sm" style="width:120px">
+        <option value="">Condición</option>
+        <option value="LOCAL" {% if condicion == 'LOCAL' %}selected{% endif %}>Local</option>
+        <option value="FORANEO" {% if condicion == 'FORANEO' %}selected{% endif %}>Foráneo</option>
+        <option value="LIMA" {% if condicion == 'LIMA' %}selected{% endif %}>Lima</option>
+    </select>
+    <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" style="width:180px" placeholder="Buscar nombre/DNI...">
+    <button class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+</div>
+
+<!-- Legend -->
+<div class="legend mb-2">
+    <div class="legend-item"><div class="legend-dot code-present"></div>Trabajó</div>
+    <div class="legend-item"><div class="legend-dot code-falta"></div>Falta</div>
+    <div class="legend-item"><div class="legend-dot code-vac"></div>Vacaciones</div>
+    <div class="legend-item"><div class="legend-dot code-descanso"></div>Descanso</div>
+    <div class="legend-item"><div class="legend-dot code-medico"></div>D. Médico</div>
+    <div class="legend-item"><div class="legend-dot code-comp"></div>Compensación</div>
+    <div class="legend-item"><div class="legend-dot code-lsg"></div>Lic. S/Goce</div>
+    <div class="legend-item"><div class="legend-dot code-licencia"></div>Licencia</div>
+    <div class="legend-item"><div class="legend-dot code-feriado"></div>Feriado</div>
+</div>
+
+<!-- Calendar Grid -->
+<div class="cal-wrapper">
+<table class="cal-table" id="calGrid">
+<thead>
+<tr>
+    <th class="col-emp">Empleado</th>
+    {% for d in dias_mes %}
+    <th class="day-header {% if d.es_finde %}finde{% endif %} {% if d.es_feriado %}feriado-h{% endif %}">
+        {{ d.num }}<span class="dow">{{ d.dow }}</span>
+    </th>
+    {% endfor %}
+    <th style="min-width:42px">Trab</th>
+    <th style="min-width:42px">Falta</th>
+    <th style="min-width:42px">HE</th>
+</tr>
+</thead>
+<tbody>
+{% for row in rows %}
+<tr>
+    <td class="col-emp">
+        <span class="emp-name">{{ row.nombre }}</span><br>
+        <span class="emp-dni">{{ row.dni }}</span>
+        <span class="emp-cond {{ row.condicion }}">{{ row.condicion }}</span>
+    </td>
+    {% for celda in row.celdas %}
+    <td class="cal-cell {% if forloop.counter0|add:0 < dias_mes|length %}{% with d=dias_mes|slice:forloop.counter0|first %}{% endwith %}{% endif %}"
+        {% if celda.id %}onclick="openDetail({{ celda.id }})"{% endif %}
+        title="{{ celda.codigo }}{% if celda.entrada %} {{ celda.entrada }}-{{ celda.salida }}{% endif %}{% if celda.he %} HE:{{ celda.he }}h{% endif %}">
+        <div class="code code-{{ celda.color }}">{{ celda.codigo }}</div>
+    </td>
+    {% endfor %}
+    <td class="col-total trab">{{ row.total_trab }}</td>
+    <td class="col-total falta">{{ row.total_falta }}</td>
+    <td class="col-total he">{% if row.total_he %}{{ row.total_he|floatformat:1 }}{% else %}0{% endif %}</td>
+</tr>
+{% endfor %}
+</tbody>
+<tfoot>
+<tr>
+    <td class="col-emp"><strong>RESUMEN</strong></td>
+    {% for r in resumen_dias %}
+    <td>
+        {{ r.presentes }}<br>
+        <div class="pct-bar"><div class="pct-fill" style="width:{{ r.pct }}%"></div></div>
+    </td>
+    {% endfor %}
+    <td>{{ total_presentes }}</td>
+    <td>{{ total_faltas }}</td>
+    <td></td>
+</tr>
+</tfoot>
+</table>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade modal-detail" id="modalDetalle" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+    <div class="modal-header">
+        <div>
+            <h5 class="modal-title mb-0" id="modalNombre"></h5>
+            <small id="modalFecha" class="opacity-75"></small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <!-- Current code -->
+        <div class="text-center mb-3">
+            <span class="badge-code" id="modalCodigo"></span>
+        </div>
+        <!-- Detail grid -->
+        <div class="row g-2 mb-3" id="modalInfo">
+            <div class="col-4 text-center"><small class="text-muted d-block">Entrada</small><strong id="modalEntrada">-</strong></div>
+            <div class="col-4 text-center"><small class="text-muted d-block">Salida</small><strong id="modalSalida">-</strong></div>
+            <div class="col-4 text-center"><small class="text-muted d-block">Horas Efec.</small><strong id="modalHoras">-</strong></div>
+        </div>
+        <div class="row g-2 mb-3" id="modalHE" style="display:none">
+            <div class="col-4 text-center"><small class="text-muted d-block">HE 25%</small><strong id="modalHe25" class="text-primary">0</strong></div>
+            <div class="col-4 text-center"><small class="text-muted d-block">HE 35%</small><strong id="modalHe35" class="text-warning">0</strong></div>
+            <div class="col-4 text-center"><small class="text-muted d-block">HE 100%</small><strong id="modalHe100" class="text-danger">0</strong></div>
+        </div>
+        <!-- Observaciones -->
+        <div id="modalObs" class="mb-3" style="display:none">
+            <small class="text-muted"><i class="fas fa-sticky-note me-1"></i>Observaciones</small>
+            <p id="modalObsText" class="mb-0 small bg-light rounded p-2 mt-1"></p>
+        </div>
+        <!-- Historial de cambios -->
+        <div id="modalHistorial" style="display:none">
+            <small class="text-muted"><i class="fas fa-history me-1"></i>Historial de cambios</small>
+            <div id="modalCambios" class="mt-1"></div>
+        </div>
+
+        <hr>
+
+        <!-- Justification form -->
+        <div class="bg-light rounded p-3">
+            <h6 class="mb-2"><i class="fas fa-edit me-1 text-primary"></i>Justificar / Cambiar código</h6>
+            <input type="hidden" id="editRegistroId">
+            <div class="mb-2">
+                <select id="editCodigo" class="form-select form-select-sm">
+                    <option value="">Seleccionar nuevo código...</option>
+                </select>
+            </div>
+            <div class="mb-2">
+                <textarea id="editObs" class="form-control form-control-sm" rows="2" placeholder="Motivo de la justificación..."></textarea>
+            </div>
+            <div class="mb-2">
+                <input type="file" id="editSustento" class="form-control form-control-sm" accept=".pdf,.jpg,.png,.jpeg">
+                <small class="text-muted">Sustento (opcional): PDF, imagen</small>
+            </div>
+            <button class="btn btn-sm btn-primary w-100" onclick="guardarCambio()">
+                <i class="fas fa-save me-1"></i>Guardar Cambio
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CODIGOS = {{ codigos_json|safe }};
+const COLOR_MAP = {{ color_map_json|safe }};
+const csrfToken = '{{ csrf_token }}';
+let currentRegistroId = null;
+
+// Populate code dropdown
+const sel = document.getElementById('editCodigo');
+CODIGOS.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.codigo;
+    opt.textContent = `${c.codigo} — ${c.descripcion}`;
+    sel.appendChild(opt);
+});
+
+function openDetail(regId) {
+    currentRegistroId = regId;
+    document.getElementById('editRegistroId').value = regId;
+
+    fetch(`/asistencia/ajax/calendario/celda/${regId}/`)
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById('modalNombre').textContent = d.nombre;
+        document.getElementById('modalFecha').textContent = `${d.fecha_dow} ${d.fecha} · ${d.grupo} · ${d.condicion}`;
+
+        const badge = document.getElementById('modalCodigo');
+        badge.textContent = d.codigo;
+        badge.className = `badge-code code-${d.color}`;
+
+        document.getElementById('modalEntrada').textContent = d.entrada;
+        document.getElementById('modalSalida').textContent = d.salida;
+        document.getElementById('modalHoras').textContent = d.horas_efectivas > 0 ? d.horas_efectivas.toFixed(1) + 'h' : '-';
+
+        const heDiv = document.getElementById('modalHE');
+        if (d.he_25 > 0 || d.he_35 > 0 || d.he_100 > 0) {
+            heDiv.style.display = '';
+            document.getElementById('modalHe25').textContent = d.he_25.toFixed(1);
+            document.getElementById('modalHe35').textContent = d.he_35.toFixed(1);
+            document.getElementById('modalHe100').textContent = d.he_100.toFixed(1);
+        } else {
+            heDiv.style.display = 'none';
+        }
+
+        const obsDiv = document.getElementById('modalObs');
+        if (d.observaciones) {
+            obsDiv.style.display = '';
+            document.getElementById('modalObsText').textContent = d.observaciones;
+        } else {
+            obsDiv.style.display = 'none';
+        }
+
+        // Historial
+        const histDiv = document.getElementById('modalHistorial');
+        const cambiosDiv = document.getElementById('modalCambios');
+        if (d.cambios && d.cambios.length > 0) {
+            histDiv.style.display = '';
+            cambiosDiv.innerHTML = d.cambios.map(c =>
+                `<div class="timeline-item position-relative small py-1">
+                    <span class="badge bg-secondary">${c.codigo_anterior}</span>
+                    <i class="fas fa-arrow-right mx-1 text-muted" style="font-size:.6rem"></i>
+                    <span class="badge bg-primary">${c.codigo_nuevo}</span>
+                    <span class="text-muted ms-1">${c.creado_en} por ${c.usuario__username}</span>
+                    ${c.observacion ? `<div class="text-muted mt-1" style="font-size:.72rem">${c.observacion}</div>` : ''}
+                </div>`
+            ).join('');
+        } else {
+            histDiv.style.display = 'none';
+        }
+
+        new bootstrap.Modal(document.getElementById('modalDetalle')).show();
+    })
+    .catch(e => console.error('Error:', e));
+}
+
+function guardarCambio() {
+    const regId = document.getElementById('editRegistroId').value;
+    const codigo = document.getElementById('editCodigo').value;
+    const obs = document.getElementById('editObs').value;
+    const sustento = document.getElementById('editSustento').files[0];
+
+    if (!codigo) { alert('Selecciona un código'); return; }
+
+    const fd = new FormData();
+    fd.append('codigo', codigo);
+    fd.append('observacion', obs);
+    if (sustento) fd.append('sustento', sustento);
+
+    fetch(`/asistencia/ajax/calendario/cambiar/${regId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) {
+            // Update cell in grid without reload
+            const cells = document.querySelectorAll(`td[onclick="openDetail(${regId})"]`);
+            cells.forEach(cell => {
+                const codeDiv = cell.querySelector('.code');
+                codeDiv.textContent = d.codigo;
+                codeDiv.className = `code code-${d.color}`;
+            });
+            bootstrap.Modal.getInstance(document.getElementById('modalDetalle')).hide();
+            // Reset form
+            document.getElementById('editCodigo').value = '';
+            document.getElementById('editObs').value = '';
+            document.getElementById('editSustento').value = '';
+        } else {
+            alert(d.error || 'Error al guardar');
+        }
+    })
+    .catch(e => { console.error(e); alert('Error de conexión'); });
+}
+</script>
+{% endblock %}

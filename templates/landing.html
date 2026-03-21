@@ -31,6 +31,8 @@ body{font-family:'Inter',system-ui,sans-serif;color:var(--g800);line-height:1.6;
 .nav-r{display:flex;gap:24px;align-items:center}
 .nav-r a{color:rgba(255,255,255,.6);text-decoration:none;font-size:.82rem;font-weight:500;transition:color .2s}
 .nav-r a:hover{color:#fff}
+.nav-login{padding:8px 18px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:8px;color:rgba(255,255,255,.85)!important;font-weight:500!important;transition:all .2s!important;font-size:.82rem}
+.nav-login:hover{background:rgba(255,255,255,.1)!important;border-color:rgba(255,255,255,.4)!important;color:#fff!important}
 .nav-cta{padding:8px 20px!important;background:var(--p)!important;border-radius:8px;color:#fff!important;font-weight:600!important;transition:all .2s!important;box-shadow:0 0 20px rgba(15,118,110,.3)}
 .nav-cta:hover{background:var(--pd)!important;box-shadow:0 0 30px rgba(15,118,110,.5)}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:12px;font-size:.9rem;font-weight:600;text-decoration:none;transition:all .3s cubic-bezier(.4,0,.2,1);border:none;cursor:pointer;position:relative;overflow:hidden}
@@ -223,6 +225,7 @@ body{font-family:'Inter',system-ui,sans-serif;color:var(--g800);line-height:1.6;
         <a href="#modulos">Modulos</a>
         <a href="#normativa">Normativa</a>
         <a href="#planes">Planes</a>
+        <a href="{% url 'login' %}" class="nav-login"><i class="fas fa-sign-in-alt"></i> Ingresar</a>
         <a href="https://wa.me/51977538028?text=Hola%2C%20quiero%20una%20demo%20de%20Harmoni" class="nav-cta" target="_blank"><i class="fab fa-whatsapp"></i> Demo</a>
     </div>
 </div>

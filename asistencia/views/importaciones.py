@@ -199,12 +199,12 @@ def importar_synkro_view(request):
                 cesados = Personal.objects.filter(
                     nro_doc__in=dnis_exp,
                     fecha_cese__isnull=False,
-                ).values_list('nro_doc', 'nombres', 'apellidos', 'fecha_cese')
+                ).values_list('nro_doc', 'apellidos_nombres', 'fecha_cese')
                 if cesados:
                     n = len(cesados)
                     ejemplos = '; '.join(
-                        f'{ap} {nm} (cese: {fc.strftime("%d/%m/%Y")})'
-                        for _, nm, ap, fc in list(cesados)[:3]
+                        f'{nombre} (cese: {fc.strftime("%d/%m/%Y")})'
+                        for _, nombre, fc in list(cesados)[:3]
                     )
                     resultado['advertencias'].append(
                         f'{n} empleado(s) del archivo tienen cese registrado: {ejemplos}'

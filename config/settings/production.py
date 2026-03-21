@@ -40,12 +40,25 @@ if cors_origins:
 SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
 SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
 CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+# Content Security Policy (via middleware)
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com")
+CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com")
+CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'self'",)
 
 # Database - PostgreSQL for production
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -88,8 +101,8 @@ if CELERY_BROKER_URL_ENV:
     CELERY_WORKER_MAX_TASKS_PER_CHILD = 100
     CELERY_WORKER_MAX_MEMORY_PER_CHILD = 150_000  # 150MB en KB
     CELERY_TASK_ACKS_LATE = True
-    CELERY_TASK_SOFT_TIME_LIMIT = 120
-    CELERY_TASK_TIME_LIMIT = 180
+    CELERY_TASK_SOFT_TIME_LIMIT = 300   # 5 min
+    CELERY_TASK_TIME_LIMIT = 600        # 10 min hard kill
     CELERY_TASK_REJECT_ON_WORKER_LOST = True
     CELERY_TASK_COMPRESSION = 'gzip'
     CELERY_RESULT_EXPIRES = 3600

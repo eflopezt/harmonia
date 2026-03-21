@@ -6,7 +6,8 @@ from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum
+from django.db import models
+from django.db.models import Count, Q, Sum, F
 from django.shortcuts import render
 
 from asistencia.views._common import solo_admin, _qs_staff_dedup
@@ -59,20 +60,39 @@ def tareo_dashboard(request):
     qs_staff_dedup = _qs_staff_dedup(mes_ini, mes_fin)
     qs_rco = RegistroTareo.objects.filter(grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin)
 
-    staff_stats = qs_staff_dedup.aggregate(
+    # Excluir registros de empleados cesados y domingos LOCAL como faltas
+    qs_staff_valid = qs_staff_dedup.exclude(
+        personal__fecha_cese__isnull=False,
+        fecha__gt=models.F('personal__fecha_cese')
+    )
+    qs_rco_valid = qs_rco.exclude(
+        personal__fecha_cese__isnull=False,
+        fecha__gt=models.F('personal__fecha_cese')
+    )
+    # Faltas reales: excluir domingos LOCAL (son DS, no faltas)
+    faltas_staff = qs_staff_valid.filter(
+        codigo_dia__in=['F', 'FA', 'LSG']
+    ).exclude(
+        condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6
+    ).count()
+    faltas_rco = qs_rco_valid.filter(
+        codigo_dia__in=['F', 'FA', 'LSG']
+    ).exclude(
+        condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6
+    ).count()
+
+    staff_stats = qs_staff_valid.aggregate(
         personas    = Count('dni', distinct=True),
         he_25       = Sum('he_25'),
         he_35       = Sum('he_35'),
         he_100      = Sum('he_100'),
-        faltas      = Count('id', filter=Q(codigo_dia__in=['F', 'FA', 'LSG'])),
         ss_count    = Count('id', filter=Q(codigo_dia='SS')),
     )
-    rco_stats = qs_rco.aggregate(
+    rco_stats = qs_rco_valid.aggregate(
         personas    = Count('dni', distinct=True),
         he_25       = Sum('he_25'),
         he_35       = Sum('he_35'),
         he_100      = Sum('he_100'),
-        faltas      = Count('id', filter=Q(codigo_dia__in=['F', 'FA', 'LSG'])),
         ss_count    = Count('id', filter=Q(codigo_dia='SS')),
     )
 
@@ -83,7 +103,7 @@ def tareo_dashboard(request):
         'he_25_total':     _d(staff_stats['he_25'])  + _d(rco_stats['he_25']),
         'he_35_total':     _d(staff_stats['he_35'])  + _d(rco_stats['he_35']),
         'he_100_total':    _d(staff_stats['he_100']) + _d(rco_stats['he_100']),
-        'faltas':          (staff_stats['faltas']  or 0) + (rco_stats['faltas']  or 0),
+        'faltas':          faltas_staff + faltas_rco,
         'ss_count':        (staff_stats['ss_count'] or 0) + (rco_stats['ss_count'] or 0),
         'total_registros': qs_staff_dedup.count() + qs_rco.count(),
     }

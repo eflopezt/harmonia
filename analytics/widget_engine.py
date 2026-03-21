@@ -172,7 +172,7 @@ def _asistencia_hoy(user):
         tareo = RegistroTareo.objects.filter(fecha=hoy, personal__in=activos)
         stats = tareo.aggregate(
             total=Count('id'),
-            presentes=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'SS'])),
+            presentes=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'SS', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM'])),
             faltas=Count('id', filter=Q(codigo_dia__in=['FA', 'LSG'])),
             permisos=Count('id', filter=Q(codigo_dia__in=[
                 'V', 'DL', 'DLA', 'DM', 'LCG', 'LF', 'LP', 'LM',
@@ -199,18 +199,25 @@ def _asistencia_mes(user):
     activos = _personal_activo(user)
     try:
         from asistencia.models import RegistroTareo
+        from django.db.models import F as DbF
         tareo = RegistroTareo.objects.filter(
             fecha__gte=inicio_mes, fecha__lte=hoy, personal__in=activos
+        ).exclude(
+            personal__fecha_cese__isnull=False,
+            fecha__gt=DbF('personal__fecha_cese')
         )
         total = tareo.count()
-        presentes = tareo.filter(codigo_dia__in=['T', 'NOR', 'TR', 'SS']).count()
-        faltas = tareo.filter(codigo_dia__in=['FA', 'LSG']).count()
+        presentes = tareo.filter(codigo_dia__in=['T', 'NOR', 'TR', 'SS', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM']).count()
+        # Faltas reales: excluir domingos LOCAL (son DS)
+        faltas = tareo.filter(codigo_dia__in=['FA', 'LSG']).exclude(
+            condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6
+        ).count()
         pct = round(presentes / total * 100, 1) if total else 0
         # Stats por dia para mini chart
         dias = list(
             tareo.values('fecha')
             .annotate(
-                p=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'SS'])),
+                p=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'SS', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM'])),
                 t=Count('id')
             )
             .order_by('fecha')
@@ -236,7 +243,7 @@ def _tardanzas_mes(user):
             fecha__gte=inicio_mes, fecha__lte=hoy, personal__in=activos
         )
         tardanzas = tareo.filter(codigo_dia='TR').count()
-        total = tareo.filter(codigo_dia__in=['T', 'NOR', 'TR', 'SS']).count()
+        total = tareo.filter(codigo_dia__in=['T', 'NOR', 'TR', 'SS', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM']).count()
         pct = round(tardanzas / total * 100, 1) if total else 0
         return {'tardanzas': tardanzas, 'total_presentes': total, 'pct': pct}
     except Exception:

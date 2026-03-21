@@ -62,7 +62,7 @@ def vista_staff(request):
         .values('personal_id', 'personal__apellidos_nombres', 'personal__nro_doc',
                 'personal__condicion', 'dni')
         .annotate(
-            dias_trabajados = Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'LCG', 'ATM', 'CDT', 'CPF', 'SS'])),
+            dias_trabajados = Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'LCG', 'ATM', 'CDT', 'CPF', 'SS', 'CHE', 'LIM'])),
             dias_ss         = Count('id', filter=Q(codigo_dia='SS')),
             dias_dl         = Count('id', filter=Q(codigo_dia__in=['DL', 'DLA'])),
             dias_che        = Count('id', filter=Q(codigo_dia='CHE')),

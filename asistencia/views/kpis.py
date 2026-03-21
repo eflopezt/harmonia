@@ -34,12 +34,16 @@ def kpi_dashboard_view(request):
     config = ConfiguracionSistema.get()
     inicio, fin = config.get_ciclo_asistencia(anio, mes)
 
-    qs = RegistroTareo.objects.filter(fecha__gte=inicio, fecha__lte=fin)
+    from django.db.models import F as DbF
+    qs = RegistroTareo.objects.filter(fecha__gte=inicio, fecha__lte=fin).exclude(
+        personal__fecha_cese__isnull=False, fecha__gt=DbF('personal__fecha_cese')
+    )
 
     # KPIs principales
     total_dias_prog = qs.count()
-    dias_trabajados = qs.filter(codigo_dia__in=['T', 'NOR', 'TR']).count()
-    faltas = qs.filter(codigo_dia='FA').count()
+    dias_trabajados = qs.filter(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM']).count()
+    # Faltas reales: excluir domingos LOCAL (son DS, no faltas)
+    faltas = qs.filter(codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
     vacaciones = qs.filter(codigo_dia__in=['VAC', 'V']).count()
     dm = qs.filter(codigo_dia='DM').count()
     dl_bajadas = qs.filter(codigo_dia__in=['DL', 'DLA', 'B']).count()
@@ -59,21 +63,21 @@ def kpi_dashboard_view(request):
     # Por grupo
     staff_stats = qs.filter(grupo='STAFF').aggregate(
         dias=Count('id'),
-        faltas=Count('id', filter=Q(codigo_dia='FA')),
         he25=Sum('he_25'), he35=Sum('he_35'),
     )
+    staff_stats['faltas'] = qs.filter(grupo='STAFF', codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
     rco_stats = qs.filter(grupo='RCO').aggregate(
         dias=Count('id'),
-        faltas=Count('id', filter=Q(codigo_dia='FA')),
         he25=Sum('he_25'), he35=Sum('he_35'), he100=Sum('he_100'),
     )
+    rco_stats['faltas'] = qs.filter(grupo='RCO', codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
 
     # Tendencia diaria del ciclo (para gráfica de línea principal)
     tendencia = list(
         qs.values('fecha')
         .annotate(
-            trabajados=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR'])),
-            ausentes=Count('id', filter=Q(codigo_dia='FA')),
+            trabajados=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM'])),
+            ausentes=Count('id', filter=Q(codigo_dia__in=['FA', 'F']) & ~Q(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)),
         )
         .order_by('fecha')
     )
@@ -82,7 +86,7 @@ def kpi_dashboard_view(request):
 
     # Top 10 ausentes del mes
     top_ausentes = list(
-        qs.filter(codigo_dia='FA')
+        qs.filter(codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
         .values('personal__apellidos_nombres', 'personal__nro_doc', 'grupo')
         .annotate(total_faltas=Count('id'))
         .order_by('-total_faltas')[:10]
@@ -109,8 +113,8 @@ def kpi_dashboard_view(request):
         tendencia_7d_raw = list(
             qs_7d.values('fecha')
             .annotate(
-                presentes=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR'])),
-                faltas_dia=Count('id', filter=Q(codigo_dia='FA')),
+                presentes=Count('id', filter=Q(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM'])),
+                faltas_dia=Count('id', filter=Q(codigo_dia__in=['FA', 'F']) & ~Q(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)),
                 permisos=Count('id', filter=Q(codigo_dia__in=CODIGOS_PERMISO)),
             )
             .order_by('fecha')
@@ -135,9 +139,9 @@ def kpi_dashboard_view(request):
         qs_mes_cal = RegistroTareo.objects.filter(
             fecha__month=mes,
             fecha__year=anio,
-            codigo_dia='FA',
+            codigo_dia__in=['FA', 'F'],
             personal__isnull=False,
-        )
+        ).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
         top_raw = list(
             qs_mes_cal
             .values('personal__subarea__area__nombre')
@@ -218,8 +222,8 @@ def kpi_dashboard_view(request):
                 grupo=grupo_nombre,
             )
             total_g = g_qs.count()
-            presentes_g = g_qs.filter(codigo_dia__in=['T', 'NOR', 'TR']).count()
-            faltas_g = g_qs.filter(codigo_dia='FA').count()
+            presentes_g = g_qs.filter(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM']).count()
+            faltas_g = g_qs.filter(codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
             tasa = round(presentes_g / total_g * 100, 1) if total_g else 0
             return {
                 'grupo': grupo_nombre,

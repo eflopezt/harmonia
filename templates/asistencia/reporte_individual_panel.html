@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}Reportes Individuales{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero-rep{background:linear-gradient(135deg,#1e293b 0%,#0f766e 100%);border-radius:.75rem}
+.filter-bar{background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.06);border-radius:.75rem;padding:.75rem 1rem}
+.filter-bar select,.filter-bar input{font-size:.82rem;border-radius:.5rem}
+.emp-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem;transition:all .15s;position:relative}
+.emp-card:hover{border-color:#0f766e;box-shadow:0 4px 16px rgba(15,118,110,.12);transform:translateY(-1px)}
+.emp-card.selected{border-color:#0f766e;background:#f0fdf4}
+.emp-name{font-weight:700;font-size:.85rem;color:#1e293b}
+.emp-dni{font-size:.72rem;color:#94a3b8}
+.emp-cargo{font-size:.72rem;color:#64748b}
+.emp-area{font-size:.65rem;padding:1px 6px;border-radius:6px;background:#f0fdf4;color:#065f46;font-weight:600}
+.emp-actions{display:flex;gap:4px;margin-top:6px}
+.emp-actions .btn{font-size:.7rem;padding:3px 10px;border-radius:6px}
+.badge-count{font-size:.75rem;padding:4px 10px;border-radius:8px}
+.emp-check{position:absolute;top:8px;right:8px;width:16px;height:16px;cursor:pointer;accent-color:#0f766e}
+.bulk-bar{background:#0f766e;color:#fff;border-radius:.75rem;padding:.6rem 1rem;display:none;align-items:center;gap:12px;position:sticky;top:70px;z-index:100}
+.bulk-bar.visible{display:flex}
+.bulk-bar .btn{font-size:.78rem;border-radius:6px}
+.btn-send-individual{transition:all .15s}
+.btn-send-individual:disabled{opacity:.5}
+.btn-send-individual.sending{pointer-events:none;opacity:.6}
+.btn-send-individual.sent{background:#065f46!important;border-color:#065f46!important;color:#fff!important}
+.no-email{font-size:.6rem;color:#e53e3e;margin-top:2px}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="hero-rep p-3 mb-4 text-white">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h2 class="mb-1 fw-bold">
+                <i class="fas fa-file-pdf me-2 opacity-75"></i>
+                Reportes Individuales de Asistencia
+            </h2>
+            <p class="mb-0 opacity-75" style="font-size:.82rem">
+                Ciclo {{ inicio|date:"d/m/Y" }} al {{ fin|date:"d/m/Y" }} · {{ mes_nombre }} {{ anio }}
+            </p>
+        </div>
+        <div>
+            <span class="badge badge-count bg-white bg-opacity-15 text-white">
+                <i class="fas fa-users me-1"></i>{{ total_empleados }} empleados
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar mb-3">
+<form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+    <select name="mes" class="form-select form-select-sm" style="width:120px">
+        {% for m_val, m_name in meses_list %}
+        <option value="{{ m_val }}" {% if m_val == mes %}selected{% endif %}>{{ m_name }}</option>
+        {% endfor %}
+    </select>
+    <select name="anio" class="form-select form-select-sm" style="width:90px">
+        {% for a in anios %}
+        <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+    </select>
+    <select name="grupo" class="form-select form-select-sm" style="width:110px">
+        <option value="STAFF" {% if grupo == 'STAFF' %}selected{% endif %}>STAFF</option>
+        <option value="RCO" {% if grupo == 'RCO' %}selected{% endif %}>RCO</option>
+        <option value="TODOS" {% if grupo == 'TODOS' %}selected{% endif %}>Todos</option>
+    </select>
+    <select name="area" class="form-select form-select-sm" style="width:160px">
+        <option value="">Todas las areas</option>
+        {% for a in areas %}
+        <option value="{{ a.id }}" {% if area_id|stringformat:"s" == a.id|stringformat:"s" %}selected{% endif %}>{{ a.nombre }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" style="width:180px" placeholder="Buscar nombre/DNI...">
+    <button class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
+    <a href="{% url 'asistencia_reporte_masivo' %}?anio={{ anio }}&mes={{ mes }}&grupo={{ grupo }}{% if area_id %}&area={{ area_id }}{% endif %}"
+       class="btn btn-sm btn-success ms-auto">
+        <i class="fas fa-download me-1"></i>Descargar Todos (ZIP)
+    </a>
+</form>
+</div>
+
+<!-- Bulk Send Bar -->
+<div id="bulkBar" class="bulk-bar mb-3">
+    <input type="checkbox" id="selectAll" style="width:16px;height:16px;accent-color:#fff;cursor:pointer">
+    <span id="bulkCount">0 seleccionados</span>
+    <button id="bulkSendBtn" class="btn btn-sm btn-light text-success fw-bold ms-auto">
+        <i class="fas fa-paper-plane me-1"></i>Enviar seleccionados
+    </button>
+    <button id="bulkClearBtn" class="btn btn-sm btn-outline-light">
+        <i class="fas fa-times me-1"></i>Limpiar
+    </button>
+</div>
+
+<!-- Employee Grid -->
+<div class="row g-2" id="empGrid">
+{% for emp in empleados %}
+<div class="col-12 col-sm-6 col-md-4 col-lg-3">
+    <div class="emp-card" data-id="{{ emp.id }}" data-email="{{ emp.correo_corporativo|default:emp.correo_personal|default:'' }}">
+        <input type="checkbox" class="emp-check" value="{{ emp.id }}">
+        <div class="emp-name">{{ emp.apellidos_nombres }}</div>
+        <div class="emp-dni">DNI: {{ emp.nro_doc }}</div>
+        <div class="emp-cargo">{{ emp.cargo }}</div>
+        <div class="mt-1">
+            {% if emp.subarea %}<span class="emp-area">{{ emp.subarea.area.nombre }}</span>{% endif %}
+        </div>
+        <div class="emp-actions">
+            <a href="{% url 'asistencia_reporte_pdf' emp.id %}?anio={{ anio }}&mes={{ mes }}&grupo={{ grupo }}"
+               target="_blank" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-file-pdf me-1"></i>PDF
+            </a>
+            <button class="btn btn-outline-primary btn-sm btn-send-individual"
+                    data-url="{% url 'asistencia_reporte_enviar' emp.id %}?anio={{ anio }}&mes={{ mes }}&grupo={{ grupo }}"
+                    {% if not emp.correo_corporativo and not emp.correo_personal %}disabled title="Sin correo registrado"{% endif %}>
+                <i class="fas fa-envelope me-1"></i>Enviar
+            </button>
+        </div>
+        {% if not emp.correo_corporativo and not emp.correo_personal %}
+        <div class="no-email"><i class="fas fa-exclamation-circle me-1"></i>Sin correo registrado</div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="col-12 text-center py-5">
+    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+    <p class="text-muted">No se encontraron empleados con registros de asistencia en este periodo.</p>
+</div>
+{% endfor %}
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content" style="border-radius:.75rem">
+    <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="fas fa-paper-plane me-2 text-primary"></i>Confirmar envio</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-footer border-0 pt-0">
+        <button class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-sm btn-primary" id="confirmSendBtn">
+            <i class="fas fa-paper-plane me-1"></i>Enviar
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content" style="border-radius:.75rem">
+    <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold" id="resultTitle"></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body" id="resultBody"></div>
+    <div class="modal-footer border-0 pt-0">
+        <button class="btn btn-sm btn-primary" data-bs-dismiss="modal">Cerrar</button>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    const csrf = '{{ csrf_token }}';
+    const anio = {{ anio }}, mes = {{ mes }}, grupo = '{{ grupo }}';
+    const bulkBar = document.getElementById('bulkBar');
+    const bulkCount = document.getElementById('bulkCount');
+    const selectAllCb = document.getElementById('selectAll');
+
+    // ── Selection logic ──
+    function getChecked(){
+        return [...document.querySelectorAll('.emp-check:checked')].map(c => parseInt(c.value));
+    }
+    function updateBulkBar(){
+        const n = getChecked().length;
+        bulkCount.textContent = n + ' seleccionado' + (n !== 1 ? 's' : '');
+        bulkBar.classList.toggle('visible', n > 0);
+    }
+
+    document.getElementById('empGrid').addEventListener('change', function(e){
+        if(e.target.classList.contains('emp-check')){
+            e.target.closest('.emp-card').classList.toggle('selected', e.target.checked);
+            updateBulkBar();
+        }
+    });
+
+    // Click on card toggles checkbox (except on buttons/links)
+    document.getElementById('empGrid').addEventListener('click', function(e){
+        if(e.target.closest('a, button, input')) return;
+        const card = e.target.closest('.emp-card');
+        if(!card) return;
+        const cb = card.querySelector('.emp-check');
+        cb.checked = !cb.checked;
+        card.classList.toggle('selected', cb.checked);
+        updateBulkBar();
+    });
+
+    selectAllCb.addEventListener('change', function(){
+        document.querySelectorAll('.emp-check').forEach(c => {
+            c.checked = selectAllCb.checked;
+            c.closest('.emp-card').classList.toggle('selected', c.checked);
+        });
+        updateBulkBar();
+    });
+
+    document.getElementById('bulkClearBtn').addEventListener('click', function(){
+        document.querySelectorAll('.emp-check:checked').forEach(c => {
+            c.checked = false;
+            c.closest('.emp-card').classList.remove('selected');
+        });
+        selectAllCb.checked = false;
+        updateBulkBar();
+    });
+
+    // ── Individual send ──
+    document.getElementById('empGrid').addEventListener('click', function(e){
+        const btn = e.target.closest('.btn-send-individual');
+        if(!btn || btn.disabled) return;
+        e.preventDefault();
+        const card = btn.closest('.emp-card');
+        const name = card.querySelector('.emp-name').textContent;
+        const email = card.dataset.email;
+
+        showConfirm(
+            `Se enviara el reporte de <strong>${name}</strong> a <strong>${email}</strong>.`,
+            function(){
+                btn.classList.add('sending');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando...';
+                fetch(btn.dataset.url, {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': csrf}
+                })
+                .then(r => r.json())
+                .then(data => {
+                    btn.classList.remove('sending');
+                    if(data.ok){
+                        btn.classList.add('sent');
+                        btn.innerHTML = '<i class="fas fa-check me-1"></i>Enviado';
+                        btn.disabled = true;
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-envelope me-1"></i>Enviar';
+                        showResult('Error', '<div class="text-danger">' + data.error + '</div>');
+                    }
+                })
+                .catch(() => {
+                    btn.classList.remove('sending');
+                    btn.innerHTML = '<i class="fas fa-envelope me-1"></i>Enviar';
+                    showResult('Error', '<div class="text-danger">Error de conexion.</div>');
+                });
+            }
+        );
+    });
+
+    // ── Bulk send ──
+    document.getElementById('bulkSendBtn').addEventListener('click', function(){
+        const ids = getChecked();
+        if(!ids.length) return;
+        // Count those without email
+        let sinCorreo = 0;
+        ids.forEach(id => {
+            const card = document.querySelector(`.emp-card[data-id="${id}"]`);
+            if(card && !card.dataset.email) sinCorreo++;
+        });
+        let msg = `Se enviaran <strong>${ids.length}</strong> reporte(s) por correo.`;
+        if(sinCorreo) msg += `<br><span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>${sinCorreo} sin correo registrado (se omitiran).</span>`;
+
+        showConfirm(msg, function(){
+            const btn = document.getElementById('bulkSendBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando...';
+
+            fetch('{% url "asistencia_reporte_enviar_masivo" %}', {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'},
+                body: JSON.stringify({ids: ids, anio: anio, mes: mes, grupo: grupo})
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Enviar seleccionados';
+                let html = '';
+                if(data.enviados) html += `<div class="text-success mb-2"><i class="fas fa-check-circle me-1"></i>${data.enviados} reporte(s) enviados correctamente.</div>`;
+                if(data.sin_correo && data.sin_correo.length) html += `<div class="text-warning mb-2"><i class="fas fa-exclamation-triangle me-1"></i>${data.sin_correo.length} sin correo: ${data.sin_correo.join(', ')}</div>`;
+                if(data.errores && data.errores.length) html += `<div class="text-danger mb-2"><i class="fas fa-times-circle me-1"></i>${data.errores.length} error(es): ${data.errores.join(', ')}</div>`;
+                showResult('Resultado del envio', html);
+                // Mark sent cards
+                if(data.enviados){
+                    ids.forEach(id => {
+                        const card = document.querySelector(`.emp-card[data-id="${id}"]`);
+                        if(card && card.dataset.email){
+                            const sendBtn = card.querySelector('.btn-send-individual');
+                            if(sendBtn){
+                                sendBtn.classList.add('sent');
+                                sendBtn.innerHTML = '<i class="fas fa-check me-1"></i>Enviado';
+                                sendBtn.disabled = true;
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Enviar seleccionados';
+                showResult('Error', '<div class="text-danger">Error de conexion.</div>');
+            });
+        });
+    });
+
+    // ── Modals ──
+    let pendingAction = null;
+    function showConfirm(bodyHtml, onConfirm){
+        document.getElementById('confirmBody').innerHTML = bodyHtml;
+        pendingAction = onConfirm;
+        new bootstrap.Modal(document.getElementById('confirmModal')).show();
+    }
+    document.getElementById('confirmSendBtn').addEventListener('click', function(){
+        bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+        if(pendingAction) pendingAction();
+        pendingAction = null;
+    });
+    function showResult(title, bodyHtml){
+        document.getElementById('resultTitle').innerHTML = '<i class="fas fa-info-circle me-2 text-primary"></i>' + title;
+        document.getElementById('resultBody').innerHTML = bodyHtml;
+        new bootstrap.Modal(document.getElementById('resultModal')).show();
+    }
+})();
+</script>
+{% endblock %}

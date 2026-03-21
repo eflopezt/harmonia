@@ -20,15 +20,15 @@ services:
       - /opt/harmoni/media:/app/media
       - /opt/harmoni/logs:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "cat /proc/1/status | grep -q 'State.*S' || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import http.client; c=http.client.HTTPConnection('localhost',8000,timeout=5); c.request('GET','/health/'); r=c.getresponse(); exit(0 if r.status in (200,301,302) else 1)\""]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     command: >
       gunicorn config.wsgi:application
         --bind 0.0.0.0:8000
-        --workers 2
+        --workers 3
         --threads 2
         --worker-class gthread
         --max-requests 1000
@@ -79,7 +79,7 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings.production
     volumes:
       - /opt/harmoni/logs:/app/logs
-    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler --max-interval 300
     depends_on:
       web:
         condition: service_healthy
