@@ -211,6 +211,51 @@ class FeriadoCalendario(models.Model):
         return f"{self.fecha} — {self.nombre}"
 
 
+class CompensacionFeriado(models.Model):
+    """
+    Traslado configurable de un feriado oficial a otro día laborable.
+
+    Ejemplo típico: el Gobierno decreta que el 2 de abril (feriado oficial)
+    se trabaja normalmente y el descanso se toma el 4 de abril.
+    En ese caso:
+        fecha_feriado    = 2026-04-02  ← deja de ser feriado
+        fecha_compensada = 2026-04-04  ← toma el tratamiento de feriado
+
+    El importer y los procesadores de tareo consultan esta tabla para
+    ajustar qué días aplican el 100% de HE adicional.
+    """
+
+    fecha_feriado = models.DateField(
+        verbose_name="Fecha del Feriado Original",
+        help_text="Día oficial de feriado que se traslada (se trabaja normalmente).",
+    )
+    fecha_compensada = models.DateField(
+        verbose_name="Fecha Compensada (nuevo feriado)",
+        help_text="Día que toma el tratamiento de feriado en sustitución.",
+    )
+    descripcion = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Descripción",
+        help_text="Ej: 'Feriado 02-Abr trasladado al 04-Abr por D.S. 012-2026'",
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name="Activo",
+        help_text="Desactivar sin borrar si el traslado fue revertido.",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Compensación de Feriado"
+        verbose_name_plural = "Compensaciones de Feriado"
+        ordering = ['fecha_feriado']
+        unique_together = [['fecha_feriado', 'fecha_compensada']]
+
+    def __str__(self):
+        return f"{self.fecha_feriado} → {self.fecha_compensada} | {self.descripcion or 'Traslado de feriado'}"
+
+
 class HomologacionCodigo(models.Model):
     """
     Tabla de equivalencias entre códigos del sistema de asistencia

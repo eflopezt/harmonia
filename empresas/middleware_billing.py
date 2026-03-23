@@ -53,8 +53,8 @@ class BillingMiddleware:
         if not request.user.is_authenticated:
             return self.get_response(request)
 
-        # Skip for superusers
-        if request.user.is_superuser:
+        # Skip for superusers and staff
+        if request.user.is_superuser or request.user.is_staff:
             # Still load suscripcion for display purposes
             self._load_suscripcion(request)
             return self.get_response(request)

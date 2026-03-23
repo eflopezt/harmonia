@@ -173,7 +173,10 @@ def _build_rco_data(personal, inicio, fin):
         existing = tareo_map.get(fecha)
         if existing is None:
             tareo_map[fecha] = r
-        elif r['fuente_codigo'] == 'RELOJ' and existing['fuente_codigo'] != 'RELOJ':
+        elif r['fuente_codigo'] == 'RELOJ':
+            # RELOJ siempre gana sobre EXCEL.
+            # Entre varios RELOJ (importaciones distintas), gana el de pk mayor
+            # (ya ordenados asc por pk, así que cada RELOJ sobreescribe al anterior).
             tareo_map[fecha] = r
     condicion = personal.condicion or ''
     dias = []
@@ -486,12 +489,12 @@ def _resumen_rco(totales):
     total_all = totales['normales'] + he_t
     r = '<table style="margin-bottom:4px"><tr>'
     r += '<td style="background-color:#14532d;color:white;padding:5px 10px;font-size:8pt;font-weight:bold">RESUMEN HORAS</td>'
-    r += f'<td style="background-color:#dcfce7;padding:5px 8px;font-size:8pt;border:1px solid #86efac"><b style="color:#14532d">Normal: {totales["normales"]:.1f}h</b></td>'
-    r += f'<td style="background-color:#dbeafe;padding:5px 8px;font-size:8pt;border:1px solid #93c5fd"><b style="color:#1e40af">HE 25%: {totales["he_25"]:.1f}h</b></td>'
-    r += f'<td style="background-color:#fed7aa;padding:5px 8px;font-size:8pt;border:1px solid #fdba74"><b style="color:#9a3412">HE 35%: {totales["he_35"]:.1f}h</b></td>'
-    r += f'<td style="background-color:#fecaca;padding:5px 8px;font-size:8pt;border:1px solid #fca5a5"><b style="color:#991b1b">HE 100%: {totales["he_100"]:.1f}h</b></td>'
-    r += f'<td style="background-color:#fef9c3;padding:5px 8px;font-size:8pt;border:1px solid #fde047"><b style="color:#854d0e">Total HE: {he_t:.1f}h</b></td>'
-    r += f'<td style="background-color:#f0fdf4;padding:5px 8px;font-size:8pt;border:1px solid #86efac"><b style="color:#14532d">TOTAL: {total_all:.1f}h</b></td>'
+    r += f'<td style="background-color:#dcfce7;padding:5px 8px;font-size:8pt;border:1px solid #86efac"><b style="color:#14532d">Normal: {totales["normales"]:.2f}h</b></td>'
+    r += f'<td style="background-color:#dbeafe;padding:5px 8px;font-size:8pt;border:1px solid #93c5fd"><b style="color:#1e40af">HE 25%: {totales["he_25"]:.2f}h</b></td>'
+    r += f'<td style="background-color:#fed7aa;padding:5px 8px;font-size:8pt;border:1px solid #fdba74"><b style="color:#9a3412">HE 35%: {totales["he_35"]:.2f}h</b></td>'
+    r += f'<td style="background-color:#fecaca;padding:5px 8px;font-size:8pt;border:1px solid #fca5a5"><b style="color:#991b1b">HE 100%: {totales["he_100"]:.2f}h</b></td>'
+    r += f'<td style="background-color:#fef9c3;padding:5px 8px;font-size:8pt;border:1px solid #fde047"><b style="color:#854d0e">Total HE: {he_t:.2f}h</b></td>'
+    r += f'<td style="background-color:#f0fdf4;padding:5px 8px;font-size:8pt;border:1px solid #86efac"><b style="color:#14532d">TOTAL: {total_all:.2f}h</b></td>'
     r += '</tr></table>'
     return r
 
@@ -670,7 +673,7 @@ def _render_rco_html(personal, dias, totales, papeletas, inicio, fin, mes, anio)
         r2 = '<tr>'
         for cell in sem:
             if cell and cell['n']:
-                r2 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#f0fff4"><span style="color:#64748b">Hrs:</span> <span style="font-weight:bold;color:#0f766e;font-size:7pt">{cell["n"]:.1f}</span></td>'
+                r2 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#f0fff4"><span style="color:#64748b">Hrs:</span> <span style="font-weight:bold;color:#0f766e;font-size:7pt">{cell["n"]:.2f}</span></td>'
             else:
                 r2 += '<td style="border:1px solid #e2e8f0;padding:1px 3px;background-color:#fafafa">&nbsp;</td>'
         r2 += '</tr>'
@@ -679,7 +682,7 @@ def _render_rco_html(personal, dias, totales, papeletas, inicio, fin, mes, anio)
         r3 = '<tr>'
         for cell in sem:
             if cell and cell['h25']:
-                r3 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#eff6ff"><span style="color:#64748b">HE25:</span> <span style="font-weight:bold;color:#1e40af;font-size:7pt">{cell["h25"]:.1f}</span></td>'
+                r3 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#eff6ff"><span style="color:#64748b">HE25:</span> <span style="font-weight:bold;color:#1e40af;font-size:7pt">{cell["h25"]:.2f}</span></td>'
             else:
                 r3 += '<td style="border:1px solid #e2e8f0;padding:1px 3px;background-color:#fafafa">&nbsp;</td>'
         r3 += '</tr>'
@@ -688,7 +691,7 @@ def _render_rco_html(personal, dias, totales, papeletas, inicio, fin, mes, anio)
         r4 = '<tr>'
         for cell in sem:
             if cell and cell['h35']:
-                r4 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#fffbeb"><span style="color:#64748b">HE35:</span> <span style="font-weight:bold;color:#9a3412;font-size:7pt">{cell["h35"]:.1f}</span></td>'
+                r4 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#fffbeb"><span style="color:#64748b">HE35:</span> <span style="font-weight:bold;color:#9a3412;font-size:7pt">{cell["h35"]:.2f}</span></td>'
             else:
                 r4 += '<td style="border:1px solid #e2e8f0;padding:1px 3px;background-color:#fafafa">&nbsp;</td>'
         r4 += '</tr>'
@@ -697,7 +700,7 @@ def _render_rco_html(personal, dias, totales, papeletas, inicio, fin, mes, anio)
         r5 = '<tr>'
         for cell in sem:
             if cell and cell['h100']:
-                r5 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#fef2f2"><span style="color:#64748b">H100:</span> <span style="font-weight:bold;color:#991b1b;font-size:7pt">{cell["h100"]:.1f}</span></td>'
+                r5 += f'<td style="border:1px solid #e2e8f0;padding:1px 3px;font-size:6pt;background-color:#fef2f2"><span style="color:#64748b">H100:</span> <span style="font-weight:bold;color:#991b1b;font-size:7pt">{cell["h100"]:.2f}</span></td>'
             else:
                 r5 += '<td style="border:1px solid #e2e8f0;padding:1px 3px;background-color:#fafafa">&nbsp;</td>'
         r5 += '</tr>'

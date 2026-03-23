@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Calendario de Asistencia{% endblock %}
+{% block title %}Asistencia Matricial{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -107,7 +107,7 @@
     <div>
         <h2 class="mb-1 fw-bold">
             <i class="fas fa-calendar-alt me-2 opacity-75"></i>
-            Calendario de Asistencia
+            Asistencia Matricial
             <span class="ms-2 badge bg-white bg-opacity-10 fw-semibold" style="font-size:.75rem">
                 {{ mes_nombre }} {{ anio }}
             </span>
@@ -273,9 +273,10 @@
         </div>
         <!-- Detail grid -->
         <div class="row g-2 mb-3" id="modalInfo">
-            <div class="col-4 text-center"><small class="text-muted d-block">Entrada</small><strong id="modalEntrada">-</strong></div>
-            <div class="col-4 text-center"><small class="text-muted d-block">Salida</small><strong id="modalSalida">-</strong></div>
-            <div class="col-4 text-center"><small class="text-muted d-block">Horas Efec.</small><strong id="modalHoras">-</strong></div>
+            <div class="col-3 text-center"><small class="text-muted d-block">Entrada</small><strong id="modalEntrada">-</strong></div>
+            <div class="col-3 text-center"><small class="text-muted d-block">Salida</small><strong id="modalSalida">-</strong></div>
+            <div class="col-3 text-center"><small class="text-muted d-block">H. Normales</small><strong id="modalHorasNorm">-</strong></div>
+            <div class="col-3 text-center"><small class="text-muted d-block">H. Efectivas</small><strong id="modalHoras">-</strong></div>
         </div>
         <div class="row g-2 mb-3" id="modalHE" style="display:none">
             <div class="col-4 text-center"><small class="text-muted d-block">HE 25%</small><strong id="modalHe25" class="text-primary">0</strong></div>
@@ -297,15 +298,27 @@
 
         <!-- Justification form -->
         <div class="bg-light rounded p-3">
-            <h6 class="mb-2"><i class="fas fa-edit me-1 text-primary"></i>Justificar / Cambiar código</h6>
+            <h6 class="mb-2"><i class="fas fa-edit me-1 text-primary"></i>Justificar / Cambiar</h6>
             <input type="hidden" id="editRegistroId">
             <div class="mb-2">
+                <label class="form-label small text-muted mb-1">Código</label>
                 <select id="editCodigo" class="form-select form-select-sm">
-                    <option value="">Seleccionar nuevo código...</option>
+                    <option value="">Mantener código actual...</option>
                 </select>
             </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <label class="form-label small text-muted mb-1"><i class="fas fa-sign-in-alt me-1"></i>Entrada</label>
+                    <input type="time" id="editEntrada" class="form-control form-control-sm">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small text-muted mb-1"><i class="fas fa-sign-out-alt me-1"></i>Salida</label>
+                    <input type="time" id="editSalida" class="form-control form-control-sm">
+                </div>
+            </div>
             <div class="mb-2">
-                <textarea id="editObs" class="form-control form-control-sm" rows="2" placeholder="Motivo de la justificación..."></textarea>
+                <label class="form-label small text-muted mb-1">Justificación</label>
+                <textarea id="editObs" class="form-control form-control-sm" rows="2" placeholder="Motivo del cambio..."></textarea>
             </div>
             <div class="mb-2">
                 <input type="file" id="editSustento" class="form-control form-control-sm" accept=".pdf,.jpg,.png,.jpeg">
@@ -332,8 +345,8 @@ let currentRegistroId = null;
 const sel = document.getElementById('editCodigo');
 CODIGOS.forEach(c => {
     const opt = document.createElement('option');
-    opt.value = c.codigo;
-    opt.textContent = `${c.codigo} — ${c.descripcion}`;
+    opt.value = c.codigo_tareo;
+    opt.textContent = `${c.codigo_tareo} — ${c.descripcion}`;
     sel.appendChild(opt);
 });
 
@@ -353,7 +366,14 @@ function openDetail(regId) {
 
         document.getElementById('modalEntrada').textContent = d.entrada;
         document.getElementById('modalSalida').textContent = d.salida;
+        document.getElementById('modalHorasNorm').textContent = d.horas_normales > 0 ? d.horas_normales.toFixed(1) + 'h' : '-';
         document.getElementById('modalHoras').textContent = d.horas_efectivas > 0 ? d.horas_efectivas.toFixed(1) + 'h' : '-';
+
+        // Precargar entrada/salida en el formulario de edición
+        const entradaInput = document.getElementById('editEntrada');
+        const salidaInput = document.getElementById('editSalida');
+        entradaInput.value = (d.entrada && d.entrada !== '-') ? d.entrada : '';
+        salidaInput.value = (d.salida && d.salida !== '-') ? d.salida : '';
 
         const heDiv = document.getElementById('modalHE');
         if (d.he_25 > 0 || d.he_35 > 0 || d.he_100 > 0) {
@@ -391,6 +411,11 @@ function openDetail(regId) {
             histDiv.style.display = 'none';
         }
 
+        // Reset código dropdown
+        document.getElementById('editCodigo').value = '';
+        document.getElementById('editObs').value = '';
+        document.getElementById('editSustento').value = '';
+
         new bootstrap.Modal(document.getElementById('modalDetalle')).show();
     })
     .catch(e => console.error('Error:', e));
@@ -401,12 +426,23 @@ function guardarCambio() {
     const codigo = document.getElementById('editCodigo').value;
     const obs = document.getElementById('editObs').value;
     const sustento = document.getElementById('editSustento').files[0];
+    const entrada = document.getElementById('editEntrada').value;
+    const salida = document.getElementById('editSalida').value;
 
-    if (!codigo) { alert('Selecciona un código'); return; }
+    if (!codigo && !entrada && !salida) {
+        alert('Selecciona un código o cambia la entrada/salida');
+        return;
+    }
+    if (!obs) {
+        alert('Ingresa una justificación para el cambio');
+        return;
+    }
 
     const fd = new FormData();
-    fd.append('codigo', codigo);
+    if (codigo) fd.append('codigo', codigo);
     fd.append('observacion', obs);
+    if (entrada) fd.append('hora_entrada', entrada);
+    if (salida) fd.append('hora_salida', salida);
     if (sustento) fd.append('sustento', sustento);
 
     fetch(`/asistencia/ajax/calendario/cambiar/${regId}/`, {
@@ -423,7 +459,27 @@ function guardarCambio() {
                 const codeDiv = cell.querySelector('.code');
                 codeDiv.textContent = d.codigo;
                 codeDiv.className = `code code-${d.color}`;
+                // Update tooltip
+                let tip = d.codigo;
+                if (d.entrada && d.entrada !== '-') tip += ` ${d.entrada}-${d.salida}`;
+                cell.title = tip;
             });
+            // Update modal display
+            document.getElementById('modalEntrada').textContent = d.entrada;
+            document.getElementById('modalSalida').textContent = d.salida;
+            document.getElementById('modalHorasNorm').textContent = d.horas_normales > 0 ? d.horas_normales.toFixed(1) + 'h' : '-';
+            document.getElementById('modalHoras').textContent = d.horas_efectivas > 0 ? d.horas_efectivas.toFixed(1) + 'h' : '-';
+            const badgeEl = document.getElementById('modalCodigo');
+            badgeEl.textContent = d.codigo;
+            badgeEl.className = `badge-code code-${d.color}`;
+            if (d.he_25 > 0 || d.he_35 > 0 || d.he_100 > 0) {
+                document.getElementById('modalHE').style.display = '';
+                document.getElementById('modalHe25').textContent = d.he_25.toFixed(1);
+                document.getElementById('modalHe35').textContent = d.he_35.toFixed(1);
+                document.getElementById('modalHe100').textContent = d.he_100.toFixed(1);
+            } else {
+                document.getElementById('modalHE').style.display = 'none';
+            }
             bootstrap.Modal.getInstance(document.getElementById('modalDetalle')).hide();
             // Reset form
             document.getElementById('editCodigo').value = '';

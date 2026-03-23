@@ -75,7 +75,7 @@ class PersonalAdmin(admin.ModelAdmin):
                       'cuenta_ahorros', 'cuenta_cci', 'cuenta_cts')
         }),
         ('Tareo / Régimen', {
-            'fields': ('grupo_tareo', 'condicion', 'jornada_horas', 'regimen_laboral', 'regimen_turno',
+            'fields': ('grupo_tareo', 'condicion', 'regimen_laboral', 'regimen_turno',
                       'codigo_sap', 'codigo_s10', 'partida_control')
         }),
         ('Roster', {

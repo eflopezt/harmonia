@@ -30,7 +30,7 @@ from .models import (
 from . import engine
 from .flujo_caja_engine import proyectar_flujo_caja, proyectar_desde_plan
 
-solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff)
+solo_admin = user_passes_test(lambda u: u.is_superuser)
 
 
 # ─── Calendario procesos especiales ────────────────────────────────────────────

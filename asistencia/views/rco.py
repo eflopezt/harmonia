@@ -69,18 +69,21 @@ def vista_rco(request):
     qs_filtrado = qs_base
     if buscar:
         qs_filtrado = qs_filtrado.filter(
-            Q(dni__icontains=buscar) | Q(nombre_archivo__icontains=buscar)
+            Q(dni__icontains=buscar)
+            | Q(personal__apellidos_nombres__icontains=buscar)
+            | Q(nombre_archivo__icontains=buscar)
         )
 
     # Detail rows (+ solo_he filter)
-    qs = qs_filtrado.order_by('nombre_archivo', 'fecha')
+    qs = qs_filtrado.order_by('personal__apellidos_nombres', 'fecha')
     if solo_he:
         qs = qs.filter(Q(he_25__gt=0) | Q(he_35__gt=0) | Q(he_100__gt=0))
 
-    # Summary by person (buscar applied, solo_he NOT applied to keep all totals)
+    # Summary by person — agrupamos por personal_id (no por nombre_archivo)
+    # para evitar filas duplicadas cuando existen registros RELOJ y EXCEL del mismo trabajador.
     resumen = list(
         qs_filtrado
-        .values('dni', 'nombre_archivo', 'personal_id')
+        .values('dni', 'personal_id', 'personal__apellidos_nombres')
         .annotate(
             total_he_25=Sum('he_25'),
             total_he_35=Sum('he_35'),
@@ -91,7 +94,7 @@ def vista_rco(request):
             dias_dl=Count('id', filter=Q(codigo_dia__in=['DL', 'DLA'])),
             dias_vac=Count('id', filter=Q(codigo_dia__in=['VAC', 'V'])),
         )
-        .order_by('nombre_archivo')
+        .order_by('personal__apellidos_nombres')
     )
     for r in resumen:
         r['total_he'] = (r['total_he_25'] or Decimal('0')) + \

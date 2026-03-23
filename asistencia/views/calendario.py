@@ -13,7 +13,12 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from asistencia.models import RegistroTareo, HomologacionCodigo, CambioCodigoLog, FeriadoCalendario
+from django.db.models import F as DbF
+
+from asistencia.models import (
+    RegistroTareo, HomologacionCodigo, CambioCodigoLog,
+    FeriadoCalendario, ConfiguracionSistema,
+)
 from asistencia.views._common import solo_admin, _qs_staff_dedup
 from personal.models import Personal, Area
 
@@ -81,7 +86,7 @@ def calendario_grid(request):
     for d in dias_mes:
         d['es_feriado'] = d['fecha'] in feriados
 
-    # Query registros
+    # Query registros — excluir fuera de fecha_alta/fecha_cese (igual que RCO/STAFF)
     if grupo == 'STAFF':
         qs = _qs_staff_dedup(mes_ini, mes_fin)
     elif grupo == 'RCO':
@@ -96,6 +101,13 @@ def calendario_grid(request):
             personal__isnull=False)
         qs = qs_staff | qs_rco
 
+    # Excluir registros fuera del periodo laboral del trabajador
+    qs = qs.exclude(
+        personal__fecha_cese__isnull=False, fecha__gt=DbF('personal__fecha_cese')
+    ).exclude(
+        personal__fecha_alta__isnull=False, fecha__lt=DbF('personal__fecha_alta')
+    )
+
     # Filtros
     if area_id:
         qs = qs.filter(personal__subarea__area_id=area_id)
@@ -107,22 +119,38 @@ def calendario_grid(request):
             Q(dni__icontains=buscar)
         )
 
-    # Fetch all records
+    # Fetch all records — incluir fuente_codigo y horas_normales para dedup y detalle
     registros = list(qs.select_related('personal').values(
         'id', 'personal_id', 'personal__apellidos_nombres', 'personal__nro_doc',
         'personal__condicion', 'personal__fecha_alta', 'personal__fecha_cese',
-        'fecha', 'codigo_dia', 'grupo',
-        'hora_entrada_real', 'hora_salida_real', 'horas_efectivas',
+        'fecha', 'codigo_dia', 'grupo', 'fuente_codigo',
+        'hora_entrada_real', 'hora_salida_real',
+        'horas_efectivas', 'horas_normales',
         'he_25', 'he_35', 'he_100', 'observaciones',
     ))
 
     # Pivot: personal_id -> {dia: registro}
+    # Dedup: RELOJ > EXCEL; entre misma fuente, último pk gana (misma lógica que _build_rco_data)
+    FUENTE_PRIORIDAD = {'PAPELETA': 0, 'MANUAL': 1, 'RELOJ': 2, 'FERIADO': 3, 'FALTA_AUTO': 4, 'EXCEL': 5}
     pivot = defaultdict(dict)
     personal_info = {}
     for r in registros:
         pid = r['personal_id']
         dia = r['fecha'].day
-        pivot[pid][dia] = r
+        existente = pivot[pid].get(dia)
+        if existente:
+            # Prioridad: menor número = mayor prioridad
+            prio_new = FUENTE_PRIORIDAD.get(r['fuente_codigo'], 9)
+            prio_old = FUENTE_PRIORIDAD.get(existente['fuente_codigo'], 9)
+            if prio_new < prio_old:
+                pivot[pid][dia] = r
+            elif prio_new == prio_old:
+                # Misma fuente: último pk gana (más reciente)
+                if r['id'] > existente['id']:
+                    pivot[pid][dia] = r
+            # else: existente tiene mejor prioridad, no reemplazar
+        else:
+            pivot[pid][dia] = r
         if pid not in personal_info:
             personal_info[pid] = {
                 'nombre': r['personal__apellidos_nombres'],
@@ -208,8 +236,8 @@ def calendario_grid(request):
     codigos_disponibles = list(
         HomologacionCodigo.objects
         .filter(activo=True)
-        .values('codigo', 'descripcion')
-        .order_by('codigo')
+        .values('codigo_tareo', 'descripcion')
+        .order_by('codigo_tareo')
     )
 
     context = {
@@ -273,37 +301,165 @@ def ajax_calendario_detalle(request, registro_id):
     return JsonResponse(data)
 
 
+def _recalcular_horas(reg):
+    """Recalcular horas de un RegistroTareo usando la misma lógica del processor."""
+    from datetime import datetime, time as dt_time
+    config = ConfiguracionSistema.get_solo()
+    personal = reg.personal
+    condicion = (reg.condicion or '').upper()
+
+    # Obtener jornada (misma lógica que processor._obtener_jornada)
+    if (personal and personal.jornada_horas
+            and Decimal(str(personal.jornada_horas)) != Decimal('8')):
+        jornada_h = Decimal(str(personal.jornada_horas))
+    elif condicion == 'FORANEO':
+        jornada_h = Decimal(str(config.jornada_foraneo_horas))
+    elif reg.fecha.weekday() == 5:  # sábado
+        jornada_h = Decimal(str(config.jornada_sabado_horas))
+    else:
+        jornada_h = Decimal(str(config.jornada_local_horas))
+
+    # Calcular horas marcadas desde entrada/salida
+    horas_marcadas = Decimal('0')
+    if reg.hora_entrada_real and reg.hora_salida_real:
+        entrada_dt = datetime.combine(reg.fecha, reg.hora_entrada_real)
+        salida_dt = datetime.combine(reg.fecha, reg.hora_salida_real)
+        if salida_dt <= entrada_dt:
+            from datetime import timedelta
+            salida_dt += timedelta(days=1)
+        diff = (salida_dt - entrada_dt).total_seconds() / 3600
+        horas_marcadas = Decimal(str(round(diff, 2)))
+    elif reg.horas_marcadas:
+        horas_marcadas = Decimal(str(reg.horas_marcadas))
+
+    reg.horas_marcadas = horas_marcadas
+
+    CERO = Decimal('0')
+    codigo = reg.codigo_dia
+    CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF', 'LP',
+                      'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI', 'F',
+                      'V', 'FER', 'FL', 'SUB', 'DS', 'B', 'LIM', 'NA'}
+
+    # SS: paga jornada, sin HE
+    if codigo == 'SS':
+        reg.horas_efectivas = jornada_h
+        reg.horas_normales = jornada_h
+        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        return
+
+    # Códigos sin horas
+    if codigo in CODIGOS_SIN_HE or not horas_marcadas or horas_marcadas <= CERO:
+        reg.horas_efectivas = reg.horas_normales = CERO
+        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        return
+
+    # Descuento almuerzo (misma lógica que processor)
+    if jornada_h > Decimal('9'):
+        horas_ef = horas_marcadas
+    elif jornada_h <= Decimal('6'):
+        horas_ef = horas_marcadas
+    else:
+        almuerzo = Decimal('0.5') if horas_marcadas > 5 else CERO
+        horas_ef = max(CERO, horas_marcadas - almuerzo)
+
+    # Feriado/Domingo trabajado → todo al 100%
+    es_feriado = reg.es_feriado or FeriadoCalendario.objects.filter(
+        fecha=reg.fecha, activo=True).exists()
+    es_descanso_semanal = reg.fecha.weekday() == 6
+    if (es_feriado or es_descanso_semanal):
+        reg.horas_efectivas = horas_ef
+        reg.horas_normales = CERO
+        reg.he_25 = reg.he_35 = CERO
+        reg.he_100 = horas_ef
+        return
+
+    # Día normal
+    if horas_ef <= jornada_h:
+        reg.horas_efectivas = horas_ef
+        reg.horas_normales = horas_ef
+        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        return
+
+    # Horas extra
+    exceso = horas_ef - jornada_h
+    reg.horas_efectivas = horas_ef
+    reg.horas_normales = jornada_h
+    reg.he_25 = min(exceso, Decimal('2'))
+    reg.he_35 = max(CERO, exceso - Decimal('2'))
+    reg.he_100 = CERO
+
+
 @login_required
 @solo_admin
 @require_POST
 def ajax_calendario_cambiar(request, registro_id):
-    """Cambiar código de un registro (justificación)."""
+    """Cambiar código y/o entrada/salida de un registro (justificación)."""
+    from datetime import time as dt_time
     reg = get_object_or_404(RegistroTareo, pk=registro_id)
     nuevo_codigo = request.POST.get('codigo', '').strip().upper()
     observacion = request.POST.get('observacion', '').strip()
     sustento = request.FILES.get('sustento')
+    nueva_entrada = request.POST.get('hora_entrada', '').strip()
+    nueva_salida = request.POST.get('hora_salida', '').strip()
 
-    if not nuevo_codigo:
-        return JsonResponse({'error': 'Código requerido'}, status=400)
+    if not nuevo_codigo and not nueva_entrada and not nueva_salida:
+        return JsonResponse({'error': 'Debe indicar un código o cambiar entrada/salida'}, status=400)
 
     codigo_anterior = reg.codigo_dia
+    entrada_anterior = str(reg.hora_entrada_real)[:5] if reg.hora_entrada_real else '-'
+    salida_anterior = str(reg.hora_salida_real)[:5] if reg.hora_salida_real else '-'
+
+    # Construir detalle del cambio para el log
+    cambios_detalle = []
+
+    if nuevo_codigo and nuevo_codigo != codigo_anterior:
+        cambios_detalle.append(f'{codigo_anterior}→{nuevo_codigo}')
+        reg.codigo_dia = nuevo_codigo
+        reg.fuente_codigo = 'MANUAL'
+    else:
+        nuevo_codigo = codigo_anterior  # mantener el mismo
+
+    if nueva_entrada:
+        try:
+            parts = nueva_entrada.split(':')
+            t = dt_time(int(parts[0]), int(parts[1]))
+            cambios_detalle.append(f'Entrada: {entrada_anterior}→{nueva_entrada}')
+            reg.hora_entrada_real = t
+        except (ValueError, IndexError):
+            return JsonResponse({'error': 'Formato de entrada inválido (HH:MM)'}, status=400)
+
+    if nueva_salida:
+        try:
+            parts = nueva_salida.split(':')
+            t = dt_time(int(parts[0]), int(parts[1]))
+            cambios_detalle.append(f'Salida: {salida_anterior}→{nueva_salida}')
+            reg.hora_salida_real = t
+        except (ValueError, IndexError):
+            return JsonResponse({'error': 'Formato de salida inválido (HH:MM)'}, status=400)
+
+    # Recalcular horas si cambió entrada/salida
+    if nueva_entrada or nueva_salida:
+        _recalcular_horas(reg)
+        reg.fuente_codigo = 'MANUAL'
 
     # Log del cambio
-    log = CambioCodigoLog.objects.create(
+    log_obs = ' | '.join(cambios_detalle)
+    if observacion:
+        log_obs = f'{log_obs} — {observacion}' if log_obs else observacion
+
+    CambioCodigoLog.objects.create(
         registro=reg,
         codigo_anterior=codigo_anterior,
         codigo_nuevo=nuevo_codigo,
-        observacion=observacion,
+        observacion=log_obs,
         sustento=sustento,
         usuario=request.user,
     )
 
-    # Actualizar registro
-    reg.codigo_dia = nuevo_codigo
-    reg.fuente_codigo = 'MANUAL'
-    if observacion:
+    # Actualizar observaciones del registro
+    if log_obs:
         prev = reg.observaciones or ''
-        reg.observaciones = f'{prev}\n[{request.user.username}] {codigo_anterior}→{nuevo_codigo}: {observacion}'.strip()
+        reg.observaciones = f'{prev}\n[{request.user.username}] {log_obs}'.strip()
     reg.save()
 
     return JsonResponse({
@@ -311,6 +467,13 @@ def ajax_calendario_cambiar(request, registro_id):
         'codigo': nuevo_codigo,
         'color': COLOR_MAP.get(nuevo_codigo, 'other'),
         'anterior': codigo_anterior,
+        'entrada': str(reg.hora_entrada_real)[:5] if reg.hora_entrada_real else '-',
+        'salida': str(reg.hora_salida_real)[:5] if reg.hora_salida_real else '-',
+        'horas_efectivas': float(reg.horas_efectivas or 0),
+        'horas_normales': float(reg.horas_normales or 0),
+        'he_25': float(reg.he_25 or 0),
+        'he_35': float(reg.he_35 or 0),
+        'he_100': float(reg.he_100 or 0),
     })
 
 

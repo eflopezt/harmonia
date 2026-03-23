@@ -247,7 +247,7 @@
                             {% for r in resumen %}
                             <tr>
                                 <td class="text-muted small">{{ forloop.counter }}</td>
-                                <td class="fw-semibold">{{ r.nombre_archivo }}</td>
+                                <td class="fw-semibold">{{ r.personal__apellidos_nombres }}</td>
                                 <td class="text-muted small">{{ r.dni }}
                                     <a href="{% url 'asistencia_reporte_pdf' r.personal_id %}?anio={{ anio_sel }}&mes={{ mes_sel }}&grupo=RCO" target="_blank" class="text-danger ms-1" title="PDF"><i class="fas fa-file-pdf"></i></a>
                                 </td>
@@ -314,7 +314,7 @@
                         <tbody>
                             {% for reg in registros %}
                             <tr {% if reg.he_25 > 0 or reg.he_35 > 0 or reg.he_100 > 0 %}class="table-warning"{% endif %}>
-                                <td class="fw-semibold small">{{ reg.nombre_archivo }}</td>
+                                <td class="fw-semibold small">{{ reg.personal.apellidos_nombres }}</td>
                                 <td class="text-muted small">{{ reg.dni }}</td>
                                 <td class="small">
                                     {{ reg.fecha|date:"d/m/Y" }}

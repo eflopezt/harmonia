@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     RegimenTurno, TipoHorario,
-    FeriadoCalendario, HomologacionCodigo,
+    FeriadoCalendario, CompensacionFeriado, HomologacionCodigo,
     TareoImportacion,
     RegistroTareo, RegistroPapeleta,
     BancoHoras, MovimientoBancoHoras,
@@ -75,6 +75,15 @@ class FeriadoCalendarioAdmin(AdminSoloSuperusuario):
     list_filter = ('tipo', 'activo')
     search_fields = ('nombre',)
     date_hierarchy = 'fecha'
+
+
+@admin.register(CompensacionFeriado)
+class CompensacionFeriadoAdmin(AdminSoloSuperusuario):
+    list_display = ('fecha_feriado', 'fecha_compensada', 'descripcion', 'activo', 'creado_en')
+    list_filter = ('activo',)
+    search_fields = ('descripcion',)
+    ordering = ('fecha_feriado',)
+    list_editable = ('activo',)
 
 
 @admin.register(HomologacionCodigo)

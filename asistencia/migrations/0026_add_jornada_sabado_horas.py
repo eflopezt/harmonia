@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('asistencia', '0025_whatsapp_provider_openclaw'),
+        ('tareo', '0025_whatsapp_provider_openclaw'),
     ]
 
     operations = [

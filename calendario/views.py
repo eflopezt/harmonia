@@ -16,7 +16,7 @@ from portal.views import _get_empleado
 
 from .models import EventoCalendario
 
-solo_admin = user_passes_test(lambda u: u.is_superuser, login_url='login')
+solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff, login_url='login')
 
 
 # ---------------------------------------------------------------------------

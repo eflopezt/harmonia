@@ -1,0 +1,260 @@
+[
+  {
+    "dni": "46137298",
+    "fecha_cese": "2026-02-28",
+    "nombre": "LOZADA GONZALES, GIANFRANCO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "42066622",
+    "fecha_cese": "2026-01-31",
+    "nombre": "ZAVALETA PINCHI, FERNANDO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "73198473",
+    "fecha_cese": "2026-01-20",
+    "nombre": "VARGAS CARPIO, STALINN",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "41338725",
+    "fecha_cese": "2026-01-31",
+    "nombre": "PIÑARREAL LAIME, CARMEN",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "72525769",
+    "fecha_cese": "2026-01-31",
+    "nombre": "CUSIHUALLPA MAMANI, RICARDO EDUARDO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "75489601",
+    "fecha_cese": "2026-01-31",
+    "nombre": "PAUCAR SERVAN, CARMEN ROSA",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "45674438",
+    "fecha_cese": "2026-01-10",
+    "nombre": "RAMIREZ MERA, WALTER ENRIQUE",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "70202786",
+    "fecha_cese": "2026-01-31",
+    "nombre": "REYES PADUA, JOSUE PABLO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "46059797",
+    "fecha_cese": "2026-02-07",
+    "nombre": "APAZA CANAZA, FERNANDO",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "70003871",
+    "fecha_cese": "2026-01-18",
+    "nombre": "ROJAS RODRIGUEZ, CHRISTIAN FERNANDO",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "47544426",
+    "fecha_cese": "2026-01-31",
+    "nombre": "DOMENACK ESPINOZA, GREYSI CAROLINA",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "70689003",
+    "fecha_cese": "2026-02-28",
+    "nombre": "CRUZ DIAZ, JOSE ANTONIO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "73676845",
+    "fecha_cese": "2026-01-31",
+    "nombre": "VILLASANTE FAJARDO, JACQUELINE",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "74078233",
+    "fecha_cese": "2026-01-31",
+    "nombre": "SIGUENZA AZABACHE, DENNIS",
+    "motivo": "RENUNCIA VOLUNRARIA"
+  },
+  {
+    "dni": "72966569",
+    "fecha_cese": "2026-02-28",
+    "nombre": "QUISPE PEÑA, HEGEL WILSON",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "80249866",
+    "fecha_cese": "2026-01-31",
+    "nombre": "JULI ANDIA, MERCEDES",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "48191321",
+    "fecha_cese": "2026-02-12",
+    "nombre": "CASTILLO LEQUERNAQUE, YOJANI ANTONIA",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "25610023",
+    "fecha_cese": "2026-01-11",
+    "nombre": "ALOR ESPADA, FERNANDO ANTONIO",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "71405212",
+    "fecha_cese": "2026-03-04",
+    "nombre": "ALBERCA CASTILLO, RUBEN AUGUSTO",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "21797497",
+    "fecha_cese": "2026-02-13",
+    "nombre": "FLORES TRECE, LUIS ALBERTO",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "73745968",
+    "fecha_cese": "2026-03-07",
+    "nombre": "SULLA CORTEZ, ELVIS",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "41496841",
+    "fecha_cese": "2026-02-28",
+    "nombre": "MEZA MORI, KATTY",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "73010416",
+    "fecha_cese": "2026-02-28",
+    "nombre": "MEZA ESTEBAN, CHRISTIAN",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "76046952",
+    "fecha_cese": "2026-01-31",
+    "nombre": "PUMA MOLLO, VIDES",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "76845315",
+    "fecha_cese": "2026-01-31",
+    "nombre": "HUANCA TINTAYA, CESAR",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "44233779",
+    "fecha_cese": "2026-01-31",
+    "nombre": "PALACO PACHECO, LILIAN JUANA",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "77420354",
+    "fecha_cese": "2026-01-31",
+    "nombre": "ARROYO MANRIQUE, ESTANISLAO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "76438567",
+    "fecha_cese": "2026-02-13",
+    "nombre": "PACURI DEZA, DAVID",
+    "motivo": "RENUNCIA VOLUNTARIA POSITIVO ALCOTEST"
+  },
+  {
+    "dni": "47281542",
+    "fecha_cese": "2026-02-28",
+    "nombre": "DURAND LOPEZ, WILBER HUMBERTO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "76374078",
+    "fecha_cese": "2026-01-23",
+    "nombre": "QUISPE SOTO, WALTER",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "71003671",
+    "fecha_cese": "2026-02-28",
+    "nombre": "TINTAYA ALVARADO, KERVIN",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "70790341",
+    "fecha_cese": "2026-02-28",
+    "nombre": "CATALAN CERVANTES, ROMARIO",
+    "motivo": "FIN DE CONTRATO"
+  },
+  {
+    "dni": "45096017",
+    "fecha_cese": "2026-02-28",
+    "nombre": "RAMIREZ RODRIGUEZ, FREDDY ROLANDO",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "74208164",
+    "fecha_cese": "2026-01-31",
+    "nombre": "MUÑOZ CABRERA, VICTOR NAPOLEON",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "47462365",
+    "fecha_cese": "2026-02-20",
+    "nombre": "PEÑA PALOMINO, PERCY",
+    "motivo": "RENUNCIA VOLUNTARIA"
+  },
+  {
+    "dni": "72764142",
+    "fecha_cese": "2026-01-15",
+    "nombre": "SALON ULLACHICA, EDWIN STIPH",
+    "motivo": "RENUNCIA"
+  },
+  {
+    "dni": "76918568",
+    "fecha_cese": "2026-02-28",
+    "nombre": "TINTAYA HOLGUIN, HARRY JIMMY",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "48632844",
+    "fecha_cese": "2026-01-31",
+    "nombre": "DÍAZ ALFARO, ETHEL IVONNE",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "75926982",
+    "fecha_cese": "2026-02-28",
+    "nombre": "TINTAYA HOLGUIN, JHERSON EDDIE",
+    "motivo": "TERMINO DE CONTRATO"
+  },
+  {
+    "dni": "42051852",
+    "fecha_cese": "2026-02-16",
+    "nombre": "GOMEZ PINEDA, KRISS EILEEN",
+    "motivo": "PERIODO DE PRUEBA"
+  },
+  {
+    "dni": "70893582",
+    "fecha_cese": "2026-02-02",
+    "nombre": "PALOMINO RODRIGUEZ, VANESSA MARGARET",
+    "motivo": "NO INICIO RELACION LABORAL"
+  },
+  {
+    "dni": "44874550",
+    "fecha_cese": "2026-02-28",
+    "nombre": "MOTTA COAQUIRA, SHULLANG ASUNCION",
+    "motivo": "PERIODO DE PRUEBA"
+  },
+  {
+    "dni": "73012587",
+    "fecha_cese": "2026-03-15",
+    "nombre": "VILLEGAS SANCHEZ, KATHERINE GIOVANA",
+    "motivo": "POSITIVO ALCOTEST"
+  }
+]
