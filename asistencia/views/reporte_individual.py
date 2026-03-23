@@ -143,7 +143,7 @@ def _build_staff_data(personal, inicio, fin):
             dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': 'NA', 'display': 'N/A'})
             d += timedelta(days=1)
             continue
-        codigo = tareo_map.get(d, '')
+        codigo = tareo_map.get(d, 'FA')
         codigo = _auto_ds(d, codigo, condicion)
         if codigo in PRESENCIA:
             display = 'A'
@@ -198,7 +198,7 @@ def _build_rco_data(personal, inicio, fin):
             tot['he_35'] += reg['he_35'] or 0
             tot['he_100'] += reg['he_100'] or 0
         else:
-            auto_cod = _auto_ds(d, '', condicion)
+            auto_cod = _auto_ds(d, 'FA', condicion)
             dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': auto_cod, 'n': 0, 'h25': 0, 'h35': 0, 'h100': 0})
         d += timedelta(days=1)
     return dias, {k: float(v) for k, v in tot.items()}
