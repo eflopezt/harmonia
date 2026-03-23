@@ -84,6 +84,7 @@ from asistencia.views.calendario import (  # noqa: F401
     calendario_grid,
     ajax_calendario_detalle,
     ajax_calendario_cambiar,
+    ajax_calendario_crear,
     calendario_exportar,
 )
 from asistencia.views.biometrico import (  # noqa: F401

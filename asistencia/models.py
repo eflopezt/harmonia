@@ -1260,6 +1260,10 @@ class ConfiguracionSistema(models.Model):
         max_digits=4, decimal_places=1, default=Decimal('5.5'),
         verbose_name="Jornada Local Sábado (h/día)",
         help_text="Ej: 5.5 para personal LOCAL sábados 07:30–13:00 (sin descuento almuerzo)")
+    jornada_domingo_horas = models.DecimalField(
+        max_digits=4, decimal_places=1, default=Decimal('4.0'),
+        verbose_name="Jornada Domingo (h/día)",
+        help_text="Ej: 4.0 para domingos trabajados (LOCAL y FORÁNEO)")
     jornada_foraneo_horas = models.DecimalField(
         max_digits=4, decimal_places=1, default=Decimal('11.0'),
         verbose_name="Jornada Foráneo (h/día)",

@@ -119,6 +119,7 @@ urlpatterns = [
     path('calendario/exportar/', views.calendario_exportar, name='asistencia_calendario_export'),
     path('ajax/calendario/celda/<int:registro_id>/', views.ajax_calendario_detalle, name='asistencia_calendario_celda'),
     path('ajax/calendario/cambiar/<int:registro_id>/', views.ajax_calendario_cambiar, name='asistencia_calendario_cambiar'),
+    path('ajax/calendario/crear/', views.ajax_calendario_crear, name='asistencia_calendario_crear'),
 
     # Endpoints AJAX
     path('ajax/staff-data/', views.ajax_staff_data, name='asistencia_ajax_staff'),

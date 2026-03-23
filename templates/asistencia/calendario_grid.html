@@ -226,8 +226,8 @@
         <span class="emp-cond {{ row.condicion }}">{{ row.condicion }}</span>
     </td>
     {% for celda in row.celdas %}
-    <td class="cal-cell {% if forloop.counter0|add:0 < dias_mes|length %}{% with d=dias_mes|slice:forloop.counter0|first %}{% endwith %}{% endif %}"
-        {% if celda.id %}onclick="openDetail({{ celda.id }})"{% endif %}
+    <td class="cal-cell"
+        {% if celda.id %}onclick="openDetail({{ celda.id }})"{% elif celda.editable %}onclick="openCrear({{ row.personal_id }}, '{{ celda.fecha_iso }}')" style="cursor:pointer"{% endif %}
         title="{{ celda.codigo }}{% if celda.entrada %} {{ celda.entrada }}-{{ celda.salida }}{% endif %}{% if celda.he %} HE:{{ celda.he }}h{% endif %}">
         <div class="code code-{{ celda.color }}">{{ celda.codigo }}</div>
     </td>
@@ -332,6 +332,48 @@
 </div>
 </div>
 </div>
+<!-- Modal Crear Registro -->
+<div class="modal fade modal-detail" id="modalCrear" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+    <div class="modal-header">
+        <div>
+            <h5 class="modal-title mb-0"><i class="fas fa-plus-circle me-2"></i>Crear Registro</h5>
+            <small id="crearInfo" class="opacity-75"></small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" id="crearPersonalId">
+        <input type="hidden" id="crearFecha">
+        <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Código</label>
+            <select id="crearCodigo" class="form-select form-select-sm">
+                <option value="">Seleccionar código...</option>
+            </select>
+        </div>
+        <div class="row g-2 mb-2">
+            <div class="col-6">
+                <label class="form-label small text-muted mb-1"><i class="fas fa-sign-in-alt me-1"></i>Entrada</label>
+                <input type="time" id="crearEntrada" class="form-control form-control-sm">
+            </div>
+            <div class="col-6">
+                <label class="form-label small text-muted mb-1"><i class="fas fa-sign-out-alt me-1"></i>Salida</label>
+                <input type="time" id="crearSalida" class="form-control form-control-sm">
+            </div>
+        </div>
+        <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Observación</label>
+            <textarea id="crearObs" class="form-control form-control-sm" rows="2" placeholder="Motivo..."></textarea>
+        </div>
+        <button class="btn btn-sm btn-primary w-100" onclick="guardarCrear()">
+            <i class="fas fa-save me-1"></i>Crear Registro
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -341,13 +383,15 @@ const COLOR_MAP = {{ color_map_json|safe }};
 const csrfToken = '{{ csrf_token }}';
 let currentRegistroId = null;
 
-// Populate code dropdown
+// Populate code dropdowns (both edit and create)
 const sel = document.getElementById('editCodigo');
+const selCrear = document.getElementById('crearCodigo');
 CODIGOS.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c.codigo_tareo;
     opt.textContent = `${c.codigo_tareo} — ${c.descripcion}`;
     sel.appendChild(opt);
+    selCrear.appendChild(opt.cloneNode(true));
 });
 
 function openDetail(regId) {
@@ -487,6 +531,55 @@ function guardarCambio() {
             document.getElementById('editSustento').value = '';
         } else {
             alert(d.error || 'Error al guardar');
+        }
+    })
+    .catch(e => { console.error(e); alert('Error de conexión'); });
+}
+
+function openCrear(personalId, fecha) {
+    document.getElementById('crearPersonalId').value = personalId;
+    document.getElementById('crearFecha').value = fecha;
+    document.getElementById('crearCodigo').value = '';
+    document.getElementById('crearEntrada').value = '';
+    document.getElementById('crearSalida').value = '';
+    document.getElementById('crearObs').value = '';
+    // Formatear fecha para mostrar
+    const parts = fecha.split('-');
+    document.getElementById('crearInfo').textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    new bootstrap.Modal(document.getElementById('modalCrear')).show();
+}
+
+function guardarCrear() {
+    const personalId = document.getElementById('crearPersonalId').value;
+    const fecha = document.getElementById('crearFecha').value;
+    const codigo = document.getElementById('crearCodigo').value;
+    const entrada = document.getElementById('crearEntrada').value;
+    const salida = document.getElementById('crearSalida').value;
+    const obs = document.getElementById('crearObs').value;
+
+    if (!codigo) { alert('Selecciona un código'); return; }
+
+    const fd = new FormData();
+    fd.append('personal_id', personalId);
+    fd.append('fecha', fecha);
+    fd.append('codigo', codigo);
+    if (entrada) fd.append('hora_entrada', entrada);
+    if (salida) fd.append('hora_salida', salida);
+    if (obs) fd.append('observacion', obs);
+
+    fetch('/asistencia/ajax/calendario/crear/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('modalCrear')).hide();
+            // Reload para refrescar la grilla con el nuevo registro
+            location.reload();
+        } else {
+            alert(d.error || 'Error al crear');
         }
     })
     .catch(e => { console.error(e); alert('Error de conexión'); });

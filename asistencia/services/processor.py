@@ -382,6 +382,10 @@ class TareoProcessor:
                 and Decimal(str(personal_obj.jornada_horas)) != Decimal('8')):
             return Decimal(str(personal_obj.jornada_horas))
 
+        # Domingo: jornada reducida (aplica a LOCAL y FORÁNEO)
+        if dia_semana == 6:          # domingo
+            return Decimal(str(self.config.jornada_domingo_horas))
+
         if condicion == 'FORANEO':
             return Decimal(str(self.config.jornada_foraneo_horas))
 

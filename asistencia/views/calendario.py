@@ -174,7 +174,7 @@ def calendario_grid(request):
         for d in dias_mes:
             # N/A si fuera de periodo laboral
             if (fecha_alta and d['fecha'] < fecha_alta) or (fecha_cese and d['fecha'] > fecha_cese):
-                celdas.append({'id': 0, 'codigo': 'NA', 'color': 'empty'})
+                celdas.append({'id': 0, 'codigo': 'NA', 'color': 'empty', 'editable': False})
                 continue
             reg = pivot[pid].get(d['num'])
             if reg:
@@ -201,7 +201,10 @@ def calendario_grid(request):
                 auto_cod = ''
                 if d['fecha'].weekday() == 6 and info['condicion'].upper() in ('LOCAL', 'LIMA', ''):
                     auto_cod = 'DS'
-                celdas.append({'id': 0, 'codigo': auto_cod, 'color': COLOR_MAP.get(auto_cod, 'empty')})
+                celdas.append({
+                    'id': 0, 'codigo': auto_cod, 'color': COLOR_MAP.get(auto_cod, 'empty'),
+                    'editable': True, 'fecha_iso': d['fecha'].isoformat(),
+                })
         rows.append({
             'personal_id': pid,
             'nombre': info['nombre'],
@@ -309,12 +312,15 @@ def _recalcular_horas(reg):
     condicion = (reg.condicion or '').upper()
 
     # Obtener jornada (misma lógica que processor._obtener_jornada)
+    dia_semana = reg.fecha.weekday()
     if (personal and personal.jornada_horas
             and Decimal(str(personal.jornada_horas)) != Decimal('8')):
         jornada_h = Decimal(str(personal.jornada_horas))
+    elif dia_semana == 6:  # domingo: jornada reducida para todos
+        jornada_h = Decimal(str(config.jornada_domingo_horas))
     elif condicion == 'FORANEO':
         jornada_h = Decimal(str(config.jornada_foraneo_horas))
-    elif reg.fecha.weekday() == 5:  # sábado
+    elif dia_semana == 5:  # sábado
         jornada_h = Decimal(str(config.jornada_sabado_horas))
     else:
         jornada_h = Decimal(str(config.jornada_local_horas))
@@ -474,6 +480,90 @@ def ajax_calendario_cambiar(request, registro_id):
         'he_25': float(reg.he_25 or 0),
         'he_35': float(reg.he_35 or 0),
         'he_100': float(reg.he_100 or 0),
+    })
+
+
+@login_required
+@solo_admin
+@require_POST
+def ajax_calendario_crear(request):
+    """Crear un RegistroTareo nuevo para una celda vacía."""
+    from datetime import time as dt_time
+    personal_id = request.POST.get('personal_id')
+    fecha_str = request.POST.get('fecha', '')
+    nuevo_codigo = request.POST.get('codigo', '').strip().upper()
+    observacion = request.POST.get('observacion', '').strip()
+    nueva_entrada = request.POST.get('hora_entrada', '').strip()
+    nueva_salida = request.POST.get('hora_salida', '').strip()
+
+    if not personal_id or not fecha_str:
+        return JsonResponse({'error': 'personal_id y fecha requeridos'}, status=400)
+    if not nuevo_codigo:
+        return JsonResponse({'error': 'Código requerido'}, status=400)
+
+    try:
+        fecha = date.fromisoformat(fecha_str)
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+
+    personal = get_object_or_404(Personal, pk=personal_id)
+
+    # Crear registro
+    reg = RegistroTareo(
+        personal=personal,
+        dni=personal.nro_doc,
+        nombre_archivo=personal.apellidos_nombres,
+        grupo=personal.grupo_tareo or 'STAFF',
+        condicion=personal.condicion or 'LOCAL',
+        fecha=fecha,
+        dia_semana=fecha.weekday(),
+        codigo_dia=nuevo_codigo,
+        fuente_codigo='MANUAL',
+        observaciones=f'[{request.user.username}] Creado manual: {nuevo_codigo}',
+    )
+
+    if nueva_entrada:
+        try:
+            parts = nueva_entrada.split(':')
+            reg.hora_entrada_real = dt_time(int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            return JsonResponse({'error': 'Formato de entrada inválido (HH:MM)'}, status=400)
+
+    if nueva_salida:
+        try:
+            parts = nueva_salida.split(':')
+            reg.hora_salida_real = dt_time(int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            return JsonResponse({'error': 'Formato de salida inválido (HH:MM)'}, status=400)
+
+    # Feriado
+    reg.es_feriado = FeriadoCalendario.objects.filter(fecha=fecha, activo=True).exists()
+
+    # Recalcular horas
+    _recalcular_horas(reg)
+
+    if observacion:
+        reg.observaciones = f'{reg.observaciones}\n{observacion}'.strip()
+
+    reg.save()
+
+    # Log
+    CambioCodigoLog.objects.create(
+        registro=reg,
+        codigo_anterior='',
+        codigo_nuevo=nuevo_codigo,
+        observacion=f'Registro creado manual — {observacion}' if observacion else 'Registro creado manual',
+        usuario=request.user,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'id': reg.id,
+        'codigo': nuevo_codigo,
+        'color': COLOR_MAP.get(nuevo_codigo, 'other'),
+        'entrada': str(reg.hora_entrada_real)[:5] if reg.hora_entrada_real else '-',
+        'salida': str(reg.hora_salida_real)[:5] if reg.hora_salida_real else '-',
+        'horas_efectivas': float(reg.horas_efectivas or 0),
     })
 
 
