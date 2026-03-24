@@ -214,7 +214,7 @@ def _jornada_correcta(config, condicion: str, dia_semana: int) -> Decimal:
       Lun–Sáb → config.jornada_foraneo_horas  (debe estar configurado a 10h)
       Domingo → 4h    (parte del ciclo 192h/3 semanas; HE25/35 si supera 4h)
     """
-    if condicion == 'FORANEO':
+    if condicion.upper().replace('Á', 'A') == 'FORANEO':
         if dia_semana == 6:
             return JORNADA_DOMINGO_FORANEO          # 4h — parte del ciclo 192h/3 semanas
         return JORNADA_DIA_FORANEO                  # 10h Lun–Sáb (efectivo, sin almuerzo)
