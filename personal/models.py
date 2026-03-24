@@ -330,7 +330,7 @@ class Personal(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        validators=[MinValueValidator(Decimal('0.01'))],
+        validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name="Sueldo Base"
     )
     bonos = models.DecimalField(
