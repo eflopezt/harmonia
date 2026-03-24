@@ -318,7 +318,7 @@ def ajax_calendario_detalle(request, registro_id):
 def _recalcular_horas(reg):
     """Recalcular horas de un RegistroTareo usando la misma lógica del processor."""
     from datetime import datetime, time as dt_time
-    config = ConfiguracionSistema.get_solo()
+    config = ConfiguracionSistema.get()
     personal = reg.personal
     condicion = (reg.condicion or '').upper()
 
