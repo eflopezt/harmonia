@@ -1,12 +1,25 @@
 """
 Vistas del módulo Tareo — Banco de Horas.
 """
+import io
+from datetime import date, timedelta
+from decimal import Decimal
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum
-from django.shortcuts import render
+from django.http import HttpResponse
+from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 
-from asistencia.views._common import solo_admin
+from xhtml2pdf import pisa
+
+from asistencia.views._common import solo_admin, _papeletas_por_fecha
+
+
+MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+DIAS_CORTO = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D']
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +72,7 @@ def banco_horas_view(request):
         .order_by('-periodo_anio')
     )
 
-    MESES = [
+    MESES_SEL = [
         (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
         (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
         (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
@@ -73,7 +86,252 @@ def banco_horas_view(request):
         'mes_sel': mes,
         'buscar': buscar,
         'anios': anios_disponibles,
-        'meses': MESES,
+        'meses': MESES_SEL,
         'total_personas': qs.values('personal').distinct().count(),
     }
     return render(request, 'asistencia/banco_horas.html', context)
+
+
+# ---------------------------------------------------------------------------
+# PDF — Banco de Horas individual (detalle diario)
+# ---------------------------------------------------------------------------
+
+def _get_ciclo(anio, mes):
+    """Ciclo STAFF: del 21 del mes anterior al 20 del mes actual."""
+    if mes == 1:
+        inicio = date(anio - 1, 12, 21)
+    else:
+        inicio = date(anio, mes - 1, 21)
+    return inicio, date(anio, mes, 20)
+
+
+def _render_pdf(html_string):
+    buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(io.StringIO(html_string), dest=buffer, encoding='utf-8')
+    if pisa_status.err:
+        return None
+    return buffer.getvalue()
+
+
+CODE_COLORS = {
+    'T': '#c6f6d5', 'A': '#c6f6d5', 'NOR': '#c6f6d5', 'SS': '#c6f6d5', 'TR': '#c6f6d5',
+    'FA': '#fed7d7', 'F': '#fed7d7', 'SAI': '#fed7d7',
+    'VAC': '#bee3f8', 'DL': '#e2e8f0', 'DLA': '#e2e8f0', 'DS': '#e2e8f0',
+    'DM': '#fefcbf', 'CHE': '#feebc8', 'CDT': '#feebc8', 'CPF': '#feebc8',
+    'LSG': '#e9d8fd', 'LCG': '#c4f1f9', 'LF': '#c4f1f9', 'FR': '#fed7e2',
+    'NA': '#edf2f7',
+}
+
+CSS = """@page{size:297mm 210mm;margin:5mm 7mm}
+body{font-family:Helvetica;font-size:7pt;color:#1a202c;margin:0;padding:0}
+table{border-collapse:collapse}
+td,th{padding:0;text-align:center;font-size:6pt}"""
+
+
+def _build_banco_detail(personal, inicio, fin):
+    """
+    Construye detalle diario de horas para el banco.
+    Retorna lista de dicts por día + totales.
+    """
+    from asistencia.models import RegistroTareo
+
+    all_regs = list(RegistroTareo.objects.filter(
+        personal=personal, fecha__gte=inicio, fecha__lte=fin,
+    ).order_by('fecha', 'pk').values(
+        'fecha', 'codigo_dia', 'fuente_codigo',
+        'horas_marcadas', 'horas_normales', 'he_25', 'he_35', 'he_100',
+    ))
+
+    # Dedup: RELOJ gana
+    tareo_map = {}
+    for r in all_regs:
+        f = r['fecha']
+        ex = tareo_map.get(f)
+        if ex is None:
+            tareo_map[f] = r
+        elif r['fuente_codigo'] == 'RELOJ':
+            tareo_map[f] = r
+
+    # Papeletas como fallback
+    pap_map = _papeletas_por_fecha(personal.pk, inicio, fin)
+
+    condicion = personal.condicion or 'LOCAL'
+    dias = []
+    tot = {'hn': Decimal('0'), 'h25': Decimal('0'), 'h35': Decimal('0'), 'h100': Decimal('0')}
+
+    d = inicio
+    while d <= fin:
+        # Fuera de periodo laboral
+        if (personal.fecha_alta and d < personal.fecha_alta) or \
+           (personal.fecha_cese and d > personal.fecha_cese):
+            d += timedelta(days=1)
+            continue
+
+        reg = tareo_map.get(d)
+        if reg:
+            codigo = reg['codigo_dia']
+            hn = float(reg['horas_normales'] or 0)
+            h25 = float(reg['he_25'] or 0)
+            h35 = float(reg['he_35'] or 0)
+            h100 = float(reg['he_100'] or 0)
+        else:
+            # Papeleta o FA
+            pap_cod = pap_map.get(d)
+            if pap_cod:
+                codigo = pap_cod
+            elif d.weekday() == 6 and condicion.upper() in ('LOCAL', 'LIMA', ''):
+                codigo = 'DS'
+            else:
+                codigo = 'FA'
+            hn = h25 = h35 = h100 = 0
+
+        he_total = h25 + h35 + h100
+        dias.append({
+            'fecha': d,
+            'dow': DIAS_CORTO[d.weekday()],
+            'codigo': codigo,
+            'hn': hn, 'h25': h25, 'h35': h35, 'h100': h100,
+            'he_total': he_total,
+        })
+        tot['hn'] += Decimal(str(hn))
+        tot['h25'] += Decimal(str(h25))
+        tot['h35'] += Decimal(str(h35))
+        tot['h100'] += Decimal(str(h100))
+        d += timedelta(days=1)
+
+    return dias, {k: float(v) for k, v in tot.items()}
+
+
+def _render_banco_html(personal, banco, dias, totales, papeletas, mes, anio):
+    """Genera HTML del reporte PDF de Banco de Horas."""
+    from asistencia.views.reporte_individual import _header, _papeletas_sec, _firma, _footer
+
+    inicio, fin = _get_ciclo(anio, mes)
+    header = _header(personal, inicio, fin, mes, anio, 'BANCO DE HORAS')
+
+    # Resumen banco
+    he_total = totales['h25'] + totales['h35'] + totales['h100']
+    compensadas = float(banco.he_compensadas) if banco else 0
+    saldo = he_total - compensadas
+
+    resumen = '<table style="margin-bottom:4px"><tr>'
+    resumen += '<td style="background-color:#14532d;color:white;padding:5px 10px;font-size:8pt;font-weight:bold">BANCO DE HORAS</td>'
+    resumen += f'<td style="background-color:#dbeafe;padding:5px 8px;font-size:8pt;border:1px solid #93c5fd"><b style="color:#1e40af">HE 25%: {totales["h25"]:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fed7aa;padding:5px 8px;font-size:8pt;border:1px solid #fdba74"><b style="color:#9a3412">HE 35%: {totales["h35"]:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fecaca;padding:5px 8px;font-size:8pt;border:1px solid #fca5a5"><b style="color:#991b1b">HE 100%: {totales["h100"]:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fef9c3;padding:5px 8px;font-size:8pt;border:1px solid #fde047"><b style="color:#854d0e">Total HE: {he_total:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fce7f3;padding:5px 8px;font-size:8pt;border:1px solid #f9a8d4"><b style="color:#9d174d">Compensadas: {compensadas:.2f}h</b></td>'
+    saldo_color = '#14532d' if saldo >= 0 else '#991b1b'
+    saldo_bg = '#dcfce7' if saldo >= 0 else '#fecaca'
+    resumen += f'<td style="background-color:{saldo_bg};padding:5px 10px;font-size:9pt;border:1px solid #86efac"><b style="color:{saldo_color}">SALDO: {saldo:.2f}h</b></td>'
+    resumen += '</tr></table>'
+
+    # Tabla detalle diario
+    # Header
+    tbl = '<table style="margin-bottom:4px">'
+    tbl += '<tr>'
+    hdr_style = 'background-color:#334155;color:white;padding:4px 6px;font-size:6.5pt;font-weight:bold'
+    tbl += f'<td style="{hdr_style};text-align:left;min-width:55px">Fecha</td>'
+    tbl += f'<td style="{hdr_style};min-width:20px">Dia</td>'
+    tbl += f'<td style="{hdr_style};min-width:30px">Codigo</td>'
+    tbl += f'<td style="{hdr_style};min-width:45px">H.Normal</td>'
+    tbl += f'<td style="{hdr_style};min-width:40px">HE 25%</td>'
+    tbl += f'<td style="{hdr_style};min-width:40px">HE 35%</td>'
+    tbl += f'<td style="{hdr_style};min-width:40px">HE 100%</td>'
+    tbl += f'<td style="{hdr_style};min-width:45px">Total HE</td>'
+    tbl += '</tr>'
+
+    for idx, d in enumerate(dias):
+        bg_base = '#f8fafc' if idx % 2 == 0 else '#f1f5f9'
+        es_finde = d['fecha'].weekday() >= 5
+        if es_finde:
+            bg_base = '#eef2ff' if idx % 2 == 0 else '#e0e7ff'
+
+        cod_bg = CODE_COLORS.get(d['codigo'], bg_base)
+        cell = f'border-bottom:1px solid #e2e8f0;padding:3px 6px;font-size:6.5pt'
+
+        tbl += '<tr>'
+        tbl += f'<td style="{cell};background-color:{bg_base};text-align:left;font-weight:bold">{d["fecha"].strftime("%d/%m/%Y")}</td>'
+        tbl += f'<td style="{cell};background-color:{bg_base}">{d["dow"]}</td>'
+        tbl += f'<td style="{cell};background-color:{cod_bg};font-weight:bold">{d["codigo"]}</td>'
+        tbl += f'<td style="{cell};background-color:{bg_base}">{d["hn"]:.2f}</td>'
+
+        # HE cells — highlight if > 0
+        h25_s = f'{d["h25"]:.2f}' if d['h25'] else ''
+        h35_s = f'{d["h35"]:.2f}' if d['h35'] else ''
+        h100_s = f'{d["h100"]:.2f}' if d['h100'] else ''
+        het_s = f'{d["he_total"]:.2f}' if d['he_total'] else ''
+
+        h25_bg = '#dbeafe' if d['h25'] else bg_base
+        h35_bg = '#fed7aa' if d['h35'] else bg_base
+        h100_bg = '#fecaca' if d['h100'] else bg_base
+        het_bg = '#fef9c3' if d['he_total'] else bg_base
+
+        tbl += f'<td style="{cell};background-color:{h25_bg};color:#1e40af;font-weight:bold">{h25_s}</td>'
+        tbl += f'<td style="{cell};background-color:{h35_bg};color:#9a3412;font-weight:bold">{h35_s}</td>'
+        tbl += f'<td style="{cell};background-color:{h100_bg};color:#991b1b;font-weight:bold">{h100_s}</td>'
+        tbl += f'<td style="{cell};background-color:{het_bg};color:#854d0e;font-weight:bold">{het_s}</td>'
+        tbl += '</tr>'
+
+    # Fila totales
+    tot_style = 'padding:4px 6px;font-size:7pt;font-weight:bold;border-top:2px solid #334155'
+    he_t = totales['h25'] + totales['h35'] + totales['h100']
+    tbl += '<tr>'
+    tbl += f'<td style="{tot_style};background-color:#1e293b;color:white;text-align:left" colspan="3">TOTALES</td>'
+    tbl += f'<td style="{tot_style};background-color:#dcfce7;color:#14532d">{totales["hn"]:.2f}</td>'
+    tbl += f'<td style="{tot_style};background-color:#dbeafe;color:#1e40af">{totales["h25"]:.2f}</td>'
+    tbl += f'<td style="{tot_style};background-color:#fed7aa;color:#9a3412">{totales["h35"]:.2f}</td>'
+    tbl += f'<td style="{tot_style};background-color:#fecaca;color:#991b1b">{totales["h100"]:.2f}</td>'
+    tbl += f'<td style="{tot_style};background-color:#fef9c3;color:#854d0e">{he_t:.2f}</td>'
+    tbl += '</tr></table>'
+
+    papeletas_html = _papeletas_sec(papeletas) if papeletas else ''
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style></head><body>
+{header}
+{resumen}
+{tbl}
+{papeletas_html}
+{_firma()}
+{_footer()}
+</body></html>"""
+
+
+@login_required
+@solo_admin
+def banco_horas_pdf(request, personal_id):
+    """Genera PDF del banco de horas de un empleado para un periodo."""
+    from asistencia.models import BancoHoras, RegistroPapeleta
+    from personal.models import Personal
+
+    personal = get_object_or_404(Personal, pk=personal_id)
+    anio = int(request.GET.get('anio', date.today().year))
+    mes = int(request.GET.get('mes', date.today().month))
+
+    inicio, fin = _get_ciclo(anio, mes)
+
+    # Banco de este periodo
+    banco = BancoHoras.objects.filter(
+        personal=personal, periodo_anio=anio, periodo_mes=mes
+    ).first()
+
+    # Detalle diario
+    dias, totales = _build_banco_detail(personal, inicio, fin)
+
+    # Papeletas
+    papeletas = list(RegistroPapeleta.objects.filter(
+        personal=personal, fecha_inicio__lte=fin, fecha_fin__gte=inicio
+    ).order_by('fecha_inicio').values(
+        'tipo_permiso', 'fecha_inicio', 'fecha_fin', 'dias_habiles', 'estado', 'observaciones'
+    ))
+
+    html = _render_banco_html(personal, banco, dias, totales, papeletas, mes, anio)
+    pdf = _render_pdf(html)
+    if not pdf:
+        return HttpResponse('Error generando PDF', status=500)
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'inline; filename="BancoHoras_{personal.nro_doc}_{MESES[mes]}_{anio}.pdf"'
+    )
+    return response

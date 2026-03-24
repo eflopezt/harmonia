@@ -121,6 +121,7 @@
                         </th>
                         <th class="text-end">Compensadas</th>
                         <th class="text-end fw-bold">Saldo</th>
+                        <th class="text-center">PDF</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -151,10 +152,16 @@
                                 <span class="saldo-negativo">{{ b.saldo_horas|floatformat:2 }} h</span>
                             {% endif %}
                         </td>
+                        <td class="text-center">
+                            <a href="{% url 'asistencia_banco_horas_pdf' b.personal_id %}?anio={{ b.periodo_anio }}&mes={{ b.periodo_mes }}"
+                               target="_blank" class="btn btn-outline-danger btn-sm py-0 px-1" title="Descargar PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
+                        <td colspan="9" class="text-center py-5 text-muted">
                             <i class="fas fa-inbox fs-2 d-block mb-2"></i>
                             Sin registros de banco de horas para estos filtros.
                         </td>
@@ -165,6 +172,7 @@
                 <tfoot class="table-secondary fw-bold">
                     <tr>
                         <td colspan="3">TOTALES ({{ anio_sel }})</td>
+
                         <td class="text-end" style="color:#856404">{{ totales.t_acum_25|floatformat:2 }}</td>
                         <td class="text-end" style="color:#cc5500">{{ totales.t_acum_35|floatformat:2 }}</td>
                         <td class="text-end text-danger">{{ totales.t_acum_100|floatformat:2|default:"0.00" }}</td>
