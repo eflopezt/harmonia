@@ -396,14 +396,9 @@
 })();
 
 function sendWhatsApp(celular, nombre, pdfUrl) {
-    // Descargar PDF primero
-    window.open(pdfUrl, '_blank');
-
     // Limpiar número: quitar espacios, guiones, +
     let num = celular.replace(/[\s\-\+]/g, '');
-    // Si empieza con 9 y tiene 9 dígitos → agregar 51 (Perú)
     if (/^9\d{8}$/.test(num)) num = '51' + num;
-    // Si no tiene código país
     if (num.length === 9) num = '51' + num;
 
     const mes = '{{ mes_nombre }}';
@@ -414,9 +409,14 @@ function sendWhatsApp(celular, nombre, pdfUrl) {
         `Saludos cordiales,\n` +
         `Área de Recursos Humanos\nConsorcio SRT`;
 
-    setTimeout(() => {
-        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
-    }, 1000);
+    // Descargar PDF via link invisible (no abre popup)
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.target = '_blank';
+    a.click();
+
+    // Abrir WhatsApp en la misma acción de click (no se bloquea como popup)
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, 'whatsapp');
 }
 </script>
 {% endblock %}
