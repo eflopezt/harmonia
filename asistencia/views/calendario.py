@@ -388,10 +388,13 @@ def _recalcular_horas(reg):
         horas_ef = max(CERO, horas_marcadas - almuerzo)
 
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
+    # EXCEPCIÓN: si el código fue cambiado manualmente a NOR/T/A → calcular como día normal
+    # (el trabajador tiene descanso semanal en otro día, no el domingo)
     es_feriado = reg.es_feriado or FeriadoCalendario.objects.filter(
         fecha=reg.fecha, activo=True).exists()
     es_descanso_semanal = reg.fecha.weekday() == 6
-    if (es_feriado or es_descanso_semanal):
+    codigo_fuerza_normal = codigo in ('NOR', 'T', 'A') and reg.fuente_codigo == 'MANUAL'
+    if (es_feriado or es_descanso_semanal) and not codigo_fuerza_normal:
         reg.horas_efectivas = horas_ef
         reg.horas_normales = min(horas_ef, jornada_h)
         reg.he_25 = reg.he_35 = CERO
