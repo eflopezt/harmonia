@@ -122,10 +122,10 @@ CODE_COLORS = {
     'NA': '#edf2f7',
 }
 
-CSS = """@page{size:297mm 210mm;margin:5mm 7mm}
+CSS = """@page{size:210mm 297mm;margin:5mm 7mm}
 body{font-family:Helvetica;font-size:7pt;color:#1a202c;margin:0;padding:0}
-table{border-collapse:collapse}
-td,th{padding:0;text-align:center;font-size:6pt}"""
+table{border-collapse:collapse;width:100%}
+td,th{padding:0;text-align:center;font-size:6.5pt}"""
 
 
 def _build_banco_detail(personal, inicio, fin):
@@ -226,63 +226,56 @@ def _render_banco_html(personal, banco, dias, totales, papeletas, mes, anio):
     resumen += f'<td style="background-color:{saldo_bg};padding:5px 10px;font-size:9pt;border:1px solid #86efac"><b style="color:{saldo_color}">SALDO: {saldo:.2f}h</b></td>'
     resumen += '</tr></table>'
 
-    # Tabla detalle diario
-    # Header
+    # Tabla detalle diario — compacta con anchos porcentuales
+    H = 'background-color:#334155;color:white;padding:3px 4px;font-size:7pt;font-weight:bold'
     tbl = '<table style="margin-bottom:4px">'
     tbl += '<tr>'
-    hdr_style = 'background-color:#334155;color:white;padding:4px 6px;font-size:6.5pt;font-weight:bold'
-    tbl += f'<td style="{hdr_style};text-align:left;min-width:55px">Fecha</td>'
-    tbl += f'<td style="{hdr_style};min-width:20px">Dia</td>'
-    tbl += f'<td style="{hdr_style};min-width:30px">Codigo</td>'
-    tbl += f'<td style="{hdr_style};min-width:45px">H.Normal</td>'
-    tbl += f'<td style="{hdr_style};min-width:40px">HE 25%</td>'
-    tbl += f'<td style="{hdr_style};min-width:40px">HE 35%</td>'
-    tbl += f'<td style="{hdr_style};min-width:40px">HE 100%</td>'
-    tbl += f'<td style="{hdr_style};min-width:45px">Total HE</td>'
+    tbl += f'<td style="{H};text-align:left;width:12%">Fecha</td>'
+    tbl += f'<td style="{H};width:5%">Dia</td>'
+    tbl += f'<td style="{H};width:8%">Cod.</td>'
+    tbl += f'<td style="{H};width:12%">H.Norm</td>'
+    tbl += f'<td style="{H};width:10%;background-color:#1e40af">HE 25%</td>'
+    tbl += f'<td style="{H};width:10%;background-color:#9a3412">HE 35%</td>'
+    tbl += f'<td style="{H};width:10%;background-color:#991b1b">HE 100%</td>'
+    tbl += f'<td style="{H};width:11%;background-color:#854d0e">Tot.HE</td>'
     tbl += '</tr>'
 
     for idx, d in enumerate(dias):
-        bg_base = '#f8fafc' if idx % 2 == 0 else '#f1f5f9'
-        es_finde = d['fecha'].weekday() >= 5
-        if es_finde:
-            bg_base = '#eef2ff' if idx % 2 == 0 else '#e0e7ff'
+        bg = '#ffffff' if idx % 2 == 0 else '#f8fafc'
+        if d['fecha'].weekday() >= 5:
+            bg = '#f0f4ff' if idx % 2 == 0 else '#e8edff'
 
-        cod_bg = CODE_COLORS.get(d['codigo'], bg_base)
-        cell = f'border-bottom:1px solid #e2e8f0;padding:3px 6px;font-size:6.5pt'
+        cod_bg = CODE_COLORS.get(d['codigo'], bg)
+        c = f'border-bottom:1px solid #e2e8f0;padding:2px 4px;font-size:7pt'
 
         tbl += '<tr>'
-        tbl += f'<td style="{cell};background-color:{bg_base};text-align:left;font-weight:bold">{d["fecha"].strftime("%d/%m/%Y")}</td>'
-        tbl += f'<td style="{cell};background-color:{bg_base}">{d["dow"]}</td>'
-        tbl += f'<td style="{cell};background-color:{cod_bg};font-weight:bold">{d["codigo"]}</td>'
-        tbl += f'<td style="{cell};background-color:{bg_base}">{d["hn"]:.2f}</td>'
+        tbl += f'<td style="{c};background:{bg};text-align:left">{d["fecha"].strftime("%d/%m")}</td>'
+        tbl += f'<td style="{c};background:{bg}">{d["dow"]}</td>'
+        tbl += f'<td style="{c};background:{cod_bg};font-weight:bold">{d["codigo"]}</td>'
+        hn_s = f'{d["hn"]:.1f}' if d['hn'] else '-'
+        tbl += f'<td style="{c};background:{bg};font-weight:bold">{hn_s}</td>'
 
-        # HE cells — highlight if > 0
-        h25_s = f'{d["h25"]:.2f}' if d['h25'] else ''
-        h35_s = f'{d["h35"]:.2f}' if d['h35'] else ''
-        h100_s = f'{d["h100"]:.2f}' if d['h100'] else ''
-        het_s = f'{d["he_total"]:.2f}' if d['he_total'] else ''
+        h25_s = f'{d["h25"]:.1f}' if d['h25'] else ''
+        h35_s = f'{d["h35"]:.1f}' if d['h35'] else ''
+        h100_s = f'{d["h100"]:.1f}' if d['h100'] else ''
+        het_s = f'{d["he_total"]:.1f}' if d['he_total'] else ''
 
-        h25_bg = '#dbeafe' if d['h25'] else bg_base
-        h35_bg = '#fed7aa' if d['h35'] else bg_base
-        h100_bg = '#fecaca' if d['h100'] else bg_base
-        het_bg = '#fef9c3' if d['he_total'] else bg_base
-
-        tbl += f'<td style="{cell};background-color:{h25_bg};color:#1e40af;font-weight:bold">{h25_s}</td>'
-        tbl += f'<td style="{cell};background-color:{h35_bg};color:#9a3412;font-weight:bold">{h35_s}</td>'
-        tbl += f'<td style="{cell};background-color:{h100_bg};color:#991b1b;font-weight:bold">{h100_s}</td>'
-        tbl += f'<td style="{cell};background-color:{het_bg};color:#854d0e;font-weight:bold">{het_s}</td>'
+        tbl += f'<td style="{c};background:{"#dbeafe" if d["h25"] else bg};color:#1e40af;font-weight:bold">{h25_s}</td>'
+        tbl += f'<td style="{c};background:{"#fed7aa" if d["h35"] else bg};color:#9a3412;font-weight:bold">{h35_s}</td>'
+        tbl += f'<td style="{c};background:{"#fecaca" if d["h100"] else bg};color:#991b1b;font-weight:bold">{h100_s}</td>'
+        tbl += f'<td style="{c};background:{"#fef9c3" if d["he_total"] else bg};color:#854d0e;font-weight:bold">{het_s}</td>'
         tbl += '</tr>'
 
     # Fila totales
-    tot_style = 'padding:4px 6px;font-size:7pt;font-weight:bold;border-top:2px solid #334155'
     he_t = totales['h25'] + totales['h35'] + totales['h100']
+    T = 'padding:3px 4px;font-size:7.5pt;font-weight:bold;border-top:2px solid #334155'
     tbl += '<tr>'
-    tbl += f'<td style="{tot_style};background-color:#1e293b;color:white;text-align:left" colspan="3">TOTALES</td>'
-    tbl += f'<td style="{tot_style};background-color:#dcfce7;color:#14532d">{totales["hn"]:.2f}</td>'
-    tbl += f'<td style="{tot_style};background-color:#dbeafe;color:#1e40af">{totales["h25"]:.2f}</td>'
-    tbl += f'<td style="{tot_style};background-color:#fed7aa;color:#9a3412">{totales["h35"]:.2f}</td>'
-    tbl += f'<td style="{tot_style};background-color:#fecaca;color:#991b1b">{totales["h100"]:.2f}</td>'
-    tbl += f'<td style="{tot_style};background-color:#fef9c3;color:#854d0e">{he_t:.2f}</td>'
+    tbl += f'<td style="{T};background:#1e293b;color:white;text-align:left" colspan="3">TOTALES</td>'
+    tbl += f'<td style="{T};background:#dcfce7;color:#14532d">{totales["hn"]:.1f}</td>'
+    tbl += f'<td style="{T};background:#dbeafe;color:#1e40af">{totales["h25"]:.1f}</td>'
+    tbl += f'<td style="{T};background:#fed7aa;color:#9a3412">{totales["h35"]:.1f}</td>'
+    tbl += f'<td style="{T};background:#fecaca;color:#991b1b">{totales["h100"]:.1f}</td>'
+    tbl += f'<td style="{T};background:#fef9c3;color:#854d0e">{he_t:.1f}</td>'
     tbl += '</tr></table>'
 
     papeletas_html = _papeletas_sec(papeletas) if papeletas else ''
