@@ -534,8 +534,16 @@ def ajax_calendario_crear(request):
 
     personal = get_object_or_404(Personal, pk=personal_id)
 
+    # Importación dummy para registros manuales (importacion_id es NOT NULL)
+    from asistencia.models import TareoImportacion
+    imp_manual, _ = TareoImportacion.objects.get_or_create(
+        tipo='MANUAL', archivo_nombre='manual',
+        defaults={'estado': 'COMPLETADO', 'total_registros': 0},
+    )
+
     # Crear registro
     reg = RegistroTareo(
+        importacion=imp_manual,
         personal=personal,
         dni=personal.nro_doc,
         nombre_archivo=personal.apellidos_nombres,
