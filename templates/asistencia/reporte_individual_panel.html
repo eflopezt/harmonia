@@ -119,6 +119,13 @@
                     {% if not emp.correo_corporativo and not emp.correo_personal %}disabled title="Sin correo registrado"{% endif %}>
                 <i class="fas fa-envelope me-1"></i>Enviar
             </button>
+            {% if emp.celular %}
+            <a href="#" class="btn btn-outline-success btn-sm btn-wa"
+               onclick="sendWhatsApp('{{ emp.celular }}', '{{ emp.apellidos_nombres }}', '{% url 'asistencia_reporte_pdf' emp.id %}?anio={{ anio }}&mes={{ mes }}&grupo={{ grupo }}'); return false;"
+               title="Enviar por WhatsApp">
+                <i class="fab fa-whatsapp me-1"></i>WA
+            </a>
+            {% endif %}
         </div>
         {% if not emp.correo_corporativo and not emp.correo_personal %}
         <div class="no-email"><i class="fas fa-exclamation-circle me-1"></i>Sin correo registrado</div>
@@ -387,5 +394,29 @@
         new bootstrap.Modal(document.getElementById('resultModal')).show();
     }
 })();
+
+function sendWhatsApp(celular, nombre, pdfUrl) {
+    // Descargar PDF primero
+    window.open(pdfUrl, '_blank');
+
+    // Limpiar número: quitar espacios, guiones, +
+    let num = celular.replace(/[\s\-\+]/g, '');
+    // Si empieza con 9 y tiene 9 dígitos → agregar 51 (Perú)
+    if (/^9\d{8}$/.test(num)) num = '51' + num;
+    // Si no tiene código país
+    if (num.length === 9) num = '51' + num;
+
+    const mes = '{{ mes_nombre }}';
+    const anio = '{{ anio }}';
+    const msg = `Estimado(a) ${nombre},\n\n` +
+        `Adjuntamos su reporte de asistencia correspondiente al periodo ${mes} ${anio}.\n\n` +
+        `Por favor, en caso de tener alguna observación, hacerla llegar al área de RRHH a la brevedad.\n\n` +
+        `Saludos cordiales,\n` +
+        `Área de Recursos Humanos\nConsorcio SRT`;
+
+    setTimeout(() => {
+        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    }, 1000);
+}
 </script>
 {% endblock %}
