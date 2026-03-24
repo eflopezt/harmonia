@@ -462,6 +462,10 @@ def ajax_calendario_cambiar(request, registro_id):
         except (ValueError, IndexError):
             return JsonResponse({'error': 'Formato de salida inválido (HH:MM)'}, status=400)
 
+    # Si ahora tiene entrada Y salida pero el código era SS, cambiar a A
+    if reg.hora_entrada_real and reg.hora_salida_real and reg.codigo_dia == 'SS':
+        reg.codigo_dia = 'A'
+
     # Recalcular horas si cambió entrada/salida
     if nueva_entrada or nueva_salida:
         _recalcular_horas(reg)
