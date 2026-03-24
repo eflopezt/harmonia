@@ -21,6 +21,18 @@
       {% if form.non_field_errors %}
       <div class="alert alert-danger">{{ form.non_field_errors }}</div>
       {% endif %}
+      {% if form.errors %}
+      <div class="alert alert-danger">
+        <strong><i class="fas fa-exclamation-triangle me-1"></i>Errores al guardar:</strong>
+        <ul class="mb-0 mt-1">
+        {% for field, errors in form.errors.items %}
+          {% if field != '__all__' %}
+          <li><strong>{{ field }}:</strong> {{ errors.0 }}</li>
+          {% endif %}
+        {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
 
       {# ── 1. Identificación ──────────────────────────────────────── #}
       <div class="card mb-3">

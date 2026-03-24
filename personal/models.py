@@ -132,6 +132,7 @@ class Personal(models.Model):
         ('JUBILACION',      'Jubilacion'),
         # Por el empleador (DS 003-97-TR)
         ('VENCIMIENTO',     'Vencimiento de contrato'),
+        ('TERMINO_CONTRATO', 'Termino de contrato'),
         ('NO_RENOVACION',   'No renovacion'),
         ('DESPIDO_CAUSA',   'Despido con causa justificada'),
         ('CESE_COLECTIVO',  'Cese colectivo'),
@@ -730,12 +731,12 @@ class Personal(models.Model):
         if self.fecha_alta and self.fecha_cese:
             PersonalValidator.validar_rango_fechas(self.fecha_alta, self.fecha_cese)
         
-        # Validar montos
-        if self.sueldo_base:
+        # Validar montos (0 es válido para empleados sin sueldo asignado)
+        if self.sueldo_base and self.sueldo_base > 0:
             PersonalValidator.validar_monto(
-                self.sueldo_base, 
+                self.sueldo_base,
                 campo='sueldo base',
-                minimo=0.01,
+                minimo=0,
                 maximo=999999.99
             )
         
