@@ -508,7 +508,11 @@ class TareoProcessor:
         # (D.Leg. 713 Art. 6 — compensación en lugar de pago HE 100%)
         es_descanso_semanal = (dia_semana == 6) if dia_semana is not None else False
         if (es_feriado or es_descanso_semanal) and not tiene_papeleta_comp:
-            return horas_ef, CERO, CERO, CERO, horas_ef
+            # Jornada normal + exceso como HE 100%
+            jornada = Decimal(str(jornada_h))
+            h_norm = min(horas_ef, jornada)
+            he100 = max(CERO, horas_ef - jornada)
+            return horas_ef, h_norm, CERO, CERO, he100
 
         # ── Día normal ─────────────────────────────────────────
         jornada = Decimal(str(jornada_h))
