@@ -612,7 +612,7 @@ function showEmpMenu(e, pid, dni) {
     document.getElementById('ctxEditarEmpleado').href = `/personal/${pid}/editar/`;
     document.getElementById('ctxReporteStaff').href = `/asistencia/reportes/${pid}/pdf/?anio=${anio}&mes=${mes}`;
     document.getElementById('ctxBancoHoras').href = `/asistencia/banco-horas/${pid}/pdf/?anio=${anio}&mes=${mes}`;
-    document.getElementById('ctxPapeletas').href = `/asistencia/papeletas/?buscar=${dni}`;
+    document.getElementById('ctxPapeletas').href = `/asistencia/papeletas/?personal=${pid}`;
 
     menu.style.display = 'block';
     menu.style.left = Math.min(e.clientX, window.innerWidth - 220) + 'px';
