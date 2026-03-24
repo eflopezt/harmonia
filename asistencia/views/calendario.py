@@ -201,12 +201,17 @@ def calendario_grid(request):
                     'he': float(he) if he else 0,
                 })
             else:
-                # Fallback: papeleta aprobada → FA → DS (domingo LOCAL)
+                # Fallback: papeleta → LIMA auto-A → DS domingo → FA
                 pap_cod = pap_bulk.get(pid, {}).get(d['fecha'])
+                dow = d['fecha'].weekday()
+                cond_upper = info['condicion'].upper()
                 if pap_cod:
                     auto_cod = pap_cod
-                elif d['fecha'].weekday() == 6 and info['condicion'].upper() in ('LOCAL', 'LIMA', ''):
+                elif dow == 6 and cond_upper in ('LOCAL', 'LIMA', ''):
                     auto_cod = 'DS'
+                elif cond_upper == 'LIMA' and dow < 6:
+                    # LIMA no marca asistencia, lun-sab = presente por defecto
+                    auto_cod = 'A'
                 else:
                     auto_cod = 'FA'
                 color = COLOR_MAP.get(auto_cod, 'other' if auto_cod else 'empty')

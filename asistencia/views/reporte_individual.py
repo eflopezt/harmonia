@@ -149,7 +149,13 @@ def _build_staff_data(personal, inicio, fin):
             dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': 'NA', 'display': 'N/A'})
             d += timedelta(days=1)
             continue
-        codigo = tareo_map.get(d) or pap_map.get(d, 'FA')
+        codigo = tareo_map.get(d) or pap_map.get(d)
+        if not codigo:
+            # LIMA: lun-sab presente por defecto (no marcan asistencia)
+            if condicion.upper() == 'LIMA' and d.weekday() < 6:
+                codigo = 'A'
+            else:
+                codigo = 'FA'
         codigo = _auto_ds(d, codigo, condicion)
         if codigo in PRESENCIA:
             display = 'A'
@@ -205,11 +211,16 @@ def _build_rco_data(personal, inicio, fin):
             tot['he_35'] += reg['he_35'] or 0
             tot['he_100'] += reg['he_100'] or 0
         else:
-            # Papeleta aprobada como fallback antes de marcar FA
-            fallback = pap_map.get(d, 'FA')
+            # Papeleta → LIMA auto-A → FA
+            fallback = pap_map.get(d)
+            if not fallback:
+                if condicion.upper() == 'LIMA' and d.weekday() < 6:
+                    fallback = 'A'
+                else:
+                    fallback = 'FA'
             auto_cod = _auto_ds(d, fallback, condicion)
-            # Ausencias pagadas sin registro → 8h jornada legal
-            n_fallback = JORNADA_AUSENCIA if auto_cod in AUSENCIA_PAGADA else 0
+            # Ausencias pagadas o LIMA presente → 8h jornada legal
+            n_fallback = JORNADA_AUSENCIA if (auto_cod in AUSENCIA_PAGADA or (auto_cod == 'A' and condicion.upper() == 'LIMA')) else 0
             dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': auto_cod, 'n': n_fallback, 'h25': 0, 'h35': 0, 'h100': 0})
             tot['normales'] += Decimal(str(n_fallback))
         d += timedelta(days=1)

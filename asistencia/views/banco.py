@@ -212,15 +212,19 @@ def _build_banco_detail(personal, inicio, fin):
                 hn = jornada
                 h25 = h35 = h100 = 0
         else:
-            # Papeleta o FA
+            # Papeleta → LIMA auto-A → DS domingo → FA
             pap_cod = pap_map.get(d)
             if pap_cod:
                 codigo = pap_cod
             elif d.weekday() == 6 and condicion.upper() in ('LOCAL', 'LIMA', ''):
                 codigo = 'DS'
+            elif condicion.upper() == 'LIMA' and d.weekday() < 6:
+                codigo = 'A'
+                hn = JORNADA_AUSENCIA
             else:
                 codigo = 'FA'
-            hn = h25 = h35 = h100 = 0
+            if codigo not in ('A',):
+                hn = h25 = h35 = h100 = 0
 
         # Ausencias pagadas (DL, VAC, licencias, etc.) = 8h jornada legal
         if codigo in CODIGOS_DIA_PAGADO and hn == 0:
