@@ -5,8 +5,7 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:  # Solo manual, no en cada push
 
 env:
   PYTHON_VERSION: "3.12"
