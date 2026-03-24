@@ -122,7 +122,7 @@ CODE_COLORS = {
     'NA': '#edf2f7',
 }
 
-CSS = """@page{size:210mm 297mm;margin:5mm 7mm}
+CSS = """@page{size:297mm 210mm;margin:5mm 7mm}
 body{font-family:Helvetica;font-size:7pt;color:#1a202c;margin:0;padding:0}
 table{border-collapse:collapse}
 td,th{padding:0;text-align:center;font-size:7pt}"""
@@ -226,48 +226,49 @@ def _render_banco_html(personal, banco, dias, totales, papeletas, mes, anio):
     resumen += f'<td style="background-color:{saldo_bg};padding:5px 10px;font-size:9pt;border:1px solid #86efac"><b style="color:{saldo_color}">SALDO: {saldo:.2f}h</b></td>'
     resumen += '</tr></table>'
 
-    # Tabla detalle diario — anchos fijos con atributo HTML width (xhtml2pdf compatible)
-    H = 'background-color:#334155;color:white;padding:3px 5px;font-size:7pt;font-weight:bold'
+    # Tabla detalle diario — landscape, misma estructura que lista PDF (que sí funciona)
+    H = 'background-color:#334155;color:white;padding:4px 8px;font-size:7.5pt;font-weight:bold'
     tbl = '<table width="100%" style="margin-bottom:4px">'
     tbl += '<tr>'
-    tbl += f'<td width="55" style="{H};text-align:left">Fecha</td>'
-    tbl += f'<td width="25" style="{H}">Dia</td>'
-    tbl += f'<td width="35" style="{H}">Cod.</td>'
-    tbl += f'<td width="55" style="{H}">H.Norm</td>'
-    tbl += f'<td width="55" style="{H};background:#1e40af">HE 25%</td>'
-    tbl += f'<td width="55" style="{H};background:#9a3412">HE 35%</td>'
-    tbl += f'<td width="55" style="{H};background:#991b1b">HE 100%</td>'
-    tbl += f'<td width="55" style="{H};background:#854d0e">Tot.HE</td>'
+    tbl += f'<td style="{H};text-align:left">Fecha</td>'
+    tbl += f'<td style="{H}">Dia</td>'
+    tbl += f'<td style="{H}">Codigo</td>'
+    tbl += f'<td style="{H}">H.Normal</td>'
+    tbl += f'<td style="{H};background:#1e40af">HE 25%</td>'
+    tbl += f'<td style="{H};background:#9a3412">HE 35%</td>'
+    tbl += f'<td style="{H};background:#991b1b">HE 100%</td>'
+    tbl += f'<td style="{H};background:#854d0e">Total HE</td>'
     tbl += '</tr>'
 
     for idx, d in enumerate(dias):
-        bg = '#fff' if idx % 2 == 0 else '#f8fafc'
+        bg = '#ffffff' if idx % 2 == 0 else '#f8fafc'
         if d['fecha'].weekday() >= 5:
             bg = '#f0f4ff' if idx % 2 == 0 else '#e8edff'
 
         cod_bg = CODE_COLORS.get(d['codigo'], bg)
-        c = f'border-bottom:1px solid #e2e8f0;padding:2px 5px;font-size:7pt'
+        c = f'border-bottom:1px solid #e2e8f0;padding:3px 8px;font-size:7.5pt'
 
         hn_s = f'{d["hn"]:.1f}' if d['hn'] else '-'
-        h25_s = f'{d["h25"]:.1f}' if d['h25'] else ''
-        h35_s = f'{d["h35"]:.1f}' if d['h35'] else ''
-        h100_s = f'{d["h100"]:.1f}' if d['h100'] else ''
-        het_s = f'{d["he_total"]:.1f}' if d['he_total'] else ''
+        # Celdas vacías con &nbsp; para que no colapsen
+        h25_s = f'{d["h25"]:.1f}' if d['h25'] else '&nbsp;'
+        h35_s = f'{d["h35"]:.1f}' if d['h35'] else '&nbsp;'
+        h100_s = f'{d["h100"]:.1f}' if d['h100'] else '&nbsp;'
+        het_s = f'{d["he_total"]:.1f}' if d['he_total'] else '&nbsp;'
 
         tbl += f'<tr>'
         tbl += f'<td style="{c};background:{bg};text-align:left">{d["fecha"].strftime("%d/%m")}</td>'
         tbl += f'<td style="{c};background:{bg}">{d["dow"]}</td>'
         tbl += f'<td style="{c};background:{cod_bg};font-weight:bold">{d["codigo"]}</td>'
         tbl += f'<td style="{c};background:{bg};font-weight:bold">{hn_s}</td>'
-        tbl += f'<td style="{c};background:{"#dbeafe" if h25_s else bg};color:#1e40af;font-weight:bold">{h25_s}</td>'
-        tbl += f'<td style="{c};background:{"#fed7aa" if h35_s else bg};color:#9a3412;font-weight:bold">{h35_s}</td>'
-        tbl += f'<td style="{c};background:{"#fecaca" if h100_s else bg};color:#991b1b;font-weight:bold">{h100_s}</td>'
-        tbl += f'<td style="{c};background:{"#fef9c3" if het_s else bg};color:#854d0e;font-weight:bold">{het_s}</td>'
+        tbl += f'<td style="{c};background:{"#dbeafe" if d["h25"] else bg};color:#1e40af;font-weight:bold">{h25_s}</td>'
+        tbl += f'<td style="{c};background:{"#fed7aa" if d["h35"] else bg};color:#9a3412;font-weight:bold">{h35_s}</td>'
+        tbl += f'<td style="{c};background:{"#fecaca" if d["h100"] else bg};color:#991b1b;font-weight:bold">{h100_s}</td>'
+        tbl += f'<td style="{c};background:{"#fef9c3" if d["he_total"] else bg};color:#854d0e;font-weight:bold">{het_s}</td>'
         tbl += f'</tr>'
 
     # Fila totales
     he_t = totales['h25'] + totales['h35'] + totales['h100']
-    T = 'padding:3px 5px;font-size:8pt;font-weight:bold;border-top:2px solid #334155'
+    T = 'padding:4px 8px;font-size:8pt;font-weight:bold;border-top:2px solid #334155'
     tbl += '<tr>'
     tbl += f'<td colspan="3" style="{T};background:#1e293b;color:white;text-align:left">TOTALES</td>'
     tbl += f'<td style="{T};background:#dcfce7;color:#14532d">{totales["hn"]:.1f}</td>'
