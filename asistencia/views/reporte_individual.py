@@ -579,6 +579,62 @@ def _footer():
     return f'<p style="font-size:5pt;color:#94a3b8;text-align:center;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:2px">Harmoni ERP - {date.today().strftime("%d/%m/%Y %H:%M")}</p>'
 
 
+LEYENDA_DESCRIPCIONES = {
+    'A': 'Asistencia (dia trabajado)',
+    'T': 'Asistencia (dia trabajado)',
+    'NOR': 'Dia normal trabajado',
+    'SS': 'Sin Salida (presente, sin marca de salida = jornada completa)',
+    'DS': 'Descanso Semanal',
+    'DL': 'Dia Libre (bajada ganada)',
+    'DLA': 'Dia Libre Acumulado',
+    'VAC': 'Vacaciones',
+    'FA': 'Falta (no asistio)',
+    'F': 'Falta',
+    'DM': 'Descanso Medico',
+    'CHE': 'Compensacion por Horario Extendido',
+    'CDT': 'Compensacion Dia Trabajado',
+    'CPF': 'Compensacion por Feriado',
+    'LSG': 'Licencia Sin Goce (descuenta sueldo)',
+    'LCG': 'Licencia Con Goce',
+    'LF': 'Licencia por Fallecimiento',
+    'LP': 'Licencia por Paternidad',
+    'CT': 'Comision de Trabajo',
+    'TR': 'Trabajo Remoto',
+    'FR': 'Feriado (no laborable)',
+    'SAI': 'Suspension por Acto Inseguro',
+    'NA': 'No Aplica (fuera de periodo laboral)',
+}
+
+
+def _leyenda_codigos(codigos_usados):
+    """Genera leyenda HTML solo con los códigos que aparecen en el reporte."""
+    items = []
+    for code in ['A', 'T', 'NOR', 'SS', 'DS', 'DL', 'DLA', 'VAC', 'FA', 'F',
+                 'DM', 'CHE', 'CDT', 'CPF', 'LSG', 'LCG', 'LF', 'LP', 'CT',
+                 'TR', 'FR', 'SAI', 'NA']:
+        if code in codigos_usados and code in LEYENDA_DESCRIPCIONES:
+            items.append((code, LEYENDA_DESCRIPCIONES[code]))
+    if not items:
+        return ''
+
+    r = '<table style="margin-top:6px;margin-bottom:2px">'
+    r += '<tr><td colspan="4" style="background-color:#14532d;color:white;padding:4px 10px;text-align:left;font-size:7pt;font-weight:bold">LEYENDA DE CODIGOS</td></tr>'
+    # Rows de 2 columnas (código + descripción, 2 pares por fila)
+    for i in range(0, len(items), 2):
+        r += '<tr>'
+        for j in range(2):
+            if i + j < len(items):
+                code, desc = items[i + j]
+                bg = CODE_COLORS.get(code, '#f1f5f9')
+                r += f'<td style="background-color:{bg};padding:2px 6px;font-size:6pt;font-weight:bold;border:1px solid #e2e8f0;width:30px;text-align:center">{code}</td>'
+                r += f'<td style="padding:2px 8px;font-size:6pt;border:1px solid #e2e8f0;text-align:left">{desc}</td>'
+            else:
+                r += '<td style="border:none"></td><td style="border:none"></td>'
+        r += '</tr>'
+    r += '</table>'
+    return r
+
+
 def _group_weeks(dias):
     """Group days into weeks (Mon=0 to Sun=6)."""
     semanas = []
@@ -637,17 +693,9 @@ def _render_staff_html(personal, dias, conteo, papeletas, inicio, fin, mes, anio
 
         weeks_html += frow + crow
 
-    # Legend as colored cells
-    legend_items = [
-        ('A', 'Asistencia'), ('DS', 'Desc.Semanal'), ('DL', 'Dia Libre'),
-        ('VAC', 'Vacaciones'), ('F', 'Falta'), ('DM', 'D.Medico'),
-        ('CHE', 'Compensacion'), ('LSG', 'Lic.S/Goce'), ('FR', 'Feriado'),
-    ]
-    legend = '<table style="margin-top:4px"><tr>'
-    for code, label in legend_items:
-        bg = CODE_COLORS.get(code, '#f1f5f9')
-        legend += f'<td style="background-color:{bg};padding:2px 5px;font-size:5pt;border:1px solid #e2e8f0"><b>{code}</b>={label}</td>'
-    legend += '</tr></table>'
+    # Leyenda dinámica: solo códigos que aparecen en el reporte
+    codigos_usados = {d['codigo'] for d in dias if d.get('codigo')}
+    legend = _leyenda_codigos(codigos_usados)
 
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style></head><body>
 {_header(personal, inicio, fin, mes, anio, 'STAFF')}
@@ -737,6 +785,10 @@ def _render_rco_html(personal, dias, totales, papeletas, inicio, fin, mes, anio)
     legend += '<td style="background-color:#fed7aa;padding:3px 8px;font-size:5.5pt;border:1px solid #fdba74"><b style="color:#9a3412">HE35</b> = Extra 35%</td>'
     legend += '<td style="background-color:#fecaca;padding:3px 8px;font-size:5.5pt;border:1px solid #fca5a5"><b style="color:#991b1b">H100</b> = Extra 100%</td>'
     legend += '</tr></table>'
+
+    # Leyenda de códigos
+    codigos_usados = {d['codigo'] for d in dias if d.get('codigo')}
+    legend += _leyenda_codigos(codigos_usados)
 
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style></head><body>
 {_header(personal, inicio, fin, mes, anio, 'RCO')}
