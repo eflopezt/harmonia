@@ -418,8 +418,8 @@ function sendWhatsApp(celular, nombre, pdfUrl) {
         URL.revokeObjectURL(url);
     });
 
-    // Abrir WhatsApp
-    window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+    // Abrir WhatsApp en ventana nueva
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 </script>
 {% endblock %}
