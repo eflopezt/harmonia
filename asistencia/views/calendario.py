@@ -112,7 +112,11 @@ def calendario_grid(request):
     if area_id:
         qs = qs.filter(personal__subarea__area_id=area_id)
     if condicion:
-        qs = qs.filter(condicion=condicion)
+        # Soportar FORANEO con o sin tilde
+        if condicion.upper() in ('FORANEO', 'FORÁNEO'):
+            qs = qs.filter(condicion__in=['FORANEO', 'FORÁNEO'])
+        else:
+            qs = qs.filter(condicion=condicion)
     if buscar:
         qs = qs.filter(
             Q(personal__apellidos_nombres__icontains=buscar) |
