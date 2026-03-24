@@ -17,6 +17,7 @@ urlpatterns = [
     path('rco/', views.vista_rco, name='asistencia_rco'),
     path('banco-horas/', views.banco_horas_view, name='asistencia_banco_horas'),
     path('banco-horas/<int:personal_id>/pdf/', views.banco_horas_pdf, name='asistencia_banco_horas_pdf'),
+    path('banco-horas/lista/pdf/', views.banco_horas_lista_pdf, name='asistencia_banco_horas_lista_pdf'),
 
     # Importaciones
     path('importar/', views.importar_view, name='asistencia_importar'),

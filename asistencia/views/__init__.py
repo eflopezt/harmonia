@@ -8,7 +8,7 @@ Re-exporta todas las vistas para mantener compatibilidad con urls.py:
 from asistencia.views.dashboard import tareo_dashboard  # noqa: F401
 from asistencia.views.staff import vista_staff, ajax_staff_data  # noqa: F401
 from asistencia.views.rco import vista_rco, ajax_rco_data  # noqa: F401
-from asistencia.views.banco import banco_horas_view, banco_horas_pdf  # noqa: F401
+from asistencia.views.banco import banco_horas_view, banco_horas_pdf, banco_horas_lista_pdf  # noqa: F401
 from asistencia.views.importaciones import (  # noqa: F401
     importar_view,
     importar_synkro_view,

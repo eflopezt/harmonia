@@ -335,3 +335,150 @@ def banco_horas_pdf(request, personal_id):
         f'inline; filename="BancoHoras_{personal.nro_doc}_{MESES[mes]}_{anio}.pdf"'
     )
     return response
+
+
+# ---------------------------------------------------------------------------
+# PDF — Listado Banco de Horas (tabla resumen filtrada)
+# ---------------------------------------------------------------------------
+
+@login_required
+@solo_admin
+def banco_horas_lista_pdf(request):
+    """PDF del listado de banco de horas con los mismos filtros de la vista web."""
+    from asistencia.models import BancoHoras
+    from asistencia.views.reporte_individual import _footer
+
+    anio = int(request.GET.get('anio', date.today().year))
+    mes_param = request.GET.get('mes', '')
+    buscar = request.GET.get('buscar', '').strip()
+
+    qs = BancoHoras.objects.filter(periodo_anio=anio).select_related('personal')
+
+    mes_num = None
+    if mes_param:
+        try:
+            mes_num = int(mes_param)
+            qs = qs.filter(periodo_mes=mes_num)
+        except (ValueError, TypeError):
+            pass
+
+    if buscar:
+        qs = qs.filter(
+            Q(personal__apellidos_nombres__icontains=buscar) |
+            Q(personal__nro_doc__icontains=buscar)
+        )
+
+    qs = qs.order_by('personal__apellidos_nombres', 'periodo_mes')
+
+    totales = qs.aggregate(
+        t_25=Sum('he_25_acumuladas'),
+        t_35=Sum('he_35_acumuladas'),
+        t_100=Sum('he_100_acumuladas'),
+        t_comp=Sum('he_compensadas'),
+        t_saldo=Sum('saldo_horas'),
+    )
+
+    # Subtitulo
+    filtro_txt = f'{anio}'
+    if mes_num:
+        filtro_txt = f'{MESES[mes_num]} {anio}'
+    if buscar:
+        filtro_txt += f' — "{buscar}"'
+
+    try:
+        from asistencia.membrete_b64 import HEADER_IMG
+    except ImportError:
+        HEADER_IMG = ''
+
+    if HEADER_IMG:
+        logo = f'<p style="text-align:center;margin:0 0 6px 0"><img src="{HEADER_IMG}" height="50"></p>'
+    else:
+        logo = '<p style="text-align:center;font-size:10pt;font-weight:bold;color:#0f766e;margin:0 0 6px 0">CONSORCIO STILER - RIPCONCIV - TECNOEDIL</p>'
+
+    # Header
+    hdr = f"""{logo}
+<table style="margin-bottom:6px">
+<tr>
+<td style="background-color:#0f766e;color:white;padding:6px 12px;text-align:left;font-size:11pt;font-weight:bold">BANCO DE HORAS — STAFF</td>
+<td style="background-color:#134e4a;color:white;padding:6px 12px;text-align:right;font-size:10pt;font-weight:bold">{filtro_txt}</td>
+</tr>
+</table>"""
+
+    # Resumen
+    t_25 = float(totales['t_25'] or 0)
+    t_35 = float(totales['t_35'] or 0)
+    t_100 = float(totales['t_100'] or 0)
+    t_comp = float(totales['t_comp'] or 0)
+    t_saldo = float(totales['t_saldo'] or 0)
+    t_total = t_25 + t_35 + t_100
+
+    resumen = '<table style="margin-bottom:4px"><tr>'
+    resumen += f'<td style="background-color:#dbeafe;padding:4px 8px;font-size:7pt;border:1px solid #93c5fd"><b style="color:#1e40af">HE 25%: {t_25:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fed7aa;padding:4px 8px;font-size:7pt;border:1px solid #fdba74"><b style="color:#9a3412">HE 35%: {t_35:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fecaca;padding:4px 8px;font-size:7pt;border:1px solid #fca5a5"><b style="color:#991b1b">HE 100%: {t_100:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fef9c3;padding:4px 8px;font-size:7pt;border:1px solid #fde047"><b style="color:#854d0e">Total: {t_total:.2f}h</b></td>'
+    resumen += f'<td style="background-color:#fce7f3;padding:4px 8px;font-size:7pt;border:1px solid #f9a8d4"><b style="color:#9d174d">Comp: {t_comp:.2f}h</b></td>'
+    saldo_bg = '#dcfce7' if t_saldo >= 0 else '#fecaca'
+    saldo_color = '#14532d' if t_saldo >= 0 else '#991b1b'
+    resumen += f'<td style="background-color:{saldo_bg};padding:4px 10px;font-size:8pt;border:1px solid #86efac"><b style="color:{saldo_color}">Saldo: {t_saldo:.2f}h</b></td>'
+    resumen += '</tr></table>'
+
+    # Tabla
+    hs = 'background-color:#334155;color:white;padding:4px 6px;font-size:6.5pt;font-weight:bold'
+    tbl = '<table style="margin-bottom:4px"><tr>'
+    tbl += f'<td style="{hs};text-align:left;min-width:150px">Persona</td>'
+    tbl += f'<td style="{hs};min-width:55px">DNI</td>'
+    tbl += f'<td style="{hs};min-width:65px">Periodo</td>'
+    tbl += f'<td style="{hs};min-width:40px">HE 25%</td>'
+    tbl += f'<td style="{hs};min-width:40px">HE 35%</td>'
+    tbl += f'<td style="{hs};min-width:40px">HE 100%</td>'
+    tbl += f'<td style="{hs};min-width:45px">Comp.</td>'
+    tbl += f'<td style="{hs};min-width:45px">Saldo</td>'
+    tbl += '</tr>'
+
+    for idx, b in enumerate(qs):
+        bg = '#f8fafc' if idx % 2 == 0 else '#f1f5f9'
+        cell = f'border-bottom:1px solid #e2e8f0;padding:3px 6px;font-size:6.5pt;background-color:{bg}'
+        saldo = float(b.saldo_horas)
+        s_color = '#14532d' if saldo > 0 else ('#991b1b' if saldo < 0 else '#64748b')
+
+        tbl += '<tr>'
+        tbl += f'<td style="{cell};text-align:left;font-weight:bold">{b.personal.apellidos_nombres}</td>'
+        tbl += f'<td style="{cell}">{b.personal.nro_doc}</td>'
+        tbl += f'<td style="{cell};font-weight:bold">{MESES[b.periodo_mes]} {b.periodo_anio}</td>'
+        tbl += f'<td style="{cell};color:#1e40af">{b.he_25_acumuladas:.2f}</td>'
+        tbl += f'<td style="{cell};color:#9a3412">{b.he_35_acumuladas:.2f}</td>'
+        tbl += f'<td style="{cell};color:#991b1b">{b.he_100_acumuladas:.2f}</td>'
+        comp_val = float(b.he_compensadas)
+        tbl += f'<td style="{cell};color:#9d174d">{comp_val:.2f}</td>'
+        tbl += f'<td style="{cell};color:{s_color};font-weight:bold">{saldo:.2f}</td>'
+        tbl += '</tr>'
+
+    # Footer totales
+    ts = 'padding:4px 6px;font-size:7pt;font-weight:bold;border-top:2px solid #334155'
+    tbl += '<tr>'
+    tbl += f'<td style="{ts};background-color:#1e293b;color:white;text-align:left" colspan="3">TOTALES ({qs.count()} registros)</td>'
+    tbl += f'<td style="{ts};background-color:#dbeafe;color:#1e40af">{t_25:.2f}</td>'
+    tbl += f'<td style="{ts};background-color:#fed7aa;color:#9a3412">{t_35:.2f}</td>'
+    tbl += f'<td style="{ts};background-color:#fecaca;color:#991b1b">{t_100:.2f}</td>'
+    tbl += f'<td style="{ts};background-color:#fce7f3;color:#9d174d">{t_comp:.2f}</td>'
+    tbl += f'<td style="{ts};background-color:{saldo_bg};color:{saldo_color}">{t_saldo:.2f}</td>'
+    tbl += '</tr></table>'
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style></head><body>
+{hdr}
+{resumen}
+{tbl}
+{_footer()}
+</body></html>"""
+
+    pdf = _render_pdf(html)
+    if not pdf:
+        return HttpResponse('Error generando PDF', status=500)
+
+    fname = f'BancoHoras_{anio}'
+    if mes_num:
+        fname += f'_{MESES[mes_num]}'
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{fname}.pdf"'
+    return response

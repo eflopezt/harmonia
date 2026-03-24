@@ -7,7 +7,7 @@
 .saldo-positivo { color: #198754; font-weight: 700; }
 .saldo-cero     { color: #6c757d; font-weight: 400; }
 .saldo-negativo { color: #dc3545; font-weight: 700; }
-.mes-header     { background: var(--primary-color); color: #fff; font-weight: 600;
+.mes-header     { background: #0f766e; color: #fff; font-weight: 600;
                   padding: 6px 12px; border-radius: 6px; font-size: .85rem; }
 </style>
 {% endblock %}
@@ -60,6 +60,10 @@
                 </button>
                 <a href="{% url 'asistencia_banco_horas' %}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-times me-1"></i>Limpiar
+                </a>
+                <a href="{% url 'asistencia_banco_horas_lista_pdf' %}?anio={{ anio_sel }}{% if mes_sel %}&mes={{ mes_sel }}{% endif %}{% if buscar %}&buscar={{ buscar }}{% endif %}"
+                   target="_blank" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-file-pdf me-1"></i>Exportar PDF
                 </a>
             </div>
         </form>
