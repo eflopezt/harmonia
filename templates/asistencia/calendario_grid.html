@@ -20,7 +20,7 @@
 .filter-bar select,.filter-bar input{font-size:.82rem;border-radius:.5rem}
 
 /* ══ CALENDAR TABLE ══ */
-.cal-wrapper{overflow-x:auto;border-radius:.75rem;border:1px solid rgba(0,0,0,.08);background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.cal-wrapper{overflow:auto;max-height:calc(100vh - 280px);border-radius:.75rem;border:1px solid rgba(0,0,0,.08);background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.06)}
 .cal-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
 .cal-table th,.cal-table td{padding:0;text-align:center;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
 
@@ -184,6 +184,10 @@
         <option value="LIMA" {% if condicion == 'LIMA' %}selected{% endif %}>Lima</option>
     </select>
     <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" style="width:180px" placeholder="Buscar nombre/DNI...">
+    <select name="modo" class="form-select form-select-sm" style="width:130px" title="Mes natural o Ciclo planilla 21-20">
+        <option value="mes" {% if modo == 'mes' %}selected{% endif %}>Mes (1-31)</option>
+        <option value="ciclo" {% if modo == 'ciclo' %}selected{% endif %}>Ciclo (21-20)</option>
+    </select>
     <button class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
 </form>
 </div>
@@ -209,7 +213,7 @@
     <th class="col-emp">Empleado</th>
     {% for d in dias_mes %}
     <th class="day-header {% if d.es_finde %}finde{% endif %} {% if d.es_feriado %}feriado-h{% endif %}">
-        {{ d.num }}<span class="dow">{{ d.dow }}</span>
+        {% if modo == 'ciclo' %}{{ d.fecha|date:"d/m" }}{% else %}{{ d.num }}{% endif %}<span class="dow">{{ d.dow }}</span>
     </th>
     {% endfor %}
     <th style="min-width:42px">Trab</th>

@@ -53,7 +53,8 @@ DIAS_SEMANA = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D']
 @login_required
 @solo_admin
 def calendario_grid(request):
-    """Grilla calendario mensual de asistencia."""
+    """Grilla calendario mensual o ciclo 21-20 de asistencia."""
+    from datetime import timedelta
     hoy = date.today()
     anio = int(request.GET.get('anio', hoy.year))
     mes = int(request.GET.get('mes', hoy.month))
@@ -61,21 +62,31 @@ def calendario_grid(request):
     area_id = request.GET.get('area', '')
     condicion = request.GET.get('condicion', '')
     buscar = request.GET.get('q', '')
+    modo = request.GET.get('modo', 'mes')
 
-    _, num_dias = calendar.monthrange(anio, mes)
-    mes_ini = date(anio, mes, 1)
-    mes_fin = date(anio, mes, num_dias)
+    if modo == 'ciclo':
+        # Ciclo planilla: 21 del mes anterior al 20 del mes actual
+        if mes == 1:
+            mes_ini = date(anio - 1, 12, 21)
+        else:
+            mes_ini = date(anio, mes - 1, 21)
+        mes_fin = date(anio, mes, 20)
+    else:
+        _, num_dias = calendar.monthrange(anio, mes)
+        mes_ini = date(anio, mes, 1)
+        mes_fin = date(anio, mes, num_dias)
 
-    # Días del mes con día de semana
+    # Días del rango con día de semana
     dias_mes = []
-    for d in range(1, num_dias + 1):
-        dt = date(anio, mes, d)
+    dt = mes_ini
+    while dt <= mes_fin:
         dias_mes.append({
-            'num': d,
+            'num': dt.day,
             'dow': DIAS_SEMANA[dt.weekday()],
             'es_finde': dt.weekday() >= 5,
             'fecha': dt,
         })
+        dt += timedelta(days=1)
 
     # Feriados
     feriados = set(
@@ -264,15 +275,16 @@ def calendario_grid(request):
     )
 
     context = {
-        'titulo': f'Calendario de Asistencia — {MESES[mes]} {anio}',
+        'titulo': f'{"Ciclo" if modo == "ciclo" else "Calendario"} de Asistencia — {MESES[mes]} {anio}',
         'anio': anio, 'mes': mes, 'mes_nombre': MESES[mes],
-        'dias_mes': dias_mes, 'num_dias': num_dias,
+        'dias_mes': dias_mes, 'num_dias': len(dias_mes),
         'rows': rows, 'resumen_dias': resumen_dias,
         'total_empleados': len(rows),
         'total_presentes': total_presentes,
         'total_faltas': total_faltas,
         'pct_global': pct_global,
         'grupo': grupo, 'area_id': area_id, 'condicion': condicion, 'buscar': buscar,
+        'modo': modo,
         'areas': areas,
         'codigos_json': json.dumps(codigos_disponibles),
         'color_map_json': json.dumps(COLOR_MAP),
