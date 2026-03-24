@@ -128,6 +128,13 @@ table{border-collapse:collapse}
 td,th{padding:0;text-align:center;font-size:7pt}"""
 
 
+# Códigos de ausencia pagada → cuentan como 8h normales (jornada legal estándar)
+CODIGOS_DIA_PAGADO = {
+    'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE',
+    'CT', 'CDT', 'CPF', 'FR', 'TR',
+}
+
+
 def _build_banco_detail(personal, inicio, fin):
     """
     Construye detalle diario de horas para el banco.
@@ -184,6 +191,10 @@ def _build_banco_detail(personal, inicio, fin):
             else:
                 codigo = 'FA'
             hn = h25 = h35 = h100 = 0
+
+        # Ausencias pagadas (DL, VAC, licencias, etc.) = 8h jornada legal
+        if codigo in CODIGOS_DIA_PAGADO and hn == 0:
+            hn = 8.0
 
         he_total = h25 + h35 + h100
         dias.append({
@@ -311,12 +322,15 @@ def banco_horas_pdf(request, personal_id):
     # Detalle diario
     dias, totales = _build_banco_detail(personal, inicio, fin)
 
-    # Papeletas
+    # Papeletas — calcular días si dias_habiles es 0 o None
     papeletas = list(RegistroPapeleta.objects.filter(
         personal=personal, fecha_inicio__lte=fin, fecha_fin__gte=inicio
     ).order_by('fecha_inicio').values(
         'tipo_permiso', 'fecha_inicio', 'fecha_fin', 'dias_habiles', 'estado', 'observaciones'
     ))
+    for p in papeletas:
+        if not p['dias_habiles']:
+            p['dias_habiles'] = (p['fecha_fin'] - p['fecha_inicio']).days + 1
 
     html = _render_banco_html(personal, banco, dias, totales, papeletas, mes, anio)
     pdf = _render_pdf(html)
