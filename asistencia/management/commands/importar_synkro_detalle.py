@@ -344,8 +344,21 @@ class Command(BaseCommand):
         salida   = _parse_hhmm(row.get('Salida'))
         refrigerio = _parse_hhmm(row.get('Refrigerio'))
 
+        if ingreso is None and refrigerio is None and salida is None:
+            return None   # sin ninguna marca → ausencia, no crear registro
+
         if ingreso is None:
-            return None   # sin marca de entrada → ausencia, no crear registro
+            # Sin ingreso pero con alguna otra marca (refrigerio/salida) → SS
+            # El trabajador estuvo presente pero no marcó entrada correctamente.
+            primera_marca = refrigerio or salida
+            return {
+                'codigo_dia':        'SS',
+                'horas_netas':       None,
+                'hora_entrada_real': primera_marca,
+                'hora_salida_real':  salida,
+                'raw_h':             None,
+                'almuerzo':          CERO,
+            }
 
         if salida is not None:
             # Caso normal: entrada + salida
