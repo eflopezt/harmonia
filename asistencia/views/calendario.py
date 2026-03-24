@@ -19,7 +19,7 @@ from asistencia.models import (
     RegistroTareo, HomologacionCodigo, CambioCodigoLog,
     FeriadoCalendario, ConfiguracionSistema,
 )
-from asistencia.views._common import solo_admin, _qs_staff_dedup
+from asistencia.views._common import solo_admin, _qs_staff_dedup, _papeletas_bulk
 from personal.models import Personal, Area
 
 # Códigos de presencia (días trabajados)
@@ -161,6 +161,9 @@ def calendario_grid(request):
                 'fecha_cese': r.get('personal__fecha_cese'),
             }
 
+    # Cargar papeletas aprobadas para todos los empleados visibles
+    pap_bulk = _papeletas_bulk(list(personal_info.keys()), mes_ini, mes_fin)
+
     # Build rows sorted by name
     rows = []
     for pid in sorted(personal_info, key=lambda x: personal_info[x]['nombre']):
@@ -198,11 +201,19 @@ def calendario_grid(request):
                     'he': float(he) if he else 0,
                 })
             else:
-                auto_cod = ''
-                if d['fecha'].weekday() == 6 and info['condicion'].upper() in ('LOCAL', 'LIMA', ''):
+                # Fallback: papeleta aprobada → FA → DS (domingo LOCAL)
+                pap_cod = pap_bulk.get(pid, {}).get(d['fecha'])
+                if pap_cod:
+                    auto_cod = pap_cod
+                elif d['fecha'].weekday() == 6 and info['condicion'].upper() in ('LOCAL', 'LIMA', ''):
                     auto_cod = 'DS'
+                else:
+                    auto_cod = 'FA'
+                color = COLOR_MAP.get(auto_cod, 'other' if auto_cod else 'empty')
+                if auto_cod in CODIGOS_FALTA:
+                    total_falta += 1
                 celdas.append({
-                    'id': 0, 'codigo': auto_cod, 'color': COLOR_MAP.get(auto_cod, 'empty'),
+                    'id': 0, 'codigo': auto_cod, 'color': color,
                     'editable': True, 'fecha_iso': d['fecha'].isoformat(),
                 })
         rows.append({

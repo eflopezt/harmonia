@@ -1,6 +1,8 @@
 """
 Utilidades compartidas entre las vistas del módulo Tareo.
 """
+from datetime import timedelta
+
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import OuterRef, Subquery
 
@@ -64,3 +66,77 @@ def _qs_staff_dedup(mes_ini, mes_fin):
         personal__isnull=False,
         id=Subquery(latest_id),
     )
+
+
+# ── Mapeo tipo_permiso → código tareo para papeletas ─────────
+TIPO_PERMISO_A_CODIGO = {
+    'VACACIONES': 'VAC',
+    'LICENCIA_SIN_GOCE': 'LSG',
+    'LICENCIA_CON_GOCE': 'LCG',
+    'DESCANSO_MEDICO': 'DM',
+    'COMPENSACION_HE': 'CHE',
+    'LICENCIA_FALLECIMIENTO': 'LF',
+    'LICENCIA_PATERNIDAD': 'LP',
+    'COMISION_TRABAJO': 'CT',
+    'COMP_DIA_TRABAJO': 'CDT',
+    'COMPENSACION_FERIADO': 'CPF',
+    'SUSPENSION': 'SAI',
+    'SUSPENSION_ACTO_INSEGURO': 'SAI',
+    'BAJADAS': 'DL',
+    'BAJADAS_ACUMULADAS': 'DLA',
+}
+
+
+def _papeletas_por_fecha(personal_id, inicio, fin):
+    """
+    Construye un dict {date: codigo_tareo} a partir de RegistroPapeleta.
+
+    Solo considera papeletas APROBADAS o EJECUTADAS.
+    Si hay múltiples papeletas para la misma fecha, la primera gana.
+    """
+    from asistencia.models import RegistroPapeleta
+    papeletas = RegistroPapeleta.objects.filter(
+        personal_id=personal_id,
+        fecha_inicio__lte=fin,
+        fecha_fin__gte=inicio,
+        estado__in=['APROBADA', 'EJECUTADA', 'PENDIENTE'],
+    ).order_by('pk')
+
+    fecha_map = {}
+    for pap in papeletas:
+        codigo = TIPO_PERMISO_A_CODIGO.get(pap.tipo_permiso, pap.tipo_permiso)
+        d = max(pap.fecha_inicio, inicio)
+        tope = min(pap.fecha_fin, fin)
+        while d <= tope:
+            if d not in fecha_map:
+                fecha_map[d] = codigo
+            d += timedelta(days=1)
+    return fecha_map
+
+
+def _papeletas_bulk(personal_ids, inicio, fin):
+    """
+    Versión bulk: {personal_id: {date: codigo_tareo}} para múltiples empleados.
+    Para uso en la vista matricial (calendario grid).
+    """
+    from asistencia.models import RegistroPapeleta
+    papeletas = RegistroPapeleta.objects.filter(
+        personal_id__in=personal_ids,
+        fecha_inicio__lte=fin,
+        fecha_fin__gte=inicio,
+        estado__in=['APROBADA', 'EJECUTADA', 'PENDIENTE'],
+    ).order_by('pk')
+
+    result = {}
+    for pap in papeletas:
+        pid = pap.personal_id
+        codigo = TIPO_PERMISO_A_CODIGO.get(pap.tipo_permiso, pap.tipo_permiso)
+        if pid not in result:
+            result[pid] = {}
+        d = max(pap.fecha_inicio, inicio)
+        tope = min(pap.fecha_fin, fin)
+        while d <= tope:
+            if d not in result[pid]:
+                result[pid][d] = codigo
+            d += timedelta(days=1)
+    return result

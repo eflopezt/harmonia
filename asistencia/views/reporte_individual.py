@@ -21,7 +21,7 @@ from django.views.decorators.http import require_POST
 from xhtml2pdf import pisa
 
 from asistencia.models import RegistroTareo, RegistroPapeleta, ConfiguracionSistema
-from asistencia.views._common import solo_admin, _qs_staff_dedup
+from asistencia.views._common import solo_admin, _qs_staff_dedup, _papeletas_por_fecha
 
 logger = logging.getLogger('asistencia')
 from personal.models import Personal, Area
@@ -134,6 +134,9 @@ def _build_staff_data(personal, inicio, fin):
             continue
         tareo_map[fecha] = r['codigo_dia']
 
+    # Papeletas aprobadas como fallback para días sin registro
+    pap_map = _papeletas_por_fecha(personal.pk, inicio, fin)
+
     condicion = personal.condicion or ''
     dias = []
     conteo = {}
@@ -143,7 +146,7 @@ def _build_staff_data(personal, inicio, fin):
             dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': 'NA', 'display': 'N/A'})
             d += timedelta(days=1)
             continue
-        codigo = tareo_map.get(d, 'FA')
+        codigo = tareo_map.get(d) or pap_map.get(d, 'FA')
         codigo = _auto_ds(d, codigo, condicion)
         if codigo in PRESENCIA:
             display = 'A'
@@ -174,10 +177,11 @@ def _build_rco_data(personal, inicio, fin):
         if existing is None:
             tareo_map[fecha] = r
         elif r['fuente_codigo'] == 'RELOJ':
-            # RELOJ siempre gana sobre EXCEL.
-            # Entre varios RELOJ (importaciones distintas), gana el de pk mayor
-            # (ya ordenados asc por pk, así que cada RELOJ sobreescribe al anterior).
             tareo_map[fecha] = r
+
+    # Papeletas aprobadas como fallback para días sin registro
+    pap_map = _papeletas_por_fecha(personal.pk, inicio, fin)
+
     condicion = personal.condicion or ''
     dias = []
     tot = {'normales': Decimal('0'), 'he_25': Decimal('0'), 'he_35': Decimal('0'), 'he_100': Decimal('0')}
@@ -198,7 +202,9 @@ def _build_rco_data(personal, inicio, fin):
             tot['he_35'] += reg['he_35'] or 0
             tot['he_100'] += reg['he_100'] or 0
         else:
-            auto_cod = _auto_ds(d, 'FA', condicion)
+            # Papeleta aprobada como fallback antes de marcar FA
+            fallback = pap_map.get(d, 'FA')
+            auto_cod = _auto_ds(d, fallback, condicion)
             dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': auto_cod, 'n': 0, 'h25': 0, 'h35': 0, 'h100': 0})
         d += timedelta(days=1)
     return dias, {k: float(v) for k, v in tot.items()}
