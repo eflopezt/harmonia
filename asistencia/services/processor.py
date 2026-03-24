@@ -481,6 +481,14 @@ class TareoProcessor:
         if es_ss:
             return jornada_h, jornada_h, CERO, CERO, CERO
 
+        # ── Marcación incompleta: horas < mitad de jornada → SS implícito
+        # Si marcó entrada pero no salida (o solo salida a refrigerio),
+        # el biométrico calcula pocas horas. Se reconoce jornada completa, sin HE.
+        if (horas_marcadas and horas_marcadas > CERO
+                and horas_marcadas < jornada_h / 2
+                and codigo not in CODIGOS_SIN_HE):
+            return jornada_h, jornada_h, CERO, CERO, CERO
+
         # ── Códigos sin horas ni HE ────────────────────────────
         if codigo in CODIGOS_SIN_HE or not horas_marcadas or horas_marcadas <= CERO:
             return CERO, CERO, CERO, CERO, CERO
