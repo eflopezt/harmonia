@@ -220,7 +220,7 @@
 <tbody>
 {% for row in rows %}
 <tr>
-    <td class="col-emp">
+    <td class="col-emp" oncontextmenu="showEmpMenu(event, {{ row.personal_id }}, '{{ row.dni }}')" style="cursor:context-menu">
         <span class="emp-name">{{ row.nombre }}</span><br>
         <span class="emp-dni">{{ row.dni }}</span>
         <span class="emp-cond {{ row.condicion }}">{{ row.condicion }}</span>
@@ -253,6 +253,23 @@
 </tr>
 </tfoot>
 </table>
+</div>
+
+<!-- Context Menu -->
+<div id="empContextMenu" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:200px;padding:6px 0;font-size:.85rem">
+    <a id="ctxEditarEmpleado" href="#" class="d-block px-3 py-2 text-decoration-none text-dark" style="transition:background .15s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''" >
+        <i class="fas fa-user-edit me-2 text-primary"></i>Editar Empleado
+    </a>
+    <a id="ctxReporteStaff" href="#" target="_blank" class="d-block px-3 py-2 text-decoration-none text-dark" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+        <i class="fas fa-file-pdf me-2 text-danger"></i>Reporte Asistencia PDF
+    </a>
+    <a id="ctxBancoHoras" href="#" target="_blank" class="d-block px-3 py-2 text-decoration-none text-dark" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+        <i class="fas fa-piggy-bank me-2 text-success"></i>Banco de Horas PDF
+    </a>
+    <hr class="my-1">
+    <a id="ctxPapeletas" href="#" target="_blank" class="d-block px-3 py-2 text-decoration-none text-dark" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+        <i class="fas fa-file-alt me-2 text-warning"></i>Ver Papeletas
+    </a>
 </div>
 
 <!-- Detail Modal -->
@@ -584,5 +601,25 @@ function guardarCrear() {
     })
     .catch(e => { console.error(e); alert('Error de conexión'); });
 }
+
+// ── Context menu empleado ──
+function showEmpMenu(e, pid, dni) {
+    e.preventDefault();
+    const menu = document.getElementById('empContextMenu');
+    const anio = '{{ anio }}';
+    const mes = '{{ mes }}';
+
+    document.getElementById('ctxEditarEmpleado').href = `/personal/${pid}/editar/`;
+    document.getElementById('ctxReporteStaff').href = `/asistencia/reportes/${pid}/pdf/?anio=${anio}&mes=${mes}`;
+    document.getElementById('ctxBancoHoras').href = `/asistencia/banco-horas/${pid}/pdf/?anio=${anio}&mes=${mes}`;
+    document.getElementById('ctxPapeletas').href = `/asistencia/papeletas/?buscar=${dni}`;
+
+    menu.style.display = 'block';
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 220) + 'px';
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+}
+document.addEventListener('click', () => {
+    document.getElementById('empContextMenu').style.display = 'none';
+});
 </script>
 {% endblock %}
