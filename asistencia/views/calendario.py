@@ -538,7 +538,10 @@ def ajax_calendario_crear(request):
     from asistencia.models import TareoImportacion
     imp_manual, _ = TareoImportacion.objects.get_or_create(
         tipo='MANUAL', archivo_nombre='manual',
-        defaults={'estado': 'COMPLETADO', 'total_registros': 0},
+        defaults={
+            'estado': 'COMPLETADO', 'total_registros': 0,
+            'periodo_inicio': date(2025, 1, 1), 'periodo_fin': date(2030, 12, 31),
+        },
     )
 
     # Crear registro
