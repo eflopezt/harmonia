@@ -35,6 +35,9 @@ DIAS_CORTO = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D']
 PRESENCIA = {'T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'SS'}
 DESCANSO = {'DS', 'B'}
 LIBRE = {'DL', 'DLA'}
+# Ausencias pagadas: cuentan 8h normales cuando no hay registro (papeleta sin marcación)
+AUSENCIA_PAGADA = {'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE', 'CT', 'CDT', 'CPF', 'FR', 'TR'}
+JORNADA_AUSENCIA = 8.0
 
 CODE_COLORS = {
     'A': '#c6f6d5', 'NOR': '#c6f6d5', 'T': '#c6f6d5', 'TR': '#c6f6d5', 'SS': '#c6f6d5',
@@ -205,7 +208,10 @@ def _build_rco_data(personal, inicio, fin):
             # Papeleta aprobada como fallback antes de marcar FA
             fallback = pap_map.get(d, 'FA')
             auto_cod = _auto_ds(d, fallback, condicion)
-            dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': auto_cod, 'n': 0, 'h25': 0, 'h35': 0, 'h100': 0})
+            # Ausencias pagadas sin registro → 8h jornada legal
+            n_fallback = JORNADA_AUSENCIA if auto_cod in AUSENCIA_PAGADA else 0
+            dias.append({'fecha': d, 'dow_s': DIAS_CORTO[d.weekday()], 'codigo': auto_cod, 'n': n_fallback, 'h25': 0, 'h35': 0, 'h100': 0})
+            tot['normales'] += Decimal(str(n_fallback))
         d += timedelta(days=1)
     return dias, {k: float(v) for k, v in tot.items()}
 

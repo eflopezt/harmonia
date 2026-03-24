@@ -128,17 +128,37 @@ table{border-collapse:collapse}
 td,th{padding:0;text-align:center;font-size:7pt}"""
 
 
-# Códigos de ausencia pagada → cuentan como 8h normales (jornada legal estándar)
+# Códigos de ausencia pagada → cuentan como jornada estándar (8h)
 CODIGOS_DIA_PAGADO = {
     'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE',
     'CT', 'CDT', 'CPF', 'FR', 'TR',
 }
+
+# Jornada estándar para ausencias pagadas (jornada legal 8h, no depende de condición)
+JORNADA_AUSENCIA = 8.0
+
+
+def _get_jornada_dia(condicion, dia_semana):
+    """Jornada diaria según condición y día — misma lógica que processor."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    if dia_semana == 6:
+        return float(config.jornada_domingo_horas)
+    if condicion == 'FORANEO':
+        return float(config.jornada_foraneo_horas)
+    if dia_semana == 5:
+        return float(config.jornada_sabado_horas)
+    return float(config.jornada_local_horas)
 
 
 def _build_banco_detail(personal, inicio, fin):
     """
     Construye detalle diario de horas para el banco.
     Retorna lista de dicts por día + totales.
+    Aplica las mismas reglas que el processor:
+    - SS: jornada completa, sin HE
+    - Marcación incompleta (<jornada/2): SS implícito
+    - Ausencias pagadas (DL, VAC, etc.): 8h jornada legal
     """
     from asistencia.models import RegistroTareo
 
@@ -174,13 +194,23 @@ def _build_banco_detail(personal, inicio, fin):
             d += timedelta(days=1)
             continue
 
+        jornada = _get_jornada_dia(condicion, d.weekday())
+
         reg = tareo_map.get(d)
         if reg:
             codigo = reg['codigo_dia']
+            marc = float(reg['horas_marcadas'] or 0)
             hn = float(reg['horas_normales'] or 0)
             h25 = float(reg['he_25'] or 0)
             h35 = float(reg['he_35'] or 0)
             h100 = float(reg['he_100'] or 0)
+
+            # Marcación incompleta: horas < jornada/2 → SS implícito
+            if (marc > 0 and marc < jornada / 2
+                    and codigo not in CODIGOS_DIA_PAGADO
+                    and codigo not in ('SS', 'FA', 'DS')):
+                hn = jornada
+                h25 = h35 = h100 = 0
         else:
             # Papeleta o FA
             pap_cod = pap_map.get(d)
@@ -194,7 +224,7 @@ def _build_banco_detail(personal, inicio, fin):
 
         # Ausencias pagadas (DL, VAC, licencias, etc.) = 8h jornada legal
         if codigo in CODIGOS_DIA_PAGADO and hn == 0:
-            hn = 8.0
+            hn = JORNADA_AUSENCIA
 
         he_total = h25 + h35 + h100
         dias.append({

@@ -364,6 +364,14 @@ def _recalcular_horas(reg):
         reg.he_25 = reg.he_35 = reg.he_100 = CERO
         return
 
+    # Marcación incompleta: horas < jornada/2 → SS implícito
+    if (horas_marcadas > CERO and horas_marcadas < jornada_h / 2
+            and codigo not in CODIGOS_SIN_HE):
+        reg.horas_efectivas = jornada_h
+        reg.horas_normales = jornada_h
+        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        return
+
     # Códigos sin horas
     if codigo in CODIGOS_SIN_HE or not horas_marcadas or horas_marcadas <= CERO:
         reg.horas_efectivas = reg.horas_normales = CERO
@@ -379,15 +387,15 @@ def _recalcular_horas(reg):
         almuerzo = Decimal('0.5') if horas_marcadas > 5 else CERO
         horas_ef = max(CERO, horas_marcadas - almuerzo)
 
-    # Feriado/Domingo trabajado → todo al 100%
+    # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
     es_feriado = reg.es_feriado or FeriadoCalendario.objects.filter(
         fecha=reg.fecha, activo=True).exists()
     es_descanso_semanal = reg.fecha.weekday() == 6
     if (es_feriado or es_descanso_semanal):
         reg.horas_efectivas = horas_ef
-        reg.horas_normales = CERO
+        reg.horas_normales = min(horas_ef, jornada_h)
         reg.he_25 = reg.he_35 = CERO
-        reg.he_100 = horas_ef
+        reg.he_100 = max(CERO, horas_ef - jornada_h)
         return
 
     # Día normal
