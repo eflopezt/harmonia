@@ -12,7 +12,7 @@ Base legal:
 - Ley 29409: licencia paternidad
 """
 import calendar
-from datetime import date
+from datetime import date, datetime
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -95,9 +95,15 @@ def papeleta_crear(request):
     try:
         personal = get_object_or_404(Personal, pk=request.POST['personal_id'])
         tipo = request.POST['tipo_permiso']
-        fecha_inicio = request.POST['fecha_inicio']
-        fecha_fin = request.POST.get('fecha_fin') or fecha_inicio
+        fecha_inicio = datetime.strptime(request.POST['fecha_inicio'], '%Y-%m-%d').date()
+        fecha_fin_raw = request.POST.get('fecha_fin')
+        fecha_fin = datetime.strptime(fecha_fin_raw, '%Y-%m-%d').date() if fecha_fin_raw else fecha_inicio
         estado = request.POST.get('estado', 'PENDIENTE')
+
+        # Calcular días hábiles automáticamente si no se proporcionan
+        dias_habiles_raw = int(request.POST.get('dias_habiles', 0) or 0)
+        if not dias_habiles_raw:
+            dias_habiles_raw = (fecha_fin - fecha_inicio).days + 1
 
         p = RegistroPapeleta.objects.create(
             personal=personal,
@@ -105,9 +111,9 @@ def papeleta_crear(request):
             tipo_permiso=tipo,
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
-            fecha_referencia=request.POST.get('fecha_referencia') or None,
+            fecha_referencia=datetime.strptime(request.POST['fecha_referencia'], '%Y-%m-%d').date() if request.POST.get('fecha_referencia') else None,
             detalle=request.POST.get('detalle', '').strip(),
-            dias_habiles=int(request.POST.get('dias_habiles', 0) or 0),
+            dias_habiles=dias_habiles_raw,
             origen='SISTEMA',
             estado=estado,
             creado_por=request.user,
@@ -133,11 +139,17 @@ def papeleta_editar(request, pk):
     p = get_object_or_404(RegistroPapeleta, pk=pk)
     try:
         p.tipo_permiso = request.POST.get('tipo_permiso', p.tipo_permiso)
-        p.fecha_inicio = request.POST.get('fecha_inicio', p.fecha_inicio)
-        p.fecha_fin = request.POST.get('fecha_fin') or p.fecha_inicio
-        p.fecha_referencia = request.POST.get('fecha_referencia') or None
+        fi_raw = request.POST.get('fecha_inicio')
+        p.fecha_inicio = datetime.strptime(fi_raw, '%Y-%m-%d').date() if fi_raw else p.fecha_inicio
+        ff_raw = request.POST.get('fecha_fin')
+        p.fecha_fin = datetime.strptime(ff_raw, '%Y-%m-%d').date() if ff_raw else p.fecha_fin
+        fr_raw = request.POST.get('fecha_referencia')
+        p.fecha_referencia = datetime.strptime(fr_raw, '%Y-%m-%d').date() if fr_raw else None
         p.detalle = request.POST.get('detalle', '').strip()
-        p.dias_habiles = int(request.POST.get('dias_habiles', p.dias_habiles) or 0)
+        dias_habiles_raw = int(request.POST.get('dias_habiles', 0) or 0)
+        if not dias_habiles_raw:
+            dias_habiles_raw = (p.fecha_fin - p.fecha_inicio).days + 1
+        p.dias_habiles = dias_habiles_raw
         p.observaciones = request.POST.get('observaciones', '').strip()
 
         nuevo_estado = request.POST.get('estado', p.estado)

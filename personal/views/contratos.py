@@ -186,8 +186,8 @@ def contrato_editar(request, pk):
         fecha_inicio = request.POST.get('fecha_inicio_contrato', '').strip()
         fecha_fin    = request.POST.get('fecha_fin_contrato', '').strip()
 
-        personal.fecha_inicio_contrato = fecha_inicio or None
-        personal.fecha_fin_contrato    = fecha_fin or None
+        personal.fecha_inicio_contrato = date.fromisoformat(fecha_inicio) if fecha_inicio else None
+        personal.fecha_fin_contrato    = date.fromisoformat(fecha_fin) if fecha_fin else None
 
         personal.save(update_fields=[
             'tipo_contrato', 'fecha_inicio_contrato', 'fecha_fin_contrato',

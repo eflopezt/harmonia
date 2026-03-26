@@ -474,9 +474,10 @@ def justificacion_crear(request):
         return JsonResponse({'ok': False, 'error': 'Fecha, tipo y motivo son obligatorios.'}, status=400)
 
     try:
+        fecha_parsed = date.fromisoformat(fecha_str)
         j, created = JustificacionNoMarcaje.objects.get_or_create(
             personal=empleado,
-            fecha=fecha_str,
+            fecha=fecha_parsed,
             defaults={'tipo': tipo, 'motivo': motivo, 'estado': 'PENDIENTE'},
         )
         if not created:

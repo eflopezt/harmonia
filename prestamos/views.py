@@ -268,7 +268,7 @@ def prestamo_crear(request):
                 estado='PENDIENTE' if tipo.requiere_aprobacion else 'BORRADOR',
             )
             if fecha_descuento:
-                prestamo.fecha_primer_descuento = fecha_descuento
+                prestamo.fecha_primer_descuento = date.fromisoformat(fecha_descuento)
                 prestamo.save(update_fields=['fecha_primer_descuento'])
 
             # Auto-aprobar si no requiere aprobación
@@ -351,7 +351,7 @@ def prestamo_aprobar(request, pk):
         monto = request.POST.get('monto_aprobado')
         fecha_desc = request.POST.get('fecha_descuento')
         monto_aprobado = Decimal(monto) if monto else None
-        fecha_descuento = fecha_desc if fecha_desc else None
+        fecha_descuento = date.fromisoformat(fecha_desc) if fecha_desc else None
 
         prestamo.aprobar(request.user, monto_aprobado, fecha_descuento)
 

@@ -93,7 +93,8 @@ def solicitud_he_editar(request, pk):
     from asistencia.models import SolicitudHE
     s = get_object_or_404(SolicitudHE, pk=pk)
     try:
-        s.fecha = request.POST.get('fecha', s.fecha)
+        fecha_raw = request.POST.get('fecha')
+        s.fecha = date.fromisoformat(fecha_raw) if fecha_raw else s.fecha
         s.horas_estimadas = request.POST.get('horas_estimadas', s.horas_estimadas) or '0'
         s.tipo = request.POST.get('tipo', s.tipo)
         s.motivo = request.POST.get('motivo', s.motivo).strip()

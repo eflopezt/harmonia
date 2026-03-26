@@ -282,8 +282,8 @@ def documento_subir(request):
             tipo=tipo,
             archivo=archivo,
             nombre_archivo=request.POST.get('nombre', '') or archivo.name,
-            fecha_emision=request.POST.get('fecha_emision') or None,
-            fecha_vencimiento=request.POST.get('fecha_vencimiento') or None,
+            fecha_emision=date.fromisoformat(request.POST['fecha_emision']) if request.POST.get('fecha_emision') else None,
+            fecha_vencimiento=date.fromisoformat(request.POST['fecha_vencimiento']) if request.POST.get('fecha_vencimiento') else None,
             notas=request.POST.get('notas', '').strip(),
             version=ultima_version + 1,
             subido_por=request.user,
@@ -1560,8 +1560,8 @@ def dossier_crear(request):
         proyecto  = request.POST.get('proyecto', '').strip()
         cliente   = request.POST.get('cliente', '').strip()
         plantilla_id = request.POST.get('plantilla', '')
-        fecha_inicio = request.POST.get('fecha_inicio') or None
-        fecha_prevista = request.POST.get('fecha_entrega_prevista') or None
+        fecha_inicio = date.fromisoformat(request.POST['fecha_inicio']) if request.POST.get('fecha_inicio') else None
+        fecha_prevista = date.fromisoformat(request.POST['fecha_entrega_prevista']) if request.POST.get('fecha_entrega_prevista') else None
         observaciones = request.POST.get('observaciones', '').strip()
 
         if not nombre:

@@ -320,9 +320,9 @@ def periodo_crear(request):
             messages.error(request, 'Año o mes inválido.')
             return redirect('nominas_panel')
         desc  = request.POST.get('descripcion', '')
-        fi    = request.POST.get('fecha_inicio') or None
-        ff    = request.POST.get('fecha_fin') or None
-        fp    = request.POST.get('fecha_pago') or None
+        fi    = date.fromisoformat(request.POST['fecha_inicio']) if request.POST.get('fecha_inicio') else None
+        ff    = date.fromisoformat(request.POST['fecha_fin']) if request.POST.get('fecha_fin') else None
+        fp    = date.fromisoformat(request.POST['fecha_pago']) if request.POST.get('fecha_pago') else None
 
         if PeriodoNomina.objects.filter(tipo=tipo, anio=anio, mes=mes).exists():
             messages.error(request, 'Ya existe un período con ese tipo/año/mes.')

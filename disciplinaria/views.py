@@ -233,7 +233,8 @@ def medida_notificar(request, pk):
     """Notificar medida al trabajador (inicia plazo de descargo)."""
     medida = get_object_or_404(MedidaDisciplinaria, pk=pk)
     if medida.estado == 'BORRADOR':
-        medida.fecha_carta_preaviso = request.POST.get('fecha_preaviso') or date.today()
+        preaviso_raw = request.POST.get('fecha_preaviso')
+        medida.fecha_carta_preaviso = date.fromisoformat(preaviso_raw) if preaviso_raw else date.today()
         if request.FILES.get('documento_preaviso'):
             medida.documento_preaviso = request.FILES['documento_preaviso']
         medida.notificar()
@@ -260,11 +261,11 @@ def medida_resolver(request, pk):
             dias_suspension = int(request.POST.get('dias_suspension', 0) or 0)
         except (ValueError, TypeError):
             dias_suspension = 0
-        fecha_cese = request.POST.get('fecha_cese') or None
+        fecha_cese_raw = request.POST.get('fecha_cese')
 
         medida.dias_suspension = dias_suspension
-        if fecha_cese:
-            medida.fecha_cese = fecha_cese
+        if fecha_cese_raw:
+            medida.fecha_cese = date.fromisoformat(fecha_cese_raw)
         if request.FILES.get('documento_resolucion'):
             medida.documento_resolucion = request.FILES['documento_resolucion']
         medida.resolver(request.user, resolucion)
@@ -289,7 +290,7 @@ def descargo_registrar(request, medida_pk):
         medida=medida,
         personal=medida.personal,
         texto=request.POST.get('texto', ''),
-        fecha_presentacion=request.POST.get('fecha_presentacion') or date.today(),
+        fecha_presentacion=date.fromisoformat(request.POST['fecha_presentacion']) if request.POST.get('fecha_presentacion') else date.today(),
     )
     if request.FILES.get('adjuntos'):
         descargo.archivos_adjuntos = request.FILES['adjuntos']

@@ -238,11 +238,11 @@
                     </div>
                     <div class="col-4">
                         <label class="form-label fw-semibold">Fecha Inicio <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control form-control-sm" id="papFInicio">
+                        <input type="date" class="form-control form-control-sm" id="papFInicio" onchange="calcularDias()">
                     </div>
                     <div class="col-4">
                         <label class="form-label fw-semibold">Fecha Fin <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control form-control-sm" id="papFFin">
+                        <input type="date" class="form-control form-control-sm" id="papFFin" onchange="calcularDias()">
                     </div>
                     <div class="col-4">
                         <label class="form-label fw-semibold">Días Hábiles</label>
@@ -281,6 +281,17 @@
 <script>
 const CSRF = '{{ csrf_token }}';
 const COMP_TIPOS = ['COMPENSACION_FERIADO', 'COMP_DIA_TRABAJO', 'COMPENSACION_HE'];
+
+function calcularDias() {
+    const fi = document.getElementById('papFInicio').value;
+    const ff = document.getElementById('papFFin').value;
+    if (fi && ff) {
+        const inicio = new Date(fi + 'T00:00:00');
+        const fin = new Date(ff + 'T00:00:00');
+        const diff = Math.round((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
+        document.getElementById('papDias').value = diff > 0 ? diff : 0;
+    }
+}
 
 function toggleCompFields() {
     const tipo = document.getElementById('papTipo').value;

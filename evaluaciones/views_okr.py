@@ -264,7 +264,7 @@ def kr_crear(request, objetivo_pk):
             valor_inicial=request.POST.get('valor_inicial') or '0',
             valor_meta=request.POST['valor_meta'],
             valor_actual=request.POST.get('valor_actual') or request.POST.get('valor_inicial') or '0',
-            fecha_limite=request.POST.get('fecha_limite') or None,
+            fecha_limite=date.fromisoformat(request.POST['fecha_limite']) if request.POST.get('fecha_limite') else None,
             responsable_id=responsable_id,
             orden=obj.resultados_clave.count(),
         )
@@ -292,7 +292,7 @@ def kr_actualizar(request, pk):
         kr.valor_meta  = request.POST.get('valor_meta', kr.valor_meta)
         kr.valor_actual= request.POST.get('valor_actual', kr.valor_actual)
         kr.valor_inicial= request.POST.get('valor_inicial', kr.valor_inicial)
-        kr.fecha_limite = request.POST.get('fecha_limite') or None
+        kr.fecha_limite = date.fromisoformat(request.POST['fecha_limite']) if request.POST.get('fecha_limite') else None
         kr.responsable_id = request.POST.get('responsable_id') or None
         if kr.unidad == 'SI_NO':
             kr.completado_binario = request.POST.get('completado_binario') == '1'
@@ -331,7 +331,7 @@ def checkin_registrar(request, kr_pk):
         valor_nuevo = request.POST['valor_nuevo']
         checkin = CheckInOKR.objects.create(
             resultado_clave=kr,
-            fecha=request.POST.get('fecha') or date.today(),
+            fecha=date.fromisoformat(request.POST['fecha']) if request.POST.get('fecha') else date.today(),
             valor_nuevo=valor_nuevo,
             comentario=request.POST.get('comentario', ''),
             registrado_por=request.user,
