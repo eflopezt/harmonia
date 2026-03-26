@@ -116,7 +116,7 @@ def _papeletas_por_fecha(personal_id, inicio, fin):
 
 def _papeletas_bulk(personal_ids, inicio, fin):
     """
-    Versión bulk: {personal_id: {date: codigo_tareo}} para múltiples empleados.
+    Versión bulk: {personal_id: {date: {codigo, pk, tipo_display, detalle, estado, fecha_inicio, fecha_fin}}}
     Para uso en la vista matricial (calendario grid).
     """
     from asistencia.models import RegistroPapeleta
@@ -131,12 +131,22 @@ def _papeletas_bulk(personal_ids, inicio, fin):
     for pap in papeletas:
         pid = pap.personal_id
         codigo = TIPO_PERMISO_A_CODIGO.get(pap.tipo_permiso, pap.tipo_permiso)
+        info = {
+            'codigo': codigo,
+            'pk': pap.pk,
+            'tipo_display': pap.get_tipo_permiso_display(),
+            'detalle': pap.detalle or '',
+            'estado': pap.get_estado_display(),
+            'fecha_inicio': pap.fecha_inicio.strftime('%d/%m/%Y'),
+            'fecha_fin': pap.fecha_fin.strftime('%d/%m/%Y'),
+            'dias_habiles': pap.dias_habiles,
+        }
         if pid not in result:
             result[pid] = {}
         d = max(pap.fecha_inicio, inicio)
         tope = min(pap.fecha_fin, fin)
         while d <= tope:
             if d not in result[pid]:
-                result[pid][d] = codigo
+                result[pid][d] = info
             d += timedelta(days=1)
     return result

@@ -200,6 +200,10 @@ def calendario_grid(request):
                 # Auto DS para LOCAL domingos
                 if d['fecha'].weekday() == 6 and info['condicion'].upper() in ('LOCAL', 'LIMA', '') and codigo in ('FA', 'F'):
                     codigo = 'DS'
+                # Papeleta aprobada sobreescribe códigos genéricos (FA, F, DS)
+                pap_reg = pap_bulk.get(pid, {}).get(d['fecha'])
+                if pap_reg and codigo in ('FA', 'F', 'DS'):
+                    codigo = pap_reg['codigo']
                 color = COLOR_MAP.get(codigo, 'other')
                 if codigo in CODIGOS_PRESENCIA:
                     total_trab += 1
@@ -207,21 +211,25 @@ def calendario_grid(request):
                     total_falta += 1
                 he = (reg['he_25'] or 0) + (reg['he_35'] or 0) + (reg['he_100'] or 0)
                 total_he += Decimal(str(he))
-                celdas.append({
+                celda_reg = {
                     'id': reg['id'],
                     'codigo': codigo,
                     'color': color,
                     'entrada': str(reg['hora_entrada_real'])[:5] if reg['hora_entrada_real'] else '',
                     'salida': str(reg['hora_salida_real'])[:5] if reg['hora_salida_real'] else '',
                     'he': float(he) if he else 0,
-                })
+                }
+                if pap_reg:
+                    celda_reg['papeleta'] = pap_reg
+                celdas.append(celda_reg)
             else:
                 # Fallback: papeleta → LIMA auto-A → DS domingo → FA
-                pap_cod = pap_bulk.get(pid, {}).get(d['fecha'])
+                pap_info = pap_bulk.get(pid, {}).get(d['fecha'])
                 dow = d['fecha'].weekday()
                 cond_upper = info['condicion'].upper()
-                if pap_cod:
-                    auto_cod = pap_cod
+                if pap_info:
+                    # Papeleta siempre tiene prioridad (incluso domingos)
+                    auto_cod = pap_info['codigo']
                 elif dow == 6 and cond_upper in ('LOCAL', 'LIMA', ''):
                     auto_cod = 'DS'
                 elif cond_upper == 'LIMA' and dow < 6:
@@ -232,10 +240,13 @@ def calendario_grid(request):
                 color = COLOR_MAP.get(auto_cod, 'other' if auto_cod else 'empty')
                 if auto_cod in CODIGOS_FALTA:
                     total_falta += 1
-                celdas.append({
+                celda_dict = {
                     'id': 0, 'codigo': auto_cod, 'color': color,
                     'editable': True, 'fecha_iso': d['fecha'].isoformat(),
-                })
+                }
+                if pap_info:
+                    celda_dict['papeleta'] = pap_info
+                celdas.append(celda_dict)
         rows.append({
             'personal_id': pid,
             'nombre': info['nombre'],
