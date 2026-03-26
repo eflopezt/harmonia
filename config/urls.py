@@ -32,11 +32,10 @@ def health_check(request):
 def robots_txt(request):
     lines = [
         "User-agent: *",
-        "Disallow: /admin/",
-        "Disallow: /api/",
-        "Disallow: /login/",
-        "Disallow: /asistencia/ia/",
-        "Crawl-delay: 10",
+        "Allow: /$",
+        "Disallow: /",
+        "",
+        "Sitemap: https://harmoni.pe/sitemap.xml",
     ]
     return HttpResponse("\n".join(lines), content_type="text/plain")
 
@@ -47,6 +46,15 @@ def landing(request):
         return redirect('home')
     return render(request, 'landing.html')
 
+@require_GET
+@cache_page(86400)
+def sitemap_xml(request):
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += '  <url><loc>https://harmoni.pe/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n'
+    xml += '</urlset>'
+    return HttpResponse(xml, content_type="application/xml")
+
 def offline_view(request):
     """Offline fallback page for PWA."""
     return render(request, 'offline.html')
@@ -55,6 +63,7 @@ urlpatterns = [
     path('offline/', offline_view, name='offline'),
     path('health/', health_check, name='health_check'),
     path('robots.txt', robots_txt, name='robots_txt'),
+    path('sitemap.xml', sitemap_xml, name='sitemap_xml'),
     path('admin/', admin.site.urls),
     path('', include('personal.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -1,7 +1,5 @@
 User-agent: *
-Disallow: /admin/
-Disallow: /api/
-Disallow: /api-token-auth/
-Disallow: /login/
-Disallow: /asistencia/ia/
-Crawl-delay: 10
+Allow: /$
+Disallow: /
+
+Sitemap: https://harmoni.pe/sitemap.xml
