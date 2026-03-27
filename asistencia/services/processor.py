@@ -495,8 +495,8 @@ class TareoProcessor:
 
         # ── Descontar almuerzo ─────────────────────────────────
         # • FORÁNEO (jornada > 9h):  el almuerzo ya está incluido → no descontar
-        # • LOCAL sábado (jornada ≤ 6h): jornada corta sin break pagado → no descontar
-        # • LOCAL lun–vie (6h < jornada ≤ 9h): 30 min almuerzo pagado → descontar 0.5h
+        # • LOCAL sábado (jornada ≤ 6h): jornada corta sin break → no descontar
+        # • LOCAL lun–vie (6h < jornada ≤ 9h): 1h almuerzo → descontar
         if jornada_h > Decimal('9'):
             # FORÁNEO: jornada incluye almuerzo
             horas_ef = horas_marcadas
@@ -504,8 +504,8 @@ class TareoProcessor:
             # Jornada corta (ej: sábado 5.5h 07:30–13:00): sin break de almuerzo
             horas_ef = horas_marcadas
         else:
-            # LOCAL/LIMA lun–vie: descontar 0.5h almuerzo si marcó más de 5h
-            almuerzo_h = Decimal('0.5') if horas_marcadas > 5 else CERO
+            # LOCAL/LIMA lun–vie: descontar 1h almuerzo si marcó más de 5h
+            almuerzo_h = Decimal('1') if horas_marcadas > 5 else CERO
             horas_ef = max(CERO, horas_marcadas - almuerzo_h)
 
         # ── Feriado laborado o Descanso Semanal trabajado: todo al 100%

@@ -416,7 +416,7 @@ def _recalcular_horas(reg):
     elif jornada_h <= Decimal('6'):
         horas_ef = horas_marcadas
     else:
-        almuerzo = Decimal('0.5') if horas_marcadas > 5 else CERO
+        almuerzo = Decimal('1') if horas_marcadas > 5 else CERO
         horas_ef = max(CERO, horas_marcadas - almuerzo)
 
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
