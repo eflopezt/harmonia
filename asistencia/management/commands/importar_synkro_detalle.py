@@ -84,7 +84,7 @@ JORNADA_DIA_FORANEO     = Decimal('10')    # FORÁNEO Lun–Sáb efectiva (192h 
 JORNADA_DOMINGO_FORANEO = Decimal('4')     # FORÁNEO domingo (parte del ciclo normal)
 
 # Umbral de horas trabajadas a partir del cual se descuenta el almuerzo
-UMBRAL_ALMUERZO = Decimal('6')
+UMBRAL_ALMUERZO = Decimal('7')
 DESCUENTO_ALMUERZO = Decimal('1')
 
 # Gracia de redondeo: offset que se suma ANTES del floor al 0.5h.
