@@ -361,7 +361,7 @@ def _recalcular_horas(reg):
         jornada_h = Decimal(str(personal.jornada_horas))
     elif dia_semana == 6:  # domingo: jornada reducida para todos
         jornada_h = Decimal(str(config.jornada_domingo_horas))
-    elif condicion == 'FORANEO':
+    elif condicion in ('FORANEO', 'FORÁNEO'):
         jornada_h = Decimal(str(config.jornada_foraneo_horas))
     elif dia_semana == 5:  # sábado
         jornada_h = Decimal(str(config.jornada_sabado_horas))

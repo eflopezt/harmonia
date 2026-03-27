@@ -386,7 +386,7 @@ class TareoProcessor:
         if dia_semana == 6:          # domingo
             return Decimal(str(self.config.jornada_domingo_horas))
 
-        if condicion == 'FORANEO':
+        if condicion in ('FORANEO', 'FORÁNEO'):
             return Decimal(str(self.config.jornada_foraneo_horas))
 
         # LOCAL / LIMA: distinguir sábado de lun–vie
