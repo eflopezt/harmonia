@@ -410,9 +410,14 @@ def _recalcular_horas(reg):
         reg.he_25 = reg.he_35 = reg.he_100 = CERO
         return
 
-    # Descuento almuerzo: si trabajó más de 6h → descontar 1h
-    almuerzo = Decimal('1') if horas_marcadas > 6 else CERO
-    horas_ef = max(CERO, horas_marcadas - almuerzo)
+    # Descuento almuerzo
+    # FORÁNEO L-S (jornada > 9h): jornada ya incluye almuerzo → no descontar
+    # Todo lo demás: 1h si >6h trabajadas
+    if jornada_h > Decimal('9'):
+        horas_ef = horas_marcadas
+    else:
+        almuerzo = Decimal('1') if horas_marcadas > 6 else CERO
+        horas_ef = max(CERO, horas_marcadas - almuerzo)
 
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
     # EXCEPCIÓN: si el código fue cambiado manualmente a NOR/T/A → calcular como día normal
