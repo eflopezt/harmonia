@@ -368,6 +368,12 @@ def _recalcular_horas(reg):
     else:
         jornada_h = Decimal(str(config.jornada_local_horas))
 
+    # Redondeo a media hora con gracia de 7 min (misma lógica que importador)
+    GRACIA = Decimal('7') / 60
+    def _round_half(h):
+        from decimal import ROUND_FLOOR
+        return ((h + GRACIA) * 2).to_integral_value(rounding=ROUND_FLOOR) / 2
+
     # Calcular horas marcadas desde entrada/salida
     horas_marcadas = Decimal('0')
     if reg.hora_entrada_real and reg.hora_salida_real:
@@ -376,8 +382,8 @@ def _recalcular_horas(reg):
         if salida_dt <= entrada_dt:
             from datetime import timedelta
             salida_dt += timedelta(days=1)
-        diff = (salida_dt - entrada_dt).total_seconds() / 3600
-        horas_marcadas = Decimal(str(round(diff, 2)))
+        diff = Decimal(str((salida_dt - entrada_dt).total_seconds() / 3600))
+        horas_marcadas = _round_half(diff)
     elif reg.horas_marcadas:
         horas_marcadas = Decimal(str(reg.horas_marcadas))
 
@@ -435,8 +441,8 @@ def _recalcular_horas(reg):
         reg.he_25 = reg.he_35 = reg.he_100 = CERO
         return
 
-    # Horas extra
-    exceso = horas_ef - jornada_h
+    # Horas extra (exceso redondeado a media hora)
+    exceso = _round_half(horas_ef - jornada_h)
     reg.horas_efectivas = horas_ef
     reg.horas_normales = jornada_h
     reg.he_25 = min(exceso, Decimal('2'))
