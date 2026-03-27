@@ -603,7 +603,7 @@ class Command(BaseCommand):
                     fuente_codigo     = 'RELOJ',
                     hora_entrada_real = h_entrada,
                     hora_salida_real  = h_salida,
-                    horas_marcadas    = horas_netas,   # netas (ya sin almuerzo)
+                    horas_marcadas    = raw_h if raw_h is not None else horas_netas,  # brutas (almuerzo se descuenta en horas_efectivas)
                     horas_efectivas   = h_ef,
                     horas_normales    = h_norm,
                     he_25             = he25,
