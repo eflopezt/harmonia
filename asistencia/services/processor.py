@@ -494,19 +494,9 @@ class TareoProcessor:
             return CERO, CERO, CERO, CERO, CERO
 
         # ── Descontar almuerzo ─────────────────────────────────
-        # • FORÁNEO (jornada > 9h):  el almuerzo ya está incluido → no descontar
-        # • LOCAL sábado (jornada ≤ 6h): jornada corta sin break → no descontar
-        # • LOCAL lun–vie (6h < jornada ≤ 9h): 1h almuerzo → descontar
-        if jornada_h > Decimal('9'):
-            # FORÁNEO: jornada incluye almuerzo
-            horas_ef = horas_marcadas
-        elif jornada_h <= Decimal('6'):
-            # Jornada corta (ej: sábado 5.5h 07:30–13:00): sin break de almuerzo
-            horas_ef = horas_marcadas
-        else:
-            # LOCAL/LIMA lun–vie: descontar 1h almuerzo si marcó más de 5h
-            almuerzo_h = Decimal('1') if horas_marcadas > 5 else CERO
-            horas_ef = max(CERO, horas_marcadas - almuerzo_h)
+        # Si trabajó más de 6h → descontar 1h de almuerzo (toda condición, todo día)
+        almuerzo_h = Decimal('1') if horas_marcadas > 6 else CERO
+        horas_ef = max(CERO, horas_marcadas - almuerzo_h)
 
         # ── Feriado laborado o Descanso Semanal trabajado: todo al 100%
         # D.Leg. 713, Art. 3-4: Descanso semanal obligatorio (domingo por defecto)

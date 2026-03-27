@@ -560,10 +560,6 @@ function guardarCambio() {
         alert('Selecciona un código o cambia la entrada/salida');
         return;
     }
-    if (!obs) {
-        alert('Ingresa una justificación para el cambio');
-        return;
-    }
 
     const fd = new FormData();
     if (codigo) fd.append('codigo', codigo);
