@@ -340,6 +340,15 @@
                 </div>
             </div>
             <div class="mb-2">
+                <label class="form-label small text-muted mb-1"><i class="fas fa-utensils me-1"></i>Descuento Almuerzo</label>
+                <select id="editAlmuerzo" class="form-select form-select-sm">
+                    <option value="auto">Automático (>7h → 1h)</option>
+                    <option value="0">Sin descuento</option>
+                    <option value="0.5">Media hora (0.5h)</option>
+                    <option value="1">Una hora (1h)</option>
+                </select>
+            </div>
+            <div class="mb-2">
                 <label class="form-label small text-muted mb-1">Justificación</label>
                 <textarea id="editObs" class="form-control form-control-sm" rows="2" placeholder="Motivo del cambio..."></textarea>
             </div>
@@ -502,6 +511,14 @@ function openDetail(regId) {
         entradaInput.value = (d.entrada && d.entrada !== '-') ? d.entrada : '';
         salidaInput.value = (d.salida && d.salida !== '-') ? d.salida : '';
 
+        // Precargar almuerzo
+        const almSelect = document.getElementById('editAlmuerzo');
+        if (d.almuerzo_manual !== null && d.almuerzo_manual !== undefined) {
+            almSelect.value = String(d.almuerzo_manual);
+        } else {
+            almSelect.value = 'auto';
+        }
+
         const heDiv = document.getElementById('modalHE');
         if (d.he_25 > 0 || d.he_35 > 0 || d.he_100 > 0) {
             heDiv.style.display = '';
@@ -561,11 +578,14 @@ function guardarCambio() {
         return;
     }
 
+    const almuerzo = document.getElementById('editAlmuerzo').value;
+
     const fd = new FormData();
     if (codigo) fd.append('codigo', codigo);
     fd.append('observacion', obs);
     if (entrada) fd.append('hora_entrada', entrada);
     if (salida) fd.append('hora_salida', salida);
+    fd.append('almuerzo', almuerzo);
     if (sustento) fd.append('sustento', sustento);
 
     fetch(`/asistencia/ajax/calendario/cambiar/${regId}/`, {

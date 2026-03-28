@@ -342,6 +342,7 @@ def ajax_calendario_detalle(request, registro_id):
         'he_100': float(reg.he_100 or 0),
         'observaciones': reg.observaciones or '',
         'fuente': reg.fuente_codigo,
+        'almuerzo_manual': float(reg.almuerzo_manual) if reg.almuerzo_manual is not None else None,
         'cambios': cambios,
     }
     return JsonResponse(data)
@@ -416,8 +417,11 @@ def _recalcular_horas(reg):
         reg.he_25 = reg.he_35 = reg.he_100 = CERO
         return
 
-    # Descuento almuerzo: >7h marcadas → descontar 1h
-    almuerzo = Decimal('1') if horas_marcadas > 7 else CERO
+    # Descuento almuerzo: manual si se especificó, sino automático (>7h → 1h)
+    if reg.almuerzo_manual is not None:
+        almuerzo = Decimal(str(reg.almuerzo_manual))
+    else:
+        almuerzo = Decimal('1') if horas_marcadas > 7 else CERO
     horas_ef = max(CERO, horas_marcadas - almuerzo)
 
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
@@ -498,12 +502,19 @@ def ajax_calendario_cambiar(request, registro_id):
         except (ValueError, IndexError):
             return JsonResponse({'error': 'Formato de salida inválido (HH:MM)'}, status=400)
 
+    # Almuerzo manual
+    almuerzo_val = request.POST.get('almuerzo', 'auto')
+    if almuerzo_val == 'auto':
+        reg.almuerzo_manual = None
+    else:
+        reg.almuerzo_manual = Decimal(almuerzo_val)
+
     # Si ahora tiene entrada Y salida pero el código era SS, cambiar a A
     if reg.hora_entrada_real and reg.hora_salida_real and reg.codigo_dia == 'SS':
         reg.codigo_dia = 'A'
 
-    # Recalcular horas si cambió entrada/salida
-    if nueva_entrada or nueva_salida:
+    # Recalcular horas si cambió entrada/salida o almuerzo
+    if nueva_entrada or nueva_salida or almuerzo_val != 'auto':
         _recalcular_horas(reg)
         reg.fuente_codigo = 'MANUAL'
 

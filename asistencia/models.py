@@ -516,6 +516,13 @@ class RegistroTareo(models.Model):
         default='RELOJ',
         verbose_name="Fuente del Código")
 
+    # Almuerzo manual (None = automático)
+    almuerzo_manual = models.DecimalField(
+        max_digits=3, decimal_places=1,
+        null=True, blank=True, default=None,
+        verbose_name="Almuerzo manual (horas)",
+        help_text="None=automático (>7h→1h), 0=sin descuento, 0.5, 1.0")
+
     # Horas calculadas
     horas_efectivas = models.DecimalField(
         max_digits=5, decimal_places=2,
