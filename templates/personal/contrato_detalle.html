@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Contrato — {{ personal.apellidos_nombres }}{% endblock %}
+{% block title %}Contrato &mdash; {{ personal.apellidos_nombres }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div class="d-flex align-items-center">
@@ -8,12 +8,27 @@
     </a>
     <div>
       <h2 class="mb-0"><i class="fas fa-file-contract me-2"></i>{{ personal.apellidos_nombres }}</h2>
-      <small class="text-muted">{{ personal.cargo }} · {{ personal.subarea.area.nombre|default:"Sin área" }}</small>
+      <small class="text-muted">{{ personal.cargo }} &middot; {{ personal.subarea.area.nombre|default:"Sin area" }}</small>
     </div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    {% if contrato_vigente %}
+    <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}" class="btn btn-danger btn-sm" target="_blank" title="Ver PDF del contrato">
+      <i class="fas fa-file-pdf me-1"></i>Generar PDF
+    </a>
+    <form method="post" action="{% url 'contrato_enviar_email' contrato_vigente.pk %}" class="d-inline" id="formEnviarEmail">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-warning btn-sm" id="btnEnviarEmail"
+              onclick="return confirmarEnvioEmail(this)">
+        <i class="fas fa-envelope me-1"></i>Enviar por Email
+      </button>
+    </form>
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="abrirVistaImpresion()" title="Vista de impresion">
+      <i class="fas fa-print me-1"></i>Imprimir
+    </button>
+    {% endif %}
     <a href="{% url 'contrato_editar' personal.pk %}" class="btn btn-outline-primary btn-sm">
-      <i class="fas fa-edit me-1"></i>Editar rápido
+      <i class="fas fa-edit me-1"></i>Editar rapido
     </a>
     <a href="{% url 'contrato_crear' personal.pk %}" class="btn btn-primary btn-sm">
       <i class="fas fa-plus me-1"></i>Nuevo contrato
@@ -21,12 +36,12 @@
   </div>
 </div>
 
-{# ── KPI del trabajador ──────────────────────────────────────────── #}
+{# -- KPI del trabajador ------------------------------------------------- #}
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card border-0 shadow-sm text-center">
       <div class="card-body py-3">
-        <div class="fs-4 fw-bold text-primary">{{ personal.fecha_alta|date:"d/m/Y"|default:"—" }}</div>
+        <div class="fs-4 fw-bold text-primary">{{ personal.fecha_alta|date:"d/m/Y"|default:"&mdash;" }}</div>
         <div class="text-muted small">Fecha de ingreso</div>
       </div>
     </div>
@@ -45,13 +60,13 @@
         {% if estado_contrato == 'VENCIDO' %}
           <div class="fs-4 fw-bold text-danger">Vencido</div>
         {% elif estado_contrato == 'URGENTE' %}
-          <div class="fs-4 fw-bold text-warning">{{ dias_restantes }} días</div>
+          <div class="fs-4 fw-bold text-warning">{{ dias_restantes }} dias</div>
         {% elif estado_contrato == 'VIGENTE' %}
-          <div class="fs-4 fw-bold text-success">{{ dias_restantes }} días</div>
+          <div class="fs-4 fw-bold text-success">{{ dias_restantes }} dias</div>
         {% elif estado_contrato == 'INDEFINIDO' %}
           <div class="fs-4 fw-bold text-secondary">Indefinido</div>
         {% else %}
-          <div class="fs-4 fw-bold text-muted">—</div>
+          <div class="fs-4 fw-bold text-muted">&mdash;</div>
         {% endif %}
         <div class="text-muted small">Estado del contrato</div>
       </div>
@@ -63,18 +78,55 @@
         <div class="fs-4 fw-bold {% if personal.en_periodo_prueba %}text-warning{% else %}text-success{% endif %}">
           {% if personal.en_periodo_prueba %}En prueba{% else %}Superado{% endif %}
         </div>
-        <div class="text-muted small">Período de prueba</div>
+        <div class="text-muted small">Periodo de prueba</div>
       </div>
     </div>
   </div>
 </div>
 
-{# ── Tabs ─────────────────────────────────────────────────────────── #}
+{# -- Botones principales de accion (prominentes) ------------------------ #}
+{% if contrato_vigente %}
+<div class="card shadow-sm mb-4 border-0 bg-light">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-auto">
+        <span class="fw-semibold text-muted"><i class="fas fa-bolt me-1"></i>Acciones rapidas:</span>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}" class="btn btn-danger" target="_blank">
+          <i class="fas fa-file-pdf me-1"></i>Generar PDF
+        </a>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}?download=1" class="btn btn-outline-danger">
+          <i class="fas fa-download me-1"></i>Descargar PDF
+        </a>
+      </div>
+      <div class="col-auto">
+        <form method="post" action="{% url 'contrato_enviar_email' contrato_vigente.pk %}" class="d-inline" id="formEnviarEmail2">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-warning"
+                  onclick="return confirmarEnvioEmail(this)">
+            <i class="fas fa-envelope me-1"></i>Enviar por Email
+          </button>
+        </form>
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-outline-dark" onclick="abrirVistaImpresion()">
+          <i class="fas fa-print me-1"></i>Vista de Impresion
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# -- Tabs ---------------------------------------------------------------- #}
 <ul class="nav nav-tabs mb-4" id="detalleContratoTabs" role="tablist">
   <li class="nav-item" role="presentation">
     <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-pane"
             type="button" role="tab">
-      <i class="fas fa-info-circle me-1"></i>Información
+      <i class="fas fa-info-circle me-1"></i>Informacion
     </button>
   </li>
   <li class="nav-item" role="presentation">
@@ -95,7 +147,7 @@
 
 <div class="tab-content" id="detalleContratoContent">
 
-  {# ── Tab: Información ─────────────────────────────────────────── #}
+  {# -- Tab: Informacion ------------------------------------------------- #}
   <div class="tab-pane fade show active" id="info-pane" role="tabpanel">
     <div class="row g-4">
       <div class="col-lg-7">
@@ -118,25 +170,25 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <div class="small text-muted">Modalidad contractual</div>
-                <div class="fw-semibold">{{ personal.get_tipo_contrato_display|default:"—" }}</div>
+                <div class="fw-semibold">{{ personal.get_tipo_contrato_display|default:"&mdash;" }}</div>
               </div>
               <div class="col-md-6">
-                <div class="small text-muted">Categoría laboral</div>
+                <div class="small text-muted">Categoria laboral</div>
                 <div class="fw-semibold">{{ personal.get_categoria_display }}</div>
               </div>
               <div class="col-md-6">
                 <div class="small text-muted">Inicio del contrato</div>
-                <div class="fw-semibold">{{ personal.fecha_inicio_contrato|date:"d/m/Y"|default:"—" }}</div>
+                <div class="fw-semibold">{{ personal.fecha_inicio_contrato|date:"d/m/Y"|default:"&mdash;" }}</div>
               </div>
               <div class="col-md-6">
                 <div class="small text-muted">Vencimiento</div>
                 <div class="fw-semibold">{{ personal.fecha_fin_contrato|date:"d/m/Y"|default:"Indefinido" }}</div>
               </div>
               <div class="col-md-6">
-                <div class="small text-muted">Renovación automática</div>
+                <div class="small text-muted">Renovacion automatica</div>
                 <div class="fw-semibold">
                   {% if personal.renovacion_automatica %}
-                    <span class="badge bg-success"><i class="fas fa-sync me-1"></i>Sí</span>
+                    <span class="badge bg-success"><i class="fas fa-sync me-1"></i>Si</span>
                   {% else %}
                     <span class="badge bg-secondary">Manual</span>
                   {% endif %}
@@ -145,7 +197,7 @@
               <div class="col-md-6">
                 <div class="small text-muted">Sueldo base</div>
                 <div class="fw-semibold">
-                  {% if personal.sueldo_base %}S/ {{ personal.sueldo_base|floatformat:2 }}{% else %}—{% endif %}
+                  {% if personal.sueldo_base %}S/ {{ personal.sueldo_base|floatformat:2 }}{% else %}&mdash;{% endif %}
                 </div>
               </div>
               {% if personal.observaciones_contrato %}
@@ -158,14 +210,14 @@
           </div>
         </div>
 
-        {# Período de prueba #}
+        {# Periodo de prueba #}
         {% if personal.fecha_fin_periodo_prueba %}
         <div class="card shadow-sm mt-3 border-0 bg-light">
           <div class="card-body">
-            <h6 class="card-title text-muted"><i class="fas fa-hourglass-half me-1"></i>Período de Prueba</h6>
+            <h6 class="card-title text-muted"><i class="fas fa-hourglass-half me-1"></i>Periodo de Prueba</h6>
             <p class="mb-0 small">
-              Según D.Leg. 728 art. 10, este trabajador
-              ({{ personal.get_categoria_display }}) tiene un período de prueba de
+              Segun D.Leg. 728 art. 10, este trabajador
+              ({{ personal.get_categoria_display }}) tiene un periodo de prueba de
               <strong>{{ personal.periodo_prueba_meses }} mes{{ personal.periodo_prueba_meses|pluralize:",es" }}</strong>
               que vence el <strong>{{ personal.fecha_fin_periodo_prueba|date:"d/m/Y" }}</strong>.
               {% if personal.en_periodo_prueba %}
@@ -179,7 +231,7 @@
         {% endif %}
       </div>
 
-      {# Acciones rápidas #}
+      {# Acciones rapidas #}
       <div class="col-lg-5">
         <div class="card shadow-sm">
           <div class="card-header"><strong><i class="fas fa-bolt me-2"></i>Acciones</strong></div>
@@ -192,13 +244,19 @@
               <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}" class="btn btn-danger" target="_blank">
                 <i class="fas fa-file-pdf me-2"></i>Generar PDF
               </a>
+              <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}?download=1" class="btn btn-outline-danger">
+                <i class="fas fa-download me-2"></i>Descargar PDF
+              </a>
               <form method="post" action="{% url 'contrato_enviar_email' contrato_vigente.pk %}" class="d-grid">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-warning"
-                        onclick="return confirm('Se enviara el contrato por email al trabajador. Continuar?')">
+                <button type="submit" class="btn btn-warning"
+                        onclick="return confirmarEnvioEmail(this)">
                   <i class="fas fa-envelope me-2"></i>Enviar por Email
                 </button>
               </form>
+              <button type="button" class="btn btn-outline-dark" onclick="abrirVistaImpresion()">
+                <i class="fas fa-print me-2"></i>Vista de Impresion
+              </button>
               <button type="button" class="btn btn-outline-info" id="btnAnalizarIA" data-contrato-id="{{ contrato_vigente.pk }}">
                 <i class="fas fa-robot me-2"></i>Analizar con IA
               </button>
@@ -223,7 +281,7 @@
           </div>
         </div>
 
-        {# Últimas adendas del contrato vigente #}
+        {# Ultimas adendas del contrato vigente #}
         {% if contrato_vigente and contrato_vigente.adendas.all %}
         <div class="card shadow-sm mt-3">
           <div class="card-header"><strong><i class="fas fa-file-medical me-2"></i>Adendas del contrato vigente</strong></div>
@@ -252,7 +310,7 @@
     </div>
   </div>
 
-  {# ── Tab: Historial de contratos ──────────────────────────────── #}
+  {# -- Tab: Historial de contratos --------------------------------------- #}
   <div class="tab-pane fade" id="historial-pane" role="tabpanel">
     {% if contratos %}
     <div class="row g-3">
@@ -276,12 +334,16 @@
               {% elif c.estado == 'FINALIZADO' %}
                 <span class="badge bg-secondary">Finalizado</span>
               {% endif %}
+              <a href="{% url 'contrato_generar_pdf' c.pk %}" class="btn btn-sm btn-outline-danger" target="_blank" title="Generar PDF">
+                <i class="fas fa-file-pdf"></i>
+              </a>
               <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
                   <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li><a class="dropdown-item" href="{% url 'contrato_generar_pdf' c.pk %}" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>Generar PDF</a></li>
+                  <li><a class="dropdown-item" href="{% url 'contrato_generar_pdf' c.pk %}?download=1"><i class="fas fa-download me-2"></i>Descargar PDF</a></li>
                   <li><a class="dropdown-item" href="{% url 'contrato_importar_plantilla' c.pk %}"><i class="fas fa-file-upload me-2"></i>Importar documento</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="{% url 'contrato_editar_obj' c.pk %}"><i class="fas fa-edit me-2"></i>Editar</a></li>
@@ -305,11 +367,11 @@
               </div>
               <div class="col-md-3">
                 <span class="text-muted">Sueldo:</span>
-                <strong>{% if c.sueldo_pactado %}S/ {{ c.sueldo_pactado|floatformat:2 }}{% else %}—{% endif %}</strong>
+                <strong>{% if c.sueldo_pactado %}S/ {{ c.sueldo_pactado|floatformat:2 }}{% else %}&mdash;{% endif %}</strong>
               </div>
               <div class="col-md-3">
                 <span class="text-muted">Cargo:</span>
-                <strong>{{ c.cargo_contrato|default:"—" }}</strong>
+                <strong>{{ c.cargo_contrato|default:"&mdash;" }}</strong>
               </div>
             </div>
             {% if c.observaciones %}
@@ -352,7 +414,7 @@
     {% endif %}
   </div>
 
-  {# ── Tab: Timeline ────────────────────────────────────────────── #}
+  {# -- Tab: Timeline ----------------------------------------------------- #}
   <div class="tab-pane fade" id="timeline-pane" role="tabpanel">
     {% if timeline %}
     <div class="position-relative ms-4">
@@ -401,7 +463,7 @@
 
 </div>
 
-{# ── Modal de Analisis IA ────────────────────────────────────────── #}
+{# -- Modal de Analisis IA ------------------------------------------------ #}
 <div class="modal fade" id="modalAnalisisIA" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -432,14 +494,27 @@
   </div>
 </div>
 
+{# -- Toast de feedback para email ---------------------------------------- #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div id="toastEmail" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastEmailMsg">
+        <i class="fas fa-check-circle me-1"></i> Email enviado exitosamente.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const btn = document.getElementById('btnAnalizarIA');
+  // IA analysis button
+  var btn = document.getElementById('btnAnalizarIA');
   if (!btn) return;
 
   btn.addEventListener('click', function() {
-    const contratoId = this.dataset.contratoId;
-    const modal = new bootstrap.Modal(document.getElementById('modalAnalisisIA'));
+    var contratoId = this.dataset.contratoId;
+    var modal = new bootstrap.Modal(document.getElementById('modalAnalisisIA'));
 
     document.getElementById('iaLoading').classList.remove('d-none');
     document.getElementById('iaResultado').classList.add('d-none');
@@ -447,9 +522,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     modal.show();
 
-    fetch(`/contratos/obj/${contratoId}/analizar-ia/`)
-      .then(r => r.json())
-      .then(data => {
+    fetch('/contratos/obj/' + contratoId + '/analizar-ia/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
         document.getElementById('iaLoading').classList.add('d-none');
         if (data.ok) {
           document.getElementById('iaContenido').textContent = data.analisis;
@@ -459,12 +534,33 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('iaError').classList.remove('d-none');
         }
       })
-      .catch(err => {
+      .catch(function(err) {
         document.getElementById('iaLoading').classList.add('d-none');
         document.getElementById('iaErrorMsg').textContent = 'Error de conexion: ' + err.message;
         document.getElementById('iaError').classList.remove('d-none');
       });
   });
 });
+
+function confirmarEnvioEmail(btn) {
+  if (!confirm('Se enviara el contrato por email al trabajador. Continuar?')) {
+    return false;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando...';
+  return true;
+}
+
+function abrirVistaImpresion() {
+  {% if contrato_vigente %}
+  var url = "{% url 'contrato_generar_pdf' contrato_vigente.pk %}";
+  var printWindow = window.open(url, '_blank');
+  if (printWindow) {
+    printWindow.addEventListener('load', function() {
+      setTimeout(function() { printWindow.print(); }, 500);
+    });
+  }
+  {% endif %}
+}
 </script>
 {% endblock %}

@@ -5,7 +5,7 @@
 <style>
 .org-hero{background:linear-gradient(135deg,#1e293b 0%,#0f766e 100%);border-radius:.75rem}
 .org-toolbar{background:rgba(255,255,255,.97);border:1px solid rgba(0,0,0,.06);border-radius:.75rem;padding:.6rem 1rem}
-.chart-container{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;overflow:hidden;position:relative;min-height:500px}
+.chart-container{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;overflow-x:auto;overflow-y:auto;position:relative;min-height:500px}
 #orgChart{width:100%;height:calc(100vh - 260px);min-height:500px}
 .node-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:0;width:220px;box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .2s;overflow:hidden}
 .node-card:hover{border-color:#0f766e;box-shadow:0 4px 16px rgba(15,118,110,.15)}
@@ -17,9 +17,22 @@
 .node-name{font-weight:700;font-size:.85rem;color:#1e293b;line-height:1.2;margin-bottom:2px}
 .node-cargo{font-size:.72rem;color:#64748b;margin-bottom:4px}
 .node-area{font-size:.68rem;color:#94a3b8;display:flex;align-items:center;gap:4px}
+.node-detail{font-size:.65rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .zoom-controls{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10}
 .zoom-btn{width:36px;height:36px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#374151;transition:all .15s}
 .zoom-btn:hover{background:#f0fdf4;border-color:#0f766e;color:#0f766e}
+.settings-dropdown .form-check{margin-bottom:.35rem}
+.settings-dropdown .form-check-label{font-size:.78rem}
+.view-btn-group .btn{font-size:.72rem;padding:2px 8px}
+.view-btn-group .btn.active{background:#0f766e;border-color:#0f766e;color:#fff}
+/* Compact mode */
+.node-card.compact-mode{border-radius:8px}
+.node-card.compact-mode .node-header{padding:3px 8px;font-size:.6rem}
+.node-card.compact-mode .node-body{padding:6px 8px}
+.node-card.compact-mode .node-name{font-size:.75rem;margin-bottom:1px}
+.node-card.compact-mode .node-cargo{font-size:.65rem;margin-bottom:2px}
+.node-card.compact-mode .node-area{font-size:.6rem}
+.node-card.compact-mode .node-detail{font-size:.58rem}
 @media print{
   .org-hero,.org-toolbar,.zoom-controls,.no-print{display:none!important}
   .chart-container{border:none;min-height:auto}
@@ -46,9 +59,47 @@
         <button class="btn btn-sm btn-outline-secondary" onclick="chart && chart.fit()" title="Ajustar a pantalla">
             <i class="fas fa-expand-arrows-alt"></i>
         </button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="toggleCompact()" title="Vista compacta" id="btnCompact">
-            <i class="fas fa-compress-alt"></i>
-        </button>
+        <!-- View mode button group -->
+        <div class="btn-group view-btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary active" id="btnNormal" onclick="setViewMode('normal')" title="Vista normal">
+                <i class="fas fa-th-large"></i> Normal
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCompacto" onclick="setViewMode('compacto')" title="Vista compacta">
+                <i class="fas fa-th"></i> Compacto
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnUltra" onclick="setViewMode('ultra')" title="Ultra compacto">
+                <i class="fas fa-compress-alt"></i> Ultra
+            </button>
+        </div>
+        <!-- Settings dropdown for field visibility -->
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Campos visibles">
+                <i class="fas fa-cog"></i>
+            </button>
+            <div class="dropdown-menu p-3 settings-dropdown" style="width:220px" onclick="event.stopPropagation()">
+                <h6 class="fw-bold mb-2" style="font-size:.82rem">Campos visibles</h6>
+                <div class="form-check">
+                    <input class="form-check-input field-toggle" type="checkbox" id="fldDni" data-field="dni">
+                    <label class="form-check-label" for="fldDni">DNI</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input field-toggle" type="checkbox" id="fldEmail" data-field="email">
+                    <label class="form-check-label" for="fldEmail">Email Personal</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input field-toggle" type="checkbox" id="fldEmailCorp" data-field="email_corp">
+                    <label class="form-check-label" for="fldEmailCorp">Email Corporativo</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input field-toggle" type="checkbox" id="fldCelular" data-field="celular">
+                    <label class="form-check-label" for="fldCelular">Celular</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input field-toggle" type="checkbox" id="fldGrupo" data-field="grupo" checked>
+                    <label class="form-check-label" for="fldGrupo">Grupo</label>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="d-flex gap-2">
         <div class="dropdown">
@@ -125,21 +176,130 @@
 
 <script>
 let chart = null;
-let isCompact = false;
+let viewMode = 'normal'; // 'normal', 'compacto', 'ultra'
 const csrfToken = '{{ csrf_token }}';
+
+// ── Field visibility preferences (localStorage) ──
+var defaultFields = {dni: false, email: false, email_corp: false, celular: false, grupo: true};
+
+function loadFieldPrefs() {
+    try {
+        var saved = localStorage.getItem('orgchart_fields');
+        if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return Object.assign({}, defaultFields);
+}
+
+function saveFieldPrefs(prefs) {
+    try { localStorage.setItem('orgchart_fields', JSON.stringify(prefs)); } catch(e) {}
+}
+
+var fieldPrefs = loadFieldPrefs();
+
+// Initialize checkboxes from prefs
+function initFieldCheckboxes() {
+    document.querySelectorAll('.field-toggle').forEach(function(cb) {
+        var field = cb.getAttribute('data-field');
+        cb.checked = !!fieldPrefs[field];
+    });
+}
+
+// Listen for checkbox changes
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('field-toggle')) {
+        var field = e.target.getAttribute('data-field');
+        fieldPrefs[field] = e.target.checked;
+        saveFieldPrefs(fieldPrefs);
+        if (chart) {
+            chart.render();
+        }
+    }
+});
 
 document.getElementById('pdfScale').addEventListener('input', function() {
     document.getElementById('pdfScaleLabel').textContent = Math.round(this.value * 100) + '%';
 });
 
+// ── Sort helper: STAFF first, then RCO, then others ──
+function sortGrupo(a, b) {
+    var ga = (a.grupo || '').toUpperCase();
+    var gb = (b.grupo || '').toUpperCase();
+    var order = {'STAFF': 0, 'RCO': 1};
+    var oa = (ga in order) ? order[ga] : 2;
+    var ob = (gb in order) ? order[gb] : 2;
+    if (oa !== ob) return oa - ob;
+    return (a.name || '').localeCompare(b.name || '');
+}
+
+function sortDataByGrupo(data) {
+    // Group children by parentId, sort each group
+    var byParent = {};
+    var order = [];
+    for (var i = 0; i < data.length; i++) {
+        var pid = data[i].parentId || '';
+        if (!byParent[pid]) {
+            byParent[pid] = [];
+            order.push(pid);
+        }
+        byParent[pid].push(data[i]);
+    }
+    var result = [];
+    for (var j = 0; j < order.length; j++) {
+        var children = byParent[order[j]];
+        children.sort(sortGrupo);
+        for (var k = 0; k < children.length; k++) {
+            result.push(children[k]);
+        }
+    }
+    return result;
+}
+
+// ── Escape HTML helper ──
+function esc(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Node height calculator ──
+function calcNodeHeight(d) {
+    if (d.data._isRoot) return 80;
+    if (viewMode === 'ultra') return 45;
+    if (viewMode === 'compacto') {
+        var h = 58; // header + name + cargo base
+        var extras = 0;
+        if (fieldPrefs.dni) extras++;
+        if (fieldPrefs.email) extras++;
+        if (fieldPrefs.email_corp) extras++;
+        if (fieldPrefs.celular) extras++;
+        if (fieldPrefs.grupo) extras++;
+        return h + extras * 12;
+    }
+    // normal
+    var h = 72;
+    var extras = 0;
+    if (fieldPrefs.dni) extras++;
+    if (fieldPrefs.email) extras++;
+    if (fieldPrefs.email_corp) extras++;
+    if (fieldPrefs.celular) extras++;
+    if (fieldPrefs.grupo) extras++;
+    return h + extras * 16;
+}
+
+// ── Node width calculator ──
+function calcNodeWidth(d) {
+    if (viewMode === 'ultra') return 180;
+    if (viewMode === 'compacto') return 200;
+    return 230;
+}
+
 async function loadChart(areaId) {
     document.getElementById('loadingOverlay').style.display = 'flex';
-    let url = '{% url "organigrama_data" %}';
+    var url = '{% url "organigrama_data" %}';
     if (areaId) url += '?area=' + areaId;
 
     try {
-        const resp = await fetch(url);
-        const data = await resp.json();
+        var resp = await fetch(url);
+        var data = await resp.json();
 
         if (!data.length || (data.length === 1 && data[0]._isRoot)) {
             document.getElementById('orgChart').innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-sitemap fa-3x mb-3 opacity-25"></i><p>No hay personal activo para mostrar</p></div>';
@@ -147,19 +307,24 @@ async function loadChart(areaId) {
             return;
         }
 
+        // Sort children: STAFF before RCO at each level
+        data = sortDataByGrupo(data);
+
         document.getElementById('nodeCount').textContent = (data.length - 1) + ' personas';
+
+        var isUltra = (viewMode === 'ultra');
 
         chart = new d3.OrgChart()
             .container('#orgChart')
             .data(data)
-            .compact(isCompact)
-            .nodeWidth(d => 230)
-            .nodeHeight(d => d.data._isRoot ? 80 : 110)
-            .childrenMargin(d => 40)
-            .compactMarginBetween(d => 20)
-            .compactMarginPair(d => 40)
-            .siblingsMargin(d => 25)
-            .neighbourMargin((a, b) => 25)
+            .compact(isUltra)
+            .nodeWidth(function(d) { return calcNodeWidth(d); })
+            .nodeHeight(function(d) { return calcNodeHeight(d); })
+            .childrenMargin(function(d) { return isUltra ? 20 : 40; })
+            .compactMarginBetween(function(d) { return 15; })
+            .compactMarginPair(function(d) { return 30; })
+            .siblingsMargin(function(d) { return isUltra ? 10 : 25; })
+            .neighbourMargin(function(a, b) { return isUltra ? 10 : 25; })
             .initialExpandLevel(1)
             .linkUpdate(function(d, i, arr) {
                 d3.select(this)
@@ -167,28 +332,7 @@ async function loadChart(areaId) {
                     .attr('stroke-width', 2);
             })
             .nodeContent(function(d) {
-                const nd = d.data;
-
-                if (nd._isRoot) {
-                    return '<div style="width:' + d.width + 'px;height:' + d.height + 'px;background:linear-gradient(135deg,#134e4a,#0f766e);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;box-shadow:0 4px 20px rgba(15,118,110,.3)">'
-                        + '<i class="fas fa-building" style="font-size:1.3rem;margin-bottom:3px;opacity:.8"></i>'
-                        + '<div style="font-weight:800;font-size:.9rem;letter-spacing:.5px">' + nd.name + '</div>'
-                        + '<div style="font-size:.7rem;opacity:.7">' + nd.position + '</div>'
-                        + '</div>';
-                }
-
-                var gc = (nd.grupo || '').toLowerCase() === 'rco' ? 'rco' : 'staff';
-                var gl = nd.grupo || 'STAFF';
-                var jc = nd.es_jefe ? ' jefe' : '';
-                var ai = nd.es_jefe ? '<i class="fas fa-star" style="font-size:.55rem;color:#fbbf24"></i> ' : '';
-
-                return '<div class="node-card' + jc + '" style="width:' + d.width + 'px;height:' + d.height + 'px">'
-                    + '<div class="node-header ' + gc + '">' + ai + gl + (nd.area ? ' - ' + nd.area : '') + '</div>'
-                    + '<div class="node-body">'
-                    + '<div class="node-name">' + nd.name + '</div>'
-                    + '<div class="node-cargo"><i class="fas fa-briefcase me-1" style="font-size:.55rem"></i>' + (nd.position || 'Sin cargo') + '</div>'
-                    + '<div class="node-area"><i class="fas fa-id-card" style="font-size:.5rem"></i> ' + (nd.dni || '-') + (nd.subarea ? ' | ' + nd.subarea : '') + '</div>'
-                    + '</div></div>';
+                return buildNodeContent(d);
             })
             .render()
             .fit();
@@ -200,13 +344,85 @@ async function loadChart(areaId) {
     document.getElementById('loadingOverlay').style.display = 'none';
 }
 
-function toggleCompact() {
-    isCompact = !isCompact;
-    document.getElementById('btnCompact').classList.toggle('btn-outline-secondary', !isCompact);
-    document.getElementById('btnCompact').classList.toggle('btn-secondary', isCompact);
-    if (chart) {
-        chart.compact(isCompact).render().fit();
+function buildNodeContent(d) {
+    var nd = d.data;
+
+    if (nd._isRoot) {
+        return '<div style="width:' + d.width + 'px;height:' + d.height + 'px;background:linear-gradient(135deg,#134e4a,#0f766e);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;box-shadow:0 4px 20px rgba(15,118,110,.3)">'
+            + '<i class="fas fa-building" style="font-size:1.3rem;margin-bottom:3px;opacity:.8"></i>'
+            + '<div style="font-weight:800;font-size:.9rem;letter-spacing:.5px">' + esc(nd.name) + '</div>'
+            + '<div style="font-size:.7rem;opacity:.7">' + esc(nd.position) + '</div>'
+            + '</div>';
     }
+
+    var gc = (nd.grupo || '').toLowerCase() === 'rco' ? 'rco' : 'staff';
+    var gl = nd.grupo || 'STAFF';
+    var jc = nd.es_jefe ? ' jefe' : '';
+    var ai = nd.es_jefe ? '<i class="fas fa-star" style="font-size:.55rem;color:#fbbf24"></i> ' : '';
+
+    // ── Ultra compact mode ──
+    if (viewMode === 'ultra') {
+        return '<div class="node-card' + jc + '" style="width:' + d.width + 'px;height:' + d.height + 'px;border-radius:8px">'
+            + '<div class="node-header ' + gc + '" style="padding:2px 6px;font-size:.55rem">' + ai + gl + '</div>'
+            + '<div style="padding:3px 6px">'
+            + '<div style="font-weight:700;font-size:.68rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nd.name) + '</div>'
+            + '<div style="font-size:.58rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nd.position || 'Sin cargo') + '</div>'
+            + '</div></div>';
+    }
+
+    // ── Compacto mode ──
+    var isCompact = (viewMode === 'compacto');
+    var compactClass = isCompact ? ' compact-mode' : '';
+
+    var html = '<div class="node-card' + jc + compactClass + '" style="width:' + d.width + 'px;height:' + d.height + 'px">';
+    html += '<div class="node-header ' + gc + '">' + ai + gl + (nd.area ? ' - ' + esc(nd.area) : '') + '</div>';
+    html += '<div class="node-body">';
+    html += '<div class="node-name">' + esc(nd.name) + '</div>';
+    html += '<div class="node-cargo"><i class="fas fa-briefcase me-1" style="font-size:.55rem"></i>' + esc(nd.position || 'Sin cargo') + '</div>';
+
+    // Conditional fields based on preferences
+    if (fieldPrefs.dni && nd.dni) {
+        html += '<div class="node-detail"><i class="fas fa-id-card me-1" style="font-size:.5rem"></i>' + esc(nd.dni);
+        if (nd.subarea) html += ' | ' + esc(nd.subarea);
+        html += '</div>';
+    } else if (nd.subarea && !isCompact) {
+        html += '<div class="node-detail"><i class="fas fa-building me-1" style="font-size:.5rem"></i>' + esc(nd.subarea) + '</div>';
+    }
+
+    if (fieldPrefs.email && nd.email) {
+        html += '<div class="node-detail"><i class="fas fa-envelope me-1" style="font-size:.5rem"></i>' + esc(nd.email) + '</div>';
+    }
+
+    if (fieldPrefs.email_corp && nd.email_corp) {
+        html += '<div class="node-detail"><i class="fas fa-at me-1" style="font-size:.5rem"></i>' + esc(nd.email_corp) + '</div>';
+    }
+
+    if (fieldPrefs.celular && nd.celular) {
+        html += '<div class="node-detail"><i class="fas fa-mobile-alt me-1" style="font-size:.5rem"></i>' + esc(nd.celular) + '</div>';
+    }
+
+    if (fieldPrefs.grupo) {
+        // grupo is already in the header, but we can skip a duplicate line
+        // Only show if different info is desired; grupo shown in header already
+    }
+
+    html += '</div></div>';
+    return html;
+}
+
+// ── View mode switching ──
+function setViewMode(mode) {
+    viewMode = mode;
+    // Update button states
+    document.getElementById('btnNormal').classList.toggle('active', mode === 'normal');
+    document.getElementById('btnNormal').classList.toggle('btn-outline-secondary', mode !== 'normal');
+    document.getElementById('btnCompacto').classList.toggle('active', mode === 'compacto');
+    document.getElementById('btnCompacto').classList.toggle('btn-outline-secondary', mode !== 'compacto');
+    document.getElementById('btnUltra').classList.toggle('active', mode === 'ultra');
+    document.getElementById('btnUltra').classList.toggle('btn-outline-secondary', mode !== 'ultra');
+    // Reload chart with current area
+    var areaId = document.getElementById('selArea').value;
+    loadChart(areaId);
 }
 
 document.getElementById('selArea').addEventListener('change', function() {
@@ -324,6 +540,7 @@ async function exportPNG() {
 }
 
 // Init
+initFieldCheckboxes();
 loadChart('');
 </script>
 {% endblock %}

@@ -1057,6 +1057,44 @@ class Adenda(models.Model):
         return f"Adenda {self.get_tipo_modificacion_display()} — {self.contrato}"
 
 
+class PlantillaContrato(models.Model):
+    """
+    Plantilla HTML reutilizable para generar contratos laborales.
+    Soporta placeholders como {{nombre_empleado}}, {{cargo}}, etc.
+    """
+    nombre = models.CharField(
+        max_length=150,
+        verbose_name='Nombre de la plantilla',
+    )
+    tipo_contrato = models.CharField(
+        max_length=25,
+        choices=Personal.TIPO_CONTRATO_CHOICES,
+        blank=True,
+        verbose_name='Tipo de contrato asociado',
+        help_text='Tipo de contrato al que aplica esta plantilla (vacio = generico)',
+    )
+    contenido_html = models.TextField(
+        verbose_name='Contenido HTML',
+        help_text='Usar placeholders: {{nombre_empleado}}, {{cargo}}, {{fecha_inicio}}, {{fecha_fin}}, {{remuneracion}}, {{dni}}, {{empresa}}, {{ruc_empresa}}, {{direccion_empresa}}',
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name='Activo',
+    )
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Fecha de creacion',
+    )
+
+    class Meta:
+        verbose_name = 'Plantilla de Contrato'
+        verbose_name_plural = 'Plantillas de Contrato'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
 class Roster(models.Model):
     """
     Programación de turnos del personal por día.

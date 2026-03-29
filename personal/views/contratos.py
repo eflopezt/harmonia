@@ -18,7 +18,7 @@ from django.views.decorators.http import require_POST
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
-from personal.models import Personal, Contrato, RenovacionContrato, Adenda
+from personal.models import Personal, Contrato, RenovacionContrato, Adenda, PlantillaContrato
 from personal.forms import ContratoForm, AdendaForm, RenovacionContratoForm
 
 solo_admin = user_passes_test(lambda u: u.is_superuser, login_url='login')

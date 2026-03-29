@@ -57,6 +57,9 @@ def organigrama_data(request):
             'subarea': p.subarea.nombre if p.subarea else '',
             'dni': p.nro_doc or '',
             'grupo': p.grupo_tareo or '',
+            'email': p.correo_personal or '',
+            'email_corp': p.correo_corporativo or '',
+            'celular': p.celular or '',
             'estado': p.estado,
             'es_jefe': False,
         }
@@ -100,6 +103,9 @@ def organigrama_data(request):
                 'subarea': p.subarea.nombre if p.subarea else '',
                 'dni': p.nro_doc or '',
                 'grupo': p.grupo_tareo or '',
+                'email': p.correo_personal or '',
+                'email_corp': p.correo_corporativo or '',
+                'celular': p.celular or '',
                 'estado': p.estado,
                 'es_jefe': True,
             })
@@ -123,6 +129,9 @@ def organigrama_data(request):
         'subarea': '',
         'dni': '',
         'grupo': '',
+        'email': '',
+        'email_corp': '',
+        'celular': '',
         'estado': 'Activo',
         'es_jefe': False,
         '_isRoot': True,
@@ -132,7 +141,28 @@ def organigrama_data(request):
             n['parentId'] = root_id
     nodes.insert(0, root_node)
 
-    return JsonResponse(nodes, safe=False)
+    # Ordenar: STAFF primero, luego RCO, luego otros (por parentId agrupado)
+    def _sort_key(n):
+        g = (n.get('grupo') or '').upper()
+        if g == 'STAFF':
+            return (0, n.get('name', ''))
+        elif g == 'RCO':
+            return (1, n.get('name', ''))
+        return (2, n.get('name', ''))
+
+    # Agrupar por parentId, ordenar dentro de cada grupo, reconstruir
+    from collections import OrderedDict
+    by_parent = OrderedDict()
+    for n in nodes:
+        pid = n['parentId']
+        by_parent.setdefault(pid, []).append(n)
+    sorted_nodes = []
+    # Root node first (parentId='')
+    for pid, children in by_parent.items():
+        children.sort(key=_sort_key)
+        sorted_nodes.extend(children)
+
+    return JsonResponse(sorted_nodes, safe=False)
 
 
 @login_required

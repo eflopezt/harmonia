@@ -7,15 +7,36 @@
       <i class="fas fa-arrow-left"></i>
     </a>
     <div>
-      <h2 class="mb-0"><i class="fas fa-list me-2"></i>Contratos — Lista completa</h2>
+      <h2 class="mb-0"><i class="fas fa-list me-2"></i>Contratos &mdash; Lista completa</h2>
       <small class="text-muted">{{ total_resultados }} empleado{{ total_resultados|pluralize }} encontrado{{ total_resultados|pluralize }}</small>
     </div>
   </div>
-  <div class="d-flex gap-2">
-    <button type="button" class="btn btn-warning btn-sm d-none" id="btnEnvioMasivo"
-            onclick="enviarMasivo()">
-      <i class="fas fa-paper-plane me-1"></i>Envio masivo (<span id="contadorSeleccion">0</span>)
+  <div class="d-flex gap-2 align-items-center">
+    <button type="button" class="btn btn-outline-primary btn-sm" id="btnEnviarSeleccionados"
+            onclick="enviarMasivo()" style="display:none;">
+      <i class="fas fa-paper-plane me-1"></i>Enviar por Email (<span id="contadorSeleccion">0</span>)
     </button>
+    <div class="dropdown">
+      <button class="btn btn-warning btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="fas fa-paper-plane me-1"></i>Envio Masivo
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><h6 class="dropdown-header">Enviar contratos por area</h6></li>
+        {% for a in areas %}
+        <li>
+          <button class="dropdown-item" type="button" onclick="enviarPorArea({{ a.pk }}, '{{ a.nombre }}')">
+            <i class="fas fa-building me-2 text-muted"></i>{{ a.nombre }}
+          </button>
+        </li>
+        {% endfor %}
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <button class="dropdown-item" type="button" onclick="seleccionarTodos()">
+            <i class="fas fa-check-double me-2 text-success"></i>Seleccionar todos y enviar
+          </button>
+        </li>
+      </ul>
+    </div>
     <a href="{% url 'contratos_exportar_excel' %}?buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}"
        class="btn btn-success btn-sm">
       <i class="fas fa-file-excel me-1"></i>Exportar Excel
@@ -51,9 +72,9 @@
         </select>
       </div>
       <div class="col-md-2">
-        <label class="form-label small mb-1">Área</label>
+        <label class="form-label small mb-1">Area</label>
         <select name="area" class="form-select form-select-sm">
-          <option value="">Todas las áreas</option>
+          <option value="">Todas las areas</option>
           {% for a in areas %}
           <option value="{{ a.pk }}" {% if area_f == a.pk|stringformat:"d" %}selected{% endif %}>{{ a.nombre }}</option>
           {% endfor %}
@@ -62,7 +83,7 @@
       <div class="col-md-1">
         <label class="form-label small mb-1">Vence en</label>
         <select name="vencimiento" class="form-select form-select-sm">
-          <option value="">—</option>
+          <option value="">&mdash;</option>
           <option value="30" {% if vencimiento_f == '30' %}selected{% endif %}>30d</option>
           <option value="60" {% if vencimiento_f == '60' %}selected{% endif %}>60d</option>
           <option value="90" {% if vencimiento_f == '90' %}selected{% endif %}>90d</option>
@@ -78,11 +99,28 @@
   </div>
 </div>
 
+{# Barra de seleccion masiva #}
+<div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-3" id="barraSeleccion" style="display:none !important;">
+  <div>
+    <i class="fas fa-check-circle me-2"></i>
+    <strong><span id="contadorSeleccion2">0</span></strong> contrato(s) seleccionado(s)
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-sm btn-primary" onclick="enviarMasivo()">
+      <i class="fas fa-paper-plane me-1"></i>Enviar por Email
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deseleccionarTodos()">
+      <i class="fas fa-times me-1"></i>Cancelar
+    </button>
+  </div>
+</div>
+
 <form method="post" action="{% url 'contratos_envio_masivo' %}" id="formEnvioMasivo">
 {% csrf_token %}
+<input type="hidden" name="envio_por_area" id="envioPorArea" value="">
 <div class="card shadow-sm">
   <div class="card-body p-0">
-    <div class="table-responsive">
+    <div class="table-responsive" style="overflow-x:auto;">
       <table class="table table-sm table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
@@ -90,13 +128,14 @@
               <input type="checkbox" class="form-check-input" id="selectAll" title="Seleccionar todos">
             </th>
             <th class="ps-2">Trabajador</th>
-            <th>Área</th>
+            <th>Area</th>
             <th>Modalidad</th>
             <th class="text-center">Inicio contrato</th>
             <th class="text-center">Vencimiento</th>
             <th class="text-center">Estado</th>
-            <th class="text-center">Días restantes</th>
-            <th class="text-center">Renovación</th>
+            <th class="text-center">Dias restantes</th>
+            <th class="text-center">Renovacion</th>
+            <th class="text-center">Email</th>
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
@@ -106,7 +145,7 @@
           <tr class="
             {% if item.estado_contrato == 'VENCIDO' %}table-danger
             {% elif item.estado_contrato == 'URGENTE' %}table-warning
-            {% endif %}">
+            {% endif %}" data-area-id="{{ p.subarea.area.pk|default:'' }}">
             <td class="ps-2 text-center">
               {% if item.contrato_id %}
               <input type="checkbox" class="form-check-input chk-contrato" name="contrato_ids"
@@ -117,15 +156,15 @@
               <a href="{% url 'contrato_detalle' p.pk %}" class="text-decoration-none">{{ p.apellidos_nombres }}</a>
               <div class="small text-muted">{{ p.nro_doc }}</div>
             </td>
-            <td class="text-muted small">{{ p.subarea.area.nombre|default:"—" }}</td>
+            <td class="text-muted small">{{ p.subarea.area.nombre|default:"&mdash;" }}</td>
             <td>
               {% if p.tipo_contrato %}
                 <span class="badge bg-light text-dark border">{{ p.get_tipo_contrato_display }}</span>
               {% else %}
-                <span class="text-muted small">—</span>
+                <span class="text-muted small">&mdash;</span>
               {% endif %}
             </td>
-            <td class="text-center small">{{ p.fecha_inicio_contrato|date:"d/m/Y"|default:"—" }}</td>
+            <td class="text-center small">{{ p.fecha_inicio_contrato|date:"d/m/Y"|default:"&mdash;" }}</td>
             <td class="text-center small">{{ p.fecha_fin_contrato|date:"d/m/Y"|default:"Indefinido" }}</td>
             <td class="text-center">
               {% if item.estado_contrato == 'VENCIDO' %}
@@ -146,14 +185,25 @@
                   {{ item.dias_restantes }}
                 </span>
               {% else %}
-                <span class="text-muted">—</span>
+                <span class="text-muted">&mdash;</span>
               {% endif %}
             </td>
             <td class="text-center">
               {% if p.renovacion_automatica %}
                 <span class="badge bg-success"><i class="fas fa-sync"></i></span>
               {% else %}
-                <span class="text-muted small">—</span>
+                <span class="text-muted small">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if item.contrato_id %}
+                {% if p.correo_corporativo or p.correo_personal %}
+                  <span class="badge bg-success" title="{{ p.correo_corporativo|default:p.correo_personal }}"><i class="fas fa-envelope"></i></span>
+                {% else %}
+                  <span class="badge bg-light text-muted border" title="Sin email"><i class="fas fa-envelope-open"></i></span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted small">&mdash;</span>
               {% endif %}
             </td>
             <td class="text-center">
@@ -170,7 +220,7 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">No se encontraron empleados.</td>
+            <td colspan="11" class="text-center text-muted py-4">No se encontraron empleados.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -179,11 +229,11 @@
   </div>
   {% if page_obj.has_other_pages %}
   <div class="card-footer d-flex justify-content-between align-items-center">
-    <small class="text-muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</small>
+    <small class="text-muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</small>
     <nav>
       <ul class="pagination pagination-sm mb-0">
         {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">‹</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">&lsaquo;</a></li>
         {% endif %}
         {% for num in page_obj.paginator.page_range %}
           {% if page_obj.number == num %}
@@ -193,7 +243,7 @@
           {% endif %}
         {% endfor %}
         {% if page_obj.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">›</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">&rsaquo;</a></li>
         {% endif %}
       </ul>
     </nav>
@@ -202,16 +252,34 @@
 </div>
 </form>
 
+{# Toast de feedback #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div id="toastEnvio" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMensaje">
+        <i class="fas fa-check-circle me-1"></i> Enviando contratos...
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
 <script>
 function actualizarContador() {
   const checks = document.querySelectorAll('.chk-contrato:checked');
-  const btn = document.getElementById('btnEnvioMasivo');
-  const contador = document.getElementById('contadorSeleccion');
-  contador.textContent = checks.length;
-  if (checks.length > 0) {
-    btn.classList.remove('d-none');
+  const count = checks.length;
+  document.getElementById('contadorSeleccion').textContent = count;
+  document.getElementById('contadorSeleccion2').textContent = count;
+
+  const btnEnviar = document.getElementById('btnEnviarSeleccionados');
+  const barra = document.getElementById('barraSeleccion');
+
+  if (count > 0) {
+    btnEnviar.style.display = '';
+    barra.style.cssText = '';
   } else {
-    btn.classList.add('d-none');
+    btnEnviar.style.display = 'none';
+    barra.style.cssText = 'display:none !important;';
   }
 }
 
@@ -222,12 +290,48 @@ function enviarMasivo() {
     return;
   }
   if (confirm('Se enviaran ' + checks.length + ' contrato(s) por email a los trabajadores seleccionados. Continuar?')) {
+    // Show toast
+    var toastEl = document.getElementById('toastEnvio');
+    document.getElementById('toastMensaje').innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Enviando ' + checks.length + ' contrato(s)...';
+    var toast = new bootstrap.Toast(toastEl, {delay: 10000});
+    toast.show();
     document.getElementById('formEnvioMasivo').submit();
   }
 }
 
+function enviarPorArea(areaId, areaNombre) {
+  // Select all checkboxes for the given area
+  deseleccionarTodos();
+  var count = 0;
+  document.querySelectorAll('tr[data-area-id="' + areaId + '"] .chk-contrato').forEach(function(chk) {
+    chk.checked = true;
+    count++;
+  });
+  actualizarContador();
+  if (count === 0) {
+    alert('No hay contratos con envio disponible para el area "' + areaNombre + '".');
+    return;
+  }
+  if (confirm('Se enviaran ' + count + ' contrato(s) del area "' + areaNombre + '" por email. Continuar?')) {
+    document.getElementById('envioPorArea').value = areaId;
+    document.getElementById('formEnvioMasivo').submit();
+  }
+}
+
+function seleccionarTodos() {
+  document.querySelectorAll('.chk-contrato').forEach(function(c) { c.checked = true; });
+  document.getElementById('selectAll').checked = true;
+  actualizarContador();
+}
+
+function deseleccionarTodos() {
+  document.querySelectorAll('.chk-contrato').forEach(function(c) { c.checked = false; });
+  document.getElementById('selectAll').checked = false;
+  actualizarContador();
+}
+
 document.getElementById('selectAll').addEventListener('change', function() {
-  document.querySelectorAll('.chk-contrato').forEach(c => c.checked = this.checked);
+  document.querySelectorAll('.chk-contrato').forEach(function(c) { c.checked = this.checked; }.bind(this));
   actualizarContador();
 });
 </script>
