@@ -11,10 +11,16 @@
       <small class="text-muted">{{ total_resultados }} empleado{{ total_resultados|pluralize }} encontrado{{ total_resultados|pluralize }}</small>
     </div>
   </div>
-  <a href="{% url 'contratos_exportar_excel' %}?buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}"
-     class="btn btn-success btn-sm">
-    <i class="fas fa-file-excel me-1"></i>Exportar Excel
-  </a>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-warning btn-sm d-none" id="btnEnvioMasivo"
+            onclick="enviarMasivo()">
+      <i class="fas fa-paper-plane me-1"></i>Envio masivo (<span id="contadorSeleccion">0</span>)
+    </button>
+    <a href="{% url 'contratos_exportar_excel' %}?buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}"
+       class="btn btn-success btn-sm">
+      <i class="fas fa-file-excel me-1"></i>Exportar Excel
+    </a>
+  </div>
 </div>
 
 {# Filtros #}
@@ -72,13 +78,18 @@
   </div>
 </div>
 
+<form method="post" action="{% url 'contratos_envio_masivo' %}" id="formEnvioMasivo">
+{% csrf_token %}
 <div class="card shadow-sm">
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-sm table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Trabajador</th>
+            <th class="ps-2 text-center" style="width:35px;">
+              <input type="checkbox" class="form-check-input" id="selectAll" title="Seleccionar todos">
+            </th>
+            <th class="ps-2">Trabajador</th>
             <th>Área</th>
             <th>Modalidad</th>
             <th class="text-center">Inicio contrato</th>
@@ -96,7 +107,13 @@
             {% if item.estado_contrato == 'VENCIDO' %}table-danger
             {% elif item.estado_contrato == 'URGENTE' %}table-warning
             {% endif %}">
-            <td class="ps-3 fw-semibold">
+            <td class="ps-2 text-center">
+              {% if item.contrato_id %}
+              <input type="checkbox" class="form-check-input chk-contrato" name="contrato_ids"
+                     value="{{ item.contrato_id }}" onchange="actualizarContador()">
+              {% endif %}
+            </td>
+            <td class="ps-2 fw-semibold">
               <a href="{% url 'contrato_detalle' p.pk %}" class="text-decoration-none">{{ p.apellidos_nombres }}</a>
               <div class="small text-muted">{{ p.nro_doc }}</div>
             </td>
@@ -183,4 +200,35 @@
   </div>
   {% endif %}
 </div>
+</form>
+
+<script>
+function actualizarContador() {
+  const checks = document.querySelectorAll('.chk-contrato:checked');
+  const btn = document.getElementById('btnEnvioMasivo');
+  const contador = document.getElementById('contadorSeleccion');
+  contador.textContent = checks.length;
+  if (checks.length > 0) {
+    btn.classList.remove('d-none');
+  } else {
+    btn.classList.add('d-none');
+  }
+}
+
+function enviarMasivo() {
+  const checks = document.querySelectorAll('.chk-contrato:checked');
+  if (checks.length === 0) {
+    alert('Seleccione al menos un contrato.');
+    return;
+  }
+  if (confirm('Se enviaran ' + checks.length + ' contrato(s) por email a los trabajadores seleccionados. Continuar?')) {
+    document.getElementById('formEnvioMasivo').submit();
+  }
+}
+
+document.getElementById('selectAll').addEventListener('change', function() {
+  document.querySelectorAll('.chk-contrato').forEach(c => c.checked = this.checked);
+  actualizarContador();
+});
+</script>
 {% endblock %}

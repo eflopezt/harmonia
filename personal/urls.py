@@ -140,6 +140,11 @@ urlpatterns = [
     path('contratos/obj/<int:pk>/editar/', views.contrato_editar_obj, name='contrato_editar_obj'),
     path('contratos/obj/<int:pk>/renovar/', views.contrato_renovar, name='contrato_renovar'),
     path('contratos/obj/<int:contrato_pk>/adenda/', views.adenda_crear, name='adenda_crear'),
+    path('contratos/obj/<int:pk>/pdf/', views.contrato_generar_pdf, name='contrato_generar_pdf'),
+    path('contratos/obj/<int:pk>/importar/', views.contrato_importar_plantilla, name='contrato_importar_plantilla'),
+    path('contratos/obj/<int:pk>/analizar-ia/', views.contrato_analizar_ia, name='contrato_analizar_ia'),
+    path('contratos/obj/<int:pk>/enviar-email/', views.contrato_enviar_email, name='contrato_enviar_email'),
+    path('contratos/envio-masivo/', views.contratos_envio_masivo, name='contratos_envio_masivo'),
     path('contratos/api/stats/', views.contratos_api_stats, name='contratos_api_stats'),
     path('contratos/api/alertas/', views.contratos_alertas_json, name='contratos_alertas_json'),
 

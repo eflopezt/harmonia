@@ -134,6 +134,32 @@ class Empresa(models.Model):
         help_text='Token de autenticacion para OpenClaw (si aplica)',
     )
 
+    # ── Identidad visual / documentos ────────────────────────────
+    logo = models.ImageField(
+        upload_to='empresas/logos/', blank=True,
+        verbose_name='Logotipo',
+        help_text='Logotipo de la empresa para documentos PDF, contratos y reportes',
+    )
+    membrete_header = models.ImageField(
+        upload_to='empresas/membretes/', blank=True,
+        verbose_name='Membrete (cabecera)',
+        help_text='Imagen de cabecera para documentos oficiales',
+    )
+    firma_representante = models.ImageField(
+        upload_to='empresas/firmas/', blank=True,
+        verbose_name='Firma del representante legal',
+        help_text='Imagen de la firma escaneada del representante',
+    )
+    representante_legal = models.CharField(
+        max_length=200, blank=True,
+        verbose_name='Representante legal',
+    )
+    cargo_representante = models.CharField(
+        max_length=100, blank=True,
+        verbose_name='Cargo del representante',
+        help_text='Ej: Gerente General, Director Ejecutivo',
+    )
+
     # Multi-tenant subdomain
     subdominio = models.SlugField(
         max_length=50, unique=True, blank=True, null=True,

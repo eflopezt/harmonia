@@ -249,9 +249,14 @@ class NotificacionService:
             ctx['empresa_telefono'] = empresa.telefono or ''
             ctx['empresa_email'] = empresa.email_rrhh or ''
             ctx['empresa_web'] = empresa.web or ''
-            # If the empresa model gains a logo field in the future,
-            # populate empresa_logo_url here.
-            ctx['empresa_logo_url'] = ''
+            # Populate empresa logo URL if configured
+            if empresa.logo:
+                try:
+                    ctx['empresa_logo_url'] = empresa.logo.url
+                except Exception:
+                    ctx['empresa_logo_url'] = ''
+            else:
+                ctx['empresa_logo_url'] = ''
         else:
             ctx['empresa_nombre'] = 'Harmoni'
             ctx['empresa_logo_url'] = ''

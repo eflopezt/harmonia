@@ -189,6 +189,23 @@
                 <i class="fas fa-plus me-2"></i>Registrar nuevo contrato
               </a>
               {% if contrato_vigente %}
+              <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}" class="btn btn-danger" target="_blank">
+                <i class="fas fa-file-pdf me-2"></i>Generar PDF
+              </a>
+              <form method="post" action="{% url 'contrato_enviar_email' contrato_vigente.pk %}" class="d-grid">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-warning"
+                        onclick="return confirm('Se enviara el contrato por email al trabajador. Continuar?')">
+                  <i class="fas fa-envelope me-2"></i>Enviar por Email
+                </button>
+              </form>
+              <button type="button" class="btn btn-outline-info" id="btnAnalizarIA" data-contrato-id="{{ contrato_vigente.pk }}">
+                <i class="fas fa-robot me-2"></i>Analizar con IA
+              </button>
+              <a href="{% url 'contrato_importar_plantilla' contrato_vigente.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-upload me-2"></i>Importar documento
+              </a>
+              <hr class="my-1">
               <a href="{% url 'contrato_renovar' contrato_vigente.pk %}" class="btn btn-outline-success">
                 <i class="fas fa-sync me-2"></i>Renovar contrato vigente
               </a>
@@ -264,6 +281,9 @@
                   <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="{% url 'contrato_generar_pdf' c.pk %}" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>Generar PDF</a></li>
+                  <li><a class="dropdown-item" href="{% url 'contrato_importar_plantilla' c.pk %}"><i class="fas fa-file-upload me-2"></i>Importar documento</a></li>
+                  <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="{% url 'contrato_editar_obj' c.pk %}"><i class="fas fa-edit me-2"></i>Editar</a></li>
                   {% if c.estado == 'VIGENTE' %}
                   <li><a class="dropdown-item" href="{% url 'contrato_renovar' c.pk %}"><i class="fas fa-sync me-2"></i>Renovar</a></li>
@@ -380,4 +400,71 @@
   </div>
 
 </div>
+
+{# ── Modal de Analisis IA ────────────────────────────────────────── #}
+<div class="modal fade" id="modalAnalisisIA" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="fas fa-robot me-2"></i>Analisis IA del Contrato</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="iaLoading" class="text-center py-5">
+          <div class="spinner-border text-info" role="status"></div>
+          <p class="mt-3 text-muted">Analizando contrato con IA...</p>
+          <small class="text-muted">Esto puede tardar unos segundos</small>
+        </div>
+        <div id="iaResultado" class="d-none">
+          <div id="iaContenido" style="white-space:pre-wrap; line-height:1.6;"></div>
+        </div>
+        <div id="iaError" class="d-none">
+          <div class="alert alert-danger mb-0">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span id="iaErrorMsg"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('btnAnalizarIA');
+  if (!btn) return;
+
+  btn.addEventListener('click', function() {
+    const contratoId = this.dataset.contratoId;
+    const modal = new bootstrap.Modal(document.getElementById('modalAnalisisIA'));
+
+    document.getElementById('iaLoading').classList.remove('d-none');
+    document.getElementById('iaResultado').classList.add('d-none');
+    document.getElementById('iaError').classList.add('d-none');
+
+    modal.show();
+
+    fetch(`/contratos/obj/${contratoId}/analizar-ia/`)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('iaLoading').classList.add('d-none');
+        if (data.ok) {
+          document.getElementById('iaContenido').textContent = data.analisis;
+          document.getElementById('iaResultado').classList.remove('d-none');
+        } else {
+          document.getElementById('iaErrorMsg').textContent = data.error;
+          document.getElementById('iaError').classList.remove('d-none');
+        }
+      })
+      .catch(err => {
+        document.getElementById('iaLoading').classList.add('d-none');
+        document.getElementById('iaErrorMsg').textContent = 'Error de conexion: ' + err.message;
+        document.getElementById('iaError').classList.remove('d-none');
+      });
+  });
+});
+</script>
 {% endblock %}

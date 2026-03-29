@@ -52,6 +52,8 @@ from .contratos import (
     contrato_detalle, contrato_crear, contrato_editar_obj,
     contrato_renovar, adenda_crear,
     contratos_exportar_excel, contratos_alertas_json,
+    contrato_generar_pdf, contrato_importar_plantilla,
+    contrato_analizar_ia, contrato_enviar_email, contratos_envio_masivo,
 )
 
 from .reportes import (

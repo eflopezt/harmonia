@@ -112,3 +112,40 @@ def seleccionar_empresa(request):
         messages.info(request, 'Empresa activa restablecida.')
 
     return redirect(next_url)
+
+
+@login_required
+@solo_admin
+def configuracion_empresa(request, pk):
+    """Configurar identidad visual de la empresa: logo, membrete, firma."""
+    empresa = get_object_or_404(Empresa, pk=pk)
+
+    if request.method == 'POST':
+        # Campos de texto
+        empresa.representante_legal = request.POST.get('representante_legal', '').strip()
+        empresa.cargo_representante = request.POST.get('cargo_representante', '').strip()
+
+        # Archivos de imagen
+        if 'logo' in request.FILES:
+            empresa.logo = request.FILES['logo']
+        if 'membrete_header' in request.FILES:
+            empresa.membrete_header = request.FILES['membrete_header']
+        if 'firma_representante' in request.FILES:
+            empresa.firma_representante = request.FILES['firma_representante']
+
+        # Permitir borrar imágenes
+        if request.POST.get('borrar_logo') == '1':
+            empresa.logo = ''
+        if request.POST.get('borrar_membrete') == '1':
+            empresa.membrete_header = ''
+        if request.POST.get('borrar_firma') == '1':
+            empresa.firma_representante = ''
+
+        empresa.save()
+        messages.success(request, 'Configuración de empresa actualizada correctamente.')
+        return redirect('configuracion_empresa', pk=empresa.pk)
+
+    return render(request, 'empresas/configuracion.html', {
+        'titulo': f'Configuración — {empresa.nombre_display}',
+        'empresa': empresa,
+    })

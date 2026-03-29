@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:750px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{% url 'empresas_panel' %}" class="btn btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <h2 class="h3 fw-bold mb-0"><i class="fas fa-cog me-2 text-teal"></i>{{ titulo }}</h2>
+      <small class="text-muted">Logo, membrete, firma y representante legal</small>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {# Logo #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><strong><i class="fas fa-image me-2"></i>Logotipo de la empresa</strong></div>
+      <div class="card-body">
+        {% if empresa.logo %}
+        <div class="mb-3">
+          <img src="{{ empresa.logo.url }}" alt="Logo actual" class="img-thumbnail" style="max-height:120px;">
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="borrar_logo" value="1" id="borrarLogo">
+            <label class="form-check-label small text-danger" for="borrarLogo">Eliminar logo actual</label>
+          </div>
+        </div>
+        {% endif %}
+        <input type="file" name="logo" class="form-control" accept="image/*">
+        <small class="text-muted">Se usa en contratos PDF, constancias, reportes y documentos oficiales. Recomendado: PNG/JPG, fondo transparente.</small>
+      </div>
+    </div>
+
+    {# Membrete #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><strong><i class="fas fa-file-alt me-2"></i>Membrete (cabecera)</strong></div>
+      <div class="card-body">
+        {% if empresa.membrete_header %}
+        <div class="mb-3">
+          <img src="{{ empresa.membrete_header.url }}" alt="Membrete actual" class="img-thumbnail" style="max-height:100px; max-width:100%;">
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="borrar_membrete" value="1" id="borrarMembrete">
+            <label class="form-check-label small text-danger" for="borrarMembrete">Eliminar membrete actual</label>
+          </div>
+        </div>
+        {% endif %}
+        <input type="file" name="membrete_header" class="form-control" accept="image/*">
+        <small class="text-muted">Imagen completa de cabecera para documentos PDF. Recomendado: ancho 800px+.</small>
+      </div>
+    </div>
+
+    {# Firma #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><strong><i class="fas fa-signature me-2"></i>Firma del representante legal</strong></div>
+      <div class="card-body">
+        {% if empresa.firma_representante %}
+        <div class="mb-3">
+          <img src="{{ empresa.firma_representante.url }}" alt="Firma actual" class="img-thumbnail" style="max-height:80px;">
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="borrar_firma" value="1" id="borrarFirma">
+            <label class="form-check-label small text-danger" for="borrarFirma">Eliminar firma actual</label>
+          </div>
+        </div>
+        {% endif %}
+        <input type="file" name="firma_representante" class="form-control" accept="image/*">
+        <small class="text-muted">Firma escaneada del representante legal. Se incluye en contratos generados.</small>
+      </div>
+    </div>
+
+    {# Representante legal #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><strong><i class="fas fa-user-tie me-2"></i>Representante legal</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-7">
+            <label class="form-label fw-semibold">Nombre completo</label>
+            <input type="text" name="representante_legal" value="{{ empresa.representante_legal }}"
+              class="form-control" placeholder="Ej: Juan Carlos Perez Lopez">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Cargo</label>
+            <input type="text" name="cargo_representante" value="{{ empresa.cargo_representante }}"
+              class="form-control" placeholder="Ej: Gerente General">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{% url 'empresas_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Guardar configuracion</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

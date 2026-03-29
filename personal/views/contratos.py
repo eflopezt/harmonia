@@ -191,6 +191,15 @@ def contratos_lista(request):
     paginator = Paginator(qs, 30)
     page_obj = paginator.get_page(request.GET.get('page'))
 
+    # Prefetch contrato vigente IDs for checkbox selection
+    personal_ids = [p.pk for p in page_obj]
+    contratos_vigentes = {}
+    for c in Contrato.objects.filter(
+        personal_id__in=personal_ids, estado='VIGENTE'
+    ).values('personal_id', 'id').order_by('personal_id', '-fecha_inicio'):
+        if c['personal_id'] not in contratos_vigentes:
+            contratos_vigentes[c['personal_id']] = c['id']
+
     empleados = []
     for p in page_obj:
         dias = None
@@ -209,6 +218,7 @@ def contratos_lista(request):
             'personal': p,
             'dias_restantes': dias,
             'estado_contrato': estado_contrato,
+            'contrato_id': contratos_vigentes.get(p.pk),
         })
 
     from personal.models import Area
@@ -717,3 +727,426 @@ def contratos_alertas_json(request):
         })
 
     return JsonResponse({'alertas': alertas})
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# GENERAR PDF DE CONTRATO
+# ═════════════════════════════════════════════════════════════════════════════
+
+@solo_admin
+def contrato_generar_pdf(request, pk):
+    """Genera un PDF profesional del contrato laboral."""
+    from io import BytesIO
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from empresas.models import Empresa
+
+    contrato = get_object_or_404(Contrato, pk=pk)
+    personal = contrato.personal
+
+    # Obtener empresa (del personal o la principal)
+    empresa = personal.empresa
+    if not empresa:
+        empresa = Empresa.objects.filter(es_principal=True).first()
+    if not empresa:
+        empresa = Empresa.objects.first()
+
+    # Convertir sueldo a letras (simplificado)
+    sueldo_letras = ''
+    if contrato.sueldo_pactado:
+        try:
+            from num2words import num2words
+            sueldo_letras = num2words(float(contrato.sueldo_pactado), lang='es') + ' soles'
+        except Exception:
+            sueldo_letras = f'{contrato.sueldo_pactado} soles'
+
+    context = {
+        'contrato': contrato,
+        'personal': personal,
+        'empresa': empresa,
+        'tipo_contrato_display': contrato.get_tipo_contrato_display(),
+        'sueldo_letras': sueldo_letras,
+    }
+
+    template = get_template('personal/contrato_pdf.html')
+    html = template.render(context)
+
+    result = BytesIO()
+    pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), result, encoding='utf-8')
+
+    if pdf.err:
+        return HttpResponse('Error generando el PDF', status=500)
+
+    response = HttpResponse(result.getvalue(), content_type='application/pdf')
+    nombre_archivo = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}.pdf'
+    # Si se pide descarga directa
+    if request.GET.get('download') == '1':
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+    else:
+        response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+    return response
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# IMPORTAR PLANTILLA DE CONTRATO (DOCX/PDF)
+# ═════════════════════════════════════════════════════════════════════════════
+
+@solo_admin
+def contrato_importar_plantilla(request, pk):
+    """Permite subir un archivo DOCX o PDF como plantilla adjunta al contrato."""
+    contrato = get_object_or_404(Contrato, pk=pk)
+    personal = contrato.personal
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Debe seleccionar un archivo.')
+            return redirect('contrato_detalle', pk=personal.pk)
+
+        ext = archivo.name.lower().rsplit('.', 1)[-1] if '.' in archivo.name else ''
+        if ext not in ('pdf', 'docx', 'doc'):
+            messages.error(request, 'Solo se permiten archivos PDF o DOCX.')
+            return redirect('contrato_detalle', pk=personal.pk)
+
+        contrato.archivo_pdf = archivo
+        contrato.save(update_fields=['archivo_pdf'])
+        messages.success(request, f'Archivo "{archivo.name}" adjuntado al contrato.')
+        return redirect('contrato_detalle', pk=personal.pk)
+
+    context = {
+        'personal': personal,
+        'contrato': contrato,
+    }
+    return render(request, 'personal/contrato_importar_plantilla.html', context)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ANÁLISIS IA DE CONTRATO
+# ═════════════════════════════════════════════════════════════════════════════
+
+@solo_admin
+def contrato_analizar_ia(request, pk):
+    """Analiza un contrato con IA: resumen, cláusulas clave, riesgos."""
+    contrato = get_object_or_404(Contrato, pk=pk)
+    personal = contrato.personal
+
+    if not contrato.archivo_pdf:
+        return JsonResponse({
+            'ok': False,
+            'error': 'El contrato no tiene un archivo PDF/DOCX adjunto para analizar.',
+        })
+
+    # Extraer texto del archivo
+    texto = ''
+    archivo_path = contrato.archivo_pdf.path
+    ext = archivo_path.lower().rsplit('.', 1)[-1]
+
+    try:
+        if ext == 'pdf':
+            try:
+                from pdfminer.high_level import extract_text
+                texto = extract_text(archivo_path)
+            except ImportError:
+                import subprocess
+                # Fallback: intentar con xhtml2pdf o lectura básica
+                texto = '[No se pudo extraer texto del PDF — instale pdfminer.six]'
+        elif ext in ('docx', 'doc'):
+            try:
+                from docx import Document
+                doc = Document(archivo_path)
+                texto = '\n'.join([p.text for p in doc.paragraphs if p.text.strip()])
+            except ImportError:
+                texto = '[No se pudo extraer texto del DOCX — instale python-docx]'
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error extrayendo texto: {str(e)}'})
+
+    if not texto or texto.startswith('[No se pudo'):
+        return JsonResponse({
+            'ok': False,
+            'error': texto or 'No se pudo extraer texto del documento.',
+        })
+
+    # Enviar a IA para análisis
+    from asistencia.services.ai_service import get_service
+    svc = get_service()
+    if not svc:
+        return JsonResponse({
+            'ok': False,
+            'error': 'No hay servicio de IA configurado. Configure uno en Sistema > Configuracion > IA.',
+        })
+
+    prompt = (
+        'Eres un abogado laboralista peruano experto en derecho laboral.\n'
+        'Analiza el siguiente contrato de trabajo y proporciona:\n\n'
+        '1. **RESUMEN**: Un resumen conciso del contrato (3-5 lineas).\n'
+        '2. **CLAUSULAS CLAVE**: Lista las clausulas mas importantes.\n'
+        '3. **OBSERVACIONES Y RIESGOS**: Identifica posibles problemas, '
+        'clausulas abusivas o riesgos para el empleador o trabajador.\n'
+        '4. **CUMPLIMIENTO LEGAL**: Verifica el cumplimiento con la legislacion '
+        'laboral peruana (D.Leg. 728, D.S. 003-97-TR) e indica si falta algo.\n\n'
+        'Responde en espanol. Se conciso pero completo.\n\n'
+        '--- TEXTO DEL CONTRATO ---\n'
+        f'{texto[:8000]}'  # Limitar para no exceder tokens
+    )
+
+    system = (
+        'Eres un asistente juridico especializado en derecho laboral peruano. '
+        'Analizas contratos de trabajo y proporcionas observaciones legales precisas.'
+    )
+
+    try:
+        # Use generate with higher token limit
+        resultado = svc.generate(prompt, system=system)
+        if not resultado:
+            return JsonResponse({
+                'ok': False,
+                'error': 'La IA no devolvio resultado. Intente nuevamente.',
+            })
+
+        return JsonResponse({
+            'ok': True,
+            'analisis': resultado,
+            'contrato_id': contrato.pk,
+            'trabajador': personal.apellidos_nombres,
+        })
+    except Exception as e:
+        return JsonResponse({
+            'ok': False,
+            'error': f'Error al comunicarse con la IA: {str(e)}',
+        })
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ENVIAR CONTRATO POR EMAIL (Individual)
+# ═════════════════════════════════════════════════════════════════════════════
+
+@solo_admin
+@require_POST
+def contrato_enviar_email(request, pk):
+    """Genera el PDF del contrato y lo envía por email al trabajador."""
+    from io import BytesIO
+    from django.template.loader import get_template
+    from django.core.mail import EmailMessage, get_connection
+    from xhtml2pdf import pisa
+    from empresas.models import Empresa
+
+    contrato = get_object_or_404(Contrato, pk=pk)
+    personal = contrato.personal
+
+    # Verificar que el trabajador tiene email
+    email_destino = (personal.correo_corporativo or
+                     getattr(personal, 'correo_personal', '') or '')
+    if not email_destino:
+        messages.error(request, f'{personal.apellidos_nombres} no tiene correo registrado.')
+        return redirect('contrato_detalle', pk=personal.pk)
+
+    # Obtener empresa
+    empresa = personal.empresa
+    if not empresa:
+        empresa = Empresa.objects.filter(es_principal=True).first()
+    if not empresa:
+        empresa = Empresa.objects.first()
+
+    # Verificar SMTP
+    if not empresa or not empresa.tiene_email_configurado:
+        messages.error(request, 'No hay configuracion SMTP. Configure el correo en la empresa.')
+        return redirect('contrato_detalle', pk=personal.pk)
+
+    # Generar PDF
+    sueldo_letras = ''
+    if contrato.sueldo_pactado:
+        try:
+            from num2words import num2words
+            sueldo_letras = num2words(float(contrato.sueldo_pactado), lang='es') + ' soles'
+        except Exception:
+            sueldo_letras = f'{contrato.sueldo_pactado} soles'
+
+    context = {
+        'contrato': contrato,
+        'personal': personal,
+        'empresa': empresa,
+        'tipo_contrato_display': contrato.get_tipo_contrato_display(),
+        'sueldo_letras': sueldo_letras,
+    }
+
+    template = get_template('personal/contrato_pdf.html')
+    html = template.render(context)
+    result = BytesIO()
+    pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), result, encoding='utf-8')
+
+    if pdf.err:
+        messages.error(request, 'Error generando el PDF del contrato.')
+        return redirect('contrato_detalle', pk=personal.pk)
+
+    pdf_content = result.getvalue()
+    nombre_pdf = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}.pdf'
+
+    # Enviar email
+    smtp = empresa.get_smtp_config()
+    try:
+        connection = get_connection(
+            host=smtp['host'],
+            port=smtp['port'],
+            username=smtp['username'],
+            password=smtp['password'],
+            use_tls=smtp['use_tls'],
+            use_ssl=smtp['use_ssl'],
+            fail_silently=False,
+        )
+
+        tipo_display = contrato.get_tipo_contrato_display()
+        email = EmailMessage(
+            subject=f'Contrato de Trabajo — {empresa.nombre_display}',
+            body=(
+                f'<p>Estimado(a) <strong>{personal.apellidos_nombres}</strong>,</p>'
+                f'<p>Adjunto encontrara su contrato de trabajo bajo la modalidad '
+                f'<strong>{tipo_display}</strong>.</p>'
+                f'<p>Datos del contrato:</p>'
+                f'<ul>'
+                f'<li>Inicio: {contrato.fecha_inicio.strftime("%d/%m/%Y")}</li>'
+                f'<li>Fin: {contrato.fecha_fin.strftime("%d/%m/%Y") if contrato.fecha_fin else "Indefinido"}</li>'
+                f'<li>Cargo: {contrato.cargo_contrato or personal.cargo}</li>'
+                f'</ul>'
+                f'<p>Por favor, revise el documento y comuniquese con RRHH ante cualquier consulta.</p>'
+                f'<p>Atentamente,<br><strong>{empresa.nombre_display}</strong></p>'
+            ),
+            from_email=smtp['from_email'],
+            to=[email_destino],
+            reply_to=[smtp['reply_to']] if smtp.get('reply_to') else None,
+            connection=connection,
+        )
+        email.content_subtype = 'html'
+        email.attach(nombre_pdf, pdf_content, 'application/pdf')
+        email.send()
+
+        messages.success(
+            request,
+            f'Contrato enviado exitosamente a {email_destino}.'
+        )
+    except Exception as e:
+        messages.error(request, f'Error enviando email: {str(e)[:200]}')
+
+    return redirect('contrato_detalle', pk=personal.pk)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ENVÍO MASIVO DE CONTRATOS POR EMAIL
+# ═════════════════════════════════════════════════════════════════════════════
+
+@solo_admin
+@require_POST
+def contratos_envio_masivo(request):
+    """Envía múltiples contratos por email (uno a cada trabajador)."""
+    from io import BytesIO
+    from django.template.loader import get_template
+    from django.core.mail import EmailMessage, get_connection
+    from xhtml2pdf import pisa
+    from empresas.models import Empresa
+
+    contrato_ids = request.POST.getlist('contrato_ids')
+    if not contrato_ids:
+        messages.warning(request, 'No se seleccionaron contratos para enviar.')
+        return redirect('contratos_lista')
+
+    contratos = Contrato.objects.filter(pk__in=contrato_ids).select_related(
+        'personal__empresa', 'personal__subarea__area'
+    )
+
+    if not contratos.exists():
+        messages.error(request, 'No se encontraron los contratos seleccionados.')
+        return redirect('contratos_lista')
+
+    # Obtener empresa default
+    empresa_default = Empresa.objects.filter(es_principal=True).first()
+    if not empresa_default:
+        empresa_default = Empresa.objects.first()
+
+    enviados = 0
+    errores = []
+
+    for contrato in contratos:
+        personal = contrato.personal
+        empresa = personal.empresa or empresa_default
+
+        if not empresa or not empresa.tiene_email_configurado:
+            errores.append(f'{personal.apellidos_nombres}: Sin config SMTP')
+            continue
+
+        email_destino = (personal.correo_corporativo or
+                         getattr(personal, 'correo_personal', '') or '')
+        if not email_destino:
+            errores.append(f'{personal.apellidos_nombres}: Sin email')
+            continue
+
+        # Generar PDF
+        sueldo_letras = ''
+        if contrato.sueldo_pactado:
+            try:
+                from num2words import num2words
+                sueldo_letras = num2words(float(contrato.sueldo_pactado), lang='es') + ' soles'
+            except Exception:
+                sueldo_letras = f'{contrato.sueldo_pactado} soles'
+
+        context = {
+            'contrato': contrato,
+            'personal': personal,
+            'empresa': empresa,
+            'tipo_contrato_display': contrato.get_tipo_contrato_display(),
+            'sueldo_letras': sueldo_letras,
+        }
+
+        template = get_template('personal/contrato_pdf.html')
+        html = template.render(context)
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), result, encoding='utf-8')
+
+        if pdf.err:
+            errores.append(f'{personal.apellidos_nombres}: Error generando PDF')
+            continue
+
+        pdf_content = result.getvalue()
+        nombre_pdf = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}.pdf'
+
+        # Enviar
+        smtp = empresa.get_smtp_config()
+        try:
+            connection = get_connection(
+                host=smtp['host'],
+                port=smtp['port'],
+                username=smtp['username'],
+                password=smtp['password'],
+                use_tls=smtp['use_tls'],
+                use_ssl=smtp['use_ssl'],
+                fail_silently=False,
+            )
+
+            tipo_display = contrato.get_tipo_contrato_display()
+            email = EmailMessage(
+                subject=f'Contrato de Trabajo — {empresa.nombre_display}',
+                body=(
+                    f'<p>Estimado(a) <strong>{personal.apellidos_nombres}</strong>,</p>'
+                    f'<p>Adjunto encontrara su contrato de trabajo '
+                    f'(<strong>{tipo_display}</strong>).</p>'
+                    f'<p>Atentamente,<br><strong>{empresa.nombre_display}</strong></p>'
+                ),
+                from_email=smtp['from_email'],
+                to=[email_destino],
+                reply_to=[smtp['reply_to']] if smtp.get('reply_to') else None,
+                connection=connection,
+            )
+            email.content_subtype = 'html'
+            email.attach(nombre_pdf, pdf_content, 'application/pdf')
+            email.send()
+            enviados += 1
+        except Exception as e:
+            errores.append(f'{personal.apellidos_nombres}: {str(e)[:100]}')
+
+    if enviados:
+        messages.success(request, f'{enviados} contrato(s) enviado(s) exitosamente por email.')
+    if errores:
+        msg_errores = '; '.join(errores[:5])
+        if len(errores) > 5:
+            msg_errores += f' ... y {len(errores) - 5} mas'
+        messages.warning(request, f'Errores en envio: {msg_errores}')
+
+    return redirect('contratos_lista')

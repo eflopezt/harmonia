@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 2.5cm 2.5cm 2.5cm;
+    @frame footer {
+      -pdf-frame-content: footerContent;
+      bottom: 0.5cm;
+      margin-left: 2.5cm;
+      margin-right: 2.5cm;
+      height: 1.5cm;
+    }
+  }
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #0f766e;
+    padding-bottom: 15px;
+  }
+  .header img.logo {
+    max-height: 70px;
+    margin-bottom: 8px;
+  }
+  .header img.membrete {
+    max-width: 100%;
+    max-height: 100px;
+    margin-bottom: 8px;
+  }
+  .empresa-info {
+    font-size: 9pt;
+    color: #555;
+    text-align: center;
+    margin-bottom: 5px;
+  }
+  h1.titulo {
+    font-size: 16pt;
+    text-align: center;
+    color: #0f766e;
+    margin: 25px 0 5px 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  h2.subtitulo {
+    font-size: 12pt;
+    text-align: center;
+    color: #333;
+    margin: 0 0 25px 0;
+    font-weight: normal;
+  }
+  .datos-table {
+    width: 100%;
+    margin-bottom: 20px;
+    border-collapse: collapse;
+  }
+  .datos-table td {
+    padding: 5px 8px;
+    font-size: 10pt;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  .datos-table td.label {
+    font-weight: bold;
+    color: #0f766e;
+    width: 35%;
+  }
+  .clausula {
+    margin-bottom: 12px;
+    text-align: justify;
+  }
+  .clausula-titulo {
+    font-weight: bold;
+    color: #0f766e;
+    margin-bottom: 4px;
+  }
+  .firmas {
+    margin-top: 60px;
+    width: 100%;
+  }
+  .firmas td {
+    width: 45%;
+    text-align: center;
+    vertical-align: bottom;
+    padding: 0 20px;
+  }
+  .firma-linea {
+    border-top: 1px solid #333;
+    padding-top: 5px;
+    font-size: 10pt;
+    font-weight: bold;
+  }
+  .firma-cargo {
+    font-size: 9pt;
+    color: #555;
+  }
+  .firma-img {
+    max-height: 60px;
+    margin-bottom: 5px;
+  }
+  .lugar-fecha {
+    text-align: right;
+    font-size: 10pt;
+    margin-top: 30px;
+    color: #555;
+  }
+  .footer-text {
+    font-size: 8pt;
+    color: #999;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+{# ── Cabecera ── #}
+<div class="header">
+  {% if empresa.membrete_header %}
+    <img src="{{ empresa.membrete_header.path }}" class="membrete">
+  {% elif empresa.logo %}
+    <img src="{{ empresa.logo.path }}" class="logo"><br>
+    <strong style="font-size:14pt; color:#0f766e;">{{ empresa.razon_social }}</strong>
+  {% else %}
+    <strong style="font-size:14pt; color:#0f766e;">{{ empresa.razon_social }}</strong>
+  {% endif %}
+  <div class="empresa-info">
+    RUC: {{ empresa.ruc }}
+    {% if empresa.direccion %} | {{ empresa.direccion }}{% endif %}
+    {% if empresa.telefono %} | Tel: {{ empresa.telefono }}{% endif %}
+  </div>
+</div>
+
+{# ── Titulo ── #}
+<h1 class="titulo">CONTRATO DE TRABAJO</h1>
+<h2 class="subtitulo">{{ tipo_contrato_display }}</h2>
+
+{% if contrato.numero_contrato %}
+<p style="text-align:center; font-size:10pt; color:#777;">
+  N.&deg; {{ contrato.numero_contrato }}
+</p>
+{% endif %}
+
+{# ── Partes ── #}
+<p class="clausula">
+  Conste por el presente documento el <strong>Contrato de Trabajo</strong> que celebran, de una parte:
+</p>
+
+<table class="datos-table">
+  <tr>
+    <td class="label">EL EMPLEADOR</td>
+    <td>{{ empresa.razon_social }}</td>
+  </tr>
+  <tr>
+    <td class="label">RUC</td>
+    <td>{{ empresa.ruc }}</td>
+  </tr>
+  <tr>
+    <td class="label">Domicilio</td>
+    <td>{{ empresa.direccion|default:"---" }}</td>
+  </tr>
+  {% if empresa.representante_legal %}
+  <tr>
+    <td class="label">Representante Legal</td>
+    <td>{{ empresa.representante_legal }} — {{ empresa.cargo_representante|default:"Representante Legal" }}</td>
+  </tr>
+  {% endif %}
+</table>
+
+<p class="clausula">Y de otra parte:</p>
+
+<table class="datos-table">
+  <tr>
+    <td class="label">EL TRABAJADOR</td>
+    <td>{{ personal.apellidos_nombres }}</td>
+  </tr>
+  <tr>
+    <td class="label">{{ personal.tipo_doc }}</td>
+    <td>{{ personal.nro_doc }}</td>
+  </tr>
+  <tr>
+    <td class="label">Cargo</td>
+    <td>{{ contrato.cargo_contrato|default:personal.cargo }}</td>
+  </tr>
+  <tr>
+    <td class="label">Area</td>
+    <td>{{ personal.subarea.area.nombre|default:"---" }}</td>
+  </tr>
+</table>
+
+{# ── Clausulas ── #}
+<p class="clausula">
+  En los terminos y condiciones siguientes:
+</p>
+
+<div class="clausula">
+  <div class="clausula-titulo">PRIMERA: ANTECEDENTES</div>
+  <p>
+    EL EMPLEADOR es una empresa que requiere los servicios de un trabajador para desempenar
+    el cargo de <strong>{{ contrato.cargo_contrato|default:personal.cargo }}</strong>,
+    en el area de <strong>{{ personal.subarea.area.nombre|default:"la empresa" }}</strong>.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">SEGUNDA: OBJETO DEL CONTRATO</div>
+  <p>
+    Por el presente contrato, EL EMPLEADOR contrata los servicios de EL TRABAJADOR
+    para que desempene las labores inherentes al cargo de
+    <strong>{{ contrato.cargo_contrato|default:personal.cargo }}</strong>,
+    debiendo someterse al cumplimiento estricto de las funciones asignadas, asi como a las
+    normas y directivas internas de la empresa.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">TERCERA: MODALIDAD CONTRACTUAL</div>
+  <p>
+    El presente contrato se celebra bajo la modalidad de
+    <strong>{{ tipo_contrato_display }}</strong>,
+    de conformidad con el Texto Unico Ordenado del Decreto Legislativo N.&deg; 728,
+    Ley de Productividad y Competitividad Laboral, aprobado por Decreto Supremo N.&deg; 003-97-TR.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">CUARTA: PLAZO DEL CONTRATO</div>
+  <p>
+    El presente contrato tiene una duracion
+    {% if contrato.fecha_fin %}
+      desde el <strong>{{ contrato.fecha_inicio|date:"d de F de Y" }}</strong>
+      hasta el <strong>{{ contrato.fecha_fin|date:"d de F de Y" }}</strong>.
+    {% else %}
+      <strong>indefinida</strong>, iniciando el
+      <strong>{{ contrato.fecha_inicio|date:"d de F de Y" }}</strong>.
+    {% endif %}
+    {% if contrato.renovacion_automatica %}
+    El contrato se renovara automaticamente al termino de su vigencia,
+    salvo que alguna de las partes comunique por escrito su decision de no renovarlo
+    con una anticipacion no menor de treinta (30) dias naturales.
+    {% endif %}
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">QUINTA: REMUNERACION</div>
+  <p>
+    EL EMPLEADOR abonara a EL TRABAJADOR una remuneracion mensual de
+    {% if contrato.sueldo_pactado %}
+      <strong>S/ {{ contrato.sueldo_pactado|floatformat:2 }}</strong> ({{ sueldo_letras }}),
+    {% else %}
+      la remuneracion que se acuerde oportunamente,
+    {% endif %}
+    monto que incluye la remuneracion basica y demas conceptos remunerativos que le pudieran
+    corresponder de acuerdo a ley. Dicha remuneracion estara sujeta a las deducciones y
+    retenciones de ley (AFP/ONP, impuesto a la renta de quinta categoria, etc.).
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">SEXTA: JORNADA DE TRABAJO</div>
+  <p>
+    EL TRABAJADOR se obliga a cumplir una jornada de trabajo de
+    <strong>{{ contrato.jornada_semanal|floatformat:0 }} horas semanales</strong>,
+    dentro de los horarios que establezca EL EMPLEADOR, conforme al Decreto Legislativo N.&deg; 854,
+    Ley de Jornada de Trabajo, Horario y Trabajo en Sobretiempo.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">SEPTIMA: PERIODO DE PRUEBA</div>
+  <p>
+    EL TRABAJADOR estara sujeto a un periodo de prueba de tres (3) meses,
+    conforme al articulo 10 del D.S. N.&deg; 003-97-TR.
+    Durante dicho periodo, cualquiera de las partes podra dar por terminado el
+    contrato sin expresion de causa.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">OCTAVA: OBLIGACIONES DEL TRABAJADOR</div>
+  <p>
+    EL TRABAJADOR se compromete a: (a) cumplir con las funciones inherentes a su cargo;
+    (b) observar las disposiciones del Reglamento Interno de Trabajo;
+    (c) guardar confidencialidad sobre la informacion de la empresa;
+    (d) cumplir con las normas de seguridad y salud en el trabajo.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">NOVENA: CAUSALES DE RESOLUCION</div>
+  <p>
+    Son causales de resolucion del presente contrato:
+    (a) el vencimiento del plazo pactado;
+    (b) el mutuo acuerdo entre las partes;
+    (c) las causas justas contempladas en los articulos 23, 24 y 25 del D.S. N.&deg; 003-97-TR;
+    (d) la renuncia voluntaria del trabajador con un preaviso de treinta (30) dias;
+    (e) las demas causales previstas por la legislacion laboral vigente.
+  </p>
+</div>
+
+<div class="clausula">
+  <div class="clausula-titulo">DECIMA: DISPOSICIONES FINALES</div>
+  <p>
+    Para todo lo no previsto en el presente contrato, se estara a lo dispuesto por
+    la legislacion laboral vigente. Las partes se someten a la jurisdiccion de los
+    juzgados y tribunales del distrito judicial correspondiente al domicilio del empleador.
+  </p>
+</div>
+
+{% if contrato.observaciones %}
+<div class="clausula">
+  <div class="clausula-titulo">CLAUSULA ADICIONAL</div>
+  <p>{{ contrato.observaciones }}</p>
+</div>
+{% endif %}
+
+{# ── Lugar y fecha ── #}
+<div class="lugar-fecha">
+  {{ empresa.distrito|default:empresa.departamento|default:"Lima" }},
+  {{ contrato.fecha_inicio|date:"d de F de Y" }}
+</div>
+
+{# ── Firmas ── #}
+<table class="firmas">
+  <tr>
+    <td>
+      {% if empresa.firma_representante %}
+        <img src="{{ empresa.firma_representante.path }}" class="firma-img"><br>
+      {% else %}
+        <br><br><br>
+      {% endif %}
+      <div class="firma-linea">
+        {{ empresa.representante_legal|default:empresa.razon_social }}
+      </div>
+      <div class="firma-cargo">
+        {{ empresa.cargo_representante|default:"Representante Legal" }}<br>
+        {{ empresa.razon_social }}<br>
+        RUC: {{ empresa.ruc }}
+      </div>
+    </td>
+    <td style="width:10%"></td>
+    <td>
+      <br><br><br>
+      <div class="firma-linea">
+        {{ personal.apellidos_nombres }}
+      </div>
+      <div class="firma-cargo">
+        {{ personal.tipo_doc }}: {{ personal.nro_doc }}<br>
+        EL TRABAJADOR
+      </div>
+    </td>
+  </tr>
+</table>
+
+{# ── Footer ── #}
+<div id="footerContent">
+  <div class="footer-text">
+    {{ empresa.razon_social }} | RUC {{ empresa.ruc }}
+    {% if empresa.email_rrhh %} | {{ empresa.email_rrhh }}{% endif %}
+    | Documento generado por Harmoni ERP
+  </div>
+</div>
+
+</body>
+</html>
