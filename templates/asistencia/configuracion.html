@@ -661,6 +661,12 @@
                 <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>.
                 Costo: ~$0.15/M tokens entrada.
             </div>
+            <div id="iaBannerAnthropic" style="display:none" class="alert mb-4" style="background:rgba(180,120,60,.07);border:1px solid rgba(180,120,60,.2);border-radius:8px;padding:12px 16px;font-size:.82rem;">
+                <i class="fas fa-comment-dots me-2 text-warning"></i>
+                <strong>Anthropic Claude</strong> &mdash; Alta calidad en razonamiento y generaci&oacute;n de texto.
+                Obt&eacute;n tu API key en <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
+                Modelos: claude-sonnet-4-20250514 (recomendado), claude-haiku-4-20250414 (r&aacute;pido), claude-opus-4-20250514 (premium).
+            </div>
             <div id="iaBannerOllama" style="display:none" class="alert mb-4" style="background:rgba(15,118,110,.07);border:1px solid rgba(15,118,110,.2);border-radius:8px;padding:12px 16px;font-size:.82rem;color:#0f4c42;">
                 <i class="fas fa-server me-2"></i>
                 <strong>Ollama local</strong> &mdash; Corre en tu servidor, sin costo por llamada.
@@ -1234,11 +1240,12 @@ function toggleProgramaOtro() {
 
 // Configuración por provider: {campos visibles, modelo default, placeholder endpoint, hints}
 const IA_PROVIDER_CONFIG = {
-    GEMINI:   { apiKey:true, endpoint:false, modelo:true, modeloHint:'gemini-2.5-flash &middot; gemini-2.5-pro &middot; gemini-2.0-flash', modeloPlaceholder:'gemini-2.5-flash', banner:'iaBannerGemini' },
-    DEEPSEEK: { apiKey:true, endpoint:true,  modelo:true, modeloHint:'deepseek-chat &middot; deepseek-reasoner', modeloPlaceholder:'deepseek-chat', endpointHint:'Por defecto: https://api.deepseek.com/v1', banner:'iaBannerDeepSeek' },
-    OPENAI:   { apiKey:true, endpoint:false, modelo:true, modeloHint:'gpt-4o-mini &middot; gpt-4o', modeloPlaceholder:'gpt-4o-mini', banner:'iaBannerOpenAI' },
-    OLLAMA:   { apiKey:false, endpoint:true, modelo:true, modeloHint:'llama3.2 &middot; mistral &middot; qwen2.5', modeloPlaceholder:'llama3.2', endpointHint:'Por defecto: http://localhost:11434', banner:'iaBannerOllama' },
-    NINGUNO:  { apiKey:false, endpoint:false, modelo:false, banner:null },
+    GEMINI:    { apiKey:true, endpoint:false, modelo:true, modeloHint:'gemini-2.5-flash &middot; gemini-2.5-pro &middot; gemini-2.0-flash', modeloPlaceholder:'gemini-2.5-flash', banner:'iaBannerGemini' },
+    DEEPSEEK:  { apiKey:true, endpoint:true,  modelo:true, modeloHint:'deepseek-chat &middot; deepseek-reasoner', modeloPlaceholder:'deepseek-chat', endpointHint:'Por defecto: https://api.deepseek.com/v1', banner:'iaBannerDeepSeek' },
+    OPENAI:    { apiKey:true, endpoint:false, modelo:true, modeloHint:'gpt-4o-mini &middot; gpt-4o', modeloPlaceholder:'gpt-4o-mini', banner:'iaBannerOpenAI' },
+    ANTHROPIC: { apiKey:true, endpoint:false, modelo:true, modeloHint:'claude-sonnet-4-20250514 &middot; claude-haiku-4-20250414 &middot; claude-opus-4-20250514', modeloPlaceholder:'claude-sonnet-4-20250514', banner:'iaBannerAnthropic' },
+    OLLAMA:    { apiKey:false, endpoint:true, modelo:true, modeloHint:'llama3.2 &middot; mistral &middot; qwen2.5', modeloPlaceholder:'llama3.2', endpointHint:'Por defecto: http://localhost:11434', banner:'iaBannerOllama' },
+    NINGUNO:   { apiKey:false, endpoint:false, modelo:false, banner:null },
 };
 
 function actualizarPanelIA() {
@@ -1246,7 +1253,7 @@ function actualizarPanelIA() {
     const cfg = IA_PROVIDER_CONFIG[provider] || IA_PROVIDER_CONFIG.NINGUNO;
 
     // Ocultar todos los banners primero
-    ['iaBannerGemini','iaBannerDeepSeek','iaBannerOpenAI','iaBannerOllama'].forEach(id => {
+    ['iaBannerGemini','iaBannerDeepSeek','iaBannerOpenAI','iaBannerAnthropic','iaBannerOllama'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });

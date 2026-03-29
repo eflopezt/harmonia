@@ -507,6 +507,147 @@ class OpenAICompatibleService(IAService):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Provider: ANTHROPIC (Claude)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class AnthropicService(IAService):
+    """
+    Proveedor Anthropic (Claude).
+    Modelos: claude-sonnet-4-20250514, claude-haiku-4-20250414, claude-opus-4-20250514
+    Usa el SDK anthropic oficial.
+    Streaming nativo soportado.
+    """
+    provider_name = 'ANTHROPIC'
+
+    def __init__(
+        self,
+        api_key: str,
+        modelo: str = 'claude-sonnet-4-20250514',
+    ):
+        self.api_key = api_key
+        self.modelo = modelo
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            try:
+                from anthropic import Anthropic  # type: ignore
+                self._client = Anthropic(api_key=self.api_key)
+            except ImportError:
+                raise RuntimeError(
+                    'anthropic no instalado. Ejecuta: pip install anthropic'
+                )
+        return self._client
+
+    def test_connection(self) -> dict:
+        try:
+            client = self._get_client()
+            resp = client.messages.create(
+                model=self.modelo,
+                max_tokens=10,
+                messages=[{'role': 'user', 'content': 'di "ok"'}],
+            )
+            content = resp.content[0].text if resp.content else ''
+            return {
+                'ok': True,
+                'info': f'Anthropic conectado. Modelo: {self.modelo}. Respuesta: {content[:30]}',
+                'error': None,
+            }
+        except ImportError:
+            return {'ok': False, 'info': '', 'error': 'Instala: pip install anthropic'}
+        except Exception as e:
+            return {'ok': False, 'info': '', 'error': str(e)}
+
+    def generate(self, prompt: str, system: str | None = None) -> str | None:
+        try:
+            client = self._get_client()
+            kwargs: dict = {
+                'model': self.modelo,
+                'max_tokens': 400,
+                'messages': [{'role': 'user', 'content': prompt}],
+            }
+            if system:
+                kwargs['system'] = system
+            resp = client.messages.create(**kwargs)
+            text = resp.content[0].text if resp.content else ''
+            return text.strip() or None
+        except Exception as e:
+            logger.warning(f'Anthropic generate falló: {e}')
+            return None
+
+    def chat(self, messages: list, system: str | None = None) -> str | None:
+        try:
+            client = self._get_client()
+            # Filtrar mensajes de sistema (Anthropic los pone aparte)
+            chat_msgs = [m for m in messages if m.get('role') != 'system']
+            sys_text = system or ''
+            for m in messages:
+                if m.get('role') == 'system':
+                    sys_text = (sys_text + '\n' + m.get('content', '')).strip()
+            if not chat_msgs:
+                chat_msgs = [{'role': 'user', 'content': ''}]
+            kwargs: dict = {
+                'model': self.modelo,
+                'max_tokens': 600,
+                'messages': chat_msgs,
+            }
+            if sys_text:
+                kwargs['system'] = sys_text
+            resp = client.messages.create(**kwargs)
+            text = resp.content[0].text if resp.content else ''
+            return text.strip() or None
+        except Exception as e:
+            logger.warning(f'Anthropic chat falló: {e}')
+            return None
+
+    def chat_stream(
+        self,
+        messages: list,
+        system: str | None = None,
+        temperature: float = 0.3,
+        num_predict: int = 500,
+    ):
+        try:
+            client = self._get_client()
+            chat_msgs = [m for m in messages if m.get('role') != 'system']
+            sys_text = system or ''
+            for m in messages:
+                if m.get('role') == 'system':
+                    sys_text = (sys_text + '\n' + m.get('content', '')).strip()
+            if not chat_msgs:
+                chat_msgs = [{'role': 'user', 'content': ''}]
+            kwargs: dict = {
+                'model': self.modelo,
+                'max_tokens': num_predict,
+                'messages': chat_msgs,
+            }
+            if sys_text:
+                kwargs['system'] = sys_text
+            with client.messages.stream(**kwargs) as stream:
+                for text in stream.text_stream:
+                    if text:
+                        yield text
+        except Exception as e:
+            logger.warning(f'Anthropic chat_stream falló: {e}')
+            raise ConnectionError(f'Anthropic stream: {e}') from e
+
+    def generate_stream(
+        self,
+        prompt: str,
+        system: str | None = None,
+        temperature: float = 0.3,
+        num_predict: int = 500,
+    ):
+        msgs = [{'role': 'user', 'content': prompt}]
+        yield from self.chat_stream(
+            messages=msgs,
+            system=system,
+            temperature=temperature,
+            num_predict=num_predict,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Provider: OLLAMA (local)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -742,6 +883,11 @@ def get_service() -> IAService | None:
                 modelo=modelo or 'gpt-4o-mini',
                 base_url='https://api.openai.com/v1',
                 provider_label='OPENAI',
+            )
+        elif provider == 'ANTHROPIC' and api_key:
+            svc = AnthropicService(
+                api_key=api_key,
+                modelo=modelo or 'claude-sonnet-4-20250514',
             )
         elif provider == 'OLLAMA':
             svc = OllamaService(

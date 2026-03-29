@@ -1339,11 +1339,12 @@ class ConfiguracionSistema(models.Model):
 
     # ── IA / Multi-Provider (Fase 4.4) ──
     IA_PROVIDER_CHOICES = [
-        ('GEMINI',   'Gemini (Google — recomendado)'),
-        ('DEEPSEEK', 'DeepSeek (más económico)'),
-        ('OPENAI',   'OpenAI (GPT-4o-mini)'),
-        ('OLLAMA',   'Ollama (Local — sin costo)'),
-        ('NINGUNO',  'Sin IA'),
+        ('GEMINI',    'Gemini (Google — recomendado)'),
+        ('DEEPSEEK',  'DeepSeek (más económico)'),
+        ('OPENAI',    'OpenAI (GPT-4o-mini)'),
+        ('ANTHROPIC', 'Anthropic (Claude)'),
+        ('OLLAMA',    'Ollama (Local — sin costo)'),
+        ('NINGUNO',   'Sin IA'),
     ]
     IA_OCR_PROVIDER_CHOICES = [
         ('GEMINI',  'Gemini 2.5 Flash (PDF nativos)'),

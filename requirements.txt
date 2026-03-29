@@ -45,6 +45,7 @@ PyMuPDF>=1.24.0         # Extracción texto PDF para upload IA (fitz)
 google-generativeai>=0.8.0   # Gemini SDK legado (compatibilidad)
 google-genai>=1.0.0          # Gemini SDK nuevo — ai_service.py GeminiService (REQUERIDO)
 openai>=1.50.0               # DeepSeek (OpenAI-compatible) + OpenAI GPT + embeddings RAG
+anthropic>=0.39.0            # Anthropic Claude — ai_service.py AnthropicService
 
 # ==========================================
 # DATABASE

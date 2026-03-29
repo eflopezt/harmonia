@@ -207,7 +207,7 @@ def ia_test_connection(request):
     Devuelve JSON con {ok, info, error, modelos (Ollama)}.
     """
     from asistencia.services.ai_service import (
-        GeminiService, OpenAICompatibleService, OllamaService
+        GeminiService, OpenAICompatibleService, OllamaService, AnthropicService
     )
 
     provider = request.POST.get('provider', 'OLLAMA').strip()
@@ -239,6 +239,14 @@ def ia_test_connection(request):
                 modelo=modelo or 'gpt-4o-mini',
                 base_url='https://api.openai.com/v1',
                 provider_label='OPENAI',
+            )
+
+        elif provider == 'ANTHROPIC':
+            if not api_key:
+                return JsonResponse({'ok': False, 'error': 'API Key requerida para Anthropic.', 'info': ''})
+            svc = AnthropicService(
+                api_key=api_key,
+                modelo=modelo or 'claude-sonnet-4-20250514',
             )
 
         elif provider == 'OLLAMA':
