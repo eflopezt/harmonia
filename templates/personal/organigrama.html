@@ -173,9 +173,11 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3.1.1/build/d3-org-chart.js"></script>
-<!-- html2canvas + jsPDF para export PDF -->
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<!-- jsPDF + svg2pdf.js para export PDF vectorial -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js"></script>
+<!-- html2canvas como fallback para PNG -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 var chart = null;  // var para acceso global (window.chart)
@@ -433,54 +435,40 @@ document.getElementById('selArea').addEventListener('change', function() {
     loadChart(this.value);
 });
 
-// PDF Export
+// PDF Export - Vectorial (SVG → PDF, nítido al zoom e impresión)
 async function exportPDF() {
     var container = document.getElementById('orgChart');
     var paper = document.getElementById('pdfPaper').value;
     var orientation = document.getElementById('pdfOrientation').value;
     var scale = parseFloat(document.getElementById('pdfScale').value);
-    var multipage = document.getElementById('pdfMultipage').checked;
 
     var sizes = { 'a4': [210, 297], 'a3': [297, 420], 'letter': [215.9, 279.4], 'tabloid': [279.4, 431.8] };
     var dims = sizes[paper] || sizes['a3'];
-    var pw = dims[0], ph = dims[1];
-    if (orientation === 'landscape') { var tmp = pw; pw = ph; ph = tmp; }
-
-    var margin = 15;
-    var usableW = pw - margin * 2;
-    var usableH = ph - margin * 2 - 12;
 
     var btn = event.target.closest('button');
     var originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando PDF vectorial...';
     btn.disabled = true;
 
     try {
-        // Guardar estado actual y expandir todo
+        // Expandir todo y esperar render
         if (chart) { chart.expandAll(); chart.fit(); }
         await new Promise(function(r) { setTimeout(r, 1500); });
 
-        // Capturar con resolución adaptativa según tamaño del chart
-        var chartSvg = container.querySelector('svg');
-        var svgRect = chartSvg ? chartSvg.getBoundingClientRect() : container.getBoundingClientRect();
-        var captureScale = Math.min(2, 8000 / Math.max(svgRect.width, svgRect.height));
-        captureScale = Math.max(1, captureScale);
+        var svgEl = container.querySelector('svg');
+        if (!svgEl) throw new Error('No se encontró el SVG del organigrama');
 
-        var canvas = await html2canvas(container, { scale: captureScale, useCORS: true, logging: false, backgroundColor: '#f8fafc' });
-        var imgData = canvas.toDataURL('image/jpeg', 0.92);
-        var imgW = canvas.width;
-        var imgH = canvas.height;
+        // Obtener dimensiones reales del SVG (viewBox o atributos)
+        var svgW = svgEl.viewBox.baseVal.width || svgEl.getBoundingClientRect().width;
+        var svgH = svgEl.viewBox.baseVal.height || svgEl.getBoundingClientRect().height;
+        var svgRatio = svgW / svgH;
 
-        var jsPDF = window.jspdf.jsPDF;
+        // Determinar orientación automática
+        if (orientation === 'landscape' || svgRatio > 1.2) {
+            orientation = 'landscape';
+        }
 
-        // Auto-detectar orientación: si el chart es más ancho que alto, usar landscape
-        var ratio = imgW / imgH;
-        var autoOrientation = ratio > 1.2 ? 'landscape' : 'portrait';
-        if (orientation === 'auto') orientation = autoOrientation;
-
-        var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
-
-        // Recalcular dims con orientación final
+        var pw, ph;
         if (orientation === 'landscape') {
             pw = Math.max(dims[0], dims[1]);
             ph = Math.min(dims[0], dims[1]);
@@ -488,53 +476,108 @@ async function exportPDF() {
             pw = Math.min(dims[0], dims[1]);
             ph = Math.max(dims[0], dims[1]);
         }
-        usableW = pw - margin * 2;
-        usableH = ph - margin * 2 - 12;
 
-        var renderW = usableW * scale;
-        var renderH = renderW / ratio;
+        var margin = 10;
+        var usableW = pw - margin * 2;
+        var usableH = ph - margin * 2 - 14; // espacio para header/footer
 
-        if (!multipage || renderH <= usableH) {
-            _addHeader(pdf, pw, margin);
-            var fitW = Math.min(renderW, usableW);
-            var fitH = fitW / ratio;
-            // Si es muy alto, ajustar al alto disponible
-            if (fitH > usableH) {
-                fitH = usableH;
-                fitW = fitH * ratio;
-            }
-            var x = margin + (usableW - fitW) / 2;
-            pdf.addImage(imgData, 'JPEG', x, margin + 12, fitW, fitH);
-            _addFooter(pdf, pw, ph, margin, 1, 1);
-        } else {
-            // Multi-página: dividir verticalmente
-            var pxPerPage = (usableH / renderH) * imgH;
-            var totalPages = Math.ceil(imgH / pxPerPage);
-            for (var page = 0; page < totalPages; page++) {
-                if (page > 0) pdf.addPage(paper, orientation);
-                _addHeader(pdf, pw, margin);
-                var cropCanvas = document.createElement('canvas');
-                cropCanvas.width = imgW;
-                cropCanvas.height = Math.min(pxPerPage, imgH - page * pxPerPage);
-                var ctx = cropCanvas.getContext('2d');
-                ctx.drawImage(canvas, 0, -page * pxPerPage);
-                var cropData = cropCanvas.toDataURL('image/jpeg', 0.90);
-                var cr = cropCanvas.width / cropCanvas.height;
-                var fw = Math.min(usableW, renderW);
-                var fh = fw / cr;
-                if (fh > usableH) { fh = usableH; fw = fh * cr; }
-                var xx = margin + (usableW - fw) / 2;
-                pdf.addImage(cropData, 'JPEG', xx, margin + 12, fw, Math.min(fh, usableH));
-                _addFooter(pdf, pw, ph, margin, page + 1, totalPages);
-            }
+        // Calcular tamaño del SVG en el PDF
+        var fitW = usableW * scale;
+        var fitH = fitW / svgRatio;
+        if (fitH > usableH) {
+            fitH = usableH;
+            fitW = fitH * svgRatio;
         }
+
+        var jsPDF = window.jspdf.jsPDF;
+        var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
+
+        // Header
+        _addHeader(pdf, pw, margin);
+
+        // Clonar SVG para manipular sin afectar la vista
+        var svgClone = svgEl.cloneNode(true);
+
+        // Asegurar que el SVG tenga dimensiones explícitas para svg2pdf
+        svgClone.setAttribute('width', svgW);
+        svgClone.setAttribute('height', svgH);
+
+        // Inyectar estilos inline en el SVG clonado para que svg2pdf los capture
+        _inlineSvgStyles(svgClone);
+
+        // Centrar en la página
+        var xOffset = margin + (usableW - fitW) / 2;
+        var yOffset = margin + 12;
+
+        // Renderizar SVG vectorial al PDF
+        await pdf.svg(svgClone, {
+            x: xOffset,
+            y: yOffset,
+            width: fitW,
+            height: fitH
+        });
+
+        // Footer
+        _addFooter(pdf, pw, ph, margin, 1, 1);
+
         pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
     } catch (err) {
-        console.error('Error export PDF:', err);
-        alert('Error generando PDF: ' + err.message);
+        console.error('Error export PDF vectorial:', err);
+        // Fallback a html2canvas si svg2pdf falla
+        try {
+            await _exportPDFFallback(container, dims, orientation, scale);
+        } catch (err2) {
+            alert('Error generando PDF: ' + err.message + '\nFallback: ' + err2.message);
+        }
     }
     btn.innerHTML = originalText;
     btn.disabled = false;
+}
+
+// Inyectar estilos computed en los elementos del SVG clonado
+function _inlineSvgStyles(svgClone) {
+    // Procesar foreignObject > div (las tarjetas de nodos)
+    var foreignObjects = svgClone.querySelectorAll('foreignObject');
+    foreignObjects.forEach(function(fo) {
+        var divs = fo.querySelectorAll('div');
+        divs.forEach(function(div) {
+            // Asegurar font-family genérico
+            if (!div.style.fontFamily) {
+                div.style.fontFamily = 'Helvetica, Arial, sans-serif';
+            }
+        });
+    });
+}
+
+// Fallback: export con html2canvas (raster) si svg2pdf falla
+async function _exportPDFFallback(container, dims, orientation, scale) {
+    var pw, ph;
+    if (orientation === 'landscape') {
+        pw = Math.max(dims[0], dims[1]);
+        ph = Math.min(dims[0], dims[1]);
+    } else {
+        pw = Math.min(dims[0], dims[1]);
+        ph = Math.max(dims[0], dims[1]);
+    }
+    var margin = 10;
+    var usableW = pw - margin * 2;
+    var usableH = ph - margin * 2 - 14;
+
+    var canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false, backgroundColor: '#f8fafc' });
+    var imgData = canvas.toDataURL('image/png');
+    var ratio = canvas.width / canvas.height;
+
+    var jsPDF = window.jspdf.jsPDF;
+    var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: dims[0] < dims[1] ? [dims[0], dims[1]] : [dims[1], dims[0]] });
+
+    _addHeader(pdf, pw, margin);
+    var fitW = Math.min(usableW * scale, usableW);
+    var fitH = fitW / ratio;
+    if (fitH > usableH) { fitH = usableH; fitW = fitH * ratio; }
+    var x = margin + (usableW - fitW) / 2;
+    pdf.addImage(imgData, 'PNG', x, margin + 12, fitW, fitH);
+    _addFooter(pdf, pw, ph, margin, 1, 1);
+    pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
 }
 
 function _addHeader(pdf, pageW, margin) {
