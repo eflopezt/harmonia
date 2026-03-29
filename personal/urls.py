@@ -154,9 +154,9 @@ urlpatterns = [
     path('contratos/plantillas/importar/', views.plantilla_contrato_importar, name='plantilla_contrato_importar'),
     path('contratos/plantillas/<int:pk>/editar/', views.plantilla_contrato_editar, name='plantilla_contrato_editar'),
     path('contratos/plantillas/<int:pk>/eliminar/', views.plantilla_contrato_eliminar, name='plantilla_contrato_eliminar'),
-    path('contratos/plantillas/<int:pk>/', views.plantilla_contrato_detalle, name='plantilla_contrato_detalle'),
     path('contratos/plantillas/<int:pk>/ia/', views.plantilla_contrato_ia, name='plantilla_contrato_ia'),
     path('contratos/plantillas/<int:pk>/aplicar-ia/', views.plantilla_contrato_aplicar_ia, name='plantilla_contrato_aplicar_ia'),
+    path('contratos/plantillas/<int:pk>/', views.plantilla_contrato_detalle, name='plantilla_contrato_detalle'),
 
     # Command Palette + Smart Alerts + HR Ask (APIs globales)
     path('api/cmd-search/', views.cmd_search, name='cmd_search'),
