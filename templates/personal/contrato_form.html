@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{% if es_nuevo %}Nuevo Contrato{% else %}Editar Contrato{% endif %} — {{ personal.apellidos_nombres }}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{% url 'contrato_detalle' personal.pk %}" class="btn btn-outline-secondary me-3">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <div>
+    <h2 class="mb-0">
+      <i class="fas fa-{% if es_nuevo %}plus-circle{% else %}edit{% endif %} me-2"></i>
+      {% if es_nuevo %}Nuevo Contrato{% else %}Editar Contrato{% endif %}
+    </h2>
+    <small class="text-muted">{{ personal.apellidos_nombres }} · {{ personal.cargo }}</small>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Datos del Contrato</strong></div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          {% if form.errors %}
+          <div class="alert alert-danger">
+            <strong>Por favor corrija los errores:</strong>
+            <ul class="mb-0 mt-1">
+              {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <li>{{ field|title }}: {{ error }}</li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Modalidad contractual <span class="text-danger">*</span></label>
+              {{ form.tipo_contrato }}
+              <div class="form-text">Según D.Leg. 728</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Número de contrato</label>
+              {{ form.numero_contrato }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha de inicio <span class="text-danger">*</span></label>
+              {{ form.fecha_inicio }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha de fin</label>
+              {{ form.fecha_fin }}
+              <div class="form-text">Dejar vacío para contrato indefinido.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Estado</label>
+              {{ form.estado }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Sueldo pactado (S/)</label>
+              {{ form.sueldo_pactado }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Cargo en contrato</label>
+              {{ form.cargo_contrato }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Jornada semanal (horas)</label>
+              {{ form.jornada_semanal }}
+              <div class="form-text">Jornada máxima legal: 48h semanales</div>
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                {{ form.renovacion_automatica }}
+                <label class="form-check-label" for="id_renovacion_automatica">
+                  Renovación automática
+                  <div class="form-text fw-normal">El contrato se renueva sin trámite al vencer.</div>
+                </label>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Archivo PDF del contrato</label>
+              {{ form.archivo_pdf }}
+              <div class="form-text">Documento escaneado del contrato firmado.</div>
+              {% if not es_nuevo and contrato.archivo_pdf %}
+              <div class="mt-1">
+                <a href="{{ contrato.archivo_pdf.url }}" class="small text-primary" target="_blank">
+                  <i class="fas fa-file-pdf me-1"></i>Archivo actual: {{ contrato.archivo_pdf.name|truncatechars:40 }}
+                </a>
+              </div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Observaciones</label>
+              {{ form.observaciones }}
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i>{% if es_nuevo %}Crear contrato{% else %}Guardar cambios{% endif %}
+            </button>
+            <a href="{% url 'contrato_detalle' personal.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

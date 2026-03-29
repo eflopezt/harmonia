@@ -133,8 +133,15 @@ urlpatterns = [
     # Contratos y Período de Prueba
     path('contratos/', views.contratos_panel, name='contratos_panel'),
     path('contratos/lista/', views.contratos_lista, name='contratos_lista'),
+    path('contratos/exportar/', views.contratos_exportar_excel, name='contratos_exportar_excel'),
+    path('contratos/<int:pk>/detalle/', views.contrato_detalle, name='contrato_detalle'),
     path('contratos/<int:pk>/editar/', views.contrato_editar, name='contrato_editar'),
+    path('contratos/<int:personal_pk>/crear/', views.contrato_crear, name='contrato_crear'),
+    path('contratos/obj/<int:pk>/editar/', views.contrato_editar_obj, name='contrato_editar_obj'),
+    path('contratos/obj/<int:pk>/renovar/', views.contrato_renovar, name='contrato_renovar'),
+    path('contratos/obj/<int:contrato_pk>/adenda/', views.adenda_crear, name='adenda_crear'),
     path('contratos/api/stats/', views.contratos_api_stats, name='contratos_api_stats'),
+    path('contratos/api/alertas/', views.contratos_alertas_json, name='contratos_alertas_json'),
 
     # Command Palette + Smart Alerts + HR Ask (APIs globales)
     path('api/cmd-search/', views.cmd_search, name='cmd_search'),

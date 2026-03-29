@@ -808,6 +808,255 @@ class Personal(models.Model):
         return delta.days
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTRATOS LABORALES
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Contrato(models.Model):
+    """
+    Contrato laboral individual. Permite llevar historial de contratos
+    por trabajador (no solo el vigente), con archivo PDF adjunto.
+    Complementa los campos de contrato en Personal (que reflejan el contrato actual).
+    """
+    ESTADO_CHOICES = [
+        ('VIGENTE', 'Vigente'),
+        ('VENCIDO', 'Vencido'),
+        ('RENOVADO', 'Renovado'),
+        ('RESCINDIDO', 'Rescindido'),
+        ('FINALIZADO', 'Finalizado'),
+    ]
+
+    personal = models.ForeignKey(
+        Personal,
+        on_delete=models.CASCADE,
+        related_name='contratos',
+        verbose_name='Trabajador',
+    )
+    tipo_contrato = models.CharField(
+        max_length=25,
+        choices=Personal.TIPO_CONTRATO_CHOICES,
+        verbose_name='Modalidad de Contrato',
+        help_text='Según D.Leg. 728 — Ley de Productividad y Competitividad Laboral',
+    )
+    numero_contrato = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='Número de Contrato',
+        help_text='Código interno o número de registro del contrato',
+    )
+    fecha_inicio = models.DateField(verbose_name='Fecha de Inicio')
+    fecha_fin = models.DateField(
+        null=True, blank=True,
+        verbose_name='Fecha de Fin',
+        help_text='Dejar vacío para contratos indefinidos',
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=ESTADO_CHOICES,
+        default='VIGENTE',
+        verbose_name='Estado',
+    )
+    renovacion_automatica = models.BooleanField(
+        default=False,
+        verbose_name='Renovación automática',
+        help_text='El contrato se renueva sin trámite al vencer',
+    )
+    sueldo_pactado = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True, blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name='Sueldo pactado',
+        help_text='Remuneración mensual acordada en el contrato',
+    )
+    cargo_contrato = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name='Cargo en contrato',
+        help_text='Cargo que figura en el contrato (puede diferir del cargo actual)',
+    )
+    jornada_semanal = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        default=Decimal('48.0'),
+        verbose_name='Jornada semanal (horas)',
+        help_text='Jornada máxima legal en Perú: 48 horas semanales (D.Leg. 854)',
+    )
+    archivo_pdf = models.FileField(
+        upload_to='contratos/%Y/%m/',
+        blank=True,
+        verbose_name='Archivo PDF',
+        help_text='Documento escaneado del contrato firmado',
+    )
+    observaciones = models.TextField(
+        blank=True,
+        verbose_name='Observaciones',
+    )
+    registrado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='contratos_registrados',
+        verbose_name='Registrado por',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Contrato'
+        verbose_name_plural = 'Contratos'
+        ordering = ['-fecha_inicio']
+        indexes = [
+            models.Index(fields=['personal', '-fecha_inicio'], name='contrato_personal_inicio_idx'),
+            models.Index(fields=['estado'], name='contrato_estado_idx'),
+            models.Index(fields=['fecha_fin'], name='contrato_fecha_fin_idx'),
+            models.Index(fields=['tipo_contrato'], name='contrato_tipo_idx'),
+        ]
+
+    def __str__(self):
+        tipo = self.get_tipo_contrato_display()
+        return f"{self.personal.apellidos_nombres} — {tipo} ({self.fecha_inicio})"
+
+    @property
+    def dias_restantes(self):
+        """Días hasta el vencimiento. None si es indefinido."""
+        if not self.fecha_fin:
+            return None
+        from django.utils import timezone
+        return (self.fecha_fin - timezone.localdate()).days
+
+    @property
+    def esta_vencido(self):
+        if not self.fecha_fin:
+            return False
+        from django.utils import timezone
+        return self.fecha_fin < timezone.localdate()
+
+    @property
+    def esta_por_vencer(self):
+        """True si vence en los próximos 30 días."""
+        dias = self.dias_restantes
+        if dias is None:
+            return False
+        return 0 <= dias <= 30
+
+    def sincronizar_con_personal(self):
+        """Actualiza los campos de contrato en Personal con los datos de este contrato."""
+        p = self.personal
+        p.tipo_contrato = self.tipo_contrato
+        p.fecha_inicio_contrato = self.fecha_inicio
+        p.fecha_fin_contrato = self.fecha_fin
+        p.renovacion_automatica = self.renovacion_automatica
+        p.save(update_fields=[
+            'tipo_contrato', 'fecha_inicio_contrato', 'fecha_fin_contrato',
+            'renovacion_automatica',
+        ])
+
+
+class RenovacionContrato(models.Model):
+    """
+    Registro de renovación de un contrato. Vincula el contrato original
+    con el nuevo contrato generado por la renovación.
+    """
+    contrato_original = models.ForeignKey(
+        Contrato,
+        on_delete=models.CASCADE,
+        related_name='renovaciones_salientes',
+        verbose_name='Contrato original',
+    )
+    contrato_nuevo = models.ForeignKey(
+        Contrato,
+        on_delete=models.CASCADE,
+        related_name='renovaciones_entrantes',
+        verbose_name='Contrato renovado',
+    )
+    fecha_renovacion = models.DateField(verbose_name='Fecha de renovación')
+    motivo = models.TextField(
+        blank=True,
+        verbose_name='Motivo de renovación',
+    )
+    registrado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name='Registrado por',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Renovación de Contrato'
+        verbose_name_plural = 'Renovaciones de Contrato'
+        ordering = ['-fecha_renovacion']
+
+    def __str__(self):
+        return f"Renovación {self.contrato_original} → {self.contrato_nuevo}"
+
+
+class Adenda(models.Model):
+    """
+    Adenda (modificación) a un contrato existente.
+    Registra cambios específicos sin necesidad de crear un contrato nuevo.
+    """
+    TIPO_MODIFICACION_CHOICES = [
+        ('SUELDO', 'Modificación de sueldo'),
+        ('CARGO', 'Cambio de cargo / puesto'),
+        ('HORARIO', 'Cambio de horario / jornada'),
+        ('CONDICIONES', 'Cambio de condiciones'),
+        ('EXTENSION', 'Extensión de plazo'),
+        ('AREA', 'Cambio de área / sede'),
+        ('OTRO', 'Otro'),
+    ]
+
+    contrato = models.ForeignKey(
+        Contrato,
+        on_delete=models.CASCADE,
+        related_name='adendas',
+        verbose_name='Contrato',
+    )
+    fecha = models.DateField(verbose_name='Fecha de adenda')
+    tipo_modificacion = models.CharField(
+        max_length=15,
+        choices=TIPO_MODIFICACION_CHOICES,
+        verbose_name='Tipo de modificación',
+    )
+    detalle = models.TextField(
+        verbose_name='Detalle de la modificación',
+        help_text='Describa los cambios realizados al contrato',
+    )
+    valor_anterior = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Valor anterior',
+        help_text='Valor o condición antes del cambio',
+    )
+    valor_nuevo = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Valor nuevo',
+        help_text='Valor o condición después del cambio',
+    )
+    archivo = models.FileField(
+        upload_to='adendas/%Y/%m/',
+        blank=True,
+        verbose_name='Archivo adjunto',
+    )
+    registrado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name='Registrado por',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Adenda'
+        verbose_name_plural = 'Adendas'
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"Adenda {self.get_tipo_modificacion_display()} — {self.contrato}"
+
+
 class Roster(models.Model):
     """
     Programación de turnos del personal por día.

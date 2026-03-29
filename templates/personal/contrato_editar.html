@@ -2,7 +2,7 @@
 {% block title %}Contrato — {{ personal.apellidos_nombres }}{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center mb-4">
-  <a href="{% url 'contratos_panel' %}" class="btn btn-outline-secondary me-3">
+  <a href="{% url 'contrato_detalle' personal.pk %}" class="btn btn-outline-secondary me-3">
     <i class="fas fa-arrow-left"></i>
   </a>
   <div>
@@ -89,7 +89,7 @@
             <button type="submit" class="btn btn-primary">
               <i class="fas fa-save"></i> Guardar cambios
             </button>
-            <a href="{% url 'contratos_panel' %}" class="btn btn-outline-secondary">Cancelar</a>
+            <a href="{% url 'contrato_detalle' personal.pk %}" class="btn btn-outline-secondary">Cancelar</a>
           </div>
         </form>
       </div>

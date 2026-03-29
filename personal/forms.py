@@ -5,7 +5,7 @@ from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
-from .models import Area, SubArea, Personal, Roster
+from .models import Area, SubArea, Personal, Roster, Contrato, Adenda
 
 
 class AreaForm(forms.ModelForm):
@@ -141,6 +141,107 @@ class RosterForm(forms.ModelForm):
                 w.attrs.setdefault('class', 'form-select')
             else:
                 w.attrs.setdefault('class', 'form-control')
+
+
+class ContratoForm(forms.ModelForm):
+    """Formulario para crear/editar contratos laborales."""
+    class Meta:
+        model = Contrato
+        fields = [
+            'tipo_contrato', 'numero_contrato', 'fecha_inicio', 'fecha_fin',
+            'estado', 'renovacion_automatica', 'sueldo_pactado', 'cargo_contrato',
+            'jornada_semanal', 'archivo_pdf', 'observaciones',
+        ]
+        widgets = {
+            'fecha_inicio': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'fecha_fin': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'observaciones': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            if self.instance.fecha_inicio:
+                self.initial['fecha_inicio'] = self.instance.fecha_inicio.strftime('%Y-%m-%d')
+            if self.instance.fecha_fin:
+                self.initial['fecha_fin'] = self.instance.fecha_fin.strftime('%Y-%m-%d')
+        for field_name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs.setdefault('class', 'form-check-input')
+            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
+                widget.attrs.setdefault('class', 'form-select')
+            elif isinstance(widget, forms.FileInput):
+                widget.attrs.setdefault('class', 'form-control')
+            elif isinstance(widget, forms.Textarea):
+                widget.attrs.setdefault('class', 'form-control')
+            else:
+                widget.attrs.setdefault('class', 'form-control')
+
+
+class AdendaForm(forms.ModelForm):
+    """Formulario para crear adendas a contratos."""
+    class Meta:
+        model = Adenda
+        fields = [
+            'fecha', 'tipo_modificacion', 'detalle',
+            'valor_anterior', 'valor_nuevo', 'archivo',
+        ]
+        widgets = {
+            'fecha': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'detalle': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.fecha:
+            self.initial['fecha'] = self.instance.fecha.strftime('%Y-%m-%d')
+        for field_name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs.setdefault('class', 'form-check-input')
+            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
+                widget.attrs.setdefault('class', 'form-select')
+            elif isinstance(widget, forms.FileInput):
+                widget.attrs.setdefault('class', 'form-control')
+            elif isinstance(widget, forms.Textarea):
+                widget.attrs.setdefault('class', 'form-control')
+            else:
+                widget.attrs.setdefault('class', 'form-control')
+
+
+class RenovacionContratoForm(forms.Form):
+    """Formulario para renovar un contrato existente."""
+    tipo_contrato = forms.ChoiceField(
+        choices=Personal.TIPO_CONTRATO_CHOICES,
+        label='Modalidad del nuevo contrato',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    fecha_inicio = forms.DateField(
+        label='Inicio del nuevo contrato',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+    )
+    fecha_fin = forms.DateField(
+        label='Fin del nuevo contrato',
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        help_text='Dejar vacío para contrato indefinido',
+    )
+    sueldo_pactado = forms.DecimalField(
+        label='Sueldo pactado',
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+    )
+    motivo = forms.CharField(
+        label='Motivo de renovación',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+    )
+    observaciones = forms.CharField(
+        label='Observaciones del nuevo contrato',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+    )
 
 
 class ImportExcelForm(forms.Form):

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Nueva Adenda — {{ personal.apellidos_nombres }}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{% url 'contrato_detalle' personal.pk %}" class="btn btn-outline-secondary me-3">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <div>
+    <h2 class="mb-0"><i class="fas fa-file-medical me-2"></i>Nueva Adenda</h2>
+    <small class="text-muted">{{ personal.apellidos_nombres }} · {{ personal.cargo }}</small>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    {# Info del contrato #}
+    <div class="alert alert-light border d-flex gap-3 align-items-start mb-4">
+      <i class="fas fa-file-contract fs-4 mt-1 text-primary"></i>
+      <div>
+        <strong>Contrato asociado</strong>
+        <div class="small">
+          {{ contrato.get_tipo_contrato_display }}
+          · {{ contrato.fecha_inicio|date:"d/m/Y" }}
+          — {{ contrato.fecha_fin|date:"d/m/Y"|default:"Indefinido" }}
+          <span class="badge bg-{% if contrato.estado == 'VIGENTE' %}success{% else %}secondary{% endif %} ms-1">{{ contrato.estado }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Datos de la Adenda</strong></div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          {% if form.errors %}
+          <div class="alert alert-danger">
+            <ul class="mb-0">
+              {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha de la adenda <span class="text-danger">*</span></label>
+              {{ form.fecha }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo de modificación <span class="text-danger">*</span></label>
+              {{ form.tipo_modificacion }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Detalle de la modificación <span class="text-danger">*</span></label>
+              {{ form.detalle }}
+              <div class="form-text">Describa los cambios realizados al contrato.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Valor anterior</label>
+              {{ form.valor_anterior }}
+              <div class="form-text">Ej: S/ 2,500.00 o "Analista Junior"</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Valor nuevo</label>
+              {{ form.valor_nuevo }}
+              <div class="form-text">Ej: S/ 3,000.00 o "Analista Senior"</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Archivo adjunto</label>
+              {{ form.archivo }}
+              <div class="form-text">Documento escaneado de la adenda.</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-info text-white">
+              <i class="fas fa-save me-1"></i>Registrar adenda
+            </button>
+            <a href="{% url 'contrato_detalle' personal.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

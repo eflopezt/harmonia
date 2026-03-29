@@ -1,44 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Lista de Contratos{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center mb-4">
-  <a href="{% url 'contratos_panel' %}" class="btn btn-outline-secondary me-3">
-    <i class="fas fa-arrow-left"></i>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex align-items-center">
+    <a href="{% url 'contratos_panel' %}" class="btn btn-outline-secondary me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <div>
+      <h2 class="mb-0"><i class="fas fa-list me-2"></i>Contratos — Lista completa</h2>
+      <small class="text-muted">{{ total_resultados }} empleado{{ total_resultados|pluralize }} encontrado{{ total_resultados|pluralize }}</small>
+    </div>
+  </div>
+  <a href="{% url 'contratos_exportar_excel' %}?buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}"
+     class="btn btn-success btn-sm">
+    <i class="fas fa-file-excel me-1"></i>Exportar Excel
   </a>
-  <h2 class="mb-0"><i class="fas fa-list me-2"></i>Contratos — Lista completa</h2>
 </div>
 
 {# Filtros #}
-<form method="get" class="row g-2 mb-4">
-  <div class="col-md-3">
-    <input type="text" name="buscar" class="form-control" placeholder="Nombre o DNI..." value="{{ buscar }}">
+<div class="card shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Buscar</label>
+        <input type="text" name="buscar" class="form-control form-control-sm" placeholder="Nombre o DNI..." value="{{ buscar }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Modalidad</label>
+        <select name="tipo" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for val, lbl in tipos %}
+          <option value="{{ val }}" {% if tipo_f == val %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Estado</label>
+        <select name="estado_contrato" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          <option value="VIGENTE" {% if estado_f == 'VIGENTE' %}selected{% endif %}>Vigente</option>
+          <option value="VENCIDO" {% if estado_f == 'VENCIDO' %}selected{% endif %}>Vencido</option>
+          <option value="INDEFINIDO" {% if estado_f == 'INDEFINIDO' %}selected{% endif %}>Indefinido</option>
+          <option value="SIN_DATOS" {% if estado_f == 'SIN_DATOS' %}selected{% endif %}>Sin datos</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Área</label>
+        <select name="area" class="form-select form-select-sm">
+          <option value="">Todas las áreas</option>
+          {% for a in areas %}
+          <option value="{{ a.pk }}" {% if area_f == a.pk|stringformat:"d" %}selected{% endif %}>{{ a.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small mb-1">Vence en</label>
+        <select name="vencimiento" class="form-select form-select-sm">
+          <option value="">—</option>
+          <option value="30" {% if vencimiento_f == '30' %}selected{% endif %}>30d</option>
+          <option value="60" {% if vencimiento_f == '60' %}selected{% endif %}>60d</option>
+          <option value="90" {% if vencimiento_f == '90' %}selected{% endif %}>90d</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-1">
+        <button type="submit" class="btn btn-sm btn-secondary flex-fill"><i class="fas fa-search"></i> Filtrar</button>
+        {% if buscar or tipo_f or estado_f or area_f or vencimiento_f %}
+        <a href="{% url 'contratos_lista' %}" class="btn btn-sm btn-outline-secondary" title="Limpiar filtros"><i class="fas fa-times"></i></a>
+        {% endif %}
+      </div>
+    </form>
   </div>
-  <div class="col-md-3">
-    <select name="tipo" class="form-select">
-      <option value="">Todas las modalidades</option>
-      {% for val, lbl in tipos %}
-      <option value="{{ val }}" {% if tipo_f == val %}selected{% endif %}>{{ lbl }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-2">
-    <select name="estado_contrato" class="form-select">
-      <option value="">Todos los estados</option>
-      <option value="VIGENTE" {% if estado_f == 'VIGENTE' %}selected{% endif %}>Vigente</option>
-      <option value="VENCIDO" {% if estado_f == 'VENCIDO' %}selected{% endif %}>Vencido</option>
-      <option value="INDEFINIDO" {% if estado_f == 'INDEFINIDO' %}selected{% endif %}>Indefinido</option>
-      <option value="SIN_DATOS" {% if estado_f == 'SIN_DATOS' %}selected{% endif %}>Sin datos</option>
-    </select>
-  </div>
-  <div class="col-md-2">
-    <button type="submit" class="btn btn-secondary w-100"><i class="fas fa-search"></i> Filtrar</button>
-  </div>
-  {% if buscar or tipo_f or estado_f %}
-  <div class="col-md-2">
-    <a href="{% url 'contratos_lista' %}" class="btn btn-outline-secondary w-100"><i class="fas fa-times"></i> Limpiar</a>
-  </div>
-  {% endif %}
-</form>
+</div>
 
 <div class="card shadow-sm">
   <div class="card-body p-0">
@@ -53,6 +85,7 @@
             <th class="text-center">Vencimiento</th>
             <th class="text-center">Estado</th>
             <th class="text-center">Días restantes</th>
+            <th class="text-center">Renovación</th>
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
@@ -64,7 +97,8 @@
             {% elif item.estado_contrato == 'URGENTE' %}table-warning
             {% endif %}">
             <td class="ps-3 fw-semibold">
-              <a href="{% url 'personal_detail' p.pk %}" class="text-decoration-none">{{ p.apellidos_nombres }}</a>
+              <a href="{% url 'contrato_detalle' p.pk %}" class="text-decoration-none">{{ p.apellidos_nombres }}</a>
+              <div class="small text-muted">{{ p.nro_doc }}</div>
             </td>
             <td class="text-muted small">{{ p.subarea.area.nombre|default:"—" }}</td>
             <td>
@@ -92,22 +126,34 @@
             <td class="text-center">
               {% if item.dias_restantes is not None %}
                 <span class="fw-bold {% if item.dias_restantes < 0 %}text-danger{% elif item.dias_restantes <= 15 %}text-warning{% else %}text-success{% endif %}">
-                  {% if item.dias_restantes < 0 %}{{ item.dias_restantes|stringformat:"d" }}{% else %}{{ item.dias_restantes }}{% endif %}
+                  {{ item.dias_restantes }}
                 </span>
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
             <td class="text-center">
-              <a href="{% url 'contrato_editar' p.pk %}" class="btn btn-sm btn-outline-primary" title="Editar contrato">
-                <i class="fas fa-edit"></i>
-              </a>
+              {% if p.renovacion_automatica %}
+                <span class="badge bg-success"><i class="fas fa-sync"></i></span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{% url 'contrato_detalle' p.pk %}" class="btn btn-outline-primary" title="Ver detalle">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <a href="{% url 'contrato_editar' p.pk %}" class="btn btn-outline-secondary" title="Editar contrato">
+                  <i class="fas fa-edit"></i>
+                </a>
+              </div>
             </td>
           </tr>
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">No se encontraron empleados.</td>
+            <td colspan="9" class="text-center text-muted py-4">No se encontraron empleados.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -120,10 +166,17 @@
     <nav>
       <ul class="pagination pagination-sm mb-0">
         {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}">‹</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">‹</a></li>
         {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+          <li class="page-item"><a class="page-link" href="?page={{ num }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">{{ num }}</a></li>
+          {% endif %}
+        {% endfor %}
         {% if page_obj.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}">›</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&buscar={{ buscar }}&tipo={{ tipo_f }}&estado_contrato={{ estado_f }}&area={{ area_f }}&vencimiento={{ vencimiento_f }}">›</a></li>
         {% endif %}
       </ul>
     </nav>
