@@ -13,7 +13,13 @@
     <!-- Favicon & PWA -->
     <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#0d2b27">
+    <meta name="theme-color" content="#0f766e">
+    <meta name="description" content="Harmoni ERP — Plataforma de gestión de RRHH y control de asistencia para empresas">
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}Harmoni ERP{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Plataforma de gestión de RRHH y control de asistencia para empresas{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="{% static 'images/og-image.svg' %}">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -292,6 +298,9 @@
                     </a>
                     <a href="{% url 'subarea_list' %}" class="nav-item" data-match="/subareas">
                         <i class="fas fa-sitemap"></i><span>SubÁreas</span>
+                    </a>
+                    <a href="{% url 'organigrama_erp' %}" class="nav-item" data-match="/organigrama">
+                        <i class="fas fa-project-diagram text-primary"></i><span>Organigrama</span>
                     </a>
                     {% if mod_roster %}
                     <a href="{% url 'roster_matricial' %}" class="nav-item" data-match="/roster">

@@ -62,3 +62,5 @@ from .cese import personal_dar_baja, personal_reactivar
 from .import_views import (
     import_upload, import_confirm, import_template_download, import_validate_ajax,
 )
+
+from .organigrama import organigrama_view, organigrama_data, organigrama_update_parent

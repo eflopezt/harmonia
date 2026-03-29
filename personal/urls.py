@@ -145,6 +145,11 @@ urlpatterns = [
     path('personal/<int:pk>/dar-baja/', views.personal_dar_baja, name='personal_dar_baja'),
     path('personal/<int:pk>/reactivar/', views.personal_reactivar, name='personal_reactivar'),
 
+    # Organigrama
+    path('organigrama/', views.organigrama_view, name='organigrama_erp'),
+    path('api/organigrama/data/', views.organigrama_data, name='organigrama_data'),
+    path('api/organigrama/update-parent/', views.organigrama_update_parent, name='organigrama_update_parent'),
+
     # Reportes RRHH
     path('reportes/', views.reportes_panel, name='reportes_panel'),
     path('reportes/plantilla/', views.reporte_plantilla, name='reporte_plantilla'),

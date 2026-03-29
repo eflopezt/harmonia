@@ -253,6 +253,15 @@ class Personal(models.Model):
         related_name='personal_asignado',
         verbose_name="SubÁrea Asignada"
     )
+    reporta_a = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subordinados',
+        verbose_name="Reporta a",
+        help_text="Superior directo en el organigrama"
+    )
     fecha_alta = models.DateField(
         null=True,
         blank=True,
