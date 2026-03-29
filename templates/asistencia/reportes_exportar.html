@@ -10,6 +10,11 @@
 .report-title{font-weight:700;font-size:.95rem;color:#1e293b;margin-bottom:.25rem}
 .report-desc{font-size:.78rem;color:#64748b;margin-bottom:.75rem}
 .filter-bar{background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.06);border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem}
+.periodo-badge{display:inline-flex;align-items:center;gap:.4rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.5rem;padding:.25rem .75rem;font-size:.82rem;font-weight:600;color:#166534}
+.periodo-badge.corte{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.tipo-btn{border:2px solid #e2e8f0;border-radius:.5rem;padding:.3rem .8rem;font-size:.8rem;font-weight:600;cursor:pointer;background:#fff;color:#475569;transition:all .15s}
+.tipo-btn.active{border-color:#0f766e;background:#f0fdf4;color:#0f766e}
+.tipo-btn.active.corte{border-color:#ea580c;background:#fff7ed;color:#ea580c}
 </style>
 {% endblock %}
 
@@ -20,19 +25,41 @@
 </div>
 
 <div class="filter-bar">
-    <form id="filterForm" class="d-flex flex-wrap gap-2 align-items-center">
-        <label class="fw-semibold" style="font-size:.85rem">Periodo:</label>
-        <select id="selMes" class="form-select form-select-sm" style="width:130px">
-            {% for m_val, m_name in meses_list %}
-            <option value="{{ m_val }}" {% if m_val == mes %}selected{% endif %}>{{ m_name }}</option>
-            {% endfor %}
+    <div class="d-flex flex-wrap gap-3 align-items-center">
+        <!-- Selector mes/año -->
+        <div class="d-flex align-items-center gap-2">
+            <label class="fw-semibold" style="font-size:.85rem;white-space:nowrap">Mes / Año:</label>
+            <select id="selMes" class="form-select form-select-sm" style="width:130px">
+                {% for m_val, m_name in meses_list %}
+                <option value="{{ m_val }}" {% if m_val == mes %}selected{% endif %}>{{ m_name }}</option>
+                {% endfor %}
+            </select>
+            <select id="selAnio" class="form-select form-select-sm" style="width:90px">
+                {% for a in anios %}
+                <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
         </select>
-        <select id="selAnio" class="form-select form-select-sm" style="width:90px">
-            {% for a in anios %}
-            <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
-            {% endfor %}
-        </select>
-    </form>
+        </div>
+
+        <!-- Tipo de período -->
+        <div class="d-flex align-items-center gap-2">
+            <label class="fw-semibold" style="font-size:.85rem;white-space:nowrap">Tipo período:</label>
+            <button type="button" id="btnCalendario" class="tipo-btn {% if tipo_periodo == 'calendario' %}active{% endif %}"
+                    onclick="setTipo('calendario')">
+                <i class="fas fa-calendar me-1"></i>Mes Calendario
+            </button>
+            <button type="button" id="btnCorte" class="tipo-btn corte {% if tipo_periodo == 'corte' %}active{% endif %}"
+                    onclick="setTipo('corte')">
+                <i class="fas fa-cut me-1"></i>Corte Planilla (22→21)
+            </button>
+        </div>
+
+        <!-- Preview del rango -->
+        <div id="periodoBadge" class="periodo-badge {% if tipo_periodo == 'corte' %}corte{% endif %}">
+            <i class="fas fa-calendar-week"></i>
+            <span id="periodoLabel">{{ fecha_ini }} → {{ fecha_fin }}</span>
+        </div>
+    </div>
 </div>
 
 <div class="row g-3">
@@ -41,7 +68,7 @@
         <div class="report-card">
             <div class="report-icon" style="background:#dcfce7;color:#16a34a"><i class="fas fa-file-excel"></i></div>
             <div class="report-title">Reporte de Cierre</div>
-            <div class="report-desc">Resumen por empleado: dias trabajados, faltas, LSG, vacaciones, DM, DL, horas extra, % asistencia. Usa ciclo de planilla.</div>
+            <div class="report-desc">Resumen por empleado: dias trabajados, faltas, LSG, vacaciones, DM, DL, horas extra, % asistencia.</div>
             <a href="#" onclick="descargar('{% url 'asistencia_exportar_cierre' %}')" class="btn btn-sm btn-success"><i class="fas fa-download me-1"></i>Descargar Excel</a>
         </div>
     </div>
@@ -110,8 +137,8 @@
     <div class="col-12 col-md-6 col-lg-4">
         <div class="report-card">
             <div class="report-icon" style="background:#fee2e2;color:#991b1b"><i class="fas fa-user-times"></i></div>
-            <div class="report-title">Faltas del Mes</div>
-            <div class="report-desc">Lista de trabajadores con FA/F y LSG. Calcula descuento estimado por dia según sueldo base. Con código S10.</div>
+            <div class="report-title">Faltas del Período</div>
+            <div class="report-desc">Lista de trabajadores con FA/F y LSG. Calcula descuento estimado por dia segun sueldo base. Con código S10.</div>
             <a href="#" onclick="descargar('{% url 'asistencia_exportar_faltas' %}')" class="btn btn-sm btn-danger"><i class="fas fa-download me-1"></i>Descargar Excel</a>
         </div>
     </div>
@@ -121,7 +148,7 @@
         <div class="report-card">
             <div class="report-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-table"></i></div>
             <div class="report-title">Planilla Consolidada</div>
-            <div class="report-desc">Vista completa por trabajador: sueldo, días, FA, LSG, DM, VAC, HE25/35/100, descuento estimado. Para cierre S10.</div>
+            <div class="report-desc">Vista completa por trabajador: sueldo, dias, FA, LSG, DM, VAC, HE25/35/100, descuento estimado. Para cierre S10.</div>
             <a href="#" onclick="descargar('{% url 'asistencia_exportar_planilla' %}')" class="btn btn-sm btn-primary"><i class="fas fa-download me-1"></i>Descargar Excel</a>
         </div>
     </div>
@@ -131,7 +158,7 @@
         <div class="report-card">
             <div class="report-icon" style="background:#f3e8ff;color:#7c3aed"><i class="fas fa-shield-alt"></i></div>
             <div class="report-title">Validación de Datos</div>
-            <div class="report-desc">Detecta errores: horas &gt; 24h, SS sin salida, DNI duplicados, HE en días FA/DM, FA en domingos. Para QA antes de S10.</div>
+            <div class="report-desc">Detecta errores: horas &gt; 24h, SS sin salida, DNI duplicados, HE en dias FA/DM, FA en domingos. Para QA antes de S10.</div>
             <a href="#" onclick="descargar('{% url 'asistencia_exportar_validacion' %}')" class="btn btn-sm btn-outline-secondary" style="border-color:#7c3aed;color:#7c3aed"><i class="fas fa-download me-1"></i>Descargar Excel</a>
         </div>
     </div>
@@ -140,14 +167,64 @@
 
 {% block extra_js %}
 <script>
-function getParams() {
-    return `?mes=${document.getElementById('selMes').value}&anio=${document.getElementById('selAnio').value}`;
+let currentTipo = '{{ tipo_periodo }}';
+
+// Calcular fechas en JS para preview inmediato sin recargar
+function calcularFechas(mes, anio, tipo) {
+    if (tipo === 'corte') {
+        let iniMes = mes === 1 ? 12 : mes - 1;
+        let iniAnio = mes === 1 ? anio - 1 : anio;
+        let ini = new Date(iniAnio, iniMes - 1, 22);
+        let fin = new Date(anio, mes - 1, 21);
+        return [formatDate(ini), formatDate(fin)];
+    } else {
+        let ini = new Date(anio, mes - 1, 1);
+        let lastDay = new Date(anio, mes, 0).getDate();
+        let fin = new Date(anio, mes - 1, lastDay);
+        return [formatDate(ini), formatDate(fin)];
+    }
 }
+
+function formatDate(d) {
+    return d.toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+function actualizarBadge() {
+    let mes = parseInt(document.getElementById('selMes').value);
+    let anio = parseInt(document.getElementById('selAnio').value);
+    let [ini, fin] = calcularFechas(mes, anio, currentTipo);
+    document.getElementById('periodoLabel').textContent = ini + ' → ' + fin;
+    let badge = document.getElementById('periodoBadge');
+    if (currentTipo === 'corte') {
+        badge.classList.add('corte');
+    } else {
+        badge.classList.remove('corte');
+    }
+}
+
+function setTipo(tipo) {
+    currentTipo = tipo;
+    document.getElementById('btnCalendario').classList.toggle('active', tipo === 'calendario');
+    document.getElementById('btnCorte').classList.toggle('active', tipo === 'corte');
+    actualizarBadge();
+}
+
+function getParams() {
+    let mes = document.getElementById('selMes').value;
+    let anio = document.getElementById('selAnio').value;
+    return `?mes=${mes}&anio=${anio}&tipo_periodo=${currentTipo}`;
+}
+
 function descargar(url) {
     window.open(url + getParams(), '_blank');
 }
+
 function irA(url) {
     window.location.href = url + getParams();
 }
+
+// Actualizar badge cuando cambia mes o año
+document.getElementById('selMes').addEventListener('change', actualizarBadge);
+document.getElementById('selAnio').addEventListener('change', actualizarBadge);
 </script>
 {% endblock %}

@@ -27,6 +27,7 @@ def exportar_carga_s10_view(request):
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
 
     try:
         exporter = CargaS10Exporter(anio, mes)
@@ -34,7 +35,8 @@ def exportar_carga_s10_view(request):
 
         MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-        filename = f'CargaS10_{MESES[mes-1]}_{anio}.xlsx'
+        sufijo = '_corte' if tipo_periodo == 'corte' else ''
+        filename = f'CargaS10_{MESES[mes-1]}_{anio}{sufijo}.xlsx'
 
         response = HttpResponse(
             buffer.getvalue(),
@@ -60,6 +62,7 @@ def exportar_cierre_view(request):
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
 
     try:
         exporter = ReporteCierreExporter(anio, mes)
@@ -67,7 +70,8 @@ def exportar_cierre_view(request):
 
         MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-        filename = f'Cierre_{MESES[mes-1]}_{anio}.xlsx'
+        sufijo = '_corte' if tipo_periodo == 'corte' else ''
+        filename = f'Cierre_{MESES[mes-1]}_{anio}{sufijo}.xlsx'
 
         response = HttpResponse(
             buffer.getvalue(),
@@ -88,10 +92,17 @@ def reportes_exportar_panel(request):
     hoy = date.today()
     anio = int(request.GET.get('anio', hoy.year))
     mes = int(request.GET.get('mes', hoy.month))
+    tipo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo not in ('calendario', 'corte'):
+        tipo = 'calendario'
     MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    # Calcular preview del rango de fechas
+    ini, fin = _calcular_periodo(anio, mes, tipo)
     return render(request, 'asistencia/reportes_exportar.html', {
-        'anio': anio, 'mes': mes,
+        'anio': anio, 'mes': mes, 'tipo_periodo': tipo,
+        'fecha_ini': ini.strftime('%d/%m/%Y'),
+        'fecha_fin': fin.strftime('%d/%m/%Y'),
         'anios': list(range(hoy.year - 2, hoy.year + 1)),
         'meses_list': [(i, MESES[i - 1]) for i in range(1, 13)],
     })
@@ -105,6 +116,32 @@ MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
+def _calcular_periodo(anio: int, mes: int, tipo: str = 'calendario'):
+    """
+    Calcula las fechas de inicio y fin del período.
+    tipo='calendario' → del 1 al último día del mes seleccionado.
+    tipo='corte'      → del 22 del mes anterior al 21 del mes seleccionado.
+    """
+    import calendar as _cal
+    if tipo == 'corte':
+        if mes == 1:
+            ini = date(anio - 1, 12, 22)
+        else:
+            ini = date(anio, mes - 1, 22)
+        fin = date(anio, mes, 21)
+    else:
+        ini = date(anio, mes, 1)
+        fin = date(anio, mes, _cal.monthrange(anio, mes)[1])
+    return ini, fin
+
+
+def _label_periodo(ini, fin, tipo: str) -> str:
+    """Genera etiqueta legible del período."""
+    if tipo == 'corte':
+        return f'Corte de Planilla: {ini.strftime("%d/%m/%Y")} al {fin.strftime("%d/%m/%Y")}'
+    return f'Mes Calendario: {ini.strftime("%d/%m/%Y")} al {fin.strftime("%d/%m/%Y")}'
+
+
 @login_required
 @solo_admin
 def exportar_horas_rco(request):
@@ -116,9 +153,12 @@ def exportar_horas_rco(request):
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
 
-    mes_ini = date(anio, mes, 1)
-    mes_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Resumen por persona
     resumen = list(
@@ -176,7 +216,7 @@ def exportar_horas_rco(request):
 
     # Titulo
     ws.cell(row=1, column=1, value=f'REPORTE DE HORAS — RCO — {MESES_ES[mes - 1].upper()} {anio}').font = title_font
-    ws.cell(row=2, column=1, value=f'Periodo: {mes_ini.strftime("%d/%m/%Y")} al {mes_fin.strftime("%d/%m/%Y")}').font = sub_font
+    ws.cell(row=2, column=1, value=label_periodo).font = sub_font
 
     # Headers
     headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Cargo', 'Area',
@@ -259,7 +299,8 @@ def exportar_horas_rco(request):
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="Horas_RCO_{MESES_ES[mes - 1]}_{anio}.xlsx"'
+    sufijo = '_corte' if tipo_periodo == 'corte' else ''
+    response['Content-Disposition'] = f'attachment; filename="Horas_RCO_{MESES_ES[mes - 1]}_{anio}{sufijo}.xlsx"'
     return response
 
 
@@ -281,9 +322,12 @@ def exportar_faltas_mes(request):
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
 
-    mes_ini = date(anio, mes, 1)
-    mes_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Registros de FA/F/LSG del mes
     qs = (
@@ -337,7 +381,7 @@ def exportar_faltas_mes(request):
         alt_fill = PatternFill(start_color='FEF2F2', end_color='FEF2F2', fill_type='solid')
 
         ws.cell(row=1, column=1, value=f'REPORTE DE FALTAS — {MESES_ES[mes - 1].upper()} {anio}').font = title_font
-        ws.cell(row=2, column=1, value=f'Período: {mes_ini.strftime("%d/%m/%Y")} al {mes_fin.strftime("%d/%m/%Y")} | Días laborables aprox.: {dias_laborables}').font = sub_font
+        ws.cell(row=2, column=1, value=f'{label_periodo} | Días laborables aprox.: {dias_laborables}').font = sub_font
 
         headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Cargo', 'Área',
                    'FA/F', 'LSG', 'Total Días Desc.',
@@ -423,7 +467,8 @@ def exportar_faltas_mes(request):
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="Faltas_{MESES_ES[mes - 1]}_{anio}.xlsx"'
+    sufijo = '_corte' if tipo_periodo == 'corte' else ''
+    response['Content-Disposition'] = f'attachment; filename="Faltas_{MESES_ES[mes - 1]}_{anio}{sufijo}.xlsx"'
     return response
 
 
@@ -445,9 +490,12 @@ def exportar_planilla_consolidada(request):
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
 
-    mes_ini = date(anio, mes, 1)
-    mes_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Todos los registros del mes
     qs = (
@@ -518,7 +566,7 @@ def exportar_planilla_consolidada(request):
     rco_fill = PatternFill(start_color='FFF9E6', end_color='FFF9E6', fill_type='solid')
 
     ws.cell(row=1, column=1, value=f'PLANILLA CONSOLIDADA — {MESES_ES[mes - 1].upper()} {anio}').font = title_font
-    ws.cell(row=2, column=1, value=f'Período: {mes_ini.strftime("%d/%m/%Y")} al {mes_fin.strftime("%d/%m/%Y")} | Días laborables: {dias_laborables}').font = sub_font
+    ws.cell(row=2, column=1, value=f'{label_periodo} | Días laborables: {dias_laborables}').font = sub_font
     ws.cell(row=3, column=1, value='INGRESOS: columnas amarillas | DESCUENTOS: columnas rojas | HE solo para grupo RCO').font = Font(size=8, italic=True, color='64748b')
 
     headers = [
@@ -656,7 +704,8 @@ def exportar_planilla_consolidada(request):
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="Planilla_{MESES_ES[mes - 1]}_{anio}.xlsx"'
+    sufijo = '_corte' if tipo_periodo == 'corte' else ''
+    response['Content-Disposition'] = f'attachment; filename="Planilla_{MESES_ES[mes - 1]}_{anio}{sufijo}.xlsx"'
     return response
 
 
@@ -678,9 +727,12 @@ def exportar_validacion_datos(request):
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
 
-    mes_ini = date(anio, mes, 1)
-    mes_fin = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     errores = []  # lista de dicts: {tipo, severidad, dni, nombre, fecha, detalle}
 
@@ -824,7 +876,7 @@ def exportar_validacion_datos(request):
     center = Alignment(horizontal='center')
 
     ws.cell(row=1, column=1, value=f'REPORTE DE VALIDACIÓN — {MESES_ES[mes - 1].upper()} {anio}').font = title_font
-    ws.cell(row=2, column=1, value=f'Período: {mes_ini.strftime("%d/%m/%Y")} al {mes_fin.strftime("%d/%m/%Y")} | Total anomalías detectadas: {len(errores)}').font = sub_font
+    ws.cell(row=2, column=1, value=f'{label_periodo} | Total anomalías detectadas: {len(errores)}').font = sub_font
 
     if not errores:
         ws.cell(row=4, column=1, value='✓ Sin anomalías detectadas en el período.').font = Font(bold=True, size=11, color='16A34A')
@@ -882,5 +934,6 @@ def exportar_validacion_datos(request):
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="Validacion_{MESES_ES[mes - 1]}_{anio}.xlsx"'
+    sufijo = '_corte' if tipo_periodo == 'corte' else ''
+    response['Content-Disposition'] = f'attachment; filename="Validacion_{MESES_ES[mes - 1]}_{anio}{sufijo}.xlsx"'
     return response

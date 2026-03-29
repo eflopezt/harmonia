@@ -2,6 +2,7 @@
 Vistas para el módulo de Reportes RRHH.
 Genera reportes Excel descargables: Plantilla de Personal, Asistencia Mensual, HE Detallado.
 """
+import calendar as _cal
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -341,6 +342,10 @@ def reporte_asistencia_mensual(request):
     anio = int(request.GET.get('anio', hoy.year))
     mes  = int(request.GET.get('mes', hoy.month))
 
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
+
     if request.GET.get('format') != 'excel':
         areas = Area.objects.filter(activa=True).order_by('nombre')
         return render(request, 'personal/reportes_panel.html', {
@@ -356,10 +361,26 @@ def reporte_asistencia_mensual(request):
             'anios': list(range(hoy.year - 3, hoy.year + 1)),
         })
 
-    # ── Registros del mes ─────────────────────────────────────────────────────
+    # ── Calcular período ──────────────────────────────────────────────────────
+    if tipo_periodo == 'corte':
+        if mes == 1:
+            periodo_ini = date(anio - 1, 12, 22)
+        else:
+            periodo_ini = date(anio, mes - 1, 22)
+        periodo_fin = date(anio, mes, 21)
+    else:
+        periodo_ini = date(anio, mes, 1)
+        periodo_fin = date(anio, mes, _cal.monthrange(anio, mes)[1])
+
+    if tipo_periodo == 'corte':
+        label_periodo = f'Corte de Planilla: {periodo_ini.strftime("%d/%m/%Y")} al {periodo_fin.strftime("%d/%m/%Y")}'
+    else:
+        label_periodo = f'Mes Calendario: {periodo_ini.strftime("%d/%m/%Y")} al {periodo_fin.strftime("%d/%m/%Y")}'
+
+    # ── Registros del período ─────────────────────────────────────────────────
     registros = (
         RegistroTareo.objects
-        .filter(fecha__year=anio, fecha__month=mes)
+        .filter(fecha__gte=periodo_ini, fecha__lte=periodo_fin)
         .select_related('personal', 'personal__subarea', 'personal__subarea__area')
         .order_by('personal__apellidos_nombres', 'fecha')
     )
@@ -434,7 +455,7 @@ def reporte_asistencia_mensual(request):
     ws1.title = "Asistencia"
 
     # Título del período
-    titulo_periodo = f"Asistencia Mensual — {MESES_ESP[mes]} {anio}"
+    titulo_periodo = f"Asistencia Mensual — {MESES_ESP[mes]} {anio} | {label_periodo}"
     ws1.cell(row=1, column=1, value=titulo_periodo).font = Font(bold=True, size=12, color="0D2B27")
     ws1.cell(row=1, column=1).fill = PatternFill("solid", fgColor="CCFBF1")
     ws1.merge_cells(start_row=1, start_column=1, end_row=1, end_column=11)
@@ -478,7 +499,7 @@ def reporte_asistencia_mensual(request):
 
     # ── HOJA 2: Faltas Detalle ────────────────────────────────────────────────
     ws2 = wb.create_sheet("Faltas Detalle")
-    ws2.cell(row=1, column=1, value=f"Detalle de Faltas — {MESES_ESP[mes]} {anio}").font = Font(bold=True, size=12, color="0D2B27")
+    ws2.cell(row=1, column=1, value=f"Detalle de Faltas — {MESES_ESP[mes]} {anio} | {label_periodo}").font = Font(bold=True, size=12, color="0D2B27")
     ws2.cell(row=1, column=1).fill = PatternFill("solid", fgColor="CCFBF1")
     ws2.merge_cells(start_row=1, start_column=1, end_row=1, end_column=5)
 
@@ -501,7 +522,8 @@ def reporte_asistencia_mensual(request):
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    filename = f"asistencia_{anio}{mes:02d}.xlsx"
+    sufijo = '_corte' if tipo_periodo == 'corte' else ''
+    filename = f"asistencia_{anio}{mes:02d}{sufijo}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
@@ -530,6 +552,9 @@ def reporte_he_detallado(request):
     anio = int(request.GET.get('anio', hoy.year))
     mes  = int(request.GET.get('mes', hoy.month))
     grupo_filtro = request.GET.get('grupo', '')
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
 
     if request.GET.get('format') != 'excel':
         areas = Area.objects.filter(activa=True).order_by('nombre')
@@ -546,10 +571,26 @@ def reporte_he_detallado(request):
             'anios': list(range(hoy.year - 3, hoy.year + 1)),
         })
 
+    # ── Calcular período ──────────────────────────────────────────────────────
+    if tipo_periodo == 'corte':
+        if mes == 1:
+            periodo_ini = date(anio - 1, 12, 22)
+        else:
+            periodo_ini = date(anio, mes - 1, 22)
+        periodo_fin = date(anio, mes, 21)
+    else:
+        periodo_ini = date(anio, mes, 1)
+        periodo_fin = date(anio, mes, _cal.monthrange(anio, mes)[1])
+
+    if tipo_periodo == 'corte':
+        label_periodo = f'Corte de Planilla: {periodo_ini.strftime("%d/%m/%Y")} al {periodo_fin.strftime("%d/%m/%Y")}'
+    else:
+        label_periodo = f'Mes Calendario: {periodo_ini.strftime("%d/%m/%Y")} al {periodo_fin.strftime("%d/%m/%Y")}'
+
     # ── Queryset ──────────────────────────────────────────────────────────────
     qs = (
         RegistroTareo.objects
-        .filter(fecha__year=anio, fecha__month=mes)
+        .filter(fecha__gte=periodo_ini, fecha__lte=periodo_fin)
         .filter(Q(he_25__gt=0) | Q(he_35__gt=0) | Q(he_100__gt=0))
         .select_related('personal', 'personal__subarea', 'personal__subarea__area')
     )
@@ -626,7 +667,7 @@ def reporte_he_detallado(request):
     ws1 = wb.active
     ws1.title = "HE por Empleado"
 
-    titulo_periodo = f"Horas Extras — {MESES_ESP[mes]} {anio}{' (' + grupo_filtro + ')' if grupo_filtro else ''}"
+    titulo_periodo = f"Horas Extras — {MESES_ESP[mes]} {anio}{' (' + grupo_filtro + ')' if grupo_filtro else ''} | {label_periodo}"
     ws1.cell(row=1, column=1, value=titulo_periodo).font = Font(bold=True, size=12, color="0D2B27")
     ws1.cell(row=1, column=1).fill = PatternFill("solid", fgColor="CCFBF1")
     ws1.merge_cells(start_row=1, start_column=1, end_row=1, end_column=12)
@@ -717,7 +758,7 @@ def reporte_he_detallado(request):
 
     # ── HOJA 2: HE por Día ────────────────────────────────────────────────────
     ws2 = wb.create_sheet("HE por Día")
-    ws2.cell(row=1, column=1, value=f"HE por Día — {MESES_ESP[mes]} {anio}").font = Font(bold=True, size=12, color="0D2B27")
+    ws2.cell(row=1, column=1, value=f"HE por Día — {MESES_ESP[mes]} {anio} | {label_periodo}").font = Font(bold=True, size=12, color="0D2B27")
     ws2.cell(row=1, column=1).fill = PatternFill("solid", fgColor="CCFBF1")
     ws2.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6)
 
@@ -741,7 +782,8 @@ def reporte_he_detallado(request):
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    filename = f"he_detallado_{anio}{mes:02d}.xlsx"
+    sufijo = '_corte' if tipo_periodo == 'corte' else ''
+    filename = f"he_detallado_{anio}{mes:02d}{sufijo}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
