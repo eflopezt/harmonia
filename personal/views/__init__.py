@@ -72,4 +72,9 @@ from .import_views import (
     import_upload, import_confirm, import_template_download, import_validate_ajax,
 )
 
-from .organigrama import organigrama_view, organigrama_data, organigrama_update_parent
+from .organigrama import (
+    organigrama_view, organigrama_data, organigrama_update_parent,
+    organigrama_gestion, organigrama_analizar,
+    organigrama_auto_asignar, organigrama_asignar_jefe_area,
+    organigrama_bulk_reporta,
+)

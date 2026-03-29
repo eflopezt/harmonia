@@ -1,11 +1,14 @@
 """
-Vista del organigrama interactivo con exportación PDF.
+Vista del organigrama interactivo con exportación PDF y gestión de jerarquía.
 """
 import json
+import re
+from collections import defaultdict
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.shortcuts import render
-from ..models import Area, Personal
+from django.views.decorators.http import require_POST
+from ..models import Area, SubArea, Personal
 
 solo_admin = user_passes_test(lambda u: u.is_superuser, login_url='login')
 
@@ -194,3 +197,328 @@ def organigrama_update_parent(request):
         return JsonResponse({'ok': True})
     except (Personal.DoesNotExist, KeyError, ValueError) as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+# ── Patrones de cargos jerárquicos ──
+CARGO_NIVELES = [
+    (1, re.compile(r'gerente\s*general|director\s*general|ceo|presidente', re.I)),
+    (2, re.compile(r'gerente|director|vicepresidente|vp\b', re.I)),
+    (3, re.compile(r'superintendente|sub\s*gerente|sub\s*director', re.I)),
+    (4, re.compile(r'jefe|jefa|coordinador|coordinadora|responsable', re.I)),
+    (5, re.compile(r'supervisor|supervisora|l[ií]der|encargado|encargada', re.I)),
+    (6, re.compile(r'analista\s*senior|especialista\s*senior|ingeniero\s*senior', re.I)),
+    (7, re.compile(r'analista|especialista|ingeniero|contador|abogado|m[eé]dico', re.I)),
+    (8, re.compile(r'asistente|auxiliar|t[eé]cnico|operario|operador|obrero|practicante', re.I)),
+]
+
+
+def _detectar_nivel_cargo(cargo):
+    """Detecta el nivel jerárquico de un cargo (1=más alto, 8=más bajo)."""
+    if not cargo:
+        return 9
+    for nivel, patron in CARGO_NIVELES:
+        if patron.search(cargo):
+            return nivel
+    return 9  # Sin clasificar
+
+
+@login_required
+@solo_admin
+def organigrama_gestion(request):
+    """Panel de gestión de jerarquía del organigrama."""
+    areas = Area.objects.filter(activa=True).select_related('jefe_area').order_by('nombre')
+    personal_activo = Personal.objects.filter(estado='Activo').select_related(
+        'subarea__area', 'reporta_a'
+    ).order_by('apellidos_nombres')
+
+    # Estadísticas
+    total = personal_activo.count()
+    con_jefe = personal_activo.exclude(reporta_a=None).count()
+    sin_jefe = total - con_jefe
+    areas_sin_jefe = Area.objects.filter(activa=True, jefe_area=None).count()
+    areas_total = Area.objects.filter(activa=True).count()
+
+    # Análisis por área
+    areas_info = []
+    for area in areas:
+        personal_area = personal_activo.filter(subarea__area=area)
+        count = personal_area.count()
+        con_reporta = personal_area.exclude(reporta_a=None).count()
+        subareas = SubArea.objects.filter(area=area, activa=True).order_by('nombre')
+
+        # Detectar posibles jefes por cargo
+        posibles_jefes = []
+        for p in personal_area:
+            nivel = _detectar_nivel_cargo(p.cargo)
+            if nivel <= 5:
+                posibles_jefes.append({
+                    'id': p.id,
+                    'nombre': p.apellidos_nombres,
+                    'cargo': p.cargo,
+                    'nivel': nivel,
+                })
+        posibles_jefes.sort(key=lambda x: (x['nivel'], x['nombre']))
+
+        areas_info.append({
+            'area': area,
+            'personal_count': count,
+            'con_reporta': con_reporta,
+            'sin_reporta': count - con_reporta,
+            'subareas': subareas,
+            'jefe_actual': area.jefe_area,
+            'posibles_jefes': posibles_jefes[:5],
+        })
+
+    context = {
+        'titulo': 'Gestión de Organigrama',
+        'total': total,
+        'con_jefe': con_jefe,
+        'sin_jefe': sin_jefe,
+        'pct_asignado': round(con_jefe / total * 100) if total else 0,
+        'areas_sin_jefe': areas_sin_jefe,
+        'areas_total': areas_total,
+        'areas_info': areas_info,
+        'personal_activo': personal_activo,
+    }
+    return render(request, 'personal/organigrama_gestion.html', context)
+
+
+@login_required
+@solo_admin
+def organigrama_analizar(request):
+    """API: Analiza la estructura y sugiere jerarquía automáticamente."""
+    personal = Personal.objects.filter(estado='Activo').select_related(
+        'subarea__area', 'reporta_a'
+    )
+    areas = Area.objects.filter(activa=True).select_related('jefe_area')
+
+    resultados = {
+        'areas_analizadas': 0,
+        'jefes_detectados': 0,
+        'sugerencias': [],
+        'problemas': [],
+    }
+
+    for area in areas:
+        resultados['areas_analizadas'] += 1
+        personal_area = personal.filter(subarea__area=area)
+        if not personal_area.exists():
+            resultados['problemas'].append({
+                'tipo': 'area_vacia',
+                'mensaje': f'Área "{area.nombre}" no tiene personal activo asignado.',
+                'area_id': area.id,
+            })
+            continue
+
+        # Clasificar personal por nivel de cargo
+        por_nivel = defaultdict(list)
+        for p in personal_area:
+            nivel = _detectar_nivel_cargo(p.cargo)
+            por_nivel[nivel].append(p)
+
+        # Encontrar el nivel más alto (número más bajo)
+        niveles_presentes = sorted(por_nivel.keys())
+        nivel_jefe = niveles_presentes[0] if niveles_presentes else 9
+
+        # Sugerir jefe de área si no tiene
+        if not area.jefe_area_id:
+            candidatos = por_nivel[nivel_jefe]
+            if candidatos:
+                mejor = candidatos[0]
+                resultados['sugerencias'].append({
+                    'tipo': 'jefe_area',
+                    'mensaje': f'Sugerir "{mejor.apellidos_nombres}" ({mejor.cargo}) como jefe de "{area.nombre}"',
+                    'area_id': area.id,
+                    'personal_id': mejor.id,
+                    'nombre': mejor.apellidos_nombres,
+                    'cargo': mejor.cargo,
+                })
+                resultados['jefes_detectados'] += 1
+        else:
+            resultados['jefes_detectados'] += 1
+
+        # Sugerencias de reporta_a dentro del área
+        jefe_area_id = area.jefe_area_id or (por_nivel[nivel_jefe][0].id if por_nivel[nivel_jefe] else None)
+
+        for nivel in niveles_presentes:
+            for p in por_nivel[nivel]:
+                if p.reporta_a_id:
+                    continue  # Ya tiene jefe asignado
+                if p.id == jefe_area_id:
+                    continue  # Es el jefe del área
+
+                # Buscar supervisor: alguien del nivel inmediato superior en la misma área
+                nivel_superior = None
+                for n in sorted(por_nivel.keys()):
+                    if n < nivel:
+                        nivel_superior = n
+                nivel_superior = nivel_superior or nivel_jefe
+
+                if nivel_superior in por_nivel and por_nivel[nivel_superior]:
+                    supervisor = por_nivel[nivel_superior][0]
+                    if supervisor.id != p.id:
+                        resultados['sugerencias'].append({
+                            'tipo': 'reporta_a',
+                            'mensaje': f'{p.apellidos_nombres} ({p.cargo}) → reporta a {supervisor.apellidos_nombres} ({supervisor.cargo})',
+                            'personal_id': p.id,
+                            'parent_id': supervisor.id,
+                            'nombre': p.apellidos_nombres,
+                            'parent_nombre': supervisor.apellidos_nombres,
+                        })
+
+    return JsonResponse(resultados)
+
+
+@login_required
+@solo_admin
+@require_POST
+def organigrama_auto_asignar(request):
+    """
+    Asigna jerarquía automáticamente basándose en áreas, cargos y niveles.
+    Lógica:
+    1. Para cada área, detectar el jefe (cargo más alto o jefe_area existente)
+    2. Personal sin reporta_a → asignar al nivel superior más cercano en su área
+    3. Jefes de área sin reporta_a → quedan como nodos raíz (reportan a gerencia general)
+    """
+    data = json.loads(request.body) if request.body else {}
+    modo = data.get('modo', 'preview')  # 'preview' o 'aplicar'
+    solo_vacios = data.get('solo_vacios', True)  # Solo asignar a quienes no tienen
+
+    personal = Personal.objects.filter(estado='Activo').select_related('subarea__area')
+    areas = Area.objects.filter(activa=True).select_related('jefe_area')
+
+    cambios = []
+
+    # Encontrar al Gerente General (nivel 1)
+    gerente_general = None
+    for p in personal:
+        if _detectar_nivel_cargo(p.cargo) == 1:
+            gerente_general = p
+            break
+
+    for area in areas:
+        personal_area = list(personal.filter(subarea__area=area))
+        if not personal_area:
+            continue
+
+        # Clasificar por nivel
+        por_nivel = defaultdict(list)
+        for p in personal_area:
+            por_nivel[_detectar_nivel_cargo(p.cargo)].append(p)
+
+        niveles = sorted(por_nivel.keys())
+        if not niveles:
+            continue
+
+        # Determinar jefe del área
+        jefe = area.jefe_area
+        if not jefe and por_nivel[niveles[0]]:
+            jefe = por_nivel[niveles[0]][0]
+            # Sugerir asignar como jefe_area
+            cambios.append({
+                'tipo': 'jefe_area',
+                'area_id': area.id,
+                'area_nombre': area.nombre,
+                'personal_id': jefe.id,
+                'nombre': jefe.apellidos_nombres,
+                'cargo': jefe.cargo,
+            })
+
+        if not jefe:
+            continue
+
+        # Jefe de área → reporta a Gerente General (si existe y es diferente)
+        if gerente_general and jefe.id != gerente_general.id:
+            if not jefe.reporta_a_id or not solo_vacios:
+                if jefe.reporta_a_id != gerente_general.id:
+                    cambios.append({
+                        'tipo': 'reporta_a',
+                        'personal_id': jefe.id,
+                        'nombre': jefe.apellidos_nombres,
+                        'cargo': jefe.cargo,
+                        'parent_id': gerente_general.id,
+                        'parent_nombre': gerente_general.apellidos_nombres,
+                        'area': area.nombre,
+                    })
+
+        # Para cada nivel, asignar al nivel superior más cercano
+        for i, nivel in enumerate(niveles):
+            for p in por_nivel[nivel]:
+                if p.id == jefe.id:
+                    continue
+                if solo_vacios and p.reporta_a_id:
+                    continue
+
+                # Buscar superior: nivel inmediato anterior, o el jefe
+                supervisor = jefe
+                for n in reversed(niveles[:i]):
+                    if por_nivel[n]:
+                        supervisor = por_nivel[n][0]
+                        break
+
+                if supervisor.id != p.id and p.reporta_a_id != supervisor.id:
+                    cambios.append({
+                        'tipo': 'reporta_a',
+                        'personal_id': p.id,
+                        'nombre': p.apellidos_nombres,
+                        'cargo': p.cargo,
+                        'parent_id': supervisor.id,
+                        'parent_nombre': supervisor.apellidos_nombres,
+                        'area': area.nombre,
+                    })
+
+    if modo == 'aplicar':
+        aplicados = 0
+        for c in cambios:
+            if c['tipo'] == 'jefe_area':
+                Area.objects.filter(id=c['area_id']).update(jefe_area_id=c['personal_id'])
+                aplicados += 1
+            elif c['tipo'] == 'reporta_a':
+                Personal.objects.filter(id=c['personal_id']).update(reporta_a_id=c['parent_id'])
+                aplicados += 1
+        return JsonResponse({'ok': True, 'aplicados': aplicados, 'cambios': cambios})
+
+    return JsonResponse({'ok': True, 'total_cambios': len(cambios), 'cambios': cambios})
+
+
+@login_required
+@solo_admin
+@require_POST
+def organigrama_asignar_jefe_area(request):
+    """Asigna o cambia el jefe de un área."""
+    data = json.loads(request.body)
+    area_id = data.get('area_id')
+    personal_id = data.get('personal_id')
+
+    try:
+        area = Area.objects.get(id=area_id)
+        if personal_id:
+            personal = Personal.objects.get(id=personal_id, estado='Activo')
+            area.jefe_area = personal
+        else:
+            area.jefe_area = None
+        area.save(update_fields=['jefe_area'])
+        return JsonResponse({'ok': True})
+    except (Area.DoesNotExist, Personal.DoesNotExist) as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@solo_admin
+@require_POST
+def organigrama_bulk_reporta(request):
+    """Asigna reporta_a en lote."""
+    data = json.loads(request.body)
+    asignaciones = data.get('asignaciones', [])  # [{personal_id, parent_id}, ...]
+    count = 0
+    for a in asignaciones:
+        try:
+            pid = int(a['personal_id'])
+            parent = int(a['parent_id']) if a.get('parent_id') else None
+            if parent and parent == pid:
+                continue
+            Personal.objects.filter(id=pid).update(reporta_a_id=parent)
+            count += 1
+        except (ValueError, TypeError):
+            continue
+    return JsonResponse({'ok': True, 'actualizados': count})

@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block title %}Gestión de Organigrama{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="fas fa-sitemap me-2"></i>Gestión de Organigrama</h2>
+    <small class="text-muted">Analice, configure y gestione la jerarquía organizacional</small>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-info btn-sm" onclick="analizarEstructura()">
+      <i class="fas fa-search-plus me-1"></i>Analizar estructura
+    </button>
+    <button class="btn btn-warning btn-sm" onclick="previewAutoAsignar()">
+      <i class="fas fa-magic me-1"></i>Auto-asignar jerarquía
+    </button>
+    <a href="{% url 'organigrama_erp' %}" class="btn btn-outline-primary btn-sm">
+      <i class="fas fa-project-diagram me-1"></i>Ver Organigrama
+    </a>
+  </div>
+</div>
+
+{# ── Estadísticas ── #}
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card shadow-sm text-center">
+      <div class="card-body py-3">
+        <h3 class="mb-0 text-primary">{{ total }}</h3>
+        <small class="text-muted">Personal Activo</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm text-center">
+      <div class="card-body py-3">
+        <h3 class="mb-0 text-success">{{ con_jefe }}</h3>
+        <small class="text-muted">Con superior asignado</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm text-center">
+      <div class="card-body py-3">
+        <h3 class="mb-0 {% if sin_jefe > 0 %}text-danger{% else %}text-success{% endif %}">{{ sin_jefe }}</h3>
+        <small class="text-muted">Sin superior asignado</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm text-center">
+      <div class="card-body py-3">
+        <div class="d-flex align-items-center justify-content-center">
+          <h3 class="mb-0 me-2">{{ pct_asignado }}%</h3>
+          <div class="progress flex-grow-1" style="height:8px;">
+            <div class="progress-bar bg-success" style="width:{{ pct_asignado }}%"></div>
+          </div>
+        </div>
+        <small class="text-muted">Cobertura jerárquica</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Panel de resultados de análisis ── #}
+<div id="analisisPanel" class="d-none mb-4">
+  <div class="card shadow-sm border-info">
+    <div class="card-header bg-info text-white d-flex justify-content-between">
+      <span><i class="fas fa-chart-bar me-2"></i>Resultado del Análisis</span>
+      <button class="btn btn-sm btn-outline-light" onclick="document.getElementById('analisisPanel').classList.add('d-none')">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="card-body" id="analisisBody">
+      <div class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Analizando...</div>
+    </div>
+  </div>
+</div>
+
+{# ── Panel de auto-asignación ── #}
+<div id="autoAsignarPanel" class="d-none mb-4">
+  <div class="card shadow-sm border-warning">
+    <div class="card-header bg-warning d-flex justify-content-between">
+      <span><i class="fas fa-magic me-2"></i>Preview de Auto-asignación</span>
+      <button class="btn btn-sm btn-outline-dark" onclick="document.getElementById('autoAsignarPanel').classList.add('d-none')">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="card-body" id="autoAsignarBody">
+      <div class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Calculando...</div>
+    </div>
+  </div>
+</div>
+
+{# ── Áreas con detalle ── #}
+<div class="card shadow-sm">
+  <div class="card-header bg-white">
+    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#tabAreas">
+          <i class="fas fa-building me-1"></i>Por Áreas ({{ areas_total }})
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tabPersonal">
+          <i class="fas fa-users me-1"></i>Todo el personal
+        </a>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      {# ── Tab Áreas ── #}
+      <div class="tab-pane fade show active" id="tabAreas">
+        <div class="accordion" id="accordionAreas">
+          {% for ai in areas_info %}
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#area_{{ ai.area.id }}">
+                <div class="d-flex align-items-center w-100 me-3">
+                  <strong class="me-3">{{ ai.area.nombre }}</strong>
+                  <span class="badge bg-primary me-2">{{ ai.personal_count }} personas</span>
+                  {% if ai.jefe_actual %}
+                    <span class="badge bg-success me-2">
+                      <i class="fas fa-user-tie me-1"></i>{{ ai.jefe_actual.apellidos_nombres }}
+                    </span>
+                  {% else %}
+                    <span class="badge bg-danger me-2">
+                      <i class="fas fa-exclamation-triangle me-1"></i>Sin jefe
+                    </span>
+                  {% endif %}
+                  {% if ai.sin_reporta > 0 %}
+                    <span class="badge bg-warning text-dark">
+                      {{ ai.sin_reporta }} sin superior
+                    </span>
+                  {% else %}
+                    <span class="badge bg-success">
+                      <i class="fas fa-check"></i> Completo
+                    </span>
+                  {% endif %}
+                </div>
+              </button>
+            </h2>
+            <div id="area_{{ ai.area.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionAreas">
+              <div class="accordion-body">
+                <div class="row">
+                  {# Info del área #}
+                  <div class="col-md-4">
+                    <h6><i class="fas fa-info-circle me-1"></i>Información</h6>
+                    <table class="table table-sm">
+                      <tr>
+                        <td class="text-muted">Personal:</td>
+                        <td><strong>{{ ai.personal_count }}</strong></td>
+                      </tr>
+                      <tr>
+                        <td class="text-muted">Con superior:</td>
+                        <td><span class="text-success">{{ ai.con_reporta }}</span></td>
+                      </tr>
+                      <tr>
+                        <td class="text-muted">Sin superior:</td>
+                        <td><span class="{% if ai.sin_reporta %}text-danger{% else %}text-success{% endif %}">{{ ai.sin_reporta }}</span></td>
+                      </tr>
+                      <tr>
+                        <td class="text-muted">SubÁreas:</td>
+                        <td>{{ ai.subareas.count }}</td>
+                      </tr>
+                    </table>
+
+                    {# Asignar jefe de área #}
+                    <h6 class="mt-3"><i class="fas fa-user-tie me-1"></i>Jefe de Área</h6>
+                    <select class="form-select form-select-sm" id="jefe_area_{{ ai.area.id }}"
+                            onchange="asignarJefeArea({{ ai.area.id }}, this.value)">
+                      <option value="">-- Sin jefe asignado --</option>
+                      {% for p in personal_activo %}
+                        {% if p.subarea and p.subarea.area_id == ai.area.id %}
+                        <option value="{{ p.id }}" {% if ai.jefe_actual and ai.jefe_actual.id == p.id %}selected{% endif %}>
+                          {{ p.apellidos_nombres }} ({{ p.cargo }})
+                        </option>
+                        {% endif %}
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  {# Posibles jefes detectados #}
+                  <div class="col-md-4">
+                    <h6><i class="fas fa-star me-1"></i>Cargos jerárquicos detectados</h6>
+                    {% if ai.posibles_jefes %}
+                    <ul class="list-group list-group-flush">
+                      {% for pj in ai.posibles_jefes %}
+                      <li class="list-group-item py-1 px-0 d-flex justify-content-between align-items-center">
+                        <div>
+                          <small class="fw-bold">{{ pj.nombre }}</small><br>
+                          <small class="text-muted">{{ pj.cargo }}</small>
+                        </div>
+                        <span class="badge bg-info">Nivel {{ pj.nivel }}</span>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted small">No se detectaron cargos jerárquicos conocidos.</p>
+                    {% endif %}
+                  </div>
+
+                  {# SubÁreas #}
+                  <div class="col-md-4">
+                    <h6><i class="fas fa-layer-group me-1"></i>SubÁreas</h6>
+                    {% if ai.subareas %}
+                    <ul class="list-group list-group-flush">
+                      {% for sa in ai.subareas %}
+                      <li class="list-group-item py-1 px-0">
+                        <small>{{ sa.nombre }}</small>
+                        <span class="badge bg-secondary float-end">{{ sa.personal_asignado.count }}</span>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted small">Sin subáreas.</p>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {# ── Tab Todo el personal ── #}
+      <div class="tab-pane fade" id="tabPersonal">
+        <div class="mb-3">
+          <input type="text" class="form-control form-control-sm" id="buscarPersonal"
+                 placeholder="Buscar por nombre, cargo o área..." onkeyup="filtrarPersonal()">
+        </div>
+        <div class="table-responsive" style="max-height:500px; overflow-y:auto;">
+          <table class="table table-sm table-hover" id="tablaPersonal">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Nombre</th>
+                <th>Cargo</th>
+                <th>Área</th>
+                <th>Reporta a</th>
+                <th style="width:250px">Asignar superior</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in personal_activo %}
+              <tr data-search="{{ p.apellidos_nombres|lower }} {{ p.cargo|lower }} {% if p.subarea %}{{ p.subarea.area.nombre|lower }}{% endif %}">
+                <td>
+                  <strong>{{ p.apellidos_nombres }}</strong>
+                </td>
+                <td><small>{{ p.cargo }}</small></td>
+                <td><small>{% if p.subarea %}{{ p.subarea.area.nombre }}{% else %}<span class="text-danger">Sin área</span>{% endif %}</small></td>
+                <td>
+                  {% if p.reporta_a %}
+                    <small class="text-success"><i class="fas fa-check me-1"></i>{{ p.reporta_a.apellidos_nombres }}</small>
+                  {% else %}
+                    <small class="text-danger"><i class="fas fa-times me-1"></i>No asignado</small>
+                  {% endif %}
+                </td>
+                <td>
+                  <select class="form-select form-select-sm" onchange="asignarReporta({{ p.id }}, this.value)">
+                    <option value="">-- Sin superior --</option>
+                    {% for s in personal_activo %}
+                      {% if s.id != p.id %}
+                      <option value="{{ s.id }}" {% if p.reporta_a_id == s.id %}selected{% endif %}>
+                        {{ s.apellidos_nombres|truncatechars:30 }}
+                      </option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var csrfToken = '{{ csrf_token }}';
+
+function asignarJefeArea(areaId, personalId) {
+  fetch('/api/organigrama/asignar-jefe/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    body: JSON.stringify({area_id: areaId, personal_id: personalId || null}),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) {
+      showToast('Jefe de área actualizado', 'success');
+    } else {
+      showToast('Error: ' + (d.error || ''), 'danger');
+    }
+  });
+}
+
+function asignarReporta(personalId, parentId) {
+  fetch('/api/organigrama/update-parent/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    body: JSON.stringify({personal_id: personalId, parent_id: parentId || null}),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) {
+      showToast('Superior actualizado', 'success');
+    } else {
+      showToast('Error: ' + (d.error || ''), 'danger');
+    }
+  });
+}
+
+function analizarEstructura() {
+  var panel = document.getElementById('analisisPanel');
+  var body = document.getElementById('analisisBody');
+  panel.classList.remove('d-none');
+  body.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Analizando estructura organizacional...</div>';
+
+  fetch('/api/organigrama/analizar/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    body: '{}',
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var html = '<div class="row mb-3">';
+    html += '<div class="col-md-4"><div class="p-2 bg-light rounded text-center"><strong>' + data.areas_analizadas + '</strong> áreas analizadas</div></div>';
+    html += '<div class="col-md-4"><div class="p-2 bg-light rounded text-center"><strong>' + data.jefes_detectados + '</strong> jefes detectados</div></div>';
+    html += '<div class="col-md-4"><div class="p-2 bg-light rounded text-center"><strong>' + data.sugerencias.length + '</strong> sugerencias</div></div>';
+    html += '</div>';
+
+    if (data.problemas.length) {
+      html += '<h6 class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Problemas detectados</h6>';
+      html += '<ul class="list-group mb-3">';
+      data.problemas.forEach(function(p) {
+        html += '<li class="list-group-item list-group-item-warning py-1"><small>' + p.mensaje + '</small></li>';
+      });
+      html += '</ul>';
+    }
+
+    if (data.sugerencias.length) {
+      html += '<h6 class="text-info"><i class="fas fa-lightbulb me-1"></i>Sugerencias (' + data.sugerencias.length + ')</h6>';
+      html += '<div style="max-height:300px; overflow-y:auto;"><table class="table table-sm">';
+      html += '<thead><tr><th>Tipo</th><th>Detalle</th></tr></thead><tbody>';
+      data.sugerencias.slice(0, 50).forEach(function(s) {
+        var badge = s.tipo === 'jefe_area' ? '<span class="badge bg-success">Jefe área</span>' : '<span class="badge bg-info">Reporta a</span>';
+        html += '<tr><td>' + badge + '</td><td><small>' + s.mensaje + '</small></td></tr>';
+      });
+      if (data.sugerencias.length > 50) {
+        html += '<tr><td colspan="2" class="text-muted">... y ' + (data.sugerencias.length - 50) + ' más</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+
+    body.innerHTML = html;
+  })
+  .catch(function(e) {
+    body.innerHTML = '<div class="alert alert-danger">Error: ' + e.message + '</div>';
+  });
+}
+
+function previewAutoAsignar() {
+  var panel = document.getElementById('autoAsignarPanel');
+  var body = document.getElementById('autoAsignarBody');
+  panel.classList.remove('d-none');
+  body.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Calculando asignaciones...</div>';
+
+  fetch('/api/organigrama/auto-asignar/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    body: JSON.stringify({modo: 'preview', solo_vacios: true}),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var html = '<div class="alert alert-info mb-3">';
+    html += '<i class="fas fa-info-circle me-2"></i>Se encontraron <strong>' + data.total_cambios + '</strong> asignaciones por hacer.';
+    html += ' Solo se asignará a personal que NO tiene superior actualmente.';
+    html += '</div>';
+
+    if (data.cambios.length) {
+      html += '<div style="max-height:400px; overflow-y:auto;"><table class="table table-sm table-striped">';
+      html += '<thead class="sticky-top table-light"><tr><th>Tipo</th><th>Persona</th><th>Cargo</th><th></th><th>Superior</th><th>Área</th></tr></thead><tbody>';
+      data.cambios.forEach(function(c) {
+        if (c.tipo === 'jefe_area') {
+          html += '<tr class="table-success"><td><span class="badge bg-success">Jefe área</span></td>';
+          html += '<td>' + c.nombre + '</td><td>' + c.cargo + '</td>';
+          html += '<td><i class="fas fa-crown text-warning"></i></td>';
+          html += '<td>Jefe de ' + c.area_nombre + '</td><td>' + c.area_nombre + '</td></tr>';
+        } else {
+          html += '<tr><td><span class="badge bg-info">Reporta a</span></td>';
+          html += '<td>' + c.nombre + '</td><td>' + (c.cargo || '') + '</td>';
+          html += '<td><i class="fas fa-arrow-right text-muted"></i></td>';
+          html += '<td>' + c.parent_nombre + '</td><td>' + (c.area || '') + '</td></tr>';
+        }
+      });
+      html += '</tbody></table></div>';
+
+      html += '<div class="mt-3 d-flex gap-2">';
+      html += '<button class="btn btn-success" onclick="aplicarAutoAsignar()"><i class="fas fa-check me-1"></i>Aplicar ' + data.total_cambios + ' cambios</button>';
+      html += '<button class="btn btn-outline-secondary" onclick="document.getElementById(\'autoAsignarPanel\').classList.add(\'d-none\')">Cancelar</button>';
+      html += '</div>';
+    } else {
+      html += '<div class="text-center text-muted py-3"><i class="fas fa-check-circle fa-2x mb-2 d-block text-success"></i>La jerarquía está completa, no hay cambios pendientes.</div>';
+    }
+
+    body.innerHTML = html;
+  });
+}
+
+function aplicarAutoAsignar() {
+  if (!confirm('¿Aplicar todas las asignaciones jerárquicas? Esta acción asignará superiores a todo el personal que no tiene uno actualmente.')) return;
+
+  var body = document.getElementById('autoAsignarBody');
+  body.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Aplicando cambios...</div>';
+
+  fetch('/api/organigrama/auto-asignar/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    body: JSON.stringify({modo: 'aplicar', solo_vacios: true}),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      body.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Se aplicaron <strong>' + data.aplicados + '</strong> cambios exitosamente. <a href="" class="alert-link">Recargar página</a> para ver los resultados.</div>';
+    } else {
+      body.innerHTML = '<div class="alert alert-danger">Error al aplicar cambios.</div>';
+    }
+  });
+}
+
+function filtrarPersonal() {
+  var filtro = document.getElementById('buscarPersonal').value.toLowerCase();
+  var rows = document.querySelectorAll('#tablaPersonal tbody tr');
+  rows.forEach(function(row) {
+    var search = row.getAttribute('data-search') || '';
+    row.style.display = search.includes(filtro) ? '' : 'none';
+  });
+}
+
+function showToast(msg, type) {
+  var container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.style.cssText = 'position:fixed;top:70px;right:20px;z-index:9999;';
+    document.body.appendChild(container);
+  }
+  var el = document.createElement('div');
+  el.className = 'alert alert-' + type + ' alert-dismissible fade show shadow';
+  el.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  container.appendChild(el);
+  setTimeout(function() { el.remove(); }, 3000);
+}
+</script>
+{% endblock %}

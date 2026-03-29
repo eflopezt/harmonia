@@ -169,8 +169,13 @@ urlpatterns = [
 
     # Organigrama
     path('organigrama/', views.organigrama_view, name='organigrama_erp'),
+    path('organigrama/gestion/', views.organigrama_gestion, name='organigrama_gestion'),
     path('api/organigrama/data/', views.organigrama_data, name='organigrama_data'),
     path('api/organigrama/update-parent/', views.organigrama_update_parent, name='organigrama_update_parent'),
+    path('api/organigrama/analizar/', views.organigrama_analizar, name='organigrama_analizar'),
+    path('api/organigrama/auto-asignar/', views.organigrama_auto_asignar, name='organigrama_auto_asignar'),
+    path('api/organigrama/asignar-jefe/', views.organigrama_asignar_jefe_area, name='organigrama_asignar_jefe'),
+    path('api/organigrama/bulk-reporta/', views.organigrama_bulk_reporta, name='organigrama_bulk_reporta'),
 
     # Reportes RRHH
     path('reportes/', views.reportes_panel, name='reportes_panel'),
