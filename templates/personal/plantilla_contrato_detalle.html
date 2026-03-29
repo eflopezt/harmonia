@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Plantilla: {{ plantilla.nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex align-items-center">
+    <a href="{% url 'plantilla_contrato_lista' %}" class="btn btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <h2 class="mb-0"><i class="fas fa-file-alt me-2"></i>{{ plantilla.nombre }}</h2>
+      <small class="text-muted">
+        {% if plantilla.tipo_contrato %}{{ plantilla.get_tipo_contrato_display }}{% else %}Generico{% endif %}
+        &middot; {% if plantilla.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
+      </small>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-info btn-sm" onclick="analizarConIA()">
+      <i class="fas fa-robot me-1"></i>Analizar con IA
+    </button>
+    <a href="{% url 'plantilla_contrato_editar' plantilla.pk %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-edit me-1"></i>Editar
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# Columna izquierda: Preview #}
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="fas fa-eye me-2"></i>Vista previa del contrato</strong>
+        <small class="text-muted">Con datos de ejemplo</small>
+      </div>
+      <div class="card-body p-0">
+        <div style="background:#fff; padding:30px; border:1px solid #dee2e6; min-height:400px; max-height:700px; overflow-y:auto;" id="previewContainer">
+          {{ preview_html|safe }}
+        </div>
+      </div>
+    </div>
+
+    {# Placeholders detectados #}
+    <div class="card shadow-sm mt-3">
+      <div class="card-header"><strong><i class="fas fa-code me-2"></i>Campos/Placeholders detectados</strong></div>
+      <div class="card-body">
+        {% if placeholders %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for ph in placeholders %}
+          <span class="badge bg-light text-dark border font-monospace">{{ ph }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No se detectaron placeholders. Use <code>{% templatetag openvariable %}nombre_campo{% templatetag closevariable %}</code> en el HTML.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Columna derecha: IA Chat #}
+  <div class="col-lg-5">
+    <div class="card shadow-sm" id="iaPanel">
+      <div class="card-header bg-info text-white">
+        <strong><i class="fas fa-robot me-2"></i>Asistente IA para Plantillas</strong>
+      </div>
+      <div class="card-body p-0">
+        <div id="iaChat" style="height:500px; overflow-y:auto; padding:15px;">
+          <div class="text-center text-muted py-4" id="iaWelcome">
+            <i class="fas fa-robot fa-3x mb-3 d-block" style="color:#0dcaf0;"></i>
+            <p class="fw-semibold">Asistente de plantillas de contrato</p>
+            <p class="small">Puedo ayudarte a:</p>
+            <div class="d-flex flex-column gap-2 align-items-center">
+              <button class="btn btn-outline-info btn-sm" onclick="preguntarIA('Analiza esta plantilla de contrato, identifica los campos/placeholders que usa, verifica si cumple con la legislacion laboral peruana y sugiere mejoras.')">
+                <i class="fas fa-search me-1"></i>Analizar plantilla
+              </button>
+              <button class="btn btn-outline-info btn-sm" onclick="preguntarIA('Revisa el formato y estructura de esta plantilla. Sugiere mejoras de formato, maquetacion y legibilidad para impresion en A4.')">
+                <i class="fas fa-paint-brush me-1"></i>Mejorar formato
+              </button>
+              <button class="btn btn-outline-info btn-sm" onclick="preguntarIA('Lista todos los campos/placeholders que deberia tener una plantilla de contrato laboral completa segun la legislacion peruana. Compara con los que tiene esta plantilla e indica cuales faltan.')">
+                <i class="fas fa-list-check me-1"></i>Verificar campos
+              </button>
+              <button class="btn btn-outline-info btn-sm" onclick="preguntarIA('Identifica posibles errores legales, clausulas faltantes o problemas en esta plantilla de contrato segun el D.Leg. 728 y normativa peruana vigente.')">
+                <i class="fas fa-exclamation-triangle me-1"></i>Detectar errores
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="border-top p-3">
+          <div class="input-group">
+            <input type="text" id="iaInput" class="form-control" placeholder="Escribe tu pregunta o solicitud..."
+                   onkeypress="if(event.key==='Enter')preguntarIA()">
+            <button class="btn btn-info" type="button" onclick="preguntarIA()" id="iaSendBtn">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+          <small class="text-muted mt-1 d-block">Ej: "Agrega una clausula de confidencialidad", "Mejora el formato para PDF"</small>
+        </div>
+      </div>
+    </div>
+
+    {# Info de la plantilla #}
+    <div class="card shadow-sm mt-3">
+      <div class="card-header"><strong><i class="fas fa-info-circle me-2"></i>Informacion</strong></div>
+      <div class="card-body">
+        <div class="row g-2 small">
+          <div class="col-6"><span class="text-muted">Tipo:</span></div>
+          <div class="col-6 fw-semibold">{% if plantilla.tipo_contrato %}{{ plantilla.get_tipo_contrato_display }}{% else %}Generico{% endif %}</div>
+          <div class="col-6"><span class="text-muted">Creada:</span></div>
+          <div class="col-6 fw-semibold">{{ plantilla.fecha_creacion|date:"d/m/Y" }}</div>
+          <div class="col-6"><span class="text-muted">Estado:</span></div>
+          <div class="col-6">{% if plantilla.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</div>
+          <div class="col-6"><span class="text-muted">Tamano HTML:</span></div>
+          <div class="col-6 fw-semibold">{{ plantilla.contenido_html|length|floatformat:0 }} caracteres</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var plantillaId = {{ plantilla.pk }};
+var chatHistory = [];
+
+function analizarConIA() {
+  preguntarIA('Analiza esta plantilla de contrato de forma completa: estructura, campos, cumplimiento legal, formato, y sugiere mejoras concretas.');
+}
+
+function preguntarIA(preguntaPredefinida) {
+  var input = document.getElementById('iaInput');
+  var pregunta = preguntaPredefinida || input.value.trim();
+  if (!pregunta) return;
+
+  // Ocultar welcome
+  var welcome = document.getElementById('iaWelcome');
+  if (welcome) welcome.style.display = 'none';
+
+  // Agregar mensaje del usuario al chat
+  var chat = document.getElementById('iaChat');
+  chat.innerHTML += '<div class="d-flex justify-content-end mb-3"><div class="bg-primary text-white rounded-3 px-3 py-2" style="max-width:85%;">' + escapeHtml(pregunta) + '</div></div>';
+
+  // Loading
+  var loadingId = 'loading_' + Date.now();
+  chat.innerHTML += '<div class="d-flex mb-3" id="' + loadingId + '"><div class="bg-light rounded-3 px-3 py-2"><i class="fas fa-spinner fa-spin me-1"></i>Analizando...</div></div>';
+  chat.scrollTop = chat.scrollHeight;
+
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('iaSendBtn').disabled = true;
+
+  // Agregar al historial
+  chatHistory.push({role: 'user', content: pregunta});
+
+  fetch('/contratos/plantillas/' + plantillaId + '/ia/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({
+      pregunta: pregunta,
+      historial: chatHistory.slice(-6),
+    }),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var loading = document.getElementById(loadingId);
+    if (loading) loading.remove();
+
+    if (data.ok) {
+      chatHistory.push({role: 'assistant', content: data.respuesta});
+      // Render respuesta con formato
+      var respHtml = data.respuesta
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      chat.innerHTML += '<div class="d-flex mb-3"><div class="bg-light rounded-3 px-3 py-2" style="max-width:85%; line-height:1.6;">' + respHtml + '</div></div>';
+
+      // Si la IA sugiere cambios de HTML, mostrar boton para aplicar
+      if (data.html_sugerido) {
+        chat.innerHTML += '<div class="d-flex mb-3"><div class="bg-warning bg-opacity-25 rounded-3 px-3 py-2 w-100">'
+          + '<p class="small mb-2 fw-semibold"><i class="fas fa-magic me-1"></i>La IA genero un HTML actualizado:</p>'
+          + '<button class="btn btn-sm btn-warning me-2" onclick="aplicarSugerencia()"><i class="fas fa-check me-1"></i>Aplicar cambios</button>'
+          + '<button class="btn btn-sm btn-outline-secondary" onclick="verSugerencia()"><i class="fas fa-eye me-1"></i>Ver preview</button>'
+          + '</div></div>';
+        window._htmlSugerido = data.html_sugerido;
+      }
+    } else {
+      chat.innerHTML += '<div class="d-flex mb-3"><div class="bg-danger bg-opacity-10 text-danger rounded-3 px-3 py-2"><i class="fas fa-exclamation-triangle me-1"></i>' + escapeHtml(data.error) + '</div></div>';
+    }
+    chat.scrollTop = chat.scrollHeight;
+  })
+  .catch(function(err) {
+    var loading = document.getElementById(loadingId);
+    if (loading) loading.remove();
+    chat.innerHTML += '<div class="d-flex mb-3"><div class="bg-danger bg-opacity-10 text-danger rounded-3 px-3 py-2"><i class="fas fa-exclamation-triangle me-1"></i>Error de conexion: ' + err.message + '</div></div>';
+    chat.scrollTop = chat.scrollHeight;
+  })
+  .finally(function() {
+    input.disabled = false;
+    document.getElementById('iaSendBtn').disabled = false;
+    input.focus();
+  });
+}
+
+function aplicarSugerencia() {
+  if (!window._htmlSugerido) return;
+  if (!confirm('Se actualizara el contenido HTML de la plantilla con la sugerencia de la IA. Continuar?')) return;
+
+  fetch('/contratos/plantillas/' + plantillaId + '/aplicar-ia/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({html: window._htmlSugerido}),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      document.getElementById('previewContainer').innerHTML = data.preview_html;
+      var chat = document.getElementById('iaChat');
+      chat.innerHTML += '<div class="d-flex mb-3"><div class="bg-success bg-opacity-10 text-success rounded-3 px-3 py-2"><i class="fas fa-check-circle me-1"></i>Plantilla actualizada exitosamente. La vista previa se ha refrescado.</div></div>';
+      chat.scrollTop = chat.scrollHeight;
+    } else {
+      alert('Error: ' + data.error);
+    }
+  });
+}
+
+function verSugerencia() {
+  if (!window._htmlSugerido) return;
+  var preview = document.getElementById('previewContainer');
+  var original = preview.innerHTML;
+  preview.innerHTML = window._htmlSugerido
+    .replace(/\{\{nombre_empleado\}\}/g, 'GARCIA LOPEZ, JUAN CARLOS')
+    .replace(/\{\{cargo\}\}/g, 'Analista de Sistemas')
+    .replace(/\{\{fecha_inicio\}\}/g, '01/04/2026')
+    .replace(/\{\{fecha_fin\}\}/g, '30/09/2026')
+    .replace(/\{\{remuneracion\}\}/g, 'S/ 4,500.00')
+    .replace(/\{\{dni\}\}/g, '72345678')
+    .replace(/\{\{empresa\}\}/g, 'ANDES MINING S.A.C.')
+    .replace(/\{\{ruc_empresa\}\}/g, '20123456789')
+    .replace(/\{\{direccion_empresa\}\}/g, 'Av. Industrial 234, Lima');
+  preview.style.border = '3px solid #ffc107';
+  setTimeout(function() { preview.style.border = '1px solid #dee2e6'; }, 3000);
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+function getCookie(name) {
+  var value = '; ' + document.cookie;
+  var parts = value.split('; ' + name + '=');
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+</script>
+{% endblock %}

@@ -257,11 +257,8 @@
               <button type="button" class="btn btn-outline-dark" onclick="abrirVistaImpresion()">
                 <i class="fas fa-print me-2"></i>Vista de Impresion
               </button>
-              <button type="button" class="btn btn-outline-info" id="btnAnalizarIA" data-contrato-id="{{ contrato_vigente.pk }}">
-                <i class="fas fa-robot me-2"></i>Analizar con IA
-              </button>
               <a href="{% url 'contrato_importar_plantilla' contrato_vigente.pk %}" class="btn btn-outline-secondary">
-                <i class="fas fa-file-upload me-2"></i>Importar documento
+                <i class="fas fa-file-upload me-2"></i>Adjuntar documento
               </a>
               <hr class="my-1">
               <a href="{% url 'contrato_renovar' contrato_vigente.pk %}" class="btn btn-outline-success">
@@ -463,75 +460,8 @@
 
 </div>
 
-{# -- Modal de Analisis IA ------------------------------------------------ #}
-<div class="modal fade" id="modalAnalisisIA" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header bg-info text-white">
-        <h5 class="modal-title"><i class="fas fa-robot me-2"></i>Analisis IA del Contrato</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div id="iaLoading" class="text-center py-5">
-          <div class="spinner-border text-info" role="status"></div>
-          <p class="mt-3 text-muted">Analizando contrato con IA...</p>
-          <small class="text-muted">Esto puede tardar unos segundos</small>
-        </div>
-        <div id="iaResultado" class="d-none">
-          <div id="iaContenido" style="white-space:pre-wrap; line-height:1.6;"></div>
-        </div>
-        <div id="iaError" class="d-none">
-          <div class="alert alert-danger mb-0">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span id="iaErrorMsg"></span>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-{# Toast de feedback para email se muestra via Django messages en base.html #}
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  // IA analysis button
-  var btn = document.getElementById('btnAnalizarIA');
-  if (!btn) return;
-
-  btn.addEventListener('click', function() {
-    var contratoId = this.dataset.contratoId;
-    var modal = new bootstrap.Modal(document.getElementById('modalAnalisisIA'));
-
-    document.getElementById('iaLoading').classList.remove('d-none');
-    document.getElementById('iaResultado').classList.add('d-none');
-    document.getElementById('iaError').classList.add('d-none');
-
-    modal.show();
-
-    fetch('/contratos/obj/' + contratoId + '/analizar-ia/')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        document.getElementById('iaLoading').classList.add('d-none');
-        if (data.ok) {
-          document.getElementById('iaContenido').textContent = data.analisis;
-          document.getElementById('iaResultado').classList.remove('d-none');
-        } else {
-          document.getElementById('iaErrorMsg').textContent = data.error;
-          document.getElementById('iaError').classList.remove('d-none');
-        }
-      })
-      .catch(function(err) {
-        document.getElementById('iaLoading').classList.add('d-none');
-        document.getElementById('iaErrorMsg').textContent = 'Error de conexion: ' + err.message;
-        document.getElementById('iaError').classList.remove('d-none');
-      });
-  });
-});
-
 function confirmarEnvioEmail(btn) {
   if (!confirm('Se enviara el contrato por email al trabajador. Continuar?')) {
     return false;

@@ -4,7 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h2 class="mb-0"><i class="fas fa-file-alt me-2"></i>Plantillas de Contrato</h2>
-    <small class="text-muted">Administre las plantillas HTML reutilizables para generar contratos</small>
+    <small class="text-muted">Administre los modelos de contrato reutilizables. Use la IA para analizar y mejorar.</small>
   </div>
   <div class="d-flex gap-2">
     <a href="{% url 'plantilla_contrato_importar' %}" class="btn btn-outline-secondary btn-sm">
@@ -20,66 +20,64 @@
 </div>
 
 {% if plantillas %}
-<div class="card shadow-sm">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Nombre</th>
-            <th>Tipo de contrato</th>
-            <th class="text-center">Estado</th>
-            <th class="text-center">Creada</th>
-            <th class="text-center">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in plantillas %}
-          <tr {% if not p.activo %}class="text-muted"{% endif %}>
-            <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
-            <td>
-              {% if p.tipo_contrato %}
-                <span class="badge bg-info text-dark">{{ p.get_tipo_contrato_display }}</span>
-              {% else %}
-                <span class="badge bg-light text-dark border">Generico</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              {% if p.activo %}
-                <span class="badge bg-success">Activo</span>
-              {% else %}
-                <span class="badge bg-secondary">Inactivo</span>
-              {% endif %}
-            </td>
-            <td class="text-center small">{{ p.fecha_creacion|date:"d/m/Y" }}</td>
-            <td class="text-center">
-              <div class="btn-group btn-group-sm">
-                <a href="{% url 'plantilla_contrato_editar' p.pk %}" class="btn btn-outline-primary" title="Editar">
-                  <i class="fas fa-edit"></i>
-                </a>
-                <form method="post" action="{% url 'plantilla_contrato_eliminar' p.pk %}" class="d-inline"
-                      onsubmit="return confirm('Eliminar plantilla &quot;{{ p.nombre }}&quot;?')">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="row g-3">
+  {% for p in plantillas %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm h-100 {% if not p.activo %}border-secondary opacity-75{% endif %}">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong class="text-truncate me-2">{{ p.nombre }}</strong>
+        {% if p.activo %}
+          <span class="badge bg-success">Activo</span>
+        {% else %}
+          <span class="badge bg-secondary">Inactivo</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          {% if p.tipo_contrato %}
+            <span class="badge bg-info text-dark">{{ p.get_tipo_contrato_display }}</span>
+          {% else %}
+            <span class="badge bg-light text-dark border">Generico</span>
+          {% endif %}
+          <small class="text-muted ms-2">Creada {{ p.fecha_creacion|date:"d/m/Y" }}</small>
+        </div>
+        <p class="small text-muted mb-0">
+          {{ p.contenido_html|truncatewords:20|striptags }}
+        </p>
+      </div>
+      <div class="card-footer bg-transparent">
+        <div class="d-flex gap-1">
+          <a href="{% url 'plantilla_contrato_detalle' p.pk %}" class="btn btn-sm btn-outline-info flex-fill" title="Ver preview y analizar con IA">
+            <i class="fas fa-eye me-1"></i>Preview / IA
+          </a>
+          <a href="{% url 'plantilla_contrato_editar' p.pk %}" class="btn btn-sm btn-outline-primary" title="Editar HTML">
+            <i class="fas fa-edit"></i>
+          </a>
+          <form method="post" action="{% url 'plantilla_contrato_eliminar' p.pk %}" class="d-inline"
+                onsubmit="return confirm('Eliminar plantilla &quot;{{ p.nombre }}&quot;?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
+  {% endfor %}
 </div>
 {% else %}
 <div class="text-center py-5 text-muted">
   <i class="fas fa-file-alt fa-3x mb-3 d-block"></i>
   <p>No hay plantillas de contrato registradas.</p>
-  <a href="{% url 'plantilla_contrato_crear' %}" class="btn btn-primary">
-    <i class="fas fa-plus me-1"></i>Crear primera plantilla
-  </a>
+  <div class="d-flex gap-2 justify-content-center">
+    <a href="{% url 'plantilla_contrato_crear' %}" class="btn btn-primary">
+      <i class="fas fa-plus me-1"></i>Crear plantilla
+    </a>
+    <a href="{% url 'plantilla_contrato_importar' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-file-upload me-1"></i>Importar DOCX
+    </a>
+  </div>
 </div>
 {% endif %}
 {% endblock %}

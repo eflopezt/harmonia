@@ -56,7 +56,8 @@ from .contratos import (
     contrato_analizar_ia, contrato_enviar_email, contratos_envio_masivo,
     plantilla_contrato_lista, plantilla_contrato_crear,
     plantilla_contrato_editar, plantilla_contrato_eliminar,
-    plantilla_contrato_importar,
+    plantilla_contrato_importar, plantilla_contrato_detalle,
+    plantilla_contrato_ia, plantilla_contrato_aplicar_ia,
 )
 
 from .reportes import (

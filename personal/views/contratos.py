@@ -1331,3 +1331,168 @@ def plantilla_contrato_importar(request):
         'tipos': Personal.TIPO_CONTRATO_CHOICES,
     }
     return render(request, 'personal/plantilla_contrato_importar.html', context)
+
+
+# =========================================================================
+# DETALLE DE PLANTILLA CON PREVIEW Y ANALISIS IA
+# =========================================================================
+
+@solo_admin
+def plantilla_contrato_detalle(request, pk):
+    """Muestra preview de la plantilla con datos de ejemplo y panel de IA."""
+    import re
+    plantilla = get_object_or_404(PlantillaContrato, pk=pk)
+
+    # Datos de ejemplo para preview
+    ejemplo = {
+        'nombre_empleado': 'GARCIA LOPEZ, JUAN CARLOS',
+        'cargo': 'Analista de Sistemas',
+        'fecha_inicio': '01/04/2026',
+        'fecha_fin': '30/09/2026',
+        'remuneracion': 'S/ 4,500.00',
+        'dni': '72345678',
+        'empresa': 'ANDES MINING S.A.C.',
+        'ruc_empresa': '20123456789',
+        'direccion_empresa': 'Av. Industrial 234, Lima',
+    }
+
+    # Reemplazar placeholders
+    preview_html = plantilla.contenido_html
+    for key, val in ejemplo.items():
+        preview_html = preview_html.replace('{{' + key + '}}', val)
+
+    # Detectar placeholders usados
+    placeholders = sorted(set(re.findall(r'\{\{(\w+)\}\}', plantilla.contenido_html)))
+
+    context = {
+        'plantilla': plantilla,
+        'preview_html': preview_html,
+        'placeholders': placeholders,
+    }
+    return render(request, 'personal/plantilla_contrato_detalle.html', context)
+
+
+@solo_admin
+def plantilla_contrato_ia(request, pk):
+    """API: Chat con IA sobre una plantilla de contrato."""
+    import json as _json
+    plantilla = get_object_or_404(PlantillaContrato, pk=pk)
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+
+    try:
+        data = _json.loads(request.body)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'JSON invalido'}, status=400)
+
+    pregunta = data.get('pregunta', '').strip()
+    historial = data.get('historial', [])
+    if not pregunta:
+        return JsonResponse({'ok': False, 'error': 'Pregunta vacia'})
+
+    # Obtener servicio IA
+    from asistencia.services.ai_service import get_service
+    svc = get_service()
+    if not svc:
+        return JsonResponse({
+            'ok': False,
+            'error': 'No hay servicio de IA configurado. Configure uno en Sistema > Configuracion > IA.',
+        })
+
+    # Construir prompt con contexto de la plantilla
+    contenido_plantilla = plantilla.contenido_html[:6000]
+    system = (
+        'Eres un asistente experto en contratos laborales peruanos y diseno de plantillas HTML. '
+        'El usuario esta trabajando con una plantilla de contrato llamada "' + plantilla.nombre + '". '
+        'La plantilla usa placeholders como {{nombre_empleado}}, {{cargo}}, {{fecha_inicio}}, etc. '
+        'Responde en espanol. Se conciso pero util.\n\n'
+        'Si el usuario pide cambios al HTML, incluye el HTML completo actualizado dentro de '
+        'etiquetas [HTML_INICIO] y [HTML_FIN] para que el sistema pueda extraerlo.'
+    )
+
+    # Construir mensajes con historial
+    prompt_parts = []
+    prompt_parts.append('=== PLANTILLA HTML ACTUAL ===\n' + contenido_plantilla + '\n=== FIN PLANTILLA ===\n')
+
+    for msg in historial[-4:]:
+        role = msg.get('role', 'user')
+        content = msg.get('content', '')
+        if role == 'user':
+            prompt_parts.append('USUARIO: ' + content)
+        else:
+            prompt_parts.append('ASISTENTE: ' + content[:500])
+
+    prompt_parts.append('USUARIO: ' + pregunta)
+    prompt = '\n\n'.join(prompt_parts)
+
+    try:
+        resultado = svc.generate(prompt, system=system)
+        if not resultado:
+            return JsonResponse({'ok': False, 'error': 'La IA no devolvio resultado.'})
+
+        # Extraer HTML sugerido si existe
+        html_sugerido = None
+        if '[HTML_INICIO]' in resultado and '[HTML_FIN]' in resultado:
+            import re
+            match = re.search(r'\[HTML_INICIO\](.*?)\[HTML_FIN\]', resultado, re.DOTALL)
+            if match:
+                html_sugerido = match.group(1).strip()
+                # Limpiar del texto de respuesta
+                resultado = resultado[:resultado.index('[HTML_INICIO]')].strip()
+                if not resultado:
+                    resultado = 'He generado una version actualizada de la plantilla. Puedes ver el preview o aplicar los cambios.'
+
+        response_data = {
+            'ok': True,
+            'respuesta': resultado,
+        }
+        if html_sugerido:
+            response_data['html_sugerido'] = html_sugerido
+
+        return JsonResponse(response_data)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error de IA: {str(e)[:200]}'})
+
+
+@solo_admin
+@require_POST
+def plantilla_contrato_aplicar_ia(request, pk):
+    """Aplica el HTML sugerido por la IA a la plantilla."""
+    import json as _json
+    import re
+    plantilla = get_object_or_404(PlantillaContrato, pk=pk)
+
+    try:
+        data = _json.loads(request.body)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'JSON invalido'}, status=400)
+
+    html_nuevo = data.get('html', '').strip()
+    if not html_nuevo:
+        return JsonResponse({'ok': False, 'error': 'HTML vacio'})
+
+    # Guardar
+    plantilla.contenido_html = html_nuevo
+    plantilla.save(update_fields=['contenido_html'])
+
+    # Generar preview con datos de ejemplo
+    ejemplo = {
+        'nombre_empleado': 'GARCIA LOPEZ, JUAN CARLOS',
+        'cargo': 'Analista de Sistemas',
+        'fecha_inicio': '01/04/2026',
+        'fecha_fin': '30/09/2026',
+        'remuneracion': 'S/ 4,500.00',
+        'dni': '72345678',
+        'empresa': 'ANDES MINING S.A.C.',
+        'ruc_empresa': '20123456789',
+        'direccion_empresa': 'Av. Industrial 234, Lima',
+    }
+    preview_html = html_nuevo
+    for key, val in ejemplo.items():
+        preview_html = preview_html.replace('{{' + key + '}}', val)
+
+    return JsonResponse({
+        'ok': True,
+        'preview_html': preview_html,
+    })
