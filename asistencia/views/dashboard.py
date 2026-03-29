@@ -134,6 +134,74 @@ def tareo_dashboard(request):
 
     ultimas_imports = TareoImportacion.objects.order_by('-creado_en')[:8]
 
+    # ── Alertas de cierre de planilla ────────────────────────────
+    alertas = []
+
+    # 1. SS (sin salida) en el mes
+    if stats['ss_count'] > 0:
+        alertas.append({
+            'tipo': 'danger',
+            'icono': 'fa-sign-out-alt',
+            'titulo': f'{stats["ss_count"]} registros Sin Salida (SS)',
+            'detalle': 'Marcaciones con entrada pero sin salida — verificar antes de cerrar planilla.',
+            'url': f'/asistencia/calendario/?mes={mes_sel}&anio={anio_sel}',
+        })
+
+    # 2. HE elevadas (>50h en el mes) — solo RCO
+    he_elevadas = list(
+        qs_rco_valid
+        .values('nombre_archivo', 'dni')
+        .annotate(total_he=Sum('he_25') + Sum('he_35') + Sum('he_100'))
+        .filter(total_he__gt=50)
+        .order_by('-total_he')[:5]
+    )
+    if he_elevadas:
+        nombres = ', '.join(r['nombre_archivo'].split()[0] for r in he_elevadas[:3])
+        alertas.append({
+            'tipo': 'warning',
+            'icono': 'fa-clock',
+            'titulo': f'{len(he_elevadas)} trabajadores con HE > 50h',
+            'detalle': f'RCO con horas extra elevadas: {nombres}{"..." if len(he_elevadas) > 3 else ""}. Verificar autorización.',
+            'url': f'/asistencia/exportar/horas-rco/?mes={mes_sel}&anio={anio_sel}',
+        })
+
+    # 3. Contratos por vencer (próximos 30 días)
+    from datetime import timedelta
+    contratos_vencer = Personal.objects.filter(
+        estado='Activo',
+        fecha_fin_contrato__isnull=False,
+        fecha_fin_contrato__gte=hoy,
+        fecha_fin_contrato__lte=hoy + timedelta(days=30),
+    ).count()
+    if contratos_vencer:
+        alertas.append({
+            'tipo': 'warning',
+            'icono': 'fa-file-contract',
+            'titulo': f'{contratos_vencer} contratos vencen en 30 días',
+            'detalle': 'Contratos a plazo fijo próximos al vencimiento. Renovar o preparar cese.',
+            'url': '/personal/?filtro=contratos_por_vencer',
+        })
+
+    # 4. Personal activo sin registros en el mes (posibles omisiones)
+    pids_con_registro = set(
+        qs_staff_dedup.values_list('personal_id', flat=True)
+    ) | set(qs_rco.values_list('personal_id', flat=True))
+    pids_activos = set(Personal.objects.filter(
+        estado='Activo',
+        fecha_alta__lte=mes_fin,
+    ).filter(
+        Q(fecha_cese__isnull=True) | Q(fecha_cese__gte=mes_ini)
+    ).values_list('id', flat=True))
+    sin_registro = len(pids_activos - pids_con_registro)
+    if sin_registro > 5:  # threshold para evitar false positives
+        alertas.append({
+            'tipo': 'info',
+            'icono': 'fa-user-slash',
+            'titulo': f'{sin_registro} activos sin tareo en {mes_nombre}',
+            'detalle': 'Personal activo sin ningún registro en el período. Puede ser normal (ingreso tardío, vacaciones) o indica importación incompleta.',
+            'url': f'/asistencia/exportar/validacion/?mes={mes_sel}&anio={anio_sel}',
+        })
+
     context = {
         'titulo': 'Módulo Tareo',
         'anio_sel': anio_sel,
@@ -148,5 +216,7 @@ def tareo_dashboard(request):
         'mes_fin': mes_fin,
         'ciclo_ini': ciclo_ini,
         'ciclo_fin': ciclo_fin,
+        'alertas': alertas,
+        'contratos_vencer': contratos_vencer,
     }
     return render(request, 'asistencia/dashboard.html', context)

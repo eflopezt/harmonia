@@ -621,10 +621,22 @@ def mi_historial_salarial(request):
             personal=empleado,
         ).order_by('-fecha_efectiva')
 
+    # Para el gráfico: datos ordenados cronológicamente
+    registros_list = list(registros)
+    chart_data = []
+    if registros_list:
+        for h in reversed(registros_list):
+            chart_data.append({
+                'fecha': h.fecha_efectiva.strftime('%d/%m/%Y'),
+                'sueldo': float(h.remuneracion_nueva or 0),
+            })
+
     context = {
         'titulo': 'Mi Historial Salarial',
         'empleado': empleado,
-        'registros': registros,
+        'registros': registros_list,
+        'historial': registros_list,  # alias para compatibilidad
+        'chart_data': chart_data,
     }
     return render(request, 'salarios/mi_historial.html', context)
 

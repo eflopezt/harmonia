@@ -371,6 +371,41 @@
     </div>
 </div>
 
+<!-- ── Alertas de Cierre de Planilla ─────────────────────────────────── -->
+{% if alertas %}
+<div class="card tareo-card mb-4 border-start border-4 border-warning">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span>
+            <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+            <strong>Alertas para Cierre de Planilla</strong>
+            <span class="badge bg-warning text-dark ms-2">{{ alertas|length }}</span>
+        </span>
+        <a href="{% url 'asistencia_exportar_validacion' %}?mes={{ mes_sel }}&anio={{ anio_sel }}"
+           class="btn btn-sm btn-outline-warning">
+            <i class="fas fa-download me-1"></i>Reporte Validación
+        </a>
+    </div>
+    <div class="card-body py-2">
+        <div class="row g-2">
+            {% for alerta in alertas %}
+            <div class="col-12 col-md-6">
+                <a href="{{ alerta.url }}" class="text-decoration-none">
+                    <div class="alert alert-{{ alerta.tipo }} d-flex align-items-start gap-2 py-2 px-3 mb-0 h-100"
+                         style="border-radius:8px; font-size:.85rem">
+                        <i class="fas {{ alerta.icono }} mt-1 flex-shrink-0"></i>
+                        <div>
+                            <strong>{{ alerta.titulo }}</strong>
+                            <div class="opacity-75 small">{{ alerta.detalle }}</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- ── Accesos rápidos ────────────────────────────────────────────────── -->
 <div class="card tareo-card">
     <div class="card-header py-2"><strong><i class="fas fa-th-large me-2"></i>Accesos Rápidos</strong></div>
@@ -416,6 +451,18 @@
             <a href="{% url 'asistencia_exportar_cierre' %}?anio={{ anio_sel }}&mes={{ mes_sel }}"
                class="btn btn-outline-dark btn-sm">
                 <i class="fas fa-file-export me-1"></i>Reporte Cierre
+            </a>
+            <a href="{% url 'asistencia_exportar_faltas' %}?anio={{ anio_sel }}&mes={{ mes_sel }}"
+               class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-user-times me-1"></i>Faltas
+            </a>
+            <a href="{% url 'asistencia_exportar_planilla' %}?anio={{ anio_sel }}&mes={{ mes_sel }}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-table me-1"></i>Planilla S10
+            </a>
+            <a href="{% url 'asistencia_exportar_validacion' %}?anio={{ anio_sel }}&mes={{ mes_sel }}"
+               class="btn btn-outline-secondary btn-sm" style="border-color:#7c3aed;color:#7c3aed">
+                <i class="fas fa-shield-alt me-1"></i>Validación
             </a>
             <a href="{% url 'asistencia_parametros' %}" class="btn btn-outline-dark btn-sm">
                 <i class="fas fa-sliders-h me-1"></i>Parámetros

@@ -23,6 +23,31 @@ urlpatterns = [
              template_name='registration/password_change_done.html',
          ),
          name='password_change_done'),
+    # Recuperación de contraseña
+    path('cuenta/recuperar/',
+         auth_views.PasswordResetView.as_view(
+             template_name='registration/password_reset_form.html',
+             email_template_name='registration/password_reset_email.txt',
+             subject_template_name='registration/password_reset_subject.txt',
+             success_url='/cuenta/recuperar/enviado/',
+         ),
+         name='password_reset'),
+    path('cuenta/recuperar/enviado/',
+         auth_views.PasswordResetDoneView.as_view(
+             template_name='registration/password_reset_done.html',
+         ),
+         name='password_reset_done'),
+    path('cuenta/recuperar/<uidb64>/<token>/',
+         auth_views.PasswordResetConfirmView.as_view(
+             template_name='registration/password_reset_confirm.html',
+             success_url='/cuenta/recuperar/completado/',
+         ),
+         name='password_reset_confirm'),
+    path('cuenta/recuperar/completado/',
+         auth_views.PasswordResetCompleteView.as_view(
+             template_name='registration/password_reset_complete.html',
+         ),
+         name='password_reset_complete'),
     
     # Áreas
     path('areas/', views.area_list, name='area_list'),

@@ -205,9 +205,11 @@ def reporte_plantilla(request):
             if col_num == 1:
                 align = 'center'
             fmt = None
-            if col_num == 16:
+            if col_num == 2:          # DNI/CE — texto
+                fmt = '@'
+            elif col_num == 16:
                 fmt = '#,##0.00'
-            if col_num == 14 and isinstance(value, date):
+            elif col_num == 14 and isinstance(value, date):
                 fmt = 'DD/MM/YYYY'
             _data_cell(ws1, row_num, col_num, value, is_even, fmt, align)
 
@@ -800,7 +802,7 @@ def reporte_vacaciones(request):
             row = i + 2
             _data_cell(ws, row, 1, i, even, align='center')
             _data_cell(ws, row, 2, p.apellidos_nombres if p else '—', even)
-            _data_cell(ws, row, 3, p.nro_doc if p else '—', even, align='center')
+            _data_cell(ws, row, 3, p.nro_doc if p else '—', even, number_format='@', align='center')
             _data_cell(ws, row, 4, area_nombre, even)
             _data_cell(ws, row, 5, sub_nombre, even)
             _data_cell(ws, row, 6, p.grupo_tareo if p else '—', even, align='center')
@@ -838,7 +840,7 @@ def reporte_vacaciones(request):
             row = i + 2
             _data_cell(ws2, row, 1, i, even, align='center')
             _data_cell(ws2, row, 2, p.apellidos_nombres if p else '—', even)
-            _data_cell(ws2, row, 3, p.nro_doc if p else '—', even, align='center')
+            _data_cell(ws2, row, 3, p.nro_doc if p else '—', even, number_format='@', align='center')
             _data_cell(ws2, row, 4, area_nombre, even)
             _data_cell(ws2, row, 5, getattr(perm, 'get_tipo_permiso_display', lambda: perm.tipo_permiso)(), even)
             _data_cell(ws2, row, 6, perm.fecha_inicio, even, align='center')
@@ -931,7 +933,9 @@ def reporte_contratos(request):
                 horizontal='center' if col in (1,3,6,7,8,9,10) else 'left',
                 vertical='center'
             )
-            if col == 11:
+            if col == 3:  # DNI/CE
+                cell.number_format = '@'
+            elif col == 11:
                 cell.number_format = '"S/ "#,##0.00'
 
     _auto_width(ws)

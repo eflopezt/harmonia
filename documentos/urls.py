@@ -107,4 +107,10 @@ urlpatterns = [
     path('cese/upload/', views_cese.pdf_cese_upload,  name='pdf_cese_upload'),
     path('cese/procesar/', views_cese.pdf_cese_procesar, name='pdf_cese_procesar'),
     path('cese/confirmar/', views_cese.pdf_cese_confirmar, name='pdf_cese_confirmar'),
+
+    # ── Archivos HR (envío de archivos a trabajadores) ──
+    path('archivos-hr/', views.archivos_hr_panel, name='archivos_hr_panel'),
+    path('archivos-hr/subir/', views.archivo_hr_subir, name='archivo_hr_subir'),
+    path('archivos-hr/<int:pk>/eliminar/', views.archivo_hr_eliminar, name='archivo_hr_eliminar'),
+    path('archivos-hr/<int:pk>/descargar/', views.archivo_hr_descargar, name='archivo_hr_descargar'),
 ]

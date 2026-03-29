@@ -153,6 +153,32 @@
                     </div>
                     {% endif %}
                 </dl>
+
+                <!-- Formulario editar contacto -->
+                <hr class="my-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fw-semibold" style="font-size:.85rem;color:var(--primary)">
+                        <i class="fas fa-pen me-1"></i>Actualizar mis datos de contacto
+                    </span>
+                </div>
+                <form method="post" action="{% url 'mi_perfil' %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-secondary)">Celular</label>
+                        <input type="tel" name="celular" class="form-control form-control-sm"
+                               value="{{ empleado.celular|default:'' }}"
+                               placeholder="Ej: 987654321" maxlength="20">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-secondary)">Correo Personal</label>
+                        <input type="email" name="correo_personal" class="form-control form-control-sm"
+                               value="{{ empleado.correo_personal|default:'' }}"
+                               placeholder="correo@ejemplo.com" maxlength="254">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-save me-1"></i>Guardar cambios
+                    </button>
+                </form>
             </div>
         </div>
     </div>

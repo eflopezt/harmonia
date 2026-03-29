@@ -11,6 +11,50 @@ from ..models import Personal
 from ..permissions import get_context_usuario
 
 
+def generar_username_empleado(personal):
+    """
+    Genera username estilo 'elopez' para un empleado.
+    Formato apellidos_nombres: 'APELLIDO_PAT APELLIDO_MAT, PRIMER_NOMBRE SEGUNDO_NOMBRE'
+    Retorna el username (sin verificar unicidad).
+    """
+    raw = personal.apellidos_nombres.strip()
+    if ',' in raw:
+        apellidos_part, nombres_part = raw.split(',', 1)
+        apellido_paterno = apellidos_part.strip().split()[0] if apellidos_part.strip() else ''
+        primer_nombre = nombres_part.strip().split()[0] if nombres_part.strip() else ''
+    else:
+        tokens = raw.split()
+        apellido_paterno = tokens[0] if tokens else ''
+        primer_nombre = tokens[-1] if len(tokens) > 1 else tokens[0] if tokens else ''
+
+    # Limpiar tildes y caracteres especiales
+    import unicodedata
+    def _clean(s):
+        s = unicodedata.normalize('NFD', s)
+        s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+        return s.lower()
+
+    if not apellido_paterno or not primer_nombre:
+        return personal.nro_doc.strip() if personal.nro_doc else 'usuario'
+
+    return f'{_clean(primer_nombre)[0]}{_clean(apellido_paterno)}'
+
+
+def generar_username_unico(personal):
+    """Genera un username único para el empleado, con sufijo numérico si hay colisión."""
+    from django.contrib.auth.models import User
+    base = generar_username_empleado(personal)
+    username = base
+    counter = 1
+    while User.objects.filter(username=username).exists():
+        username = f'{base}{counter}'
+        counter += 1
+        if counter > 99:
+            # Fallback al DNI
+            return personal.nro_doc.strip()
+    return username
+
+
 @login_required
 def usuario_list(request):
     """Lista de usuarios del sistema con sus perfiles vinculados."""
@@ -226,28 +270,10 @@ def usuario_sincronizar(request):
 
                 for persona in personal_sin_usuario:
                     try:
-                        # Generar username: primera letra nombre + apellido paterno
-                        nombres = persona.apellidos_nombres.strip().split()
-                        if len(nombres) < 2:
-                            stats['errores'].append(f'{persona.apellidos_nombres}: Formato de nombre inválido')
-                            continue
-
-                        apellido_paterno = nombres[0].lower()
-                        primer_nombre = nombres[-1] if len(nombres) >= 2 else nombres[0]
-                        primera_letra = primer_nombre[0].lower()
-                        username = f'{primera_letra}{apellido_paterno}'.lower()
-
-                        # Si ya existe, agregar número
-                        username_base = username
-                        counter = 1
-                        while User.objects.filter(username=username).exists():
-                            username = f'{username_base}{counter}'
-                            counter += 1
-                            if counter > 99:
-                                stats['errores'].append(f'{persona.apellidos_nombres}: No se pudo generar username único')
-                                break
-
-                        if counter > 99:
+                        # Generar username: primera letra nombre + apellido paterno (ej: elopez)
+                        username = generar_username_unico(persona)
+                        if not username:
+                            stats['errores'].append(f'{persona.apellidos_nombres}: No se pudo generar username')
                             continue
 
                         # Generar email
@@ -621,25 +647,9 @@ def portal_crear_acceso(request, personal_pk):
     from django.contrib.auth.models import User
     from django.db import transaction
 
-    username = personal.nro_doc.strip()
-
-    if User.objects.filter(username=username).exists():
-        # El username (DNI) ya existe — vincular si no está asignado a nadie
-        usuario_existente = User.objects.get(username=username)
-        if hasattr(usuario_existente, 'personal_data'):
-            return JsonResponse({
-                'success': False,
-                'error': f'El usuario "{username}" ya existe y está asignado a otro empleado.',
-            }, status=400)
-        # Vincular el usuario existente
-        personal.usuario = usuario_existente
-        personal.save(update_fields=['usuario'])
-        return JsonResponse({
-            'success': True,
-            'mensaje': f'Usuario existente "{username}" vinculado al empleado.',
-            'username': username,
-            'creado':  False,
-        })
+    # Username: primera letra del primer nombre + apellido paterno (ej: elopez)
+    username = generar_username_unico(personal)
+    password_inicial = personal.nro_doc.strip()  # Contraseña = DNI
 
     email = personal.correo_corporativo or personal.correo_personal or ''
 
@@ -651,7 +661,7 @@ def portal_crear_acceso(request, personal_pk):
     with transaction.atomic():
         usuario = User.objects.create_user(
             username   = username,
-            password   = username,         # contraseña inicial = DNI
+            password   = password_inicial,  # contraseña inicial = DNI
             email      = email,
             first_name = first_name,
             last_name  = last_name,
@@ -679,7 +689,7 @@ def portal_crear_acceso(request, personal_pk):
                 f'Se ha creado tu acceso al Portal del Empleado de {empresa}.\n\n'
                 f'Tus credenciales de ingreso:\n'
                 f'  • Usuario: {username}\n'
-                f'  • Contraseña inicial: {username} (tu número de documento)\n\n'
+                f'  • Contraseña inicial: tu número de documento (DNI)\n\n'
                 f'Por seguridad, te recomendamos cambiar tu contraseña luego del primer ingreso.\n\n'
                 f'Saludos,\nEquipo de Recursos Humanos — {empresa}'
             )

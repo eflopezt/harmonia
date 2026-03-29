@@ -95,6 +95,46 @@
             <a href="#" onclick="irA('{% url 'asistencia_papeletas' %}')" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-right me-1"></i>Ir a Papeletas</a>
         </div>
     </div>
+
+    <!-- Reporte Horas RCO -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="report-card">
+            <div class="report-icon" style="background:#fff7ed;color:#ea580c"><i class="fas fa-clock"></i></div>
+            <div class="report-title">Horas RCO</div>
+            <div class="report-desc">Resumen de horas marcadas, normales y HE (25%, 35%, 100%) por trabajador RCO. DNI como texto.</div>
+            <a href="#" onclick="descargar('{% url 'asistencia_exportar_horas_rco' %}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-download me-1"></i>Descargar Excel</a>
+        </div>
+    </div>
+
+    <!-- Reporte Faltas -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="report-card">
+            <div class="report-icon" style="background:#fee2e2;color:#991b1b"><i class="fas fa-user-times"></i></div>
+            <div class="report-title">Faltas del Mes</div>
+            <div class="report-desc">Lista de trabajadores con FA/F y LSG. Calcula descuento estimado por dia según sueldo base. Con código S10.</div>
+            <a href="#" onclick="descargar('{% url 'asistencia_exportar_faltas' %}')" class="btn btn-sm btn-danger"><i class="fas fa-download me-1"></i>Descargar Excel</a>
+        </div>
+    </div>
+
+    <!-- Planilla Consolidada -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="report-card">
+            <div class="report-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-table"></i></div>
+            <div class="report-title">Planilla Consolidada</div>
+            <div class="report-desc">Vista completa por trabajador: sueldo, días, FA, LSG, DM, VAC, HE25/35/100, descuento estimado. Para cierre S10.</div>
+            <a href="#" onclick="descargar('{% url 'asistencia_exportar_planilla' %}')" class="btn btn-sm btn-primary"><i class="fas fa-download me-1"></i>Descargar Excel</a>
+        </div>
+    </div>
+
+    <!-- Validación de Datos -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="report-card">
+            <div class="report-icon" style="background:#f3e8ff;color:#7c3aed"><i class="fas fa-shield-alt"></i></div>
+            <div class="report-title">Validación de Datos</div>
+            <div class="report-desc">Detecta errores: horas &gt; 24h, SS sin salida, DNI duplicados, HE en días FA/DM, FA en domingos. Para QA antes de S10.</div>
+            <a href="#" onclick="descargar('{% url 'asistencia_exportar_validacion' %}')" class="btn btn-sm btn-outline-secondary" style="border-color:#7c3aed;color:#7c3aed"><i class="fas fa-download me-1"></i>Descargar Excel</a>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

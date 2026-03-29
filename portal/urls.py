@@ -47,6 +47,8 @@ urlpatterns = [
     path('mis-capacitaciones/', views.mis_capacitaciones, name='portal_mis_capacitaciones'),
     # Mis Vacaciones
     path('mis-vacaciones/', views.mis_vacaciones, name='portal_mis_vacaciones'),
+    # Archivos HR
+    path('mis-archivos/', views.mis_archivos_hr, name='mis_archivos_hr'),
     # ── API endpoints for mobile ──
     path('api/me/', api_views.api_portal_me, name='api_portal_me'),
     path('api/boletas/', api_views.api_portal_boletas, name='api_portal_boletas'),

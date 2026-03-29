@@ -2,6 +2,10 @@
 <html lang="es">
 {% load static %}
 <head>
+    <!-- Dark mode: aplica tema ANTES del CSS para evitar flash blanco -->
+    <script>
+      (function(){var t=localStorage.getItem('harmoni-theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.setAttribute('data-theme','dark');}})();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Harmoni{% endblock %}</title>
@@ -204,6 +208,9 @@
                     </a>
                     <a href="{% url 'mis_constancias' %}" class="nav-item" data-match="/documentos/constancias/mis">
                         <i class="fas fa-file-signature"></i><span>Mis Constancias</span>
+                    </a>
+                    <a href="{% url 'mis_archivos_hr' %}" class="nav-item" data-match="/mi-portal/mis-archivos">
+                        <i class="fas fa-inbox"></i><span>Archivos de RRHH</span>
                     </a>
                     {% endif %}
                     {% if mod_prestamos %}
@@ -947,6 +954,11 @@
                 </div>
               </div>
             </div>
+            <!-- Dark Mode Toggle -->
+            <button class="btn btn-link p-1 text-muted" id="darkModeToggle"
+                    title="Modo oscuro" style="font-size:1rem;line-height:1;border:none;background:none;">
+              <i class="fas fa-moon" id="darkModeIcon"></i>
+            </button>
             <!-- User Menu -->
             <div class="dropdown">
                 <button class="topbar-user-btn" data-bs-toggle="dropdown" aria-expanded="false">
@@ -982,22 +994,37 @@
 
     <!-- Content -->
     <main class="harmoni-content">
-        {% if messages %}
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {% if message.tags == 'success' %}<i class="fas fa-check-circle me-2"></i>
-                {% elif message.tags == 'error' or message.tags == 'danger' %}<i class="fas fa-exclamation-circle me-2"></i>
-                {% elif message.tags == 'warning' %}<i class="fas fa-exclamation-triangle me-2"></i>
-                {% else %}<i class="fas fa-info-circle me-2"></i>{% endif %}
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-            </div>
-            {% endfor %}
-        {% endif %}
-
         {% block content %}{% endblock %}
     </main>
 </div>
+
+<!-- ═══════════════ TOAST NOTIFICATIONS ═══════════════ -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="toast align-items-center border-0 show
+        {% if message.tags == 'success' %}text-bg-success
+        {% elif message.tags == 'error' or message.tags == 'danger' %}text-bg-danger
+        {% elif message.tags == 'warning' %}text-bg-warning text-dark
+        {% else %}text-bg-primary{% endif %}"
+        role="alert" aria-live="assertive" aria-atomic="true"
+        data-bs-autohide="true" data-bs-delay="5000">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2">
+                {% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>
+                {% elif message.tags == 'error' or message.tags == 'danger' %}<i class="fas fa-exclamation-circle"></i>
+                {% elif message.tags == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+                {% else %}<i class="fas fa-info-circle"></i>{% endif %}
+                {{ message }}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
 
 
 <!-- ═══════════════════════════════════════════ SCRIPTS ═══ -->
@@ -1012,8 +1039,84 @@
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
+// ── Dark Mode — init antes de render para evitar flash ────────
+(function() {
+  var saved = localStorage.getItem('harmoni-theme');
+  if (saved === 'dark' ||
+      (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+</script>
+<script>
 (function () {
     'use strict';
+
+    // ── Dark Mode toggle ───────────────────────────────────────
+    var dmBtn  = document.getElementById('darkModeToggle');
+    var dmIcon = document.getElementById('darkModeIcon');
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('harmoni-theme', theme);
+        if (dmIcon) {
+            dmIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            if (dmBtn) dmBtn.title = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+        }
+    }
+    // Apply on load
+    var currentTheme = localStorage.getItem('harmoni-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(currentTheme);
+
+    if (dmBtn) {
+        dmBtn.addEventListener('click', function() {
+            var t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            applyTheme(t);
+        });
+    }
+
+    // ── Auto-initialize Bootstrap Toasts ──────────────────────
+    document.querySelectorAll('.toast').forEach(function(el) {
+        var toast = new bootstrap.Toast(el, { autohide: true, delay: 5000 });
+        toast.show();
+    });
+
+    // ── KPI Counter animation — [data-counter] ─────────────
+    function animateCounter(el, target, duration) {
+        var start = 0;
+        var startTime = null;
+        var isFloat = target % 1 !== 0;
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var ease = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+            var current = ease * target;
+            el.textContent = isFloat ? current.toFixed(1) : Math.floor(current);
+            if (progress < 1) requestAnimationFrame(step);
+            else el.textContent = isFloat ? target.toFixed(1) : target;
+        }
+        requestAnimationFrame(step);
+    }
+
+    // Intersection Observer for KPIs
+    if ('IntersectionObserver' in window) {
+        var kpiObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    var el = entry.target;
+                    var val = parseFloat(el.dataset.counter);
+                    if (!isNaN(val)) {
+                        el.classList.add('kpi-animate');
+                        animateCounter(el, val, 800);
+                        kpiObserver.unobserve(el);
+                    }
+                }
+            });
+        }, { threshold: 0.3 });
+        document.querySelectorAll('[data-counter]').forEach(function(el) {
+            kpiObserver.observe(el);
+        });
+    }
 
     const sidebar   = document.getElementById('harmoniSidebar');
     const overlay   = document.getElementById('sidebarOverlay');

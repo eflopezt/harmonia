@@ -30,6 +30,9 @@ urlpatterns = [
     path('exportar/carga-s10/', views.exportar_carga_s10_view, name='asistencia_exportar_s10'),
     path('exportar/cierre/', views.exportar_cierre_view, name='asistencia_exportar_cierre'),
     path('exportar/horas-rco/', views.exportar_horas_rco, name='asistencia_exportar_horas_rco'),
+    path('exportar/faltas/', views.exportar_faltas_mes, name='asistencia_exportar_faltas'),
+    path('exportar/planilla/', views.exportar_planilla_consolidada, name='asistencia_exportar_planilla'),
+    path('exportar/validacion/', views.exportar_validacion_datos, name='asistencia_exportar_validacion'),
 
     # Relojes Biométricos ZKTeco
     path('relojes/', views.lista_relojes, name='asistencia_relojes_lista'),

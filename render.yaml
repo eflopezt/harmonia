@@ -23,6 +23,8 @@ services:
           name: harmoni-db
           property: connectionString
     healthCheckPath: /health/
+    # Keep-alive: Render free tier duerme tras 15min inactividad.
+    # Configurar UptimeRobot (gratis) para pingear https://harmoni.pe/health/ cada 5 min.
 
 databases:
   - name: harmoni-db

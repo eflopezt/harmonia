@@ -13,34 +13,51 @@
 <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No tienes un perfil de empleado vinculado.</div>
 {% else %}
 
+{% if chart_data and chart_data|length > 1 %}
+<!-- Gráfico de evolución salarial -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex align-items-center gap-2" style="background:#fff;border-bottom:1px solid #e2e8f0;">
+        <i class="fas fa-chart-line text-primary"></i>
+        <span class="fw-semibold" style="font-size:.9rem">Evolución Salarial</span>
+    </div>
+    <div class="card-body" style="padding:16px;">
+        <canvas id="chartSalarial" style="height:200px;max-height:200px;"></canvas>
+    </div>
+</div>
+{% endif %}
+
 {% if historial %}
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <table class="table table-hover mb-0" style="font-size:.85rem;">
-            <thead>
+            <thead class="table-light">
                 <tr>
-                    <th>Fecha</th>
+                    <th class="ps-3">Fecha</th>
                     <th>Motivo</th>
-                    <th class="text-end">Anterior</th>
-                    <th class="text-end">Nueva</th>
-                    <th class="text-center">% Cambio</th>
+                    <th class="text-end">Sueldo Anterior</th>
+                    <th class="text-end">Sueldo Nuevo</th>
+                    <th class="text-center pe-3">% Cambio</th>
                 </tr>
             </thead>
             <tbody>
                 {% for h in historial %}
                 <tr>
-                    <td>{{ h.fecha_efectiva|date:"d/m/Y" }}</td>
+                    <td class="ps-3">{{ h.fecha_efectiva|date:"d/m/Y" }}</td>
                     <td>
                         {% if h.motivo == 'INGRESO' %}<span class="badge bg-success">Ingreso</span>
                         {% elif h.motivo == 'INCREMENTO' %}<span class="badge bg-primary">Incremento</span>
-                        {% elif h.motivo == 'PROMOCION' %}<span class="badge bg-info">Promoción</span>
-                        {% else %}<span class="badge bg-light text-dark">{{ h.get_motivo_display }}</span>{% endif %}
+                        {% elif h.motivo == 'PROMOCION' %}<span class="badge bg-info text-white">Promoción</span>
+                        {% else %}<span class="badge bg-light text-dark border">{{ h.get_motivo_display }}</span>{% endif %}
                     </td>
-                    <td class="text-end">S/ {{ h.remuneracion_anterior|floatformat:2|intcomma }}</td>
-                    <td class="text-end fw-semibold">S/ {{ h.remuneracion_nueva|floatformat:2|intcomma }}</td>
-                    <td class="text-center">
-                        {% if h.porcentaje_incremento is not None %}
-                        <span class="{% if h.porcentaje_incremento > 0 %}text-success{% endif %}">{{ h.porcentaje_incremento|floatformat:1 }}%</span>
+                    <td class="text-end text-muted">
+                        {% if h.remuneracion_anterior %}S/ {{ h.remuneracion_anterior|floatformat:2|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end fw-semibold text-primary">S/ {{ h.remuneracion_nueva|floatformat:2|intcomma }}</td>
+                    <td class="text-center pe-3">
+                        {% if h.porcentaje_incremento is not None and h.porcentaje_incremento != 0 %}
+                        <span class="badge {% if h.porcentaje_incremento > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if h.porcentaje_incremento > 0 %}+{% endif %}{{ h.porcentaje_incremento|floatformat:1 }}%
+                        </span>
                         {% else %}—{% endif %}
                     </td>
                 </tr>
@@ -53,5 +70,63 @@
 <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No hay registros en tu historial salarial.</div>
 {% endif %}
 
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if chart_data and chart_data|length > 1 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  var labels = [{% for d in chart_data %}"{{ d.fecha }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  var sueldos = [{% for d in chart_data %}{{ d.sueldo }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  var gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
+  var tickColor = isDark ? '#94b8b5' : '#94a3b8';
+
+  new Chart(document.getElementById('chartSalarial'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Sueldo Base (S/)',
+        data: sueldos,
+        borderColor: '#0f766e',
+        backgroundColor: 'rgba(15,118,110,.12)',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointBackgroundColor: '#0f766e',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(item) { return 'S/ ' + item.raw.toLocaleString('es-PE'); }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: tickColor, font: { size: 9 } }, grid: { color: gridColor } },
+        y: {
+          ticks: {
+            color: tickColor, font: { size: 9 },
+            callback: function(v) { return 'S/ ' + v.toLocaleString('es-PE'); }
+          },
+          grid: { color: gridColor }
+        }
+      }
+    }
+  });
+})();
+</script>
 {% endif %}
 {% endblock %}

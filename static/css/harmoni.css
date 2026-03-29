@@ -58,6 +58,129 @@
 }
 
 /* =============================================================================
+   1b. DARK MODE — clase [data-theme="dark"] en <html>
+   ============================================================================= */
+[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Sidebar */
+    --sidebar-bg: #0a1a18;
+    --sidebar-text: #6ab5af;
+    --sidebar-text-hover: #d1faf5;
+    --sidebar-active-bg: #0f2e2a;
+    --sidebar-active-text: #ffffff;
+    --sidebar-active-accent: #2dd4bf;
+    --sidebar-section-title: #3d8c84;
+
+    /* Surfaces */
+    --content-bg: #0f1c1a;
+    --topbar-bg: #142420;
+
+    /* Typography */
+    --text-primary: #e2f2f0;
+    --text-secondary: #94b8b5;
+    --text-muted: #5f8a86;
+
+    /* Borders & shadows */
+    --border-color: #1e3a36;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
+
+    /* Gradients */
+    --brand-gradient: linear-gradient(135deg, #0f766e 0%, #0a1a18 100%);
+    --brand-gradient-soft: linear-gradient(135deg, #142420 0%, #0f1c1a 100%);
+}
+
+/* Dark mode overrides para elementos Bootstrap y propios */
+[data-theme="dark"] body {
+    background-color: var(--content-bg);
+    color: var(--text-primary);
+}
+[data-theme="dark"] .harmoni-topbar {
+    background: var(--topbar-bg) !important;
+    border-bottom-color: var(--border-color) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important;
+}
+[data-theme="dark"] .topbar-user-btn,
+[data-theme="dark"] .topbar-username,
+[data-theme="dark"] #darkModeToggle {
+    color: var(--text-secondary) !important;
+}
+[data-theme="dark"] .harmoni-content {
+    background: var(--content-bg);
+}
+/* Cards y tablas */
+[data-theme="dark"] .card,
+[data-theme="dark"] .hw-card,
+[data-theme="dark"] .portal-card,
+[data-theme="dark"] .table,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .dropdown-menu {
+    background: #1a2e2b !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table-light {
+    background: #0f2420 !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background: rgba(15,118,110,.12) !important;
+}
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .input-group-text {
+    background: #1a2e2b !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+[data-theme="dark"] .form-control::placeholder { color: var(--text-muted) !important; }
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background: #1e3530 !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(15,118,110,.25) !important;
+}
+[data-theme="dark"] .dropdown-item { color: var(--text-primary) !important; }
+[data-theme="dark"] .dropdown-item:hover { background: rgba(15,118,110,.2) !important; }
+[data-theme="dark"] .dropdown-divider { border-color: var(--border-color) !important; }
+[data-theme="dark"] .text-muted { color: var(--text-muted) !important; }
+[data-theme="dark"] .border { border-color: var(--border-color) !important; }
+[data-theme="dark"] .border-bottom { border-bottom-color: var(--border-color) !important; }
+[data-theme="dark"] .bg-white { background: #1a2e2b !important; }
+[data-theme="dark"] .bg-light,
+[data-theme="dark"] .table-light { background: #0f2420 !important; }
+/* Notif widget */
+[data-theme="dark"] .notif-dropdown { background: #1a2e2b !important; border-color: var(--border-color) !important; }
+[data-theme="dark"] .notif-item:hover { background: rgba(15,118,110,.15) !important; }
+/* KPI cards portal */
+[data-theme="dark"] .portal-kpi {
+    background: #1a2e2b !important;
+    border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .portal-kpi-lbl { color: var(--text-muted) !important; }
+/* Topbar search */
+[data-theme="dark"] .global-search-input-wrap {
+    background: #1a2e2b !important;
+    border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .global-search-input { color: var(--text-primary) !important; background: transparent !important; }
+/* Command palette */
+[data-theme="dark"] .cmd-container { background: #1a2e2b !important; border-color: var(--border-color) !important; }
+[data-theme="dark"] .cmd-input { background: transparent !important; color: var(--text-primary) !important; }
+[data-theme="dark"] .cmd-item:hover { background: rgba(15,118,110,.2) !important; }
+/* Pagination */
+[data-theme="dark"] .page-link { background: #1a2e2b !important; border-color: var(--border-color) !important; color: var(--text-secondary) !important; }
+[data-theme="dark"] .page-item.active .page-link { background: var(--primary) !important; border-color: var(--primary) !important; color: #fff !important; }
+
+/* =============================================================================
    2. RESET & BASE
    ============================================================================= */
 *,
@@ -2400,4 +2523,148 @@ textarea,
 .sidebar-brand-link {
     text-decoration: none;
     color: inherit;
+}
+
+/* =============================================================================
+   MEJORAS UX — Animaciones, Transiciones, Microinteracciones
+   ============================================================================= */
+
+/* ── KPI Counter animation ── */
+@keyframes kpi-pop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.kpi-animate {
+  animation: kpi-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Pulse badge (notificaciones nuevas) ── */
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* ── Skeleton loading shimmer ── */
+@keyframes shimmer {
+  0%   { background-position: -800px 0; }
+  100% { background-position: 800px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0fafa 25%, #e6f4f1 50%, #f0fafa 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, #1a2e2b 25%, #1e3530 50%, #1a2e2b 75%);
+  background-size: 800px 100%;
+}
+
+/* ── Hover lift para cards ── */
+.card-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ── Smooth page transitions ── */
+.harmoni-content {
+  animation: fadeInPage 0.25s ease both;
+}
+@keyframes fadeInPage {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Progress bar animated ── */
+.progress-animated .progress-bar {
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Topbar dark mode button ── */
+#darkModeToggle {
+  transition: color 0.2s, transform 0.3s;
+  opacity: 0.7;
+}
+#darkModeToggle:hover {
+  opacity: 1;
+  transform: rotate(12deg);
+}
+
+/* ── Portal KPI cards hover ── */
+.portal-kpi {
+  transition: var(--transition-smooth);
+  cursor: default;
+}
+a .portal-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--primary) !important;
+}
+
+/* ── Nav item hover with indicator ── */
+.nav-item {
+  position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 0;
+  background: var(--sidebar-active-accent);
+  border-radius: 0 3px 3px 0;
+  transform: translateY(-50%);
+  transition: height 0.2s;
+}
+.nav-item.active::before,
+.nav-item:hover::before {
+  height: 60%;
+}
+
+/* ── Quick action buttons ── */
+.qa-mini-btn {
+  transition: transform 0.15s ease, background 0.15s, border-color 0.15s !important;
+}
+.qa-mini-btn:hover {
+  transform: translateY(-2px);
+}
+.qa-mini-btn:active {
+  transform: translateY(0);
+}
+
+/* ── Table row hover transition ── */
+.table-hover tbody tr {
+  transition: background 0.12s;
+}
+
+/* ── Form focus glow ── */
+.form-control:focus,
+.form-select:focus {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* ── Toast slide in from right ── */
+.toast {
+  animation: slideInRight 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Dropdown menu animation ── */
+.dropdown-menu {
+  animation: dropdownFade 0.15s ease both;
+  transform-origin: top;
+}
+@keyframes dropdownFade {
+  from { opacity: 0; transform: scaleY(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scaleY(1) translateY(0); }
 }

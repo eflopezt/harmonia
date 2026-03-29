@@ -68,7 +68,7 @@ def ejecutar_paso(periodo, codigo):
 def _paso_verificar_importaciones(periodo):
     from asistencia.models import TareoImportacion, ConfiguracionSistema
     config = ConfiguracionSistema.get()
-    inicio, fin = config.get_ciclo_asistencia(periodo.anio, periodo.mes)
+    inicio, fin = config.get_ciclo_he(periodo.anio, periodo.mes)
 
     # Importaciones cuyo período solape con el ciclo de asistencia
     importaciones = TareoImportacion.objects.filter(
@@ -106,7 +106,7 @@ def _paso_verificar_importaciones(periodo):
 def _paso_validar_dni(periodo):
     from asistencia.models import RegistroTareo, ConfiguracionSistema
     config = ConfiguracionSistema.get()
-    inicio, fin = config.get_ciclo_asistencia(periodo.anio, periodo.mes)
+    inicio, fin = config.get_ciclo_he(periodo.anio, periodo.mes)
 
     sin_match = RegistroTareo.objects.filter(
         fecha__gte=inicio, fecha__lte=fin,
@@ -143,7 +143,7 @@ def _paso_validar_dni(periodo):
 def _paso_verificar_ss(periodo):
     from asistencia.models import RegistroTareo, ConfiguracionSistema
     config = ConfiguracionSistema.get()
-    inicio, fin = config.get_ciclo_asistencia(periodo.anio, periodo.mes)
+    inicio, fin = config.get_ciclo_he(periodo.anio, periodo.mes)
 
     ss_regs = RegistroTareo.objects.filter(
         fecha__gte=inicio, fecha__lte=fin,
@@ -258,7 +258,7 @@ def _paso_reporte_cierre(periodo):
     from asistencia.models import RegistroTareo, BancoHoras, ConfiguracionSistema
     from django.db.models import Sum, Count, Q
     config = ConfiguracionSistema.get()
-    inicio, fin = config.get_ciclo_asistencia(periodo.anio, periodo.mes)
+    inicio, fin = config.get_ciclo_he(periodo.anio, periodo.mes)
 
     resumen = RegistroTareo.objects.filter(
         fecha__gte=inicio, fecha__lte=fin,

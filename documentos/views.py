@@ -1833,3 +1833,142 @@ def plantilla_dossier_form(request, pk=None):
         'TIPO_CHOICES': PlantillaDossier.TIPO_CHOICES,
     }
     return render(request, 'documentos/plantilla_dossier_form.html', context)
+
+
+# ═══════════════════════════════════════════════════════════════
+# ARCHIVOS HR — Envío de archivos de RRHH al trabajador
+# ═══════════════════════════════════════════════════════════════
+
+@login_required
+def archivos_hr_panel(request):
+    """Panel admin: lista y subida de archivos HR para trabajadores."""
+    if not request.user.is_superuser and not request.user.is_staff:
+        messages.error(request, 'Sin permisos para gestionar archivos HR.')
+        return redirect('home')
+
+    from .models import ArchivoHR
+    from personal.models import Personal
+
+    archivos = ArchivoHR.objects.select_related('personal', 'subido_por').order_by('-creado_en')
+
+    # Filtros
+    personal_id = request.GET.get('personal')
+    periodo = request.GET.get('periodo', '')
+    if personal_id:
+        archivos = archivos.filter(personal_id=personal_id)
+    if periodo:
+        archivos = archivos.filter(periodo=periodo)
+
+    personal_list = Personal.objects.filter(estado='Activo').order_by('apellidos_nombres')
+
+    return render(request, 'documentos/archivos_hr_panel.html', {
+        'archivos': archivos,
+        'personal_list': personal_list,
+        'filtro_personal': personal_id,
+        'filtro_periodo': periodo,
+    })
+
+
+@login_required
+def archivo_hr_subir(request):
+    """Subir un archivo HR para un trabajador específico."""
+    if not request.user.is_superuser and not request.user.is_staff:
+        return JsonResponse({'success': False, 'error': 'Sin permisos.'}, status=403)
+
+    from .models import ArchivoHR
+    from personal.models import Personal
+
+    if request.method == 'POST':
+        personal_id = request.POST.get('personal_id')
+        nombre = request.POST.get('nombre', '').strip()
+        descripcion = request.POST.get('descripcion', '').strip()
+        periodo = request.POST.get('periodo', '').strip()
+        archivo = request.FILES.get('archivo')
+
+        if not personal_id or not archivo:
+            messages.error(request, 'Trabajador y archivo son obligatorios.')
+            return redirect('archivos_hr_panel')
+
+        try:
+            personal = Personal.objects.get(pk=personal_id)
+        except Personal.DoesNotExist:
+            messages.error(request, 'Trabajador no encontrado.')
+            return redirect('archivos_hr_panel')
+
+        if not nombre:
+            nombre = archivo.name
+
+        ArchivoHR.objects.create(
+            personal=personal,
+            nombre=nombre,
+            descripcion=descripcion,
+            periodo=periodo,
+            archivo=archivo,
+            subido_por=request.user,
+            visible=True,
+        )
+        messages.success(request, f'Archivo "{nombre}" subido para {personal.apellidos_nombres}.')
+        return redirect('archivos_hr_panel')
+
+    return redirect('archivos_hr_panel')
+
+
+@login_required
+def archivo_hr_eliminar(request, pk):
+    """Eliminar un archivo HR (solo admin)."""
+    if not request.user.is_superuser and not request.user.is_staff:
+        return JsonResponse({'success': False, 'error': 'Sin permisos.'}, status=403)
+
+    from .models import ArchivoHR
+    archivo = get_object_or_404(ArchivoHR, pk=pk)
+    nombre = archivo.nombre
+    archivo.archivo.delete(save=False)
+    archivo.delete()
+    messages.success(request, f'Archivo "{nombre}" eliminado.')
+    return redirect('archivos_hr_panel')
+
+
+@login_required
+def archivo_hr_descargar(request, pk):
+    """
+    Descarga segura de un archivo HR.
+    Solo el trabajador dueño o superuser/staff puede descargar.
+    """
+    from .models import ArchivoHR
+    from django.http import FileResponse
+    import os
+
+    archivo = get_object_or_404(ArchivoHR, pk=pk)
+
+    # Control de acceso: solo el trabajador propio o admin
+    es_admin = request.user.is_superuser or request.user.is_staff
+    es_dueno = (
+        hasattr(archivo.personal, 'usuario') and
+        archivo.personal.usuario_id == request.user.pk
+    )
+
+    if not es_admin and not es_dueno:
+        messages.error(request, 'No tienes acceso a este archivo.')
+        return redirect('portal_home')
+
+    if not archivo.visible and not es_admin:
+        messages.error(request, 'Este archivo no está disponible.')
+        return redirect('mis_archivos_hr')
+
+    try:
+        # Registrar primera descarga
+        if not archivo.descargado:
+            from django.utils import timezone
+            archivo.descargado = True
+            archivo.fecha_descarga = timezone.now()
+            archivo.save(update_fields=['descargado', 'fecha_descarga'])
+
+        response = FileResponse(
+            archivo.archivo.open('rb'),
+            as_attachment=True,
+            filename=archivo.nombre,
+        )
+        return response
+    except Exception:
+        messages.error(request, 'Error al descargar el archivo.')
+        return redirect('mis_archivos_hr')

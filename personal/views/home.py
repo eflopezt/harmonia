@@ -7,8 +7,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from datetime import date, timedelta
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q, Sum, Prefetch
+from django.core.cache import cache
 import json
 
 from ..models import Area, SubArea, Personal, Roster
@@ -215,15 +218,33 @@ def home(request):
     gerencias_filtradas = filtrar_areas(request.user)
     areas_filtradas = filtrar_subareas(request.user)
     personal_filtrado = filtrar_personal(request.user)
-    personal_activo = personal_filtrado.filter(estado='Activo')
+    personal_activo = personal_filtrado.filter(estado='Activo').only(
+        'id', 'grupo_tareo', 'estado', 'fecha_nacimiento', 'fecha_alta',
+        'apellidos_nombres', 'cargo', 'fecha_fin_contrato', 'sueldo_base',
+        'tipo_contrato',
+    )
     total_activos = personal_activo.count()
 
-    # ── KPIs base ──
+    # ── KPIs base — batch query instead of multiple counts ──
     _dist = {d['grupo_tareo']: d['n']
              for d in personal_activo.values('grupo_tareo').annotate(n=Count('id'))}
+
+    # Cache conteos de áreas (cambian poco, 60s de cache)
+    _cache_key_gerencias = f'home_gerencias_{request.user.pk}'
+    total_gerencias = cache.get(_cache_key_gerencias)
+    if total_gerencias is None:
+        total_gerencias = gerencias_filtradas.filter(activa=True).count()
+        cache.set(_cache_key_gerencias, total_gerencias, 60)
+
+    _cache_key_areas = f'home_areas_{request.user.pk}'
+    total_areas = cache.get(_cache_key_areas)
+    if total_areas is None:
+        total_areas = areas_filtradas.filter(activa=True).count()
+        cache.set(_cache_key_areas, total_areas, 60)
+
     context = {
-        'total_gerencias': gerencias_filtradas.filter(activa=True).count(),
-        'total_areas': areas_filtradas.filter(activa=True).count(),
+        'total_gerencias': total_gerencias,
+        'total_areas': total_areas,
         'total_personal': total_activos,
         'staff_count': _dist.get('STAFF', 0),
         'rco_count':   _dist.get('RCO',   0),
@@ -600,6 +621,78 @@ def home(request):
             }
         except Exception:
             pass
+
+    # ── Alertas de planilla/S10 (admin) ────────────────────────────────
+    if request.user.is_superuser or request.user.is_staff:
+        try:
+            from asistencia.models import RegistroTareo
+            mes_ini_t = hoy.replace(day=1)
+            # SS del mes en curso
+            ss_mes = RegistroTareo.objects.filter(
+                codigo_dia='SS',
+                fecha__gte=mes_ini_t,
+                fecha__lte=hoy,
+            ).count()
+            # Personal activo sin DNI
+            sin_dni = Personal.objects.filter(
+                Q(nro_doc__isnull=True) | Q(nro_doc=''),
+                estado='Activo',
+            ).count()
+            # HE elevadas en el mes (>50h individual)
+            from django.db.models import ExpressionWrapper, DecimalField as DField, F as DbF
+            he_elevadas_count = RegistroTareo.objects.filter(
+                fecha__gte=mes_ini_t, fecha__lte=hoy,
+                grupo='RCO',
+            ).values('personal_id').annotate(
+                total_he=ExpressionWrapper(
+                    DbF('he_25') + DbF('he_35') + DbF('he_100'),
+                    output_field=DField(max_digits=6, decimal_places=2)
+                )
+            ).filter(total_he__gt=50).count()
+            context['alertas_planilla'] = {
+                'ss_mes': ss_mes,
+                'sin_dni': sin_dni,
+                'he_elevadas': he_elevadas_count,
+                'mes_label': hoy.strftime('%B %Y'),
+            }
+        except Exception:
+            pass
+
+    # ── Cumpleaños y aniversarios del mes ──────────────────────────────
+    try:
+        import calendar as _cal
+        fin_mes = hoy.replace(day=_cal.monthrange(hoy.year, hoy.month)[1])
+        cumpleanios_mes = list(
+            personal_activo.filter(
+                fecha_nacimiento__isnull=False,
+                fecha_nacimiento__month=hoy.month,
+            ).select_related('subarea__area')
+            .order_by('fecha_nacimiento__day')
+            .values('pk', 'apellidos_nombres', 'cargo', 'fecha_nacimiento')
+        )
+        for c in cumpleanios_mes:
+            c['edad'] = hoy.year - c['fecha_nacimiento'].year
+            c['es_hoy'] = (c['fecha_nacimiento'].day == hoy.day)
+            c['dia'] = c['fecha_nacimiento'].day
+
+        aniversarios_mes = list(
+            personal_activo.filter(
+                fecha_alta__isnull=False,
+                fecha_alta__month=hoy.month,
+            ).exclude(fecha_alta__year=hoy.year)
+            .select_related('subarea__area')
+            .order_by('fecha_alta__day')
+            .values('pk', 'apellidos_nombres', 'cargo', 'fecha_alta')
+        )
+        for a in aniversarios_mes:
+            a['anios'] = hoy.year - a['fecha_alta'].year
+            a['es_hoy'] = (a['fecha_alta'].day == hoy.day)
+            a['dia'] = a['fecha_alta'].day
+
+        context['cumpleanios_mes'] = cumpleanios_mes
+        context['aniversarios_mes'] = aniversarios_mes
+    except Exception:
+        pass
 
     context['is_jefe'] = is_jefe
     context.update(get_context_usuario(request.user))

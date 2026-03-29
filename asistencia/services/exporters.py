@@ -257,6 +257,8 @@ class CargaS10Exporter:
 
             for col_idx, val in enumerate(row_data, 1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=val)
+                if col_idx == 3:  # DNI — forzar texto para preservar ceros iniciales
+                    cell.number_format = '@'
                 if reg_next and col_idx == len(row_data):
                     cell.fill = reg_fill
                     cell.font = Font(color='7F0000', bold=True, size=9)
@@ -281,6 +283,7 @@ class CargaS10Exporter:
                             dias_n,
                             f'Descuento diferido — aplica en planilla siguiente ({self.periodo_label})'
                         ])
+                        ws2.cell(row=ws2.max_row, column=1).number_format = '@'  # DNI texto
 
         buffer = BytesIO()
         wb.save(buffer)
@@ -405,6 +408,7 @@ class ReporteCierreExporter:
                 float(d['he25']), float(d['he35']), float(d['he100']),
                 round(pct_asist, 1),
             ])
+            ws.cell(row=row_idx, column=2).number_format = '@'  # DNI texto
 
         for col_idx in range(1, 16):
             ws.column_dimensions[get_column_letter(col_idx)].width = 16

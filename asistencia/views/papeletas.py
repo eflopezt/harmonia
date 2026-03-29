@@ -266,7 +266,8 @@ def papeletas_exportar(request):
         cell.alignment = hdr_align
 
     for row_idx, p in enumerate(qs, 2):
-        ws.cell(row=row_idx, column=1, value=p.dni or (p.personal.nro_doc if p.personal else ''))
+        c1 = ws.cell(row=row_idx, column=1, value=p.dni or (p.personal.nro_doc if p.personal else ''))
+        c1.number_format = '@'  # DNI texto
         ws.cell(row=row_idx, column=2, value=p.personal.apellidos_nombres if p.personal else '')
         ws.cell(row=row_idx, column=3, value=p.get_tipo_permiso_display())
         ws.cell(row=row_idx, column=4, value=p.fecha_inicio.strftime('%d/%m/%Y'))

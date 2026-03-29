@@ -28,6 +28,14 @@ EXEMPT_URL_PATTERNS = [
     r'^/media/',
     r'^/api/v1/auth/',
     r'^/$',           # landing
+    # Portal del trabajador — acceso siempre disponible para empleados vinculados
+    r'^/mi-portal/',
+    r'^/documentos/boletas/mis/',
+    r'^/documentos/archivos-hr/\d+/descargar/',
+    r'^/documentos/constancias/mis/',
+    r'^/documentos/laborales/mis/',
+    r'^/vacaciones/mis',
+    r'^/cuenta/',
 ]
 
 EXEMPT_COMPILED = [re.compile(p) for p in EXEMPT_URL_PATTERNS]

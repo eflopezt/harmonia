@@ -21,6 +21,9 @@ from asistencia.views.exportaciones import (  # noqa: F401
     exportar_cierre_view,
     reportes_exportar_panel,
     exportar_horas_rco,
+    exportar_faltas_mes,
+    exportar_planilla_consolidada,
+    exportar_validacion_datos,
 )
 from asistencia.views.configuracion import (  # noqa: F401
     configuracion_view,

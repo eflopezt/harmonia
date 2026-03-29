@@ -143,6 +143,47 @@ def portal_home(request):
                 'meses': (delta.days % 365) // 30,
             }
 
+        # ── Propio aniversario este mes ───────────────────────
+        es_mi_aniversario = False
+        mi_aniversario_anios = None
+        if empleado.fecha_alta and empleado.fecha_alta.month == hoy.month and empleado.fecha_alta.year != hoy.year:
+            es_mi_aniversario = True
+            mi_aniversario_anios = hoy.year - empleado.fecha_alta.year
+
+        # ── Propio cumpleaños este mes ────────────────────────
+        es_mi_cumple = False
+        mi_cumple_edad = None
+        if empleado.fecha_nacimiento and empleado.fecha_nacimiento.month == hoy.month:
+            es_mi_cumple = True
+            mi_cumple_edad = hoy.year - empleado.fecha_nacimiento.year
+
+        # ── Cumpleaños compañeros del área (mismo mes) ────────
+        companeros_cumple = []
+        try:
+            area_filtro = {}
+            if empleado.subarea:
+                area_filtro['subarea__area'] = empleado.subarea.area
+            elif empleado.subarea:
+                area_filtro['subarea'] = empleado.subarea
+            if area_filtro:
+                from django.db.models import Q as _Q
+                companeros_qs = Personal.objects.filter(
+                    **area_filtro,
+                    estado='Activo',
+                    fecha_nacimiento__isnull=False,
+                    fecha_nacimiento__month=hoy.month,
+                ).exclude(pk=empleado.pk).order_by('fecha_nacimiento__day')[:6]
+                for c in companeros_qs:
+                    companeros_cumple.append({
+                        'nombre': c.apellidos_nombres,
+                        'dia': c.fecha_nacimiento.day,
+                        'edad': hoy.year - c.fecha_nacimiento.year,
+                        'es_hoy': (c.fecha_nacimiento.day == hoy.day),
+                        'cargo': c.cargo or '',
+                    })
+        except Exception:
+            pass
+
         context.update({
             'dias_trabajados_mes': registros_mes.filter(horas_efectivas__gt=0).count(),
             'banco_actual': banco,
@@ -154,12 +195,16 @@ def portal_home(request):
             'total_pendientes': pap_pendientes + sol_pendientes + just_pendientes,
             'papeletas_prox': papeletas_prox,
             'he_total_mes': he_total_mes,
-            # Nuevos
             'dias_vac_disponibles': dias_vac_disponibles,
             'vac_proxima': vac_proxima,
             'caps_proximas': caps_proximas,
             'notif_recientes': notif_recientes,
             'antiguedad': antiguedad,
+            'es_mi_aniversario': es_mi_aniversario,
+            'mi_aniversario_anios': mi_aniversario_anios,
+            'es_mi_cumple': es_mi_cumple,
+            'mi_cumple_edad': mi_cumple_edad,
+            'companeros_cumple': companeros_cumple,
         })
 
     return render(request, 'portal/portal_home.html', context)
@@ -169,6 +214,24 @@ def portal_home(request):
 def mi_perfil(request):
     empleado = _get_empleado(request.user)
     context = {'empleado': empleado}
+
+    # ── POST: actualizar datos de contacto editables ───────────
+    if request.method == 'POST' and empleado:
+        from django.contrib import messages as _msg
+        celular = request.POST.get('celular', '').strip()
+        correo_personal = request.POST.get('correo_personal', '').strip()
+        update_fields = []
+        if celular != empleado.celular:
+            empleado.celular = celular[:20]
+            update_fields.append('celular')
+        if correo_personal != (empleado.correo_personal or ''):
+            empleado.correo_personal = correo_personal[:254]
+            update_fields.append('correo_personal')
+        if update_fields:
+            empleado.save(update_fields=update_fields)
+            _msg.success(request, 'Datos de contacto actualizados correctamente.')
+        from django.shortcuts import redirect
+        return redirect('mi_perfil')
 
     if empleado:
         hoy = date.today()
@@ -246,10 +309,30 @@ def mi_asistencia(request):
             fecha__lte=fecha_fin,
         ).order_by('fecha'))
 
-        total_he = sum(
-            (r.he_25 or 0) + (r.he_35 or 0) + (r.he_100 or 0)
-            for r in registros
+        # ── Estadísticas del mes ──────────────────────────────
+        dias_trab = sum(1 for r in registros if r.codigo_dia in (
+            'T', 'NOR', 'TR', 'A', 'SS', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM'
+        ))
+        dias_falta = sum(1 for r in registros if r.codigo_dia in ('FA', 'F'))
+        dias_lsg = sum(1 for r in registros if r.codigo_dia == 'LSG')
+        dias_vac = sum(1 for r in registros if r.codigo_dia in ('VAC', 'V'))
+        dias_dm = sum(1 for r in registros if r.codigo_dia == 'DM')
+        dias_ss = sum(1 for r in registros if r.codigo_dia == 'SS')
+        he_25 = sum(r.he_25 or 0 for r in registros)
+        he_35 = sum(r.he_35 or 0 for r in registros)
+        he_100 = sum(r.he_100 or 0 for r in registros)
+        total_he = he_25 + he_35 + he_100
+        total_horas_marc = sum(r.horas_marcadas or 0 for r in registros)
+
+        # Días laborables del mes (lun-sab)
+        dias_lab_mes = sum(
+            1 for d in range(1, fecha_fin.day + 1)
+            if date(anio, mes, d).weekday() < 6
         )
+        pct_asistencia = round(dias_trab / dias_lab_mes * 100, 1) if dias_lab_mes else 0
+
+        # Promedio de horas por día trabajado
+        prom_horas = round(float(total_horas_marc) / dias_trab, 1) if dias_trab else 0
 
         # Años disponibles para el selector
         primer_registro = RegistroTareo.objects.filter(
@@ -262,6 +345,19 @@ def mi_asistencia(request):
             'fecha_inicio': fecha_inicio,
             'fecha_fin': fecha_fin,
             'total_he': total_he,
+            'he_25': he_25,
+            'he_35': he_35,
+            'he_100': he_100,
+            'dias_trab': dias_trab,
+            'dias_falta': dias_falta,
+            'dias_lsg': dias_lsg,
+            'dias_vac': dias_vac,
+            'dias_dm': dias_dm,
+            'dias_ss': dias_ss,
+            'total_horas_marc': total_horas_marc,
+            'prom_horas': prom_horas,
+            'dias_lab_mes': dias_lab_mes,
+            'pct_asistencia': pct_asistencia,
             'anio_sel': anio,
             'mes_sel': mes,
             'anios': range(anio_inicio, hoy.year + 1),
@@ -1055,3 +1151,24 @@ def mis_vacaciones(request):
         })
 
     return render(request, 'portal/mis_vacaciones.html', context)
+
+
+@login_required
+def mis_archivos_hr(request):
+    """El trabajador ve y descarga los archivos que RRHH le envió."""
+    from documentos.models import ArchivoHR
+
+    empleado = _get_empleado(request.user)
+    context = {'empleado': empleado}
+
+    if empleado:
+        archivos = ArchivoHR.objects.filter(
+            personal=empleado,
+            visible=True,
+        ).order_by('-creado_en')
+
+        context['archivos'] = archivos
+        context['total'] = archivos.count()
+        context['pendientes'] = archivos.filter(descargado=False).count()
+
+    return render(request, 'portal/mis_archivos_hr.html', context)

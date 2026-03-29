@@ -1232,3 +1232,80 @@ class DocumentoFirmaDigital(models.Model):
             'CANCELADO': 'fa-ban',
             'ERROR':     'fa-exclamation-triangle',
         }.get(self.estado, 'fa-file')
+
+
+# ═══════════════════════════════════════════════════════════════
+# ARCHIVOS HR — Envío de archivos de RRHH al trabajador
+# Permite subir cualquier archivo (informes, comunicados, etc.)
+# para que el trabajador lo descargue desde su portal.
+# ═══════════════════════════════════════════════════════════════
+
+class ArchivoHR(models.Model):
+    """
+    Archivo enviado por RRHH a un trabajador específico para descarga desde el portal.
+    Diferente a DocumentoTrabajador (legajo) y BoletaPago (nómina):
+    este modelo cubre comunicados, informes, memos y cualquier archivo ad-hoc.
+    """
+    personal = models.ForeignKey(
+        'personal.Personal', on_delete=models.CASCADE,
+        related_name='archivos_hr', verbose_name='Trabajador',
+    )
+    nombre = models.CharField(max_length=255, verbose_name='Nombre del archivo')
+    descripcion = models.TextField(blank=True, verbose_name='Descripción')
+    archivo = models.FileField(
+        upload_to='archivos_hr/%Y/%m/',
+        verbose_name='Archivo',
+    )
+    periodo = models.CharField(
+        max_length=7, blank=True,
+        help_text='Período referencial, ej: 2026-03',
+        verbose_name='Período',
+    )
+    visible = models.BooleanField(
+        default=True,
+        help_text='Si está activo, el trabajador puede verlo y descargarlo.',
+        verbose_name='Visible para el trabajador',
+    )
+
+    # Auditoría
+    subido_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+', verbose_name='Subido por',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    # Registro de descarga
+    descargado = models.BooleanField(default=False)
+    fecha_descarga = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        verbose_name = 'Archivo HR'
+        verbose_name_plural = 'Archivos HR'
+        indexes = [
+            models.Index(fields=['personal', '-creado_en']),
+        ]
+
+    def __str__(self):
+        return f'{self.nombre} → {self.personal}'
+
+    @property
+    def extension(self):
+        if self.archivo and self.archivo.name:
+            return self.archivo.name.rsplit('.', 1)[-1].lower()
+        return ''
+
+    @property
+    def icono_archivo(self):
+        ext = self.extension
+        if ext == 'pdf':
+            return 'fa-file-pdf text-danger'
+        if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+            return 'fa-file-image text-primary'
+        if ext in ('doc', 'docx'):
+            return 'fa-file-word text-info'
+        if ext in ('xls', 'xlsx'):
+            return 'fa-file-excel text-success'
+        if ext in ('zip', 'rar', '7z'):
+            return 'fa-file-zipper text-warning'
+        return 'fa-file text-muted'

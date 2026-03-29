@@ -108,7 +108,7 @@
         <a href="{% url 'mi_asistencia' %}" class="text-decoration-none">
             <div class="portal-kpi">
                 <div class="portal-kpi-icon text-primary"><i class="fas fa-calendar-check"></i></div>
-                <div class="portal-kpi-num text-primary">{{ dias_trabajados_mes }}</div>
+                <div class="portal-kpi-num text-primary" data-counter="{{ dias_trabajados_mes }}">{{ dias_trabajados_mes }}</div>
                 <div class="portal-kpi-lbl">Días trabajados</div>
             </div>
         </a>
@@ -400,6 +400,52 @@
                 {% endif %}
             </div>
         </div>
+
+        {# Celebraciones del mes — cumple propio o compañeros #}
+        {% if es_mi_cumple or es_mi_aniversario or companeros_cumple %}
+        <div class="portal-card" style="{% if es_mi_cumple or es_mi_aniversario %}border-color:#fce7f3;{% endif %}">
+            <div class="portal-card-hdr" style="{% if es_mi_cumple %}background:#fdf2f8;{% elif es_mi_aniversario %}background:#fffbeb;{% endif %}">
+                <i class="fas fa-birthday-cake" style="color:#ec4899"></i>
+                {% if es_mi_cumple %}¡Feliz Cumpleaños!{% elif es_mi_aniversario %}¡Feliz Aniversario!{% else %}Celebraciones del Mes{% endif %}
+            </div>
+            <div class="portal-card-body" style="padding:10px 16px;">
+                {% if es_mi_cumple %}
+                <div class="text-center py-2 mb-2" style="background:#fdf2f8;border-radius:8px;border:1px solid #fbcfe8;">
+                    <div style="font-size:1.8rem;margin-bottom:4px;">🎂</div>
+                    <div style="font-size:.88rem;font-weight:700;color:#be185d;">¡Hoy es tu cumpleaños!</div>
+                    <div style="font-size:.78rem;color:#9d174d;">{{ mi_cumple_edad }} años — ¡Muchas felicidades!</div>
+                </div>
+                {% endif %}
+                {% if es_mi_aniversario %}
+                <div class="text-center py-2 mb-2" style="background:#fffbeb;border-radius:8px;border:1px solid #fde68a;">
+                    <div style="font-size:1.8rem;margin-bottom:4px;">🏅</div>
+                    <div style="font-size:.88rem;font-weight:700;color:#92400e;">¡{{ mi_aniversario_anios }} año{{ mi_aniversario_anios|pluralize:"s" }} en la empresa!</div>
+                    <div style="font-size:.78rem;color:#78350f;">Gracias por tu dedicación y trabajo</div>
+                </div>
+                {% endif %}
+                {% if companeros_cumple %}
+                <div style="font-size:.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:6px;">Compañeros del Área</div>
+                {% for c in companeros_cumple %}
+                <div class="d-flex align-items-center gap-2 py-1" style="border-bottom:1px solid #f1f5f9;">
+                    <div style="width:24px;height:24px;border-radius:50%;background:{% if c.es_hoy %}#ec4899{% else %}#fce7f3{% endif %};
+                         color:{% if c.es_hoy %}#fff{% else %}#ec4899{% endif %};display:flex;align-items:center;
+                         justify-content:center;font-size:.65rem;flex-shrink:0;font-weight:700;">
+                        {{ c.dia }}
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:.78rem;font-weight:{% if c.es_hoy %}700{% else %}500{% endif %};
+                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {{ c.nombre|truncatechars:26 }}
+                        </div>
+                        <div style="font-size:.68rem;color:#94a3b8;">🎂 {{ c.edad }} años</div>
+                    </div>
+                    {% if c.es_hoy %}<span style="font-size:.6rem;background:#ec4899;color:#fff;border-radius:8px;padding:1px 6px;font-weight:600;">¡Hoy!</span>{% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         {# Capacitaciones próximas #}
         {% if caps_proximas %}
