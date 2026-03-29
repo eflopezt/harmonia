@@ -316,19 +316,20 @@ async function loadChart(areaId) {
         document.getElementById('nodeCount').textContent = (data.length - 1) + ' personas';
 
         var isUltra = (viewMode === 'ultra');
+        var useCompact = (viewMode !== 'normal');  // compacto y ultra usan layout compact
 
         chart = new d3.OrgChart()
             .container('#orgChart')
             .data(data)
-            .compact(isUltra)
+            .compact(true)
             .nodeWidth(function(d) { return calcNodeWidth(d); })
             .nodeHeight(function(d) { return calcNodeHeight(d); })
-            .childrenMargin(function(d) { return isUltra ? 20 : 40; })
-            .compactMarginBetween(function(d) { return 15; })
-            .compactMarginPair(function(d) { return 30; })
-            .siblingsMargin(function(d) { return isUltra ? 10 : 25; })
-            .neighbourMargin(function(a, b) { return isUltra ? 10 : 25; })
-            .initialExpandLevel(1)
+            .childrenMargin(function(d) { return isUltra ? 30 : 50; })
+            .compactMarginBetween(function(d) { return isUltra ? 15 : 25; })
+            .compactMarginPair(function(d) { return isUltra ? 30 : 50; })
+            .siblingsMargin(function(d) { return isUltra ? 15 : 35; })
+            .neighbourMargin(function(a, b) { return isUltra ? 15 : 35; })
+            .initialExpandLevel(Infinity)
             .linkUpdate(function(d, i, arr) {
                 d3.select(this)
                     .attr('stroke', '#94a3b8')
@@ -455,18 +456,41 @@ async function exportPDF() {
     btn.disabled = true;
 
     try {
+        // Guardar estado actual y expandir todo
         if (chart) { chart.expandAll(); chart.fit(); }
-        await new Promise(function(r) { setTimeout(r, 1000); });
+        await new Promise(function(r) { setTimeout(r, 1500); });
 
-        var canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#f8fafc' });
-        var imgData = canvas.toDataURL('image/png');
+        // Capturar con resolución adaptativa según tamaño del chart
+        var chartSvg = container.querySelector('svg');
+        var svgRect = chartSvg ? chartSvg.getBoundingClientRect() : container.getBoundingClientRect();
+        var captureScale = Math.min(2, 8000 / Math.max(svgRect.width, svgRect.height));
+        captureScale = Math.max(1, captureScale);
+
+        var canvas = await html2canvas(container, { scale: captureScale, useCORS: true, logging: false, backgroundColor: '#f8fafc' });
+        var imgData = canvas.toDataURL('image/jpeg', 0.92);
         var imgW = canvas.width;
         var imgH = canvas.height;
 
         var jsPDF = window.jspdf.jsPDF;
+
+        // Auto-detectar orientación: si el chart es más ancho que alto, usar landscape
+        var ratio = imgW / imgH;
+        var autoOrientation = ratio > 1.2 ? 'landscape' : 'portrait';
+        if (orientation === 'auto') orientation = autoOrientation;
+
         var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
 
-        var ratio = imgW / imgH;
+        // Recalcular dims con orientación final
+        if (orientation === 'landscape') {
+            pw = Math.max(dims[0], dims[1]);
+            ph = Math.min(dims[0], dims[1]);
+        } else {
+            pw = Math.min(dims[0], dims[1]);
+            ph = Math.max(dims[0], dims[1]);
+        }
+        usableW = pw - margin * 2;
+        usableH = ph - margin * 2 - 12;
+
         var renderW = usableW * scale;
         var renderH = renderW / ratio;
 
@@ -474,10 +498,16 @@ async function exportPDF() {
             _addHeader(pdf, pw, margin);
             var fitW = Math.min(renderW, usableW);
             var fitH = fitW / ratio;
+            // Si es muy alto, ajustar al alto disponible
+            if (fitH > usableH) {
+                fitH = usableH;
+                fitW = fitH * ratio;
+            }
             var x = margin + (usableW - fitW) / 2;
-            pdf.addImage(imgData, 'PNG', x, margin + 12, fitW, fitH);
+            pdf.addImage(imgData, 'JPEG', x, margin + 12, fitW, fitH);
             _addFooter(pdf, pw, ph, margin, 1, 1);
         } else {
+            // Multi-página: dividir verticalmente
             var pxPerPage = (usableH / renderH) * imgH;
             var totalPages = Math.ceil(imgH / pxPerPage);
             for (var page = 0; page < totalPages; page++) {
@@ -488,12 +518,13 @@ async function exportPDF() {
                 cropCanvas.height = Math.min(pxPerPage, imgH - page * pxPerPage);
                 var ctx = cropCanvas.getContext('2d');
                 ctx.drawImage(canvas, 0, -page * pxPerPage);
-                var cropData = cropCanvas.toDataURL('image/png');
+                var cropData = cropCanvas.toDataURL('image/jpeg', 0.90);
                 var cr = cropCanvas.width / cropCanvas.height;
                 var fw = Math.min(usableW, renderW);
                 var fh = fw / cr;
+                if (fh > usableH) { fh = usableH; fw = fh * cr; }
                 var xx = margin + (usableW - fw) / 2;
-                pdf.addImage(cropData, 'PNG', xx, margin + 12, fw, Math.min(fh, usableH));
+                pdf.addImage(cropData, 'JPEG', xx, margin + 12, fw, Math.min(fh, usableH));
                 _addFooter(pdf, pw, ph, margin, page + 1, totalPages);
             }
         }
