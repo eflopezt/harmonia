@@ -275,10 +275,10 @@ class GeminiService(IAService):
             config = genai.types.GenerateContentConfig(
                 system_instruction=system,
                 temperature=0.1,
-                max_output_tokens=400,
+                max_output_tokens=4096,
             ) if system else genai.types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=400,
+                max_output_tokens=4096,
             )
             resp = client.models.generate_content(
                 model=self.modelo,
@@ -298,7 +298,7 @@ class GeminiService(IAService):
             config = genai.types.GenerateContentConfig(
                 system_instruction=system,
                 temperature=0.1,
-                max_output_tokens=600,
+                max_output_tokens=4096,
             )
             resp = client.models.generate_content(
                 model=self.modelo,
@@ -433,7 +433,7 @@ class OpenAICompatibleService(IAService):
             resp = client.chat.completions.create(
                 model=self.modelo,
                 messages=msgs,
-                max_tokens=400,
+                max_tokens=4096,
                 temperature=0.1,
             )
             return (resp.choices[0].message.content or '').strip()
@@ -451,7 +451,7 @@ class OpenAICompatibleService(IAService):
             resp = client.chat.completions.create(
                 model=self.modelo,
                 messages=msgs,
-                max_tokens=600,
+                max_tokens=4096,
                 temperature=0.1,
             )
             return (resp.choices[0].message.content or '').strip()
@@ -739,7 +739,7 @@ class OllamaService(IAService):
         modelo = self._resolver_modelo()
         payload: dict = {
             'model': modelo, 'prompt': prompt, 'stream': False,
-            'options': {'temperature': 0.1, 'num_predict': 300},
+            'options': {'temperature': 0.1, 'num_predict': 4096},
         }
         if system:
             payload['system'] = system
@@ -757,7 +757,7 @@ class OllamaService(IAService):
         modelo = self._resolver_modelo()
         payload: dict = {
             'model': modelo, 'messages': messages, 'stream': False,
-            'options': {'temperature': 0.1, 'num_predict': 300},
+            'options': {'temperature': 0.1, 'num_predict': 4096},
         }
         if system:
             payload['system'] = system
