@@ -173,11 +173,9 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3.1.1/build/d3-org-chart.js"></script>
-<!-- jsPDF + svg2pdf.js para export PDF vectorial -->
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js"></script>
-<!-- html2canvas como fallback para PNG -->
+<!-- html2canvas + jsPDF para export PDF -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 var chart = null;  // var para acceso global (window.chart)
@@ -435,7 +433,7 @@ document.getElementById('selArea').addEventListener('change', function() {
     loadChart(this.value);
 });
 
-// PDF Export - Vectorial (SVG → PDF, nítido al zoom e impresión)
+// PDF Export - Alta resolución (expande SVG a tamaño real antes de capturar)
 async function exportPDF() {
     var container = document.getElementById('orgChart');
     var paper = document.getElementById('pdfPaper').value;
@@ -447,27 +445,85 @@ async function exportPDF() {
 
     var btn = event.target.closest('button');
     var originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando PDF vectorial...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando PDF...';
     btn.disabled = true;
 
     try {
-        // Expandir todo y esperar render
+        // 1. Expandir todo
         if (chart) { chart.expandAll(); chart.fit(); }
-        await new Promise(function(r) { setTimeout(r, 1500); });
+        await new Promise(function(r) { setTimeout(r, 2000); });
 
+        // 2. Obtener dimensiones reales del contenido desde d3-org-chart
+        var state = chart.getChartState();
+        var allNodes = state.allNodes;
+        var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        allNodes.forEach(function(n) {
+            var x = n.x || 0, y = n.y || 0;
+            var w = n.width || 230, h = n.height || 100;
+            if (x - w/2 < minX) minX = x - w/2;
+            if (x + w/2 > maxX) maxX = x + w/2;
+            if (y < minY) minY = y;
+            if (y + h > maxY) maxY = y + h;
+        });
+
+        var contentW = maxX - minX + 100; // padding
+        var contentH = maxY - minY + 100;
+        var contentRatio = contentW / contentH;
+
+        // 3. Guardar estado original del SVG y contenedor
         var svgEl = container.querySelector('svg');
-        if (!svgEl) throw new Error('No se encontró el SVG del organigrama');
+        var origSvgW = svgEl.getAttribute('width');
+        var origSvgH = svgEl.getAttribute('height');
+        var origContainerStyle = container.style.cssText;
+        var origContainerH = container.style.height;
+        var origOverflow = container.style.overflow;
 
-        // Obtener dimensiones reales del SVG (viewBox o atributos)
-        var svgW = svgEl.viewBox.baseVal.width || svgEl.getBoundingClientRect().width;
-        var svgH = svgEl.viewBox.baseVal.height || svgEl.getBoundingClientRect().height;
-        var svgRatio = svgW / svgH;
+        // 4. Redimensionar SVG y contenedor al tamaño real del contenido
+        // Limitar a un máximo razonable para no crashear el navegador
+        var maxPx = 8000;
+        var renderScale = Math.min(1, maxPx / Math.max(contentW, contentH));
+        var renderW = Math.round(contentW * renderScale);
+        var renderH = Math.round(contentH * renderScale);
 
-        // Determinar orientación automática
-        if (orientation === 'landscape' || svgRatio > 1.2) {
-            orientation = 'landscape';
-        }
+        svgEl.setAttribute('width', renderW);
+        svgEl.setAttribute('height', renderH);
+        svgEl.setAttribute('viewBox', (minX - 50) + ' ' + (minY - 50) + ' ' + contentW + ' ' + contentH);
+        container.style.width = renderW + 'px';
+        container.style.height = renderH + 'px';
+        container.style.overflow = 'visible';
 
+        // Ocultar el transform del center-group y resetear a identidad
+        var centerGroup = svgEl.querySelector('g.center-group');
+        var origCGTransform = centerGroup.getAttribute('transform');
+        centerGroup.setAttribute('transform', 'translate(0,0) scale(1)');
+
+        await new Promise(function(r) { setTimeout(r, 500); });
+
+        // 5. Capturar con html2canvas a alta resolución
+        var captureScale = Math.max(1, Math.min(3, 6000 / Math.max(renderW, renderH)));
+        var canvas = await html2canvas(container, {
+            scale: captureScale,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#f8fafc',
+            width: renderW,
+            height: renderH
+        });
+
+        // 6. Restaurar todo inmediatamente
+        svgEl.setAttribute('width', origSvgW);
+        svgEl.setAttribute('height', origSvgH);
+        svgEl.removeAttribute('viewBox');
+        container.style.cssText = origContainerStyle;
+        centerGroup.setAttribute('transform', origCGTransform);
+        chart.fit();
+
+        // 7. Generar PDF
+        var imgData = canvas.toDataURL('image/png');
+        var imgRatio = canvas.width / canvas.height;
+
+        // Auto orientación
+        if (imgRatio > 1.3) orientation = 'landscape';
         var pw, ph;
         if (orientation === 'landscape') {
             pw = Math.max(dims[0], dims[1]);
@@ -479,105 +535,33 @@ async function exportPDF() {
 
         var margin = 10;
         var usableW = pw - margin * 2;
-        var usableH = ph - margin * 2 - 14; // espacio para header/footer
-
-        // Calcular tamaño del SVG en el PDF
-        var fitW = usableW * scale;
-        var fitH = fitW / svgRatio;
-        if (fitH > usableH) {
-            fitH = usableH;
-            fitW = fitH * svgRatio;
-        }
+        var usableH = ph - margin * 2 - 14;
 
         var jsPDF = window.jspdf.jsPDF;
         var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
 
-        // Header
         _addHeader(pdf, pw, margin);
 
-        // Clonar SVG para manipular sin afectar la vista
-        var svgClone = svgEl.cloneNode(true);
-
-        // Asegurar que el SVG tenga dimensiones explícitas para svg2pdf
-        svgClone.setAttribute('width', svgW);
-        svgClone.setAttribute('height', svgH);
-
-        // Inyectar estilos inline en el SVG clonado para que svg2pdf los capture
-        _inlineSvgStyles(svgClone);
-
-        // Centrar en la página
-        var xOffset = margin + (usableW - fitW) / 2;
-        var yOffset = margin + 12;
-
-        // Renderizar SVG vectorial al PDF
-        await pdf.svg(svgClone, {
-            x: xOffset,
-            y: yOffset,
-            width: fitW,
-            height: fitH
-        });
-
-        // Footer
+        var fitW = usableW * scale;
+        var fitH = fitW / imgRatio;
+        if (fitH > usableH) {
+            fitH = usableH;
+            fitW = fitH * imgRatio;
+        }
+        var x = margin + (usableW - fitW) / 2;
+        pdf.addImage(imgData, 'PNG', x, margin + 12, fitW, fitH);
         _addFooter(pdf, pw, ph, margin, 1, 1);
 
         pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
+
     } catch (err) {
-        console.error('Error export PDF vectorial:', err);
-        // Fallback a html2canvas si svg2pdf falla
-        try {
-            await _exportPDFFallback(container, dims, orientation, scale);
-        } catch (err2) {
-            alert('Error generando PDF: ' + err.message + '\nFallback: ' + err2.message);
-        }
+        console.error('Error export PDF:', err);
+        alert('Error generando PDF: ' + err.message);
+        // Intentar restaurar la vista
+        try { chart.fit(); } catch(e) {}
     }
     btn.innerHTML = originalText;
     btn.disabled = false;
-}
-
-// Inyectar estilos computed en los elementos del SVG clonado
-function _inlineSvgStyles(svgClone) {
-    // Procesar foreignObject > div (las tarjetas de nodos)
-    var foreignObjects = svgClone.querySelectorAll('foreignObject');
-    foreignObjects.forEach(function(fo) {
-        var divs = fo.querySelectorAll('div');
-        divs.forEach(function(div) {
-            // Asegurar font-family genérico
-            if (!div.style.fontFamily) {
-                div.style.fontFamily = 'Helvetica, Arial, sans-serif';
-            }
-        });
-    });
-}
-
-// Fallback: export con html2canvas (raster) si svg2pdf falla
-async function _exportPDFFallback(container, dims, orientation, scale) {
-    var pw, ph;
-    if (orientation === 'landscape') {
-        pw = Math.max(dims[0], dims[1]);
-        ph = Math.min(dims[0], dims[1]);
-    } else {
-        pw = Math.min(dims[0], dims[1]);
-        ph = Math.max(dims[0], dims[1]);
-    }
-    var margin = 10;
-    var usableW = pw - margin * 2;
-    var usableH = ph - margin * 2 - 14;
-
-    var canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false, backgroundColor: '#f8fafc' });
-    var imgData = canvas.toDataURL('image/png');
-    var ratio = canvas.width / canvas.height;
-
-    var jsPDF = window.jspdf.jsPDF;
-    var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: dims[0] < dims[1] ? [dims[0], dims[1]] : [dims[1], dims[0]] });
-
-    _addHeader(pdf, pw, margin);
-    var fitW = Math.min(usableW * scale, usableW);
-    var fitH = fitW / ratio;
-    if (fitH > usableH) { fitH = usableH; fitW = fitH * ratio; }
-    var x = margin + (usableW - fitW) / 2;
-    pdf.addImage(imgData, 'PNG', x, margin + 12, fitW, fitH);
-    _addFooter(pdf, pw, ph, margin, 1, 1);
-    pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
 }
 
 function _addHeader(pdf, pageW, margin) {
