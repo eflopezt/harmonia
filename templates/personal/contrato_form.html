@@ -35,6 +35,19 @@
           </div>
           {% endif %}
 
+          {% if es_nuevo and plantillas %}
+          <div class="mb-3 p-3 bg-light rounded">
+            <label class="form-label fw-semibold"><i class="fas fa-file-alt me-1"></i>Usar plantilla de contrato</label>
+            <select name="plantilla_id" class="form-select" id="selectPlantilla">
+              <option value="">-- Sin plantilla (contrato manual) --</option>
+              {% for p in plantillas %}
+              <option value="{{ p.pk }}">{{ p.nombre }}{% if p.tipo_contrato %} ({{ p.get_tipo_contrato_display }}){% endif %}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Seleccione una plantilla predefinida para prellenar el contrato.</div>
+          </div>
+          {% endif %}
+
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Modalidad contractual <span class="text-danger">*</span></label>

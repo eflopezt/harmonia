@@ -54,6 +54,9 @@ from .contratos import (
     contratos_exportar_excel, contratos_alertas_json,
     contrato_generar_pdf, contrato_importar_plantilla,
     contrato_analizar_ia, contrato_enviar_email, contratos_envio_masivo,
+    plantilla_contrato_lista, plantilla_contrato_crear,
+    plantilla_contrato_editar, plantilla_contrato_eliminar,
+    plantilla_contrato_importar,
 )
 
 from .reportes import (

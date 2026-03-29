@@ -160,6 +160,18 @@ class Empresa(models.Model):
         help_text='Ej: Gerente General, Director Ejecutivo',
     )
 
+    # ── Configuración de corte de planilla ──────────────────
+    dia_inicio_corte = models.PositiveSmallIntegerField(
+        default=22,
+        verbose_name='Día inicio corte',
+        help_text='Día del mes anterior donde inicia el corte de planilla',
+    )
+    dia_fin_corte = models.PositiveSmallIntegerField(
+        default=21,
+        verbose_name='Día fin corte',
+        help_text='Día del mes actual donde termina el corte de planilla',
+    )
+
     # Multi-tenant subdomain
     subdominio = models.SlugField(
         max_length=50, unique=True, blank=True, null=True,

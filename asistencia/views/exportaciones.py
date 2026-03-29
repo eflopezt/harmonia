@@ -98,7 +98,8 @@ def reportes_exportar_panel(request):
     MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     # Calcular preview del rango de fechas
-    ini, fin = _calcular_periodo(anio, mes, tipo)
+    d_ini, d_fin = _get_corte_config(request)
+    ini, fin = _calcular_periodo(anio, mes, tipo, d_ini, d_fin)
     return render(request, 'asistencia/reportes_exportar.html', {
         'anio': anio, 'mes': mes, 'tipo_periodo': tipo,
         'fecha_ini': ini.strftime('%d/%m/%Y'),
@@ -116,23 +117,33 @@ MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
-def _calcular_periodo(anio: int, mes: int, tipo: str = 'calendario'):
+def _calcular_periodo(anio: int, mes: int, tipo: str = 'calendario',
+                      dia_inicio_corte: int = 22, dia_fin_corte: int = 21):
     """
     Calcula las fechas de inicio y fin del período.
     tipo='calendario' → del 1 al último día del mes seleccionado.
-    tipo='corte'      → del 22 del mes anterior al 21 del mes seleccionado.
+    tipo='corte'      → del dia_inicio_corte del mes anterior al dia_fin_corte del mes seleccionado.
+    Los días de corte se leen de la configuración de la empresa (Empresa.dia_inicio_corte / dia_fin_corte).
     """
     import calendar as _cal
     if tipo == 'corte':
         if mes == 1:
-            ini = date(anio - 1, 12, 22)
+            ini = date(anio - 1, 12, dia_inicio_corte)
         else:
-            ini = date(anio, mes - 1, 22)
-        fin = date(anio, mes, 21)
+            ini = date(anio, mes - 1, dia_inicio_corte)
+        fin = date(anio, mes, dia_fin_corte)
     else:
         ini = date(anio, mes, 1)
         fin = date(anio, mes, _cal.monthrange(anio, mes)[1])
     return ini, fin
+
+
+def _get_corte_config(request):
+    """Obtiene los días de corte configurados en la empresa activa."""
+    empresa = getattr(request, 'empresa_actual', None)
+    if empresa:
+        return empresa.dia_inicio_corte, empresa.dia_fin_corte
+    return 22, 21
 
 
 def _label_periodo(ini, fin, tipo: str) -> str:
@@ -157,7 +168,8 @@ def exportar_horas_rco(request):
     if tipo_periodo not in ('calendario', 'corte'):
         tipo_periodo = 'calendario'
 
-    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    d_ini, d_fin = _get_corte_config(request)
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini, d_fin)
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Resumen por persona
@@ -326,7 +338,8 @@ def exportar_faltas_mes(request):
     if tipo_periodo not in ('calendario', 'corte'):
         tipo_periodo = 'calendario'
 
-    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    d_ini, d_fin = _get_corte_config(request)
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini, d_fin)
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Registros de FA/F/LSG del mes
@@ -494,7 +507,8 @@ def exportar_planilla_consolidada(request):
     if tipo_periodo not in ('calendario', 'corte'):
         tipo_periodo = 'calendario'
 
-    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    d_ini, d_fin = _get_corte_config(request)
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini, d_fin)
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Todos los registros del mes
@@ -731,7 +745,8 @@ def exportar_validacion_datos(request):
     if tipo_periodo not in ('calendario', 'corte'):
         tipo_periodo = 'calendario'
 
-    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo)
+    d_ini, d_fin = _get_corte_config(request)
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini, d_fin)
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     errores = []  # lista de dicts: {tipo, severidad, dni, nombre, fecha, detalle}

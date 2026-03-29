@@ -46,9 +46,47 @@ DIAS_ALERTA_PRUEBA   = [15, 7]
 @solo_admin
 def contratos_panel(request):
     """Panel de contratos laborales con alertas y seguimiento."""
+    from personal.models import Area
     hoy = timezone.localdate()
 
     activos = Personal.objects.filter(estado='Activo').select_related('subarea__area')
+
+    # ── Filtros del panel ──────────────────────────────────────────────
+    buscar = request.GET.get('buscar', '').strip()
+    area_f = request.GET.get('area', '')
+    tipo_f = request.GET.get('tipo', '')
+    estado_f = request.GET.get('estado_contrato', '')
+    fecha_desde = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta = request.GET.get('fecha_hasta', '').strip()
+
+    if buscar:
+        activos = activos.filter(
+            Q(apellidos_nombres__icontains=buscar) | Q(nro_doc__icontains=buscar)
+        )
+    if area_f:
+        activos = activos.filter(subarea__area_id=area_f)
+    if tipo_f:
+        activos = activos.filter(tipo_contrato=tipo_f)
+    if estado_f == 'VIGENTE':
+        activos = activos.filter(fecha_fin_contrato__gte=hoy)
+    elif estado_f == 'VENCIDO':
+        activos = activos.filter(fecha_fin_contrato__isnull=False, fecha_fin_contrato__lt=hoy)
+    elif estado_f == 'INDEFINIDO':
+        activos = activos.filter(tipo_contrato='INDEFINIDO')
+    elif estado_f == 'SIN_DATOS':
+        activos = activos.filter(tipo_contrato='')
+    if fecha_desde:
+        try:
+            activos = activos.filter(fecha_fin_contrato__gte=date.fromisoformat(fecha_desde))
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            activos = activos.filter(fecha_fin_contrato__lte=date.fromisoformat(fecha_hasta))
+        except ValueError:
+            pass
+
+    areas = Area.objects.filter(activa=True).order_by('nombre')
 
     # ── Contratos por vencer ──────────────────────────────────────────
     vencen_30 = activos.filter(
@@ -137,6 +175,15 @@ def contratos_panel(request):
         'ultimas_adendas': ultimas_adendas,
         'ultimas_renovaciones': ultimas_renovaciones,
         'tab_activo': request.GET.get('tab', 'vencimientos'),
+        # Filtros
+        'buscar': buscar,
+        'area_f': area_f,
+        'tipo_f': tipo_f,
+        'estado_f': estado_f,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'areas': areas,
+        'tipos': Personal.TIPO_CONTRATO_CHOICES,
     }
     return render(request, 'personal/contratos_panel.html', context)
 
@@ -379,10 +426,12 @@ def contrato_crear(request, personal_pk):
         }
         form = ContratoForm(initial=initial)
 
+    plantillas = PlantillaContrato.objects.filter(activo=True).order_by('nombre')
     context = {
         'personal': personal,
         'form': form,
         'es_nuevo': True,
+        'plantillas': plantillas,
     }
     return render(request, 'personal/contrato_form.html', context)
 
@@ -1150,3 +1199,135 @@ def contratos_envio_masivo(request):
         messages.warning(request, f'Errores en envio: {msg_errores}')
 
     return redirect('contratos_lista')
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PLANTILLAS DE CONTRATO (CRUD)
+# ═════════════════════════════════════════════════════════════════════════════
+
+@solo_admin
+def plantilla_contrato_lista(request):
+    """Lista todas las plantillas de contrato."""
+    plantillas = PlantillaContrato.objects.all().order_by('-activo', 'nombre')
+    context = {
+        'plantillas': plantillas,
+    }
+    return render(request, 'personal/plantilla_contrato_lista.html', context)
+
+
+@solo_admin
+def plantilla_contrato_crear(request):
+    """Crea una nueva plantilla de contrato."""
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre', '').strip()
+        tipo_contrato = request.POST.get('tipo_contrato', '')
+        contenido_html = request.POST.get('contenido_html', '')
+
+        if not nombre:
+            messages.error(request, 'El nombre de la plantilla es obligatorio.')
+            return render(request, 'personal/plantilla_contrato_form.html', {
+                'tipos': Personal.TIPO_CONTRATO_CHOICES,
+                'es_nuevo': True,
+            })
+
+        PlantillaContrato.objects.create(
+            nombre=nombre,
+            tipo_contrato=tipo_contrato,
+            contenido_html=contenido_html,
+        )
+        messages.success(request, f'Plantilla "{nombre}" creada exitosamente.')
+        return redirect('plantilla_contrato_lista')
+
+    context = {
+        'tipos': Personal.TIPO_CONTRATO_CHOICES,
+        'es_nuevo': True,
+    }
+    return render(request, 'personal/plantilla_contrato_form.html', context)
+
+
+@solo_admin
+def plantilla_contrato_editar(request, pk):
+    """Edita una plantilla de contrato existente."""
+    plantilla = get_object_or_404(PlantillaContrato, pk=pk)
+
+    if request.method == 'POST':
+        plantilla.nombre = request.POST.get('nombre', '').strip()
+        plantilla.tipo_contrato = request.POST.get('tipo_contrato', '')
+        plantilla.contenido_html = request.POST.get('contenido_html', '')
+        plantilla.activo = bool(request.POST.get('activo'))
+
+        if not plantilla.nombre:
+            messages.error(request, 'El nombre de la plantilla es obligatorio.')
+        else:
+            plantilla.save()
+            messages.success(request, f'Plantilla "{plantilla.nombre}" actualizada.')
+            return redirect('plantilla_contrato_lista')
+
+    context = {
+        'plantilla': plantilla,
+        'tipos': Personal.TIPO_CONTRATO_CHOICES,
+        'es_nuevo': False,
+    }
+    return render(request, 'personal/plantilla_contrato_form.html', context)
+
+
+@solo_admin
+@require_POST
+def plantilla_contrato_eliminar(request, pk):
+    """Elimina una plantilla de contrato."""
+    plantilla = get_object_or_404(PlantillaContrato, pk=pk)
+    nombre = plantilla.nombre
+    plantilla.delete()
+    messages.success(request, f'Plantilla "{nombre}" eliminada.')
+    return redirect('plantilla_contrato_lista')
+
+
+@solo_admin
+def plantilla_contrato_importar(request):
+    """Importa un archivo DOCX como plantilla de contrato."""
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        nombre = request.POST.get('nombre', '').strip()
+        tipo_contrato = request.POST.get('tipo_contrato', '')
+
+        if not archivo:
+            messages.error(request, 'Debe seleccionar un archivo.')
+            return redirect('plantilla_contrato_importar')
+
+        ext = archivo.name.lower().rsplit('.', 1)[-1] if '.' in archivo.name else ''
+        if ext not in ('docx',):
+            messages.error(request, 'Solo se permiten archivos DOCX para importar como plantilla.')
+            return redirect('plantilla_contrato_importar')
+
+        if not nombre:
+            nombre = archivo.name.rsplit('.', 1)[0]
+
+        # Extraer texto del DOCX
+        contenido_html = ''
+        try:
+            from docx import Document
+            doc = Document(archivo)
+            parrafos = []
+            for p in doc.paragraphs:
+                if p.text.strip():
+                    parrafos.append(f'<p>{p.text}</p>')
+            contenido_html = '\n'.join(parrafos)
+        except ImportError:
+            messages.error(request, 'python-docx no esta instalado. Instale con: pip install python-docx')
+            return redirect('plantilla_contrato_importar')
+        except Exception as e:
+            messages.error(request, f'Error al procesar el archivo: {str(e)[:200]}')
+            return redirect('plantilla_contrato_importar')
+
+        PlantillaContrato.objects.create(
+            nombre=nombre,
+            tipo_contrato=tipo_contrato,
+            contenido_html=contenido_html,
+        )
+        messages.success(request, f'Plantilla "{nombre}" importada exitosamente desde DOCX.')
+        return redirect('plantilla_contrato_lista')
+
+    context = {
+        'tipos': Personal.TIPO_CONTRATO_CHOICES,
+    }
+    return render(request, 'personal/plantilla_contrato_importar.html', context)

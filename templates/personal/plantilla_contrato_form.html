@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{% if es_nuevo %}Nueva plantilla{% else %}Editar plantilla{% endif %}{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:900px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{% url 'plantilla_contrato_lista' %}" class="btn btn-outline-secondary me-3"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <h2 class="h4 fw-bold mb-0">
+        <i class="fas fa-file-alt me-2"></i>
+        {% if es_nuevo %}Nueva plantilla de contrato{% else %}Editar plantilla{% endif %}
+      </h2>
+      {% if not es_nuevo %}<small class="text-muted">{{ plantilla.nombre }}</small>{% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Nombre de la plantilla <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control"
+                   value="{% if not es_nuevo %}{{ plantilla.nombre }}{% endif %}" required
+                   placeholder="Ej: Contrato indefinido estandar">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Tipo de contrato asociado</label>
+            <select name="tipo_contrato" class="form-select">
+              <option value="">Generico (cualquiera)</option>
+              {% for val, label in tipos %}
+              <option value="{{ val }}" {% if not es_nuevo and plantilla.tipo_contrato == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% if not es_nuevo %}
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Activo</label>
+            <div class="form-check form-switch mt-2">
+              <input type="checkbox" name="activo" value="1" class="form-check-input"
+                     {% if plantilla.activo %}checked{% endif %}>
+              <label class="form-check-label">Activo</label>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Contenido HTML</label>
+          <textarea name="contenido_html" class="form-control font-monospace" rows="20"
+                    placeholder="Ingrese el contenido HTML de la plantilla. Puede usar placeholders como {{nombre_empleado}}, {{cargo}}, {{fecha_inicio}}, {{fecha_fin}}, {{remuneracion}}, {{dni}}, {{empresa}}, {{ruc_empresa}}, {{direccion_empresa}}">{% if not es_nuevo %}{{ plantilla.contenido_html }}{% endif %}</textarea>
+          <small class="text-muted">
+            Placeholders disponibles:
+            <code>{% templatetag openvariable %}nombre_empleado{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}cargo{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}fecha_inicio{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}fecha_fin{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}remuneracion{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}dni{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}empresa{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}ruc_empresa{% templatetag closevariable %}</code>,
+            <code>{% templatetag openvariable %}direccion_empresa{% templatetag closevariable %}</code>
+          </small>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{% url 'plantilla_contrato_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>{% if es_nuevo %}Crear plantilla{% else %}Guardar cambios{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -7,12 +7,71 @@
     <small class="text-muted">Seguimiento de vencimientos y períodos de prueba — D.Leg. 728</small>
   </div>
   <div class="d-flex gap-2">
+    <a href="{% url 'plantilla_contrato_lista' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-file-alt me-1"></i>Plantillas
+    </a>
     <a href="{% url 'contratos_exportar_excel' %}" class="btn btn-outline-success btn-sm">
       <i class="fas fa-file-excel me-1"></i>Exportar
     </a>
     <a href="{% url 'contratos_lista' %}" class="btn btn-outline-primary btn-sm">
       <i class="fas fa-list me-1"></i>Lista completa
     </a>
+  </div>
+</div>
+
+{# Filtros #}
+<div class="card shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" class="row g-2 align-items-end">
+      {% if tab_activo %}<input type="hidden" name="tab" value="{{ tab_activo }}">{% endif %}
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Buscar</label>
+        <input type="text" name="buscar" value="{{ buscar }}" class="form-control form-control-sm"
+               placeholder="Nombre o DNI...">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Area</label>
+        <select name="area" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for a in areas %}
+          <option value="{{ a.pk }}" {% if area_f == a.pk|stringformat:"d" %}selected{% endif %}>{{ a.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Modalidad</label>
+        <select name="tipo" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for val, label in tipos %}
+          <option value="{{ val }}" {% if tipo_f == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Estado</label>
+        <select name="estado_contrato" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          <option value="VIGENTE" {% if estado_f == "VIGENTE" %}selected{% endif %}>Vigente</option>
+          <option value="VENCIDO" {% if estado_f == "VENCIDO" %}selected{% endif %}>Vencido</option>
+          <option value="INDEFINIDO" {% if estado_f == "INDEFINIDO" %}selected{% endif %}>Indefinido</option>
+          <option value="SIN_DATOS" {% if estado_f == "SIN_DATOS" %}selected{% endif %}>Sin datos</option>
+        </select>
+      </div>
+      <div class="col-md-auto d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label small mb-1">Vence desde</label>
+          <input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="form-control form-control-sm">
+        </div>
+        <div>
+          <label class="form-label small mb-1">Hasta</label>
+          <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="form-control form-control-sm">
+        </div>
+      </div>
+      <div class="col-auto d-flex gap-1">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search me-1"></i>Filtrar</button>
+        <a href="{% url 'contratos_panel' %}{% if tab_activo != 'vencimientos' %}?tab={{ tab_activo }}{% endif %}" class="btn btn-outline-secondary btn-sm" title="Limpiar filtros"><i class="fas fa-times"></i></a>
+      </div>
+    </form>
   </div>
 </div>
 

@@ -125,6 +125,20 @@ def configuracion_empresa(request, pk):
         empresa.representante_legal = request.POST.get('representante_legal', '').strip()
         empresa.cargo_representante = request.POST.get('cargo_representante', '').strip()
 
+        # Corte de planilla
+        try:
+            dia_ini = int(request.POST.get('dia_inicio_corte', 22))
+            if 1 <= dia_ini <= 28:
+                empresa.dia_inicio_corte = dia_ini
+        except (ValueError, TypeError):
+            pass
+        try:
+            dia_fin = int(request.POST.get('dia_fin_corte', 21))
+            if 1 <= dia_fin <= 28:
+                empresa.dia_fin_corte = dia_fin
+        except (ValueError, TypeError):
+            pass
+
         # Archivos de imagen
         if 'logo' in request.FILES:
             empresa.logo = request.FILES['logo']

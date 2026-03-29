@@ -69,6 +69,28 @@
       </div>
     </div>
 
+    {# Corte de planilla #}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><strong><i class="fas fa-calendar-alt me-2"></i>Corte de planilla</strong></div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">Define el rango de dias para el periodo de corte. Por defecto: del dia 22 del mes anterior al dia 21 del mes actual.</p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Dia de inicio (mes anterior)</label>
+            <input type="number" name="dia_inicio_corte" value="{{ empresa.dia_inicio_corte }}"
+              class="form-control" min="1" max="28" placeholder="22">
+            <small class="text-muted">Dia del mes anterior donde inicia el corte</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Dia de fin (mes actual)</label>
+            <input type="number" name="dia_fin_corte" value="{{ empresa.dia_fin_corte }}"
+              class="form-control" min="1" max="28" placeholder="21">
+            <small class="text-muted">Dia del mes actual donde termina el corte</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {# Representante legal #}
     <div class="card shadow-sm mb-4">
       <div class="card-header"><strong><i class="fas fa-user-tie me-2"></i>Representante legal</strong></div>
