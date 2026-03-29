@@ -233,11 +233,11 @@
   <p>
     El presente contrato tiene una duracion
     {% if contrato.fecha_fin %}
-      desde el <strong>{{ contrato.fecha_inicio|date:"d de F de Y" }}</strong>
-      hasta el <strong>{{ contrato.fecha_fin|date:"d de F de Y" }}</strong>.
+      desde el <strong>{{ contrato.fecha_inicio|date:"d" }} de {{ contrato.fecha_inicio|date:"F" }} de {{ contrato.fecha_inicio|date:"Y" }}</strong>
+      hasta el <strong>{{ contrato.fecha_fin|date:"d" }} de {{ contrato.fecha_fin|date:"F" }} de {{ contrato.fecha_fin|date:"Y" }}</strong>.
     {% else %}
       <strong>indefinida</strong>, iniciando el
-      <strong>{{ contrato.fecha_inicio|date:"d de F de Y" }}</strong>.
+      <strong>{{ contrato.fecha_inicio|date:"d" }} de {{ contrato.fecha_inicio|date:"F" }} de {{ contrato.fecha_inicio|date:"Y" }}</strong>.
     {% endif %}
     {% if contrato.renovacion_automatica %}
     El contrato se renovara automaticamente al termino de su vigencia,
@@ -323,7 +323,7 @@
 {# ── Lugar y fecha ── #}
 <div class="lugar-fecha">
   {{ empresa.distrito|default:empresa.departamento|default:"Lima" }},
-  {{ contrato.fecha_inicio|date:"d de F de Y" }}
+  {{ contrato.fecha_inicio|date:"d" }} de {{ contrato.fecha_inicio|date:"F" }} de {{ contrato.fecha_inicio|date:"Y" }}
 </div>
 
 {# ── Firmas ── #}
