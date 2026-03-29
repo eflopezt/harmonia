@@ -434,7 +434,7 @@ document.getElementById('selArea').addEventListener('change', function() {
 });
 
 // PDF Export - Alta resolución (expande SVG a tamaño real antes de capturar)
-async function exportPDF() {
+async function exportPDF(evt) {
     var container = document.getElementById('orgChart');
     var paper = document.getElementById('pdfPaper').value;
     var orientation = document.getElementById('pdfOrientation').value;
@@ -443,10 +443,11 @@ async function exportPDF() {
     var sizes = { 'a4': [210, 297], 'a3': [297, 420], 'letter': [215.9, 279.4], 'tabloid': [279.4, 431.8] };
     var dims = sizes[paper] || sizes['a3'];
 
-    var btn = event.target.closest('button');
-    var originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando PDF...';
-    btn.disabled = true;
+    var btn = null;
+    try { btn = (evt || event).target.closest('button'); } catch(e) {}
+    if (!btn) btn = document.querySelector('button[onclick*="exportPDF"]');
+    var originalText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando PDF...'; btn.disabled = true; }
 
     try {
         // 1. Expandir todo
@@ -560,8 +561,7 @@ async function exportPDF() {
         // Intentar restaurar la vista
         try { chart.fit(); } catch(e) {}
     }
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+    if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
 }
 
 function _addHeader(pdf, pageW, margin) {
