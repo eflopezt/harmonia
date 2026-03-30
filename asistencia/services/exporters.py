@@ -159,12 +159,16 @@ class CargaS10Exporter:
 
         # Días especiales por persona (del mes de asistencia)
         # No regularizaciones (fecha < día corte+1)
+        # Excluir FA en domingos para LOCAL/LIMA (son DS, no faltas)
         conceptos_dias: dict[int, dict[str, int]] = {}
         for r in qs_asist.filter(
             fecha__lt=dia_regularizacion_inicio
-        ).values('personal_id', 'codigo_dia'):
+        ).values('personal_id', 'codigo_dia', 'dia_semana', 'condicion'):
             pid = r['personal_id']
             cod = r['codigo_dia']
+            # Domingo + LOCAL/LIMA con FA → contar como DS, no FA
+            if cod in ('FA', 'F') and r.get('dia_semana') == 6 and r.get('condicion', '').upper() in ('LOCAL', 'LIMA', ''):
+                cod = 'DS'
             if pid not in conceptos_dias:
                 conceptos_dias[pid] = {}
             conceptos_dias[pid][cod] = conceptos_dias[pid].get(cod, 0) + 1

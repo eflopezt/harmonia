@@ -180,7 +180,7 @@ def exportar_horas_rco(request):
         .annotate(
             dias_trabajados=Count('id', filter=Q(
                 codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'SS'])),
-            dias_falta=Count('id', filter=Q(codigo_dia__in=['FA', 'F'])),
+            dias_falta=Count('id', filter=Q(codigo_dia__in=['FA', 'F']) & ~Q(dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])),
             dias_dl=Count('id', filter=Q(codigo_dia__in=['DL', 'DLA'])),
             dias_vac=Count('id', filter=Q(codigo_dia__in=['VAC', 'V'])),
             dias_dm=Count('id', filter=Q(codigo_dia='DM')),
@@ -342,13 +342,14 @@ def exportar_faltas_mes(request):
     mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini, d_fin)
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
-    # Registros de FA/F/LSG del mes
+    # Registros de FA/F/LSG del mes (excluir FA en domingos para LOCAL/LIMA)
     qs = (
         RegistroTareo.objects.filter(
             fecha__gte=mes_ini, fecha__lte=mes_fin,
             codigo_dia__in=['FA', 'F', 'LSG'],
             personal__isnull=False,
         )
+        .exclude(codigo_dia__in=['FA', 'F'], dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
         .values('personal_id', 'codigo_dia')
         .annotate(cantidad=Count('id'))
     )

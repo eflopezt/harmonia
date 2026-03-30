@@ -445,7 +445,11 @@ class TareoProcessor:
             codigo = h.codigo_tareo if h else INICIALES_A_CODIGO.get(codigo_reloj, codigo_reloj)
             return codigo, 'RELOJ', None, False
 
-        # Prioridad 4: Falta automática
+        # Prioridad 4: Domingo LOCAL/LIMA = Descanso Semanal (no falta)
+        if fecha.weekday() == 6 and condicion.upper() in ('LOCAL', 'LIMA', ''):
+            return 'DS', 'DESCANSO_SEMANAL', None, False
+
+        # Prioridad 5: Falta automática
         return 'FA', 'FALTA_AUTO', None, False
 
     def _calcular_horas(self, codigo: str, horas_marcadas: Decimal | None,
