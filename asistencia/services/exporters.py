@@ -377,48 +377,40 @@ class ReporteCierreExporter:
                   sum_he100=Sum('he_100'),
               ))
 
-        # Agrupar por personal — rastrear fechas cubiertas por RegistroTareo
-        datos: dict[int, dict] = {}
-        fechas_cubiertas: dict[int, set] = {}  # pid → set de fechas con registro
-        condicion_personal: dict[int, str] = {}  # pid → condicion del Personal
+        # Recopilar info del personal y UN código por (pid, fecha)
+        # Para evitar duplicados de múltiples importaciones
+        info_personal: dict[int, dict] = {}  # pid → datos base del personal
+        registro_por_fecha: dict[int, dict[date, str]] = {}  # pid → {fecha: codigo_dia}
+        condicion_por_fecha: dict[int, dict[date, str]] = {}  # pid → {fecha: condicion}
+        he_acum: dict[int, dict] = {}  # pid → {he25, he35, he100}
 
         for r in qs:
             pid = r['personal_id']
-            if pid not in datos:
-                datos[pid] = {
+            if pid not in info_personal:
+                info_personal[pid] = {
                     'nombre': r['personal__apellidos_nombres'],
                     'dni': r['personal__nro_doc'],
                     'grupo': r['personal__grupo_tareo'],
                     'sap': r['personal__codigo_sap'] or '',
-                    'condicion_personal': r['personal__condicion'] or '',
-                    'dias_trabajados': 0,
-                    'faltas': 0,
-                    'lsg': 0,
-                    'vacaciones': 0,
-                    'dm': 0,
-                    'dl': 0,
-                    'ds_feriado': 0,
-                    'na': 0,
-                    'otros': 0,
-                    'he25': CERO,
-                    'he35': CERO,
-                    'he100': CERO,
+                    'condicion_personal': (r['personal__condicion'] or '').upper(),
                 }
-                fechas_cubiertas[pid] = set()
-                condicion_personal[pid] = (r['personal__condicion'] or '').upper()
+                registro_por_fecha[pid] = {}
+                condicion_por_fecha[pid] = {}
+                he_acum[pid] = {'he25': CERO, 'he35': CERO, 'he100': CERO}
 
-            # Registrar fecha cubierta
-            fechas_cubiertas[pid].add(r['fecha'])
+            fecha = r['fecha']
+            cod = (r['codigo_dia'] or '').upper()
+            cond_reg = r.get('condicion', '') or ''
 
-            # Categorizar el código
-            condicion_reg = r.get('condicion', '') or ''
-            self._categorizar_codigo(
-                r['codigo_dia'], r.get('dia_semana'), condicion_reg, datos[pid]
-            )
+            # Solo guardar un código por fecha (el primero que no sea vacío)
+            if fecha not in registro_por_fecha[pid]:
+                registro_por_fecha[pid][fecha] = cod
+                condicion_por_fecha[pid][fecha] = cond_reg
 
-            datos[pid]['he25'] = (datos[pid]['he25'] or CERO) + (r['sum_he25'] or CERO)
-            datos[pid]['he35'] = (datos[pid]['he35'] or CERO) + (r['sum_he35'] or CERO)
-            datos[pid]['he100'] = (datos[pid]['he100'] or CERO) + (r['sum_he100'] or CERO)
+            # HE siempre se acumulan (pueden venir de múltiples registros)
+            he_acum[pid]['he25'] += (r['sum_he25'] or CERO)
+            he_acum[pid]['he35'] += (r['sum_he35'] or CERO)
+            he_acum[pid]['he100'] += (r['sum_he100'] or CERO)
 
         # ── Papeletas: cubrir días sin RegistroTareo ─────────────
         # Consultar papeletas activas (aprobadas/ejecutadas) que se solapan con el período
@@ -465,75 +457,74 @@ class ReporteCierreExporter:
                 papeletas_por_pid[pid] = []
             papeletas_por_pid[pid].append(pap)
 
-            # Si el personal no tiene datos de RegistroTareo, crear entrada
-            if pid not in datos:
-                datos[pid] = {
+            # Si el personal no tiene datos de RegistroTareo, registrar info
+            if pid not in info_personal:
+                info_personal[pid] = {
                     'nombre': pap['personal__apellidos_nombres'],
                     'dni': pap['personal__nro_doc'],
                     'grupo': pap['personal__grupo_tareo'],
                     'sap': pap['personal__codigo_sap'] or '',
-                    'condicion_personal': pap['personal__condicion'] or '',
-                    'dias_trabajados': 0,
-                    'faltas': 0,
-                    'lsg': 0,
-                    'vacaciones': 0,
-                    'dm': 0,
-                    'dl': 0,
-                    'ds_feriado': 0,
-                    'na': 0,
-                    'otros': 0,
-                    'he25': CERO,
-                    'he35': CERO,
-                    'he100': CERO,
+                    'condicion_personal': (pap['personal__condicion'] or '').upper(),
                 }
-                fechas_cubiertas[pid] = set()
-                condicion_personal[pid] = (pap['personal__condicion'] or '').upper()
+                registro_por_fecha[pid] = {}
+                condicion_por_fecha[pid] = {}
+                he_acum[pid] = {'he25': CERO, 'he35': CERO, 'he100': CERO}
 
         # ── Fechas de vigencia del personal (alta/cese) ────────
-        pids_todos = set(datos.keys()) | set(papeletas_por_pid.keys())
+        pids_todos = set(info_personal.keys()) | set(papeletas_por_pid.keys())
         vigencia: dict[int, tuple] = {}  # pid → (fecha_alta, fecha_cese)
         for p in Personal.objects.filter(id__in=pids_todos).values('id', 'fecha_alta', 'fecha_cese'):
             vigencia[p['id']] = (p['fecha_alta'], p['fecha_cese'])
 
-        # Para cada personal, recorrer todos los días del período
-        # y cubrir los huecos con papeleta, NA o falta
+        # ── Construir datos: un código por día por empleado ────
         todas_fechas = [inicio + timedelta(days=i) for i in range(total_dias)]
+        datos: dict[int, dict] = {}
 
-        for pid, d in datos.items():
+        for pid, info in info_personal.items():
+            d = {
+                **info,
+                'dias_trabajados': 0, 'faltas': 0, 'lsg': 0,
+                'vacaciones': 0, 'dm': 0, 'dl': 0,
+                'ds_feriado': 0, 'na': 0, 'otros': 0,
+                'he25': he_acum.get(pid, {}).get('he25', CERO),
+                'he35': he_acum.get(pid, {}).get('he35', CERO),
+                'he100': he_acum.get(pid, {}).get('he100', CERO),
+            }
+            datos[pid] = d
+
             paps = papeletas_por_pid.get(pid, [])
-            cond = condicion_personal.get(pid, '')
+            cond = info['condicion_personal']
             f_alta, f_cese = vigencia.get(pid, (None, None))
+            regs = registro_por_fecha.get(pid, {})
+            conds = condicion_por_fecha.get(pid, {})
 
             for fecha in todas_fechas:
-                if fecha in fechas_cubiertas.get(pid, set()):
-                    continue  # Ya tiene RegistroTareo, ya categorizado
-
-                # Fecha fuera de vigencia → NA (antes de ingreso o después de cese)
-                if (f_alta and fecha < f_alta) or (f_cese and fecha > f_cese):
-                    d['na'] += 1
-                    continue
-
-                # Buscar papeleta que cubra esta fecha
-                cod_papeleta = None
-                for pap in paps:
-                    if pap['fecha_inicio'] <= fecha <= pap['fecha_fin']:
-                        cod_papeleta = pap['iniciales'] or TIPO_A_CODIGO.get(pap['tipo_permiso'], '')
-                        break
-
-                if cod_papeleta:
-                    # Categorizar con el código de la papeleta
+                if fecha in regs:
+                    # Tiene RegistroTareo → categorizar
                     self._categorizar_codigo(
-                        cod_papeleta, fecha.weekday(), cond, d
+                        regs[fecha], fecha.weekday(), conds.get(fecha, cond), d
                     )
+                elif (f_alta and fecha < f_alta) or (f_cese and fecha > f_cese):
+                    # Fuera de vigencia → NA
+                    d['na'] += 1
                 else:
-                    # Sin registro ni papeleta → depende del día
-                    dia_semana = fecha.weekday()
-                    if dia_semana == 6 and cond in ('LOCAL', 'LIMA', ''):
-                        # Domingo LOCAL/LIMA sin nada → DS
-                        d['ds_feriado'] += 1
+                    # Sin registro → buscar papeleta
+                    cod_papeleta = None
+                    for pap in paps:
+                        if pap['fecha_inicio'] <= fecha <= pap['fecha_fin']:
+                            cod_papeleta = pap['iniciales'] or TIPO_A_CODIGO.get(pap['tipo_permiso'], '')
+                            break
+
+                    if cod_papeleta:
+                        self._categorizar_codigo(
+                            cod_papeleta, fecha.weekday(), cond, d
+                        )
                     else:
-                        # Día sin dato = falta (corte de planilla)
-                        d['faltas'] += 1
+                        dia_semana = fecha.weekday()
+                        if dia_semana == 6 and cond in ('LOCAL', 'LIMA', ''):
+                            d['ds_feriado'] += 1
+                        else:
+                            d['faltas'] += 1
 
         # ── Generar Excel ────────────────────────────────────────
         wb = openpyxl.Workbook()
@@ -545,14 +536,14 @@ class ReporteCierreExporter:
         header_font = Font(bold=True, size=9)
 
         tipo_label = 'CORTE' if self.tipo_periodo == 'corte' else 'MES CALENDARIO'
-        ws.merge_cells('A1:Q1')
+        ws.merge_cells('A1:R1')
         ws['A1'] = f'REPORTE DE CIERRE — {self.mes_nombre.upper()} {self.anio} | {tipo_label} | {label_periodo} | {total_dias} días'
         ws['A1'].font = title_font
         ws['A1'].alignment = Alignment(horizontal='center')
 
         headers = ['Código SAP', 'DNI', 'Apellidos y Nombres', 'Grupo',
                    'Días Trabajados', 'Faltas', 'LSG', 'Vacaciones', 'DM', 'DL/Bajadas',
-                   'DS/Feriado', 'NA', 'Otros',
+                   'DS/Feriado', 'NA', 'Otros', 'TOTAL',
                    'HE 25% (h)', 'HE 35% (h)', 'HE 100% (h)', '% Asistencia']
 
         for col, h in enumerate(headers, 1):
@@ -565,16 +556,18 @@ class ReporteCierreExporter:
         for row_idx, d in enumerate(sorted(datos.values(), key=lambda x: x['nombre']), 3):
             dias_lab = total_dias - d['ds_feriado'] - d['na']
             pct_asist = (d['dias_trabajados'] / dias_lab * 100) if dias_lab else 0
+            total_sum = (d['dias_trabajados'] + d['faltas'] + d['lsg'] + d['vacaciones']
+                         + d['dm'] + d['dl'] + d['ds_feriado'] + d['na'] + d['otros'])
             ws.append([
                 d['sap'], d['dni'], d['nombre'], d['grupo'],
                 d['dias_trabajados'], d['faltas'], d['lsg'], d['vacaciones'],
-                d['dm'], d['dl'], d['ds_feriado'], d['na'], d['otros'],
+                d['dm'], d['dl'], d['ds_feriado'], d['na'], d['otros'], total_sum,
                 float(d['he25']), float(d['he35']), float(d['he100']),
                 round(pct_asist, 1),
             ])
             ws.cell(row=row_idx, column=2).number_format = '@'  # DNI texto
 
-        for col_idx in range(1, 18):
+        for col_idx in range(1, 19):
             ws.column_dimensions[get_column_letter(col_idx)].width = 16
         ws.column_dimensions['C'].width = 35
 
