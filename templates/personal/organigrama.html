@@ -496,23 +496,11 @@ async function exportPDF(evt) {
         await new Promise(function(r) { setTimeout(r, 500); });
 
         // 5. Capturar con dom-to-image-more (soporta foreignObject)
-        var dpiScale = 2; // 2x para buena resolución en impresión
         var dataUrl = await domtoimage.toPng(svgEl, {
             width: renderW,
             height: renderH,
-            style: {
-                'background-color': '#f8fafc'
-            },
-            quality: 1,
-            // Escalar para mejor DPI
-            width: renderW * dpiScale,
-            height: renderH * dpiScale,
-            style: {
-                transform: 'scale(' + dpiScale + ')',
-                transformOrigin: 'top left',
-                width: renderW + 'px',
-                height: renderH + 'px'
-            }
+            bgcolor: '#f8fafc',
+            quality: 1
         });
 
         // 6. Restaurar inmediatamente
