@@ -631,10 +631,9 @@ async function exportPDF(evt) {
                 }
                 clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
-                // Serializar a XML
+                // Serializar a XML y usar data URL (evita canvas tainted por cross-origin)
                 var xml = new XMLSerializer().serializeToString(clone);
-                var svgBlob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'});
-                var url = URL.createObjectURL(svgBlob);
+                var svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
 
                 var img = new Image();
                 img.onload = function() {
@@ -645,7 +644,6 @@ async function exportPDF(evt) {
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, tilePxW, tilePxH);
                     ctx.drawImage(img, 0, 0, tilePxW, tilePxH);
-                    URL.revokeObjectURL(url);
 
                     // Detectar si el tile tiene contenido real
                     var sampleSize = 200;
@@ -661,17 +659,16 @@ async function exportPDF(evt) {
                     }
                     var hasContent = (nonWhite / (sampleSize * sampleSize)) > 0.003;
 
-                    var dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                    var tileImgData = canvas.toDataURL('image/jpeg', 0.92);
                     canvas.width = 0; canvas.height = 0;
                     sCanvas.width = 0; sCanvas.height = 0;
 
-                    resolve({ col: tileCol, row: tileRow, dataUrl: dataUrl, hasContent: hasContent });
+                    resolve({ col: tileCol, row: tileRow, dataUrl: tileImgData, hasContent: hasContent });
                 };
                 img.onerror = function() {
-                    URL.revokeObjectURL(url);
                     reject(new Error('Error renderizando tile ' + tileCol + ',' + tileRow));
                 };
-                img.src = url;
+                img.src = svgDataUrl;
             });
         }
 
@@ -689,8 +686,7 @@ async function exportPDF(evt) {
                 if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
                 var xml = new XMLSerializer().serializeToString(clone);
-                var svgBlob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'});
-                var url = URL.createObjectURL(svgBlob);
+                var svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
                 var img = new Image();
                 img.onload = function() {
                     var c = document.createElement('canvas');
@@ -699,12 +695,11 @@ async function exportPDF(evt) {
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, thumbW, thumbH);
                     ctx.drawImage(img, 0, 0, thumbW, thumbH);
-                    URL.revokeObjectURL(url);
                     resolve(c.toDataURL('image/jpeg', 0.85));
                     c.width = 0; c.height = 0;
                 };
-                img.onerror = function() { URL.revokeObjectURL(url); resolve(null); };
-                img.src = url;
+                img.onerror = function() { resolve(null); };
+                img.src = svgDataUrl;
             });
         }
 
@@ -876,14 +871,62 @@ function _addFooter(pdf, pageW, pageH, margin, current, total) {
 
 async function exportPNG() {
     if (chart) { chart.expandAll(); chart.fit(); }
-    await new Promise(function(r) { setTimeout(r, 800); });
+    await new Promise(function(r) { setTimeout(r, 1500); });
     try {
-        chart.exportImg({
-            full: true,
-            save: true,
-            fileName: 'Organigrama_Harmoni_' + new Date().toISOString().slice(0,10)
+        var svgEl = document.querySelector('#orgChart svg');
+        var chartGroup = svgEl.querySelector('g.chart') || svgEl.querySelector('g');
+        var bbox = chartGroup.getBBox();
+        var pad = 30;
+
+        var clone = svgEl.cloneNode(true);
+        var cloneGroup = clone.querySelector('g.chart') || clone.querySelector('g');
+        if (cloneGroup) cloneGroup.removeAttribute('transform');
+
+        // ViewBox recortado al contenido real (sin espacio blanco)
+        clone.setAttribute('viewBox',
+            (bbox.x - pad) + ' ' + (bbox.y - pad) + ' ' +
+            (bbox.width + pad * 2) + ' ' + (bbox.height + pad * 2));
+
+        // Alta resolución: 4x para nitidez
+        var scale = 4;
+        var outW = Math.round((bbox.width + pad * 2) * scale);
+        var outH = Math.round((bbox.height + pad * 2) * scale);
+        // Limitar a max canvas seguro (32000px, 250M area)
+        var maxDim = 16000;
+        if (outW > maxDim || outH > maxDim) {
+            var reduce = maxDim / Math.max(outW, outH);
+            outW = Math.round(outW * reduce);
+            outH = Math.round(outH * reduce);
+        }
+        clone.setAttribute('width', outW);
+        clone.setAttribute('height', outH);
+        if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        var xml = new XMLSerializer().serializeToString(clone);
+        var svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+
+        var img = new Image();
+        await new Promise(function(resolve, reject) {
+            img.onload = resolve;
+            img.onerror = function() { reject(new Error('Error cargando SVG')); };
+            img.src = svgDataUrl;
         });
+
+        var canvas = document.createElement('canvas');
+        canvas.width = outW; canvas.height = outH;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, outW, outH);
+        ctx.drawImage(img, 0, 0, outW, outH);
+
+        // Descargar como PNG
+        var a = document.createElement('a');
+        a.download = 'Organigrama_Harmoni_' + new Date().toISOString().slice(0, 10) + '.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+        canvas.width = 0; canvas.height = 0;
     } catch (err) {
+        console.error('Error PNG:', err);
         alert('Error generando PNG: ' + err.message);
     }
 }
