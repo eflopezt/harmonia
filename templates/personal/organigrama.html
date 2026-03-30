@@ -18,9 +18,16 @@
 .node-cargo{font-size:.72rem;color:#64748b;margin-bottom:4px}
 .node-area{font-size:.68rem;color:#94a3b8;display:flex;align-items:center;gap:4px}
 .node-detail{font-size:.65rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.zoom-controls{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10}
-.zoom-btn{width:36px;height:36px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#374151;transition:all .15s}
-.zoom-btn:hover{background:#f0fdf4;border-color:#0f766e;color:#0f766e}
+.chart-nav{position:absolute;bottom:12px;left:12px;display:flex;flex-direction:column;gap:3px;z-index:10}
+.chart-nav .nav-row{display:flex;gap:3px;justify-content:center}
+.nav-btn{width:34px;height:34px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;color:#374151;transition:all .15s;padding:0}
+.nav-btn:hover{background:#f0fdf4;border-color:#0f766e;color:#0f766e}
+.nav-btn.primary{background:#0f766e;color:#fff;border-color:#0f766e}
+.nav-btn.primary:hover{background:#134e4a}
+.nav-sep{width:100%;height:1px;background:#e2e8f0;margin:2px 0}
+.chart-container.fullscreen-mode{position:fixed!important;inset:0!important;z-index:9999!important;border-radius:0!important;margin:0!important;height:100vh!important}
+.chart-container.fullscreen-mode #orgChart{height:100vh!important}
+.chart-container.fullscreen-mode .chart-nav{bottom:20px;left:20px}
 .settings-dropdown .form-check{margin-bottom:.35rem}
 .settings-dropdown .form-check-label{font-size:.78rem}
 .view-btn-group .btn{font-size:.72rem;padding:2px 8px}
@@ -34,7 +41,7 @@
 .node-card.compact-mode .node-area{font-size:.6rem}
 .node-card.compact-mode .node-detail{font-size:.58rem}
 @media print{
-  .org-hero,.org-toolbar,.zoom-controls,.no-print{display:none!important}
+  .org-hero,.org-toolbar,.chart-nav,.no-print{display:none!important}
   .chart-container{border:none;min-height:auto}
   #orgChart{height:auto!important;min-height:auto!important}
 }
@@ -149,10 +156,33 @@
 
 <div class="chart-container">
     <div id="orgChart"></div>
-    <div class="zoom-controls">
-        <button class="zoom-btn" onclick="chart && chart.zoomIn()" title="Acercar"><i class="fas fa-plus"></i></button>
-        <button class="zoom-btn" onclick="chart && chart.zoomOut()" title="Alejar"><i class="fas fa-minus"></i></button>
-        <button class="zoom-btn" onclick="chart && chart.fit()" title="Ajustar"><i class="fas fa-crosshairs"></i></button>
+    <div class="chart-nav" id="chartNav">
+        <div class="nav-row">
+            <button class="nav-btn" onclick="chart && chart.zoomIn()" title="Acercar (+)"><i class="fas fa-plus"></i></button>
+            <button class="nav-btn" onclick="chart && chart.zoomOut()" title="Alejar (-)"><i class="fas fa-minus"></i></button>
+            <button class="nav-btn" onclick="chart && chart.fit()" title="Ajustar vista"><i class="fas fa-compress-arrows-alt"></i></button>
+        </div>
+        <div class="nav-sep"></div>
+        <div class="nav-row">
+            <div style="width:34px"></div>
+            <button class="nav-btn" onclick="panChart('up')" title="Mover arriba"><i class="fas fa-chevron-up"></i></button>
+            <div style="width:34px"></div>
+        </div>
+        <div class="nav-row">
+            <button class="nav-btn" onclick="panChart('left')" title="Mover izquierda"><i class="fas fa-chevron-left"></i></button>
+            <button class="nav-btn" onclick="panChart('center')" title="Centrar"><i class="fas fa-dot-circle"></i></button>
+            <button class="nav-btn" onclick="panChart('right')" title="Mover derecha"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="nav-row">
+            <div style="width:34px"></div>
+            <button class="nav-btn" onclick="panChart('down')" title="Mover abajo"><i class="fas fa-chevron-down"></i></button>
+            <div style="width:34px"></div>
+        </div>
+        <div class="nav-sep"></div>
+        <div class="nav-row">
+            <button class="nav-btn primary" onclick="toggleFullscreen()" title="Pantalla completa" id="btnFullscreen"><i class="fas fa-expand"></i></button>
+            <button class="nav-btn" onclick="chart && chart.expandAll() && chart.fit()" title="Expandir todo"><i class="fas fa-sitemap"></i></button>
+        </div>
     </div>
     <div id="loadingOverlay" style="position:absolute;inset:0;background:rgba(248,250,252,.9);display:flex;align-items:center;justify-content:center;z-index:20">
         <div class="text-center">
@@ -439,6 +469,54 @@ document.getElementById('selArea').addEventListener('change', function() {
     loadChart(this.value);
 });
 
+// ── Navegacion del chart (pan + fullscreen) ──
+function panChart(direction) {
+    if (!chart) return;
+    var svg = d3.select('#orgChart svg');
+    var g = svg.select('.chart');
+    if (g.empty()) return;
+    var transform = d3.zoomTransform(svg.node());
+    var step = 150;
+    var dx = 0, dy = 0;
+    switch(direction) {
+        case 'up': dy = step; break;
+        case 'down': dy = -step; break;
+        case 'left': dx = step; break;
+        case 'right': dx = -step; break;
+        case 'center': chart.fit(); return;
+    }
+    var zoom = d3.zoom().on('zoom', function(event) {
+        g.attr('transform', event.transform);
+    });
+    svg.transition().duration(300).call(
+        zoom.transform,
+        d3.zoomIdentity.translate(transform.x + dx, transform.y + dy).scale(transform.k)
+    );
+}
+
+var isFullscreen = false;
+function toggleFullscreen() {
+    var container = document.querySelector('.chart-container');
+    var btn = document.getElementById('btnFullscreen');
+    isFullscreen = !isFullscreen;
+    if (isFullscreen) {
+        container.classList.add('fullscreen-mode');
+        btn.innerHTML = '<i class="fas fa-compress"></i>';
+        btn.title = 'Salir pantalla completa';
+        document.body.style.overflow = 'hidden';
+    } else {
+        container.classList.remove('fullscreen-mode');
+        btn.innerHTML = '<i class="fas fa-expand"></i>';
+        btn.title = 'Pantalla completa';
+        document.body.style.overflow = '';
+    }
+    setTimeout(function() { if (chart) chart.fit(); }, 100);
+}
+// ESC para salir de fullscreen
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
+});
+
 // PDF Export - usa d3-org-chart exportImg() nativo que soporta foreignObject
 // Genera multiples paginas tipo mosaico para imprimir y juntar
 async function exportPDF(evt) {
@@ -517,24 +595,24 @@ async function exportPDF(evt) {
             pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
         } else {
             // ── Modo multi-pagina (mosaico para imprimir y juntar) ──
-            // scale controla el zoom: 1.0 = cada nodo se ve a su tamano real en papel
-            // Cuanto mayor la escala, mas paginas se generan pero mas legible queda
-            // Calcular tamano total de la imagen en mm a la escala deseada
-            // Usamos una resolucion base de ~4px/mm para que los nodos sean legibles
-            var pxPerMm = 3.5 * scale;  // ajustable con la escala del slider
-            var totalW_mm = imgW / pxPerMm;
-            var totalH_mm = imgH / pxPerMm;
+            // Primero escalar la imagen para que cada tile tenga suficiente resolucion
+            // Target: ~8 px/mm en papel = ~200 DPI para impresion legible
+            var targetPxPerMm = 8;
+            var targetTileW = Math.round(usableW * targetPxPerMm); // px por tile horizontal
+            var targetTileH = Math.round(usableH * targetPxPerMm); // px por tile vertical
 
-            // Cuantas columnas y filas de paginas necesitamos
-            var cols = Math.ceil(totalW_mm / usableW);
-            var rows = Math.ceil(totalH_mm / usableH);
-            var totalPages = cols * rows;
+            // Calcular cuantas columnas/filas segun la escala
+            // scale=1 → imagen a tamano natural, scale=1.5 → 50% mas grande (mas hojas)
+            var scaledW = imgW * scale;
+            var scaledH = imgH * scale;
+            var cols = Math.max(1, Math.ceil(scaledW / targetTileW));
+            var rows = Math.max(1, Math.ceil(scaledH / targetTileH));
 
             // Si cabe en 1 pagina, no dividir
             if (cols <= 1 && rows <= 1) {
                 var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
                 _addHeader(pdf, pw, margin);
-                var fitW = Math.min(totalW_mm, usableW);
+                var fitW = usableW;
                 var fitH = fitW / imgRatio;
                 if (fitH > usableH) { fitH = usableH; fitW = fitH * imgRatio; }
                 var x = margin + (usableW - fitW) / 2;
@@ -542,74 +620,105 @@ async function exportPDF(evt) {
                 _addFooter(pdf, pw, ph, margin, 1, 1);
                 pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
             } else {
-                // Crear canvas para recortar tiles de la imagen
-                var canvas = document.createElement('canvas');
-                var ctx = canvas.getContext('2d');
+                // Escalar la imagen para que cada tile tenga buena resolucion
+                var hiResW = targetTileW * cols;
+                var hiResH = targetTileH * rows;
+                // Mantener aspect ratio: ajustar a la dimension que lo requiera
+                var scaleX = hiResW / imgW;
+                var scaleY = hiResH / imgH;
+                var upscale = Math.max(scaleX, scaleY);
+                var finalW = Math.round(imgW * upscale);
+                var finalH = Math.round(imgH * upscale);
 
-                // Tamano de cada tile en pixeles de la imagen original
-                var tilePxW = Math.ceil(imgW / cols);
-                var tilePxH = Math.ceil(imgH / rows);
+                // Crear imagen escalada en canvas
+                var bigCanvas = document.createElement('canvas');
+                bigCanvas.width = finalW;
+                bigCanvas.height = finalH;
+                var bigCtx = bigCanvas.getContext('2d');
+                bigCtx.imageSmoothingEnabled = true;
+                bigCtx.imageSmoothingQuality = 'high';
+                bigCtx.drawImage(img, 0, 0, finalW, finalH);
+
+                // Canvas para recortar tiles
+                var tileCanvas = document.createElement('canvas');
+                var tileCtx = tileCanvas.getContext('2d');
+
+                // Tamano de cada tile en pixeles de la imagen escalada
+                var tilePxW = Math.ceil(finalW / cols);
+                var tilePxH = Math.ceil(finalH / rows);
+
+                // Primero, detectar tiles vacios (sin contenido)
+                var tileMap = []; // {row, col, hasContent}
+                for (var row = 0; row < rows; row++) {
+                    for (var col = 0; col < cols; col++) {
+                        var sx = col * tilePxW;
+                        var sy = row * tilePxH;
+                        var sw = Math.min(tilePxW, finalW - sx);
+                        var sh = Math.min(tilePxH, finalH - sy);
+                        // Check si el tile tiene contenido (muestrear pixeles)
+                        tileCanvas.width = Math.min(sw, 200); // muestreo a baja res
+                        tileCanvas.height = Math.min(sh, 200);
+                        tileCtx.drawImage(bigCanvas, sx, sy, sw, sh, 0, 0, tileCanvas.width, tileCanvas.height);
+                        var pixels = tileCtx.getImageData(0, 0, tileCanvas.width, tileCanvas.height).data;
+                        var nonEmpty = 0;
+                        for (var p = 0; p < pixels.length; p += 16) { // muestreo cada 4 pixeles
+                            if (pixels[p+3] > 10 && (pixels[p] < 240 || pixels[p+1] < 240 || pixels[p+2] < 240)) {
+                                nonEmpty++;
+                            }
+                        }
+                        var contentRatio = nonEmpty / (pixels.length / 16);
+                        tileMap.push({ row: row, col: col, hasContent: contentRatio > 0.005 });
+                    }
+                }
+
+                var activeTiles = tileMap.filter(function(t) { return t.hasContent; });
+                var totalPages = activeTiles.length;
 
                 var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
                 var pageNum = 0;
 
-                for (var row = 0; row < rows; row++) {
-                    for (var col = 0; col < cols; col++) {
-                        if (pageNum > 0) pdf.addPage(paper, orientation);
-                        pageNum++;
+                for (var ti = 0; ti < activeTiles.length; ti++) {
+                    var tile = activeTiles[ti];
+                    var row = tile.row, col = tile.col;
+                    if (pageNum > 0) pdf.addPage(paper, orientation);
+                    pageNum++;
 
-                        // Recortar tile del original
-                        var sx = col * tilePxW;
-                        var sy = row * tilePxH;
-                        var sw = Math.min(tilePxW, imgW - sx);
-                        var sh = Math.min(tilePxH, imgH - sy);
+                    // Recortar tile de la imagen escalada
+                    var sx = col * tilePxW;
+                    var sy = row * tilePxH;
+                    var sw = Math.min(tilePxW, finalW - sx);
+                    var sh = Math.min(tilePxH, finalH - sy);
 
-                        canvas.width = sw;
-                        canvas.height = sh;
-                        ctx.clearRect(0, 0, sw, sh);
-                        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-                        var tileData = canvas.toDataURL('image/png');
+                    tileCanvas.width = sw;
+                    tileCanvas.height = sh;
+                    tileCtx.clearRect(0, 0, sw, sh);
+                    tileCtx.drawImage(bigCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+                    var tileData = tileCanvas.toDataURL('image/jpeg', 0.92);
 
-                        // Header con posicion de tile
-                        _addHeader(pdf, pw, margin);
-                        pdf.setFontSize(8);
-                        pdf.setTextColor(100, 116, 139);
-                        pdf.text('Seccion: Fila ' + (row + 1) + ' de ' + rows + ', Columna ' + (col + 1) + ' de ' + cols, pw - margin - 70, margin + 5);
+                    // Header con posicion de tile
+                    _addHeader(pdf, pw, margin);
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(100, 116, 139);
+                    pdf.text('Seccion: Fila ' + (row + 1) + '/' + rows + ', Col ' + (col + 1) + '/' + cols + '  [Hoja ' + pageNum + '/' + totalPages + ']', pw - margin - 80, margin + 5);
 
-                        // Dibujar tile escalado al area usable
-                        var tileRatio = sw / sh;
-                        var drawW = usableW;
-                        var drawH = drawW / tileRatio;
-                        if (drawH > usableH) { drawH = usableH; drawW = drawH * tileRatio; }
-                        var dx = margin + (usableW - drawW) / 2;
-                        pdf.addImage(tileData, 'PNG', dx, margin + headerH, drawW, drawH);
+                    // Dibujar tile - ya esta a la resolucion correcta para el area usable
+                    var tileRatio = sw / sh;
+                    var drawW = usableW;
+                    var drawH = drawW / tileRatio;
+                    if (drawH > usableH) { drawH = usableH; drawW = drawH * tileRatio; }
+                    var dx = margin + (usableW - drawW) / 2;
+                    pdf.addImage(tileData, 'JPEG', dx, margin + headerH, drawW, drawH);
 
-                        // Marcas de corte/guia en esquinas
-                        pdf.setDrawColor(200, 200, 200);
-                        pdf.setLineWidth(0.3);
-                        // Esquina superior izquierda
-                        if (col > 0 || row > 0) {
-                            pdf.line(margin, margin + headerH, margin + 5, margin + headerH);
-                            pdf.line(margin, margin + headerH, margin, margin + headerH + 5);
-                        }
-                        // Esquina superior derecha
-                        if (col < cols - 1 || row > 0) {
-                            pdf.line(margin + usableW - 5, margin + headerH, margin + usableW, margin + headerH);
-                            pdf.line(margin + usableW, margin + headerH, margin + usableW, margin + headerH + 5);
-                        }
-                        // Esquina inferior izquierda
-                        if (col > 0 || row < rows - 1) {
-                            pdf.line(margin, margin + headerH + drawH, margin + 5, margin + headerH + drawH);
-                            pdf.line(margin, margin + headerH + drawH - 5, margin, margin + headerH + drawH);
-                        }
-                        // Esquina inferior derecha
-                        if (col < cols - 1 || row < rows - 1) {
-                            pdf.line(margin + usableW - 5, margin + headerH + drawH, margin + usableW, margin + headerH + drawH);
-                            pdf.line(margin + usableW, margin + headerH + drawH - 5, margin + usableW, margin + headerH + drawH);
-                        }
+                    // Marcas de corte en esquinas
+                    pdf.setDrawColor(180, 180, 180);
+                    pdf.setLineWidth(0.3);
+                    var markLen = 6;
+                    if (col > 0 || row > 0) { pdf.line(dx, margin+headerH, dx+markLen, margin+headerH); pdf.line(dx, margin+headerH, dx, margin+headerH+markLen); }
+                    if (col < cols-1 || row > 0) { pdf.line(dx+drawW-markLen, margin+headerH, dx+drawW, margin+headerH); pdf.line(dx+drawW, margin+headerH, dx+drawW, margin+headerH+markLen); }
+                    if (col > 0 || row < rows-1) { pdf.line(dx, margin+headerH+drawH, dx+markLen, margin+headerH+drawH); pdf.line(dx, margin+headerH+drawH-markLen, dx, margin+headerH+drawH); }
+                    if (col < cols-1 || row < rows-1) { pdf.line(dx+drawW-markLen, margin+headerH+drawH, dx+drawW, margin+headerH+drawH); pdf.line(dx+drawW, margin+headerH+drawH-markLen, dx+drawW, margin+headerH+drawH); }
 
-                        _addFooter(pdf, pw, ph, margin, pageNum, totalPages);
-                    }
+                    _addFooter(pdf, pw, ph, margin, pageNum, totalPages);
                 }
 
                 // Pagina indice al final con mapa de ensamblaje
@@ -621,41 +730,49 @@ async function exportPDF(evt) {
                 pdf.text('GUIA DE ENSAMBLAJE', margin, margin + 20);
                 pdf.setFontSize(9);
                 pdf.setTextColor(60, 60, 60);
-                pdf.text('El organigrama se ha dividido en ' + totalPages + ' hojas (' + cols + ' columnas x ' + rows + ' filas).', margin, margin + 28);
-                pdf.text('Imprima todas las hojas y unelas siguiendo la cuadricula de abajo:', margin, margin + 34);
+                pdf.text('Organigrama dividido en ' + totalPages + ' hojas (' + cols + ' col x ' + rows + ' filas). Las hojas grises fueron omitidas (sin contenido).', margin, margin + 28);
+                pdf.text('Imprima las hojas y unelas siguiendo el mapa:', margin, margin + 34);
 
                 // Dibujar cuadricula de ensamblaje
                 var gridTop = margin + 42;
-                var maxGridW = usableW * 0.8;
-                var maxGridH = usableH - 50;
-                var cellW = Math.min(maxGridW / cols, 40);
-                var cellH = Math.min(maxGridH / rows, 30);
+                var cellW = Math.min((usableW * 0.8) / cols, 45);
+                var cellH = Math.min((usableH - 60) / rows, 35);
                 var gridW = cellW * cols;
-                var gridH = cellH * rows;
                 var gridX = margin + (usableW - gridW) / 2;
 
                 var pgIdx = 0;
                 for (var r = 0; r < rows; r++) {
                     for (var c = 0; c < cols; c++) {
-                        pgIdx++;
                         var cx = gridX + c * cellW;
                         var cy = gridTop + r * cellH;
-                        pdf.setDrawColor(15, 118, 110);
-                        pdf.setLineWidth(0.5);
-                        pdf.rect(cx, cy, cellW, cellH);
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(15, 118, 110);
-                        pdf.text('Pag ' + pgIdx, cx + cellW / 2, cy + cellH / 2 + 2, { align: 'center' });
-                        pdf.setFontSize(6);
-                        pdf.setTextColor(130);
-                        pdf.text('F' + (r+1) + ' C' + (c+1), cx + cellW / 2, cy + cellH / 2 + 6, { align: 'center' });
+                        var tInfo = tileMap[r * cols + c];
+                        if (tInfo.hasContent) {
+                            pgIdx++;
+                            pdf.setFillColor(240, 253, 244);
+                            pdf.rect(cx, cy, cellW, cellH, 'F');
+                            pdf.setDrawColor(15, 118, 110);
+                            pdf.setLineWidth(0.5);
+                            pdf.rect(cx, cy, cellW, cellH);
+                            pdf.setFontSize(10);
+                            pdf.setTextColor(15, 118, 110);
+                            pdf.text('Hoja ' + pgIdx, cx + cellW/2, cy + cellH/2 + 1, { align: 'center' });
+                        } else {
+                            pdf.setFillColor(243, 244, 246);
+                            pdf.rect(cx, cy, cellW, cellH, 'F');
+                            pdf.setDrawColor(200);
+                            pdf.setLineWidth(0.3);
+                            pdf.rect(cx, cy, cellW, cellH);
+                            pdf.setFontSize(7);
+                            pdf.setTextColor(180);
+                            pdf.text('vacio', cx + cellW/2, cy + cellH/2 + 1, { align: 'center' });
+                        }
                     }
                 }
 
-                // Miniatura del organigrama completo
-                var thumbTop = gridTop + gridH + 10;
+                // Miniatura
+                var thumbTop = gridTop + cellH * rows + 8;
                 var thumbMaxH = usableH - (thumbTop - margin - headerH) - 5;
-                var thumbW = Math.min(usableW * 0.6, thumbMaxH * imgRatio);
+                var thumbW = Math.min(usableW * 0.5, thumbMaxH * imgRatio);
                 var thumbH = thumbW / imgRatio;
                 if (thumbH > thumbMaxH) { thumbH = thumbMaxH; thumbW = thumbH * imgRatio; }
                 if (thumbH > 10) {
@@ -663,12 +780,13 @@ async function exportPDF(evt) {
                     pdf.setTextColor(100);
                     pdf.text('Vista general:', margin, thumbTop);
                     var thumbX = margin + (usableW - thumbW) / 2;
-                    pdf.addImage(dataUrl, 'PNG', thumbX, thumbTop + 3, thumbW, thumbH);
+                    pdf.addImage(dataUrl, 'JPEG', thumbX, thumbTop + 3, thumbW, thumbH);
                 }
 
                 _addFooter(pdf, pw, ph, margin, pageNum, pageNum);
 
-                canvas.width = 0; canvas.height = 0; // liberar memoria
+                bigCanvas.width = 0; bigCanvas.height = 0;
+                tileCanvas.width = 0; tileCanvas.height = 0; // liberar memoria
 
                 pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
             }
