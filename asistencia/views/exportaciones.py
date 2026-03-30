@@ -65,7 +65,7 @@ def exportar_cierre_view(request):
     tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
 
     try:
-        exporter = ReporteCierreExporter(anio, mes)
+        exporter = ReporteCierreExporter(anio, mes, tipo_periodo=tipo_periodo)
         buffer = exporter.generar()
 
         MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',

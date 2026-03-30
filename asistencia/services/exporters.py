@@ -300,11 +300,12 @@ class ReporteCierreExporter:
     - Regularizaciones pendientes
     """
 
-    def __init__(self, anio: int, mes: int, config=None):
+    def __init__(self, anio: int, mes: int, config=None, tipo_periodo: str = 'calendario'):
         from asistencia.models import ConfiguracionSistema
         self.anio = anio
         self.mes = mes
         self.config = config or ConfiguracionSistema.get()
+        self.tipo_periodo = tipo_periodo if tipo_periodo in ('calendario', 'corte') else 'calendario'
         MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
         self.mes_nombre = MESES[mes - 1]
@@ -313,7 +314,12 @@ class ReporteCierreExporter:
         from personal.models import Personal
         from asistencia.models import BancoHoras, RegistroTareo
 
-        inicio, fin = self.config.get_ciclo_asistencia(self.anio, self.mes)
+        if self.tipo_periodo == 'corte':
+            inicio, fin = self.config.get_ciclo_he(self.anio, self.mes)
+            label_periodo = f'Corte de Planilla: {inicio.strftime("%d/%m/%Y")} → {fin.strftime("%d/%m/%Y")}'
+        else:
+            inicio, fin = self.config.get_ciclo_asistencia(self.anio, self.mes)
+            label_periodo = f'Mes Calendario: {inicio.strftime("%d/%m/%Y")} → {fin.strftime("%d/%m/%Y")}'
         total_dias = (fin - inicio).days + 1
 
         from django.db.models import F as DbF
@@ -343,9 +349,11 @@ class ReporteCierreExporter:
                     'sap': r['personal__codigo_sap'] or '',
                     'dias_trabajados': 0,
                     'faltas': 0,
+                    'lsg': 0,
                     'vacaciones': 0,
                     'dm': 0,
                     'dl': 0,
+                    'ds_feriado': 0,
                     'otros': 0,
                     'he25': CERO,
                     'he35': CERO,
@@ -365,10 +373,9 @@ class ReporteCierreExporter:
             elif cod in ('DL', 'DLA', 'B'):
                 datos[pid]['dl'] += 1
             elif cod == 'LSG':
-                datos[pid].setdefault('lsg', 0)
                 datos[pid]['lsg'] += 1
-            elif cod in ('DS', 'NA', 'FR', 'FER'):
-                pass  # No contar como "otros"
+            elif cod in ('DS', 'NA', 'FR', 'FER', 'DOM'):
+                datos[pid]['ds_feriado'] += 1
             else:
                 datos[pid]['otros'] += 1
             datos[pid]['he25'] = (datos[pid]['he25'] or CERO) + (r['sum_he25'] or CERO)
@@ -383,13 +390,15 @@ class ReporteCierreExporter:
         header_fill = PatternFill(start_color='D6E4F0', end_color='D6E4F0', fill_type='solid')
         header_font = Font(bold=True, size=9)
 
-        ws.merge_cells('A1:O1')
-        ws['A1'] = f'REPORTE DE CIERRE — {self.mes_nombre.upper()} {self.anio}'
+        tipo_label = 'CORTE' if self.tipo_periodo == 'corte' else 'MES CALENDARIO'
+        ws.merge_cells('A1:P1')
+        ws['A1'] = f'REPORTE DE CIERRE — {self.mes_nombre.upper()} {self.anio} | {tipo_label} | {label_periodo} | {total_dias} días'
         ws['A1'].font = title_font
         ws['A1'].alignment = Alignment(horizontal='center')
 
         headers = ['Código SAP', 'DNI', 'Apellidos y Nombres', 'Grupo',
-                   'Días Trabajados', 'Faltas', 'LSG', 'Vacaciones', 'DM', 'DL/Bajadas', 'Otros',
+                   'Días Trabajados', 'Faltas', 'LSG', 'Vacaciones', 'DM', 'DL/Bajadas',
+                   'DS/Feriado', 'Otros',
                    'HE 25% (h)', 'HE 35% (h)', 'HE 100% (h)', '% Asistencia']
 
         for col, h in enumerate(headers, 1):
@@ -398,19 +407,25 @@ class ReporteCierreExporter:
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center')
 
-        dias_habiles = total_dias  # simplificado; podría descontar feriados
+        # Días hábiles = total periodo menos descansos semanales/feriados
         for row_idx, d in enumerate(sorted(datos.values(), key=lambda x: x['nombre']), 3):
-            pct_asist = (d['dias_trabajados'] / dias_habiles * 100) if dias_habiles else 0
+            dias_lab = total_dias - d['ds_feriado']
+            pct_asist = (d['dias_trabajados'] / dias_lab * 100) if dias_lab else 0
+            suma = (d['dias_trabajados'] + d['faltas'] + d['lsg'] + d['vacaciones']
+                    + d['dm'] + d['dl'] + d['ds_feriado'] + d['otros'])
+            # Si hay diferencia respecto al total esperado, absorber en 'otros'
+            diff = total_dias - suma
+            otros_adj = d['otros'] + diff if diff > 0 else d['otros']
             ws.append([
                 d['sap'], d['dni'], d['nombre'], d['grupo'],
-                d['dias_trabajados'], d['faltas'], d.get('lsg', 0), d['vacaciones'],
-                d['dm'], d['dl'], d['otros'],
+                d['dias_trabajados'], d['faltas'], d['lsg'], d['vacaciones'],
+                d['dm'], d['dl'], d['ds_feriado'], otros_adj,
                 float(d['he25']), float(d['he35']), float(d['he100']),
                 round(pct_asist, 1),
             ])
             ws.cell(row=row_idx, column=2).number_format = '@'  # DNI texto
 
-        for col_idx in range(1, 16):
+        for col_idx in range(1, 17):
             ws.column_dimensions[get_column_letter(col_idx)].width = 16
         ws.column_dimensions['C'].width = 35
 
