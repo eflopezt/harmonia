@@ -512,7 +512,7 @@ class RegistroTareo(models.Model):
         verbose_name="Código Día (procesado)",
         help_text="Ej: A, NOR, DL, VAC, F, DM, FL, CHE")
     fuente_codigo = models.CharField(
-        max_length=15, choices=FUENTE_CODIGO,
+        max_length=30, choices=FUENTE_CODIGO,
         default='RELOJ',
         verbose_name="Fuente del Código")
 
