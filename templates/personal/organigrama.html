@@ -125,13 +125,13 @@
                     </select>
                 </div>
                 <div class="mb-2">
-                    <label class="form-label mb-1" style="font-size:.78rem">Escala</label>
-                    <input type="range" id="pdfScale" class="form-range" min="0.3" max="1.5" step="0.1" value="0.7">
-                    <small class="text-muted" id="pdfScaleLabel">70%</small>
+                    <label class="form-label mb-1" style="font-size:.78rem">Escala / Legibilidad</label>
+                    <input type="range" id="pdfScale" class="form-range" min="0.5" max="2.0" step="0.1" value="1.0">
+                    <small class="text-muted" id="pdfScaleLabel">100% (Normal)</small>
                 </div>
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="pdfMultipage" checked>
-                    <label class="form-check-label" style="font-size:.78rem">Multi-pagina si excede</label>
+                    <label class="form-check-label" style="font-size:.78rem">Multi-pagina (dividir en hojas para imprimir y juntar)</label>
                 </div>
             </div>
         </div>
@@ -219,7 +219,9 @@ document.addEventListener('change', function(e) {
 });
 
 document.getElementById('pdfScale').addEventListener('input', function() {
-    document.getElementById('pdfScaleLabel').textContent = Math.round(this.value * 100) + '%';
+    var v = Math.round(this.value * 100);
+    var hint = v <= 60 ? ' (Compacto)' : v <= 90 ? ' (Reducido)' : v <= 110 ? ' (Normal)' : v <= 150 ? ' (Grande)' : ' (Muy grande)';
+    document.getElementById('pdfScaleLabel').textContent = v + '%' + hint;
 });
 
 // ── Sort helper: STAFF first, then RCO, then others ──
@@ -438,10 +440,12 @@ document.getElementById('selArea').addEventListener('change', function() {
 });
 
 // PDF Export - usa d3-org-chart exportImg() nativo que soporta foreignObject
+// Genera multiples paginas tipo mosaico para imprimir y juntar
 async function exportPDF(evt) {
     var paper = document.getElementById('pdfPaper').value;
     var orientation = document.getElementById('pdfOrientation').value;
     var scale = parseFloat(document.getElementById('pdfScale').value);
+    var multipage = document.getElementById('pdfMultipage').checked;
 
     var sizes = { 'a4': [210, 297], 'a3': [297, 420], 'letter': [215.9, 279.4], 'tabloid': [279.4, 431.8] };
     var dims = sizes[paper] || sizes['a3'];
@@ -477,9 +481,11 @@ async function exportPDF(evt) {
             img.onerror = reject;
             img.src = dataUrl;
         });
-        var imgRatio = img.width / img.height;
+        var imgW = img.width;
+        var imgH = img.height;
+        var imgRatio = imgW / imgH;
 
-        // 4. Generar PDF
+        // 4. Determinar orientacion de pagina
         if (imgRatio > 1.3) orientation = 'landscape';
         var pw, ph;
         if (orientation === 'landscape') {
@@ -491,25 +497,182 @@ async function exportPDF(evt) {
         }
 
         var margin = 10;
+        var headerH = 14;
+        var footerH = 8;
         var usableW = pw - margin * 2;
-        var usableH = ph - margin * 2 - 14;
+        var usableH = ph - margin * 2 - headerH - footerH;
 
         var jsPDF = window.jspdf.jsPDF;
-        var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
 
-        _addHeader(pdf, pw, margin);
+        if (!multipage) {
+            // ── Modo pagina unica (escala para caber en 1 hoja) ──
+            var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
+            _addHeader(pdf, pw, margin);
+            var fitW = usableW * scale;
+            var fitH = fitW / imgRatio;
+            if (fitH > usableH) { fitH = usableH; fitW = fitH * imgRatio; }
+            var x = margin + (usableW - fitW) / 2;
+            pdf.addImage(dataUrl, 'PNG', x, margin + headerH, fitW, fitH);
+            _addFooter(pdf, pw, ph, margin, 1, 1);
+            pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
+        } else {
+            // ── Modo multi-pagina (mosaico para imprimir y juntar) ──
+            // scale controla el zoom: 1.0 = cada nodo se ve a su tamano real en papel
+            // Cuanto mayor la escala, mas paginas se generan pero mas legible queda
+            // Calcular tamano total de la imagen en mm a la escala deseada
+            // Usamos una resolucion base de ~4px/mm para que los nodos sean legibles
+            var pxPerMm = 3.5 * scale;  // ajustable con la escala del slider
+            var totalW_mm = imgW / pxPerMm;
+            var totalH_mm = imgH / pxPerMm;
 
-        var fitW = usableW * scale;
-        var fitH = fitW / imgRatio;
-        if (fitH > usableH) {
-            fitH = usableH;
-            fitW = fitH * imgRatio;
+            // Cuantas columnas y filas de paginas necesitamos
+            var cols = Math.ceil(totalW_mm / usableW);
+            var rows = Math.ceil(totalH_mm / usableH);
+            var totalPages = cols * rows;
+
+            // Si cabe en 1 pagina, no dividir
+            if (cols <= 1 && rows <= 1) {
+                var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
+                _addHeader(pdf, pw, margin);
+                var fitW = Math.min(totalW_mm, usableW);
+                var fitH = fitW / imgRatio;
+                if (fitH > usableH) { fitH = usableH; fitW = fitH * imgRatio; }
+                var x = margin + (usableW - fitW) / 2;
+                pdf.addImage(dataUrl, 'PNG', x, margin + headerH, fitW, fitH);
+                _addFooter(pdf, pw, ph, margin, 1, 1);
+                pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
+            } else {
+                // Crear canvas para recortar tiles de la imagen
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+
+                // Tamano de cada tile en pixeles de la imagen original
+                var tilePxW = Math.ceil(imgW / cols);
+                var tilePxH = Math.ceil(imgH / rows);
+
+                var pdf = new jsPDF({ orientation: orientation, unit: 'mm', format: paper });
+                var pageNum = 0;
+
+                for (var row = 0; row < rows; row++) {
+                    for (var col = 0; col < cols; col++) {
+                        if (pageNum > 0) pdf.addPage(paper, orientation);
+                        pageNum++;
+
+                        // Recortar tile del original
+                        var sx = col * tilePxW;
+                        var sy = row * tilePxH;
+                        var sw = Math.min(tilePxW, imgW - sx);
+                        var sh = Math.min(tilePxH, imgH - sy);
+
+                        canvas.width = sw;
+                        canvas.height = sh;
+                        ctx.clearRect(0, 0, sw, sh);
+                        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+                        var tileData = canvas.toDataURL('image/png');
+
+                        // Header con posicion de tile
+                        _addHeader(pdf, pw, margin);
+                        pdf.setFontSize(8);
+                        pdf.setTextColor(100, 116, 139);
+                        pdf.text('Seccion: Fila ' + (row + 1) + ' de ' + rows + ', Columna ' + (col + 1) + ' de ' + cols, pw - margin - 70, margin + 5);
+
+                        // Dibujar tile escalado al area usable
+                        var tileRatio = sw / sh;
+                        var drawW = usableW;
+                        var drawH = drawW / tileRatio;
+                        if (drawH > usableH) { drawH = usableH; drawW = drawH * tileRatio; }
+                        var dx = margin + (usableW - drawW) / 2;
+                        pdf.addImage(tileData, 'PNG', dx, margin + headerH, drawW, drawH);
+
+                        // Marcas de corte/guia en esquinas
+                        pdf.setDrawColor(200, 200, 200);
+                        pdf.setLineWidth(0.3);
+                        // Esquina superior izquierda
+                        if (col > 0 || row > 0) {
+                            pdf.line(margin, margin + headerH, margin + 5, margin + headerH);
+                            pdf.line(margin, margin + headerH, margin, margin + headerH + 5);
+                        }
+                        // Esquina superior derecha
+                        if (col < cols - 1 || row > 0) {
+                            pdf.line(margin + usableW - 5, margin + headerH, margin + usableW, margin + headerH);
+                            pdf.line(margin + usableW, margin + headerH, margin + usableW, margin + headerH + 5);
+                        }
+                        // Esquina inferior izquierda
+                        if (col > 0 || row < rows - 1) {
+                            pdf.line(margin, margin + headerH + drawH, margin + 5, margin + headerH + drawH);
+                            pdf.line(margin, margin + headerH + drawH - 5, margin, margin + headerH + drawH);
+                        }
+                        // Esquina inferior derecha
+                        if (col < cols - 1 || row < rows - 1) {
+                            pdf.line(margin + usableW - 5, margin + headerH + drawH, margin + usableW, margin + headerH + drawH);
+                            pdf.line(margin + usableW, margin + headerH + drawH - 5, margin + usableW, margin + headerH + drawH);
+                        }
+
+                        _addFooter(pdf, pw, ph, margin, pageNum, totalPages);
+                    }
+                }
+
+                // Pagina indice al final con mapa de ensamblaje
+                pdf.addPage(paper, orientation);
+                pageNum++;
+                _addHeader(pdf, pw, margin);
+                pdf.setFontSize(12);
+                pdf.setTextColor(15, 118, 110);
+                pdf.text('GUIA DE ENSAMBLAJE', margin, margin + 20);
+                pdf.setFontSize(9);
+                pdf.setTextColor(60, 60, 60);
+                pdf.text('El organigrama se ha dividido en ' + totalPages + ' hojas (' + cols + ' columnas x ' + rows + ' filas).', margin, margin + 28);
+                pdf.text('Imprima todas las hojas y unelas siguiendo la cuadricula de abajo:', margin, margin + 34);
+
+                // Dibujar cuadricula de ensamblaje
+                var gridTop = margin + 42;
+                var maxGridW = usableW * 0.8;
+                var maxGridH = usableH - 50;
+                var cellW = Math.min(maxGridW / cols, 40);
+                var cellH = Math.min(maxGridH / rows, 30);
+                var gridW = cellW * cols;
+                var gridH = cellH * rows;
+                var gridX = margin + (usableW - gridW) / 2;
+
+                var pgIdx = 0;
+                for (var r = 0; r < rows; r++) {
+                    for (var c = 0; c < cols; c++) {
+                        pgIdx++;
+                        var cx = gridX + c * cellW;
+                        var cy = gridTop + r * cellH;
+                        pdf.setDrawColor(15, 118, 110);
+                        pdf.setLineWidth(0.5);
+                        pdf.rect(cx, cy, cellW, cellH);
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(15, 118, 110);
+                        pdf.text('Pag ' + pgIdx, cx + cellW / 2, cy + cellH / 2 + 2, { align: 'center' });
+                        pdf.setFontSize(6);
+                        pdf.setTextColor(130);
+                        pdf.text('F' + (r+1) + ' C' + (c+1), cx + cellW / 2, cy + cellH / 2 + 6, { align: 'center' });
+                    }
+                }
+
+                // Miniatura del organigrama completo
+                var thumbTop = gridTop + gridH + 10;
+                var thumbMaxH = usableH - (thumbTop - margin - headerH) - 5;
+                var thumbW = Math.min(usableW * 0.6, thumbMaxH * imgRatio);
+                var thumbH = thumbW / imgRatio;
+                if (thumbH > thumbMaxH) { thumbH = thumbMaxH; thumbW = thumbH * imgRatio; }
+                if (thumbH > 10) {
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(100);
+                    pdf.text('Vista general:', margin, thumbTop);
+                    var thumbX = margin + (usableW - thumbW) / 2;
+                    pdf.addImage(dataUrl, 'PNG', thumbX, thumbTop + 3, thumbW, thumbH);
+                }
+
+                _addFooter(pdf, pw, ph, margin, pageNum, pageNum);
+
+                canvas.width = 0; canvas.height = 0; // liberar memoria
+
+                pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
+            }
         }
-        var x = margin + (usableW - fitW) / 2;
-        pdf.addImage(dataUrl, 'PNG', x, margin + 12, fitW, fitH);
-        _addFooter(pdf, pw, ph, margin, 1, 1);
-
-        pdf.save('Organigrama_Harmoni_' + new Date().toISOString().slice(0,10) + '.pdf');
 
     } catch (err) {
         console.error('Error export PDF:', err);
