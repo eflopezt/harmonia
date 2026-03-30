@@ -576,20 +576,17 @@ async function exportPDF(evt) {
         var jsPDF = window.jspdf.jsPDF;
 
         // 4. Calcular grid adaptado al contenido
-        // Scale=1: cabe en 1 p\u00e1gina. Scale>1: m\u00e1s hojas, texto m\u00e1s grande.
-        var fitRatioW = usableW / cW;
-        var fitRatioH = usableH / cH;
-        var fitRatio = Math.min(fitRatioW, fitRatioH);
-        var printRatio = fitRatio * scale;
-        var printW = cW * printRatio;
-        var printH = cH * printRatio;
-
         var cols, rows;
-        if (!multipage || scale <= 1) {
-            cols = 1; rows = 1;
+        if (multipage) {
+            // Multi-p\u00e1gina: scale=1 \u2192 3 columnas (legible), scale=2 \u2192 5 columnas
+            cols = Math.max(2, Math.ceil(scale * 2.5));
+            // Filas proporcionales: calcular mm por SVG unit y derivar altura
+            var mmPerUnit = (usableW * cols) / cW;
+            var printH = cH * mmPerUnit;
+            rows = Math.max(1, Math.round(printH / usableH));
         } else {
-            cols = Math.max(1, Math.ceil(printW / usableW));
-            rows = Math.max(1, Math.ceil(printH / usableH));
+            // P\u00e1gina \u00fanica: todo cabe en 1 hoja
+            cols = 1; rows = 1;
         }
         var totalTiles = cols * rows;
 
