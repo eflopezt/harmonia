@@ -334,7 +334,7 @@ class ReporteCierreExporter:
               .values('personal_id', 'personal__apellidos_nombres',
                       'personal__nro_doc', 'personal__grupo_tareo',
                       'personal__codigo_sap', 'personal__condicion',
-                      'codigo_dia', 'condicion', 'dia_semana')
+                      'codigo_dia', 'condicion', 'dia_semana', 'fecha')
               .annotate(
                   sum_he25=Sum('he_25'),
                   sum_he35=Sum('he_35'),
