@@ -499,32 +499,32 @@ class ReporteCierreExporter:
             conds = condicion_por_fecha.get(pid, {})
 
             for fecha in todas_fechas:
-                if fecha in regs:
-                    # Tiene RegistroTareo → categorizar
+                # 1) Papeleta siempre tiene prioridad (override sobre RegistroTareo)
+                cod_papeleta = None
+                for pap in paps:
+                    if pap['fecha_inicio'] <= fecha <= pap['fecha_fin']:
+                        cod_papeleta = pap['iniciales'] or TIPO_A_CODIGO.get(pap['tipo_permiso'], '')
+                        break
+
+                if cod_papeleta:
+                    self._categorizar_codigo(
+                        cod_papeleta, fecha.weekday(), cond, d
+                    )
+                elif fecha in regs:
+                    # 2) RegistroTareo
                     self._categorizar_codigo(
                         regs[fecha], fecha.weekday(), conds.get(fecha, cond), d
                     )
                 elif (f_alta and fecha < f_alta) or (f_cese and fecha > f_cese):
-                    # Fuera de vigencia → NA
+                    # 3) Fuera de vigencia → NA
                     d['na'] += 1
                 else:
-                    # Sin registro → buscar papeleta
-                    cod_papeleta = None
-                    for pap in paps:
-                        if pap['fecha_inicio'] <= fecha <= pap['fecha_fin']:
-                            cod_papeleta = pap['iniciales'] or TIPO_A_CODIGO.get(pap['tipo_permiso'], '')
-                            break
-
-                    if cod_papeleta:
-                        self._categorizar_codigo(
-                            cod_papeleta, fecha.weekday(), cond, d
-                        )
+                    # 4) Sin nada → DS domingo LOCAL/LIMA o falta
+                    dia_semana = fecha.weekday()
+                    if dia_semana == 6 and cond in ('LOCAL', 'LIMA', ''):
+                        d['ds_feriado'] += 1
                     else:
-                        dia_semana = fecha.weekday()
-                        if dia_semana == 6 and cond in ('LOCAL', 'LIMA', ''):
-                            d['ds_feriado'] += 1
-                        else:
-                            d['faltas'] += 1
+                        d['faltas'] += 1
 
         # ── Generar Excel ────────────────────────────────────────
         wb = openpyxl.Workbook()
