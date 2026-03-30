@@ -590,8 +590,8 @@ async function exportPDF(evt) {
         }
         var totalTiles = cols * rows;
 
-        // 5. Target DPI: 200 DPI = 7.87 px/mm (buena calidad para nombres)
-        var targetDPI = 200;
+        // 5. Target DPI: 300 DPI = 11.81 px/mm (calidad alta para texto legible)
+        var targetDPI = 300;
         var pxPerMm = targetDPI / 25.4;
         var tilePxW = Math.round(usableW * pxPerMm);
         var tilePxH = Math.round(usableH * pxPerMm);
@@ -656,7 +656,7 @@ async function exportPDF(evt) {
                     }
                     var hasContent = (nonWhite / (sampleSize * sampleSize)) > 0.003;
 
-                    var tileImgData = canvas.toDataURL('image/jpeg', 0.92);
+                    var tileImgData = canvas.toDataURL('image/jpeg', 0.95);
                     canvas.width = 0; canvas.height = 0;
                     sCanvas.width = 0; sCanvas.height = 0;
 
