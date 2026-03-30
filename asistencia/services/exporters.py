@@ -511,9 +511,10 @@ class ReporteCierreExporter:
                         cod_papeleta, fecha.weekday(), cond, d
                     )
                 elif fecha in regs:
-                    # 2) RegistroTareo
+                    # 2) RegistroTareo — usar condicion del Personal (no del registro,
+                    #    que puede estar mal por importaciones con condicion incorrecta)
                     self._categorizar_codigo(
-                        regs[fecha], fecha.weekday(), conds.get(fecha, cond), d
+                        regs[fecha], fecha.weekday(), cond, d
                     )
                 elif (f_alta and fecha < f_alta) or (f_cese and fecha > f_cese):
                     # 3) Fuera de vigencia → NA
