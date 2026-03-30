@@ -519,11 +519,16 @@ class ReporteCierreExporter:
                     # 3) Fuera de vigencia → NA
                     d['na'] += 1
                 else:
-                    # 4) Sin nada → DS domingo LOCAL/LIMA o falta
+                    # 4) Sin registro ni papeleta → aplicar misma lógica que Matricial
                     dia_semana = fecha.weekday()
                     if dia_semana == 6 and cond in ('LOCAL', 'LIMA', ''):
+                        # Domingo LOCAL/LIMA → DS
                         d['ds_feriado'] += 1
+                    elif cond == 'LIMA' and dia_semana < 6:
+                        # LIMA lun-sáb sin registro → asistencia automática
+                        d['dias_trabajados'] += 1
                     else:
+                        # Resto → falta
                         d['faltas'] += 1
 
         # ── Generar Excel ────────────────────────────────────────
