@@ -53,8 +53,10 @@ DIAS_SEMANA = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D']
 @login_required
 @solo_admin
 def calendario_grid(request):
-    """Grilla calendario mensual o ciclo 21-20 de asistencia."""
+    """Grilla calendario mensual o ciclo de asistencia (fechas desde configuración)."""
     from datetime import timedelta
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
     hoy = date.today()
     anio = int(request.GET.get('anio', hoy.year))
     mes = int(request.GET.get('mes', hoy.month))
@@ -64,13 +66,11 @@ def calendario_grid(request):
     buscar = request.GET.get('q', '')
     modo = request.GET.get('modo', 'mes')
 
+    # Corte desde configuración (ej: 21 → ciclo del 22 del mes anterior al 21 del mes actual)
+    corte = config.dia_corte_planilla
+
     if modo == 'ciclo':
-        # Ciclo planilla: 21 del mes anterior al 20 del mes actual
-        if mes == 1:
-            mes_ini = date(anio - 1, 12, 21)
-        else:
-            mes_ini = date(anio, mes - 1, 21)
-        mes_fin = date(anio, mes, 20)
+        mes_ini, mes_fin = config.get_ciclo_he(anio, mes)
     else:
         _, num_dias = calendar.monthrange(anio, mes)
         mes_ini = date(anio, mes, 1)
@@ -296,6 +296,8 @@ def calendario_grid(request):
         'pct_global': pct_global,
         'grupo': grupo, 'area_id': area_id, 'condicion': condicion, 'buscar': buscar,
         'modo': modo,
+        'ciclo_inicio_dia': corte + 1,
+        'ciclo_fin_dia': corte,
         'areas': areas,
         'codigos_json': json.dumps(codigos_disponibles),
         'color_map_json': json.dumps(COLOR_MAP),

@@ -53,11 +53,9 @@ CODE_COLORS = {
 
 
 def _get_ciclo(anio, mes):
-    if mes == 1:
-        inicio = date(anio - 1, 12, 21)
-    else:
-        inicio = date(anio, mes - 1, 21)
-    return inicio, date(anio, mes, 20)
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    return config.get_ciclo_he(anio, mes)
 
 
 # ========== VIEWS ==========

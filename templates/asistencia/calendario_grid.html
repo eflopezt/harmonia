@@ -184,9 +184,9 @@
         <option value="LIMA" {% if condicion == 'LIMA' %}selected{% endif %}>Lima</option>
     </select>
     <input type="text" name="q" value="{{ buscar }}" class="form-control form-control-sm" style="width:180px" placeholder="Buscar nombre/DNI...">
-    <select name="modo" class="form-select form-select-sm" style="width:130px" title="Mes natural o Ciclo planilla 21-20">
+    <select name="modo" class="form-select form-select-sm" style="width:140px" title="Mes natural o Ciclo planilla {{ ciclo_inicio_dia }}-{{ ciclo_fin_dia }}">
         <option value="mes" {% if modo == 'mes' %}selected{% endif %}>Mes (1-31)</option>
-        <option value="ciclo" {% if modo == 'ciclo' %}selected{% endif %}>Ciclo (21-20)</option>
+        <option value="ciclo" {% if modo == 'ciclo' %}selected{% endif %}>Ciclo ({{ ciclo_inicio_dia }}-{{ ciclo_fin_dia }})</option>
     </select>
     <button class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
 </form>
