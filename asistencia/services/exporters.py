@@ -323,7 +323,9 @@ class ReporteCierreExporter:
         cod = (cod or '').upper()
         es_dom_local = dia_semana == 6 and condicion.upper() in ('LOCAL', 'LIMA', '')
 
-        if cod in ('T', 'NOR', 'TR', 'A', 'SS', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'CT', 'CAP'):
+        if cod == 'NA':
+            cat = 'na'
+        elif cod in ('T', 'NOR', 'TR', 'A', 'SS', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'CT', 'CAP'):
             cat = 'dias_trabajados'
         elif cod in ('FA', 'F'):
             # Domingo LOCAL/LIMA → DS, no falta
@@ -338,7 +340,7 @@ class ReporteCierreExporter:
             cat = 'lsg'
         elif cod in ('LF', 'LP', 'LM'):
             cat = 'otros'
-        elif cod in ('DS', 'NA', 'FR', 'FER', 'DOM'):
+        elif cod in ('DS', 'FR', 'FER', 'DOM'):
             cat = 'ds_feriado'
         else:
             cat = 'otros'
@@ -396,6 +398,7 @@ class ReporteCierreExporter:
                     'dm': 0,
                     'dl': 0,
                     'ds_feriado': 0,
+                    'na': 0,
                     'otros': 0,
                     'he25': CERO,
                     'he35': CERO,
@@ -477,6 +480,7 @@ class ReporteCierreExporter:
                     'dm': 0,
                     'dl': 0,
                     'ds_feriado': 0,
+                    'na': 0,
                     'otros': 0,
                     'he25': CERO,
                     'he35': CERO,
@@ -485,17 +489,29 @@ class ReporteCierreExporter:
                 fechas_cubiertas[pid] = set()
                 condicion_personal[pid] = (pap['personal__condicion'] or '').upper()
 
+        # ── Fechas de vigencia del personal (alta/cese) ────────
+        pids_todos = set(datos.keys()) | set(papeletas_por_pid.keys())
+        vigencia: dict[int, tuple] = {}  # pid → (fecha_alta, fecha_cese)
+        for p in Personal.objects.filter(id__in=pids_todos).values('id', 'fecha_alta', 'fecha_cese'):
+            vigencia[p['id']] = (p['fecha_alta'], p['fecha_cese'])
+
         # Para cada personal, recorrer todos los días del período
-        # y cubrir los huecos con papeleta o falta
+        # y cubrir los huecos con papeleta, NA o falta
         todas_fechas = [inicio + timedelta(days=i) for i in range(total_dias)]
 
         for pid, d in datos.items():
             paps = papeletas_por_pid.get(pid, [])
             cond = condicion_personal.get(pid, '')
+            f_alta, f_cese = vigencia.get(pid, (None, None))
 
             for fecha in todas_fechas:
                 if fecha in fechas_cubiertas.get(pid, set()):
                     continue  # Ya tiene RegistroTareo, ya categorizado
+
+                # Fecha fuera de vigencia → NA (antes de ingreso o después de cese)
+                if (f_alta and fecha < f_alta) or (f_cese and fecha > f_cese):
+                    d['na'] += 1
+                    continue
 
                 # Buscar papeleta que cubra esta fecha
                 cod_papeleta = None
@@ -529,14 +545,14 @@ class ReporteCierreExporter:
         header_font = Font(bold=True, size=9)
 
         tipo_label = 'CORTE' if self.tipo_periodo == 'corte' else 'MES CALENDARIO'
-        ws.merge_cells('A1:P1')
+        ws.merge_cells('A1:Q1')
         ws['A1'] = f'REPORTE DE CIERRE — {self.mes_nombre.upper()} {self.anio} | {tipo_label} | {label_periodo} | {total_dias} días'
         ws['A1'].font = title_font
         ws['A1'].alignment = Alignment(horizontal='center')
 
         headers = ['Código SAP', 'DNI', 'Apellidos y Nombres', 'Grupo',
                    'Días Trabajados', 'Faltas', 'LSG', 'Vacaciones', 'DM', 'DL/Bajadas',
-                   'DS/Feriado', 'Otros',
+                   'DS/Feriado', 'NA', 'Otros',
                    'HE 25% (h)', 'HE 35% (h)', 'HE 100% (h)', '% Asistencia']
 
         for col, h in enumerate(headers, 1):
@@ -545,20 +561,20 @@ class ReporteCierreExporter:
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center')
 
-        # Días hábiles = total periodo menos descansos semanales/feriados
+        # Días hábiles = total periodo menos descansos semanales/feriados menos NA
         for row_idx, d in enumerate(sorted(datos.values(), key=lambda x: x['nombre']), 3):
-            dias_lab = total_dias - d['ds_feriado']
+            dias_lab = total_dias - d['ds_feriado'] - d['na']
             pct_asist = (d['dias_trabajados'] / dias_lab * 100) if dias_lab else 0
             ws.append([
                 d['sap'], d['dni'], d['nombre'], d['grupo'],
                 d['dias_trabajados'], d['faltas'], d['lsg'], d['vacaciones'],
-                d['dm'], d['dl'], d['ds_feriado'], d['otros'],
+                d['dm'], d['dl'], d['ds_feriado'], d['na'], d['otros'],
                 float(d['he25']), float(d['he35']), float(d['he100']),
                 round(pct_asist, 1),
             ])
             ws.cell(row=row_idx, column=2).number_format = '@'  # DNI texto
 
-        for col_idx in range(1, 17):
+        for col_idx in range(1, 18):
             ws.column_dimensions[get_column_letter(col_idx)].width = 16
         ws.column_dimensions['C'].width = 35
 
