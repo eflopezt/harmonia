@@ -433,6 +433,35 @@ class Personal(models.Model):
         verbose_name="Condición",
         help_text="LOCAL = jornada fija | FORÁNEO = régimen acumulativo"
     )
+
+    # ── Organigrama ──────────────────────────────────────────────────────────
+    NIVEL_ORG_CHOICES = [
+        ('GG',      'Gerente General'),
+        ('CTA',     'Representante Cliente (CTA/KP)'),
+        ('DIR',     'Director / Alta Gerencia'),
+        ('GER',     'Gerente de Área'),
+        ('JEFE_SR', 'Jefe Senior / Subgerente'),
+        ('JEFE',    'Jefe / Coordinador / Responsable'),
+        ('ESP',     'Especialista / Ingeniero / Analista'),
+        ('ASIST',   'Asistente / Técnico / Auxiliar'),
+        ('LIBERTY', 'Liberty (contrato especial)'),
+        ('EXPAT',   'Expatriado'),
+    ]
+    nivel_org = models.CharField(
+        max_length=10,
+        choices=NIVEL_ORG_CHOICES,
+        blank=True,
+        default='',
+        verbose_name="Nivel Organigrama",
+        help_text="Color y jerarquía en el organigrama visual"
+    )
+    personal_clave = models.BooleanField(
+        default=False,
+        verbose_name="Personal Clave",
+        help_text="Marcado con ícono 'C' en el organigrama"
+    )
+    # ─────────────────────────────────────────────────────────────────────────
+
     codigo_sap = models.CharField(
         max_length=30,
         blank=True,

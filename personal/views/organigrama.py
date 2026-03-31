@@ -51,6 +51,8 @@ def organigrama_data(request):
     ids_incluidos = set()
 
     for p in qs:
+        # Determinar nivel_org: explícito o auto-derivado del cargo
+        nivel = p.nivel_org or _detectar_nivel_org(p.cargo)
         node = {
             'id': str(p.id),
             'parentId': '',
@@ -65,6 +67,8 @@ def organigrama_data(request):
             'celular': p.celular or '',
             'estado': p.estado,
             'es_jefe': False,
+            'nivel': nivel,
+            'personal_clave': p.personal_clave,
         }
 
         # Determinar parentId
@@ -97,6 +101,7 @@ def organigrama_data(request):
 
     if parent_ids_faltantes:
         for p in Personal.objects.filter(id__in=parent_ids_faltantes, estado='Activo'):
+            nivel = p.nivel_org or _detectar_nivel_org(p.cargo)
             nodes.append({
                 'id': str(p.id),
                 'parentId': '',
@@ -111,6 +116,8 @@ def organigrama_data(request):
                 'celular': p.celular or '',
                 'estado': p.estado,
                 'es_jefe': True,
+                'nivel': nivel,
+                'personal_clave': p.personal_clave,
             })
             ids_incluidos.add(p.id)
 
@@ -137,6 +144,8 @@ def organigrama_data(request):
         'celular': '',
         'estado': 'Activo',
         'es_jefe': False,
+        'nivel': 'GG',
+        'personal_clave': False,
         '_isRoot': True,
     }
     for n in nodes:
@@ -197,6 +206,43 @@ def organigrama_update_parent(request):
         return JsonResponse({'ok': True})
     except (Personal.DoesNotExist, KeyError, ValueError) as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+# ── Mapa de nivel_org → colores del organigrama (coincide con Excel) ──
+NIVEL_COLORES = {
+    'GG':      {'bg': '#FFC000', 'text': '#000000', 'border': '#D4A000', 'label': 'Gerente General'},
+    'CTA':     {'bg': '#0070C0', 'text': '#FFFFFF', 'border': '#005A9E', 'label': 'Representante Cliente'},
+    'DIR':     {'bg': '#1F3864', 'text': '#FFFFFF', 'border': '#162952', 'label': 'Director / Alta Gerencia'},
+    'GER':     {'bg': '#7030A0', 'text': '#FFFFFF', 'border': '#5A2780', 'label': 'Gerente de Área'},
+    'JEFE_SR': {'bg': '#2E5090', 'text': '#FFFFFF', 'border': '#1E3A6E', 'label': 'Jefe Senior'},
+    'JEFE':    {'bg': '#4472C4', 'text': '#FFFFFF', 'border': '#2F5496', 'label': 'Jefe / Coordinador'},
+    'ESP':     {'bg': '#F2F2F2', 'text': '#1F3864', 'border': '#BFBFBF', 'label': 'Especialista / Ingeniero'},
+    'ASIST':   {'bg': '#FFFFFF', 'text': '#374151', 'border': '#D1D5DB', 'label': 'Asistente / Técnico'},
+    'LIBERTY': {'bg': '#ED7D31', 'text': '#FFFFFF', 'border': '#C55A11', 'label': 'Liberty'},
+    'EXPAT':   {'bg': '#FF69B4', 'text': '#FFFFFF', 'border': '#C71585', 'label': 'Expatriado'},
+}
+
+
+def _detectar_nivel_org(cargo: str) -> str:
+    """Deriva nivel_org automáticamente del texto del cargo."""
+    if not cargo:
+        return 'ASIST'
+    c = cargo.upper()
+    if re.search(r'GERENTE GENERAL|DIRECTOR GENERAL|CEO|PRESIDENTE', c):
+        return 'GG'
+    if re.search(r'CTA|REPRESENTANTE.*CLIENTE|KP\b|CONTRATANTE', c):
+        return 'CTA'
+    if re.search(r'^DIRECTOR|DIRECTOR DE PROYECTO|RESIDENTE DE OBRA|GERENTE TECNICO.*CLIENTE', c):
+        return 'DIR'
+    if re.search(r'GERENTE|DIRECTOR', c):
+        return 'GER'
+    if re.search(r'JEFE.*SENIOR|SUBGERENTE|SUPERINTENDENTE|MANAGER|BIM MANAGER|COMMISSIONING MANAGER', c):
+        return 'JEFE_SR'
+    if re.search(r'\bJEFE\b|\bJEFA\b|COORDINADOR|COORDINADORA|RESPONSABLE|RESIDENTE(?! DE OBRA)', c):
+        return 'JEFE'
+    if re.search(r'ANALISTA|ESPECIALISTA|INGENIERO|ING\b|ARQ\b|ARQUITECTO|CONTADOR|ABOGADO|MEDICO|EXPERTO|SUPERVISOR|CAPATAZ', c):
+        return 'ESP'
+    return 'ASIST'
 
 
 # ── Patrones de cargos jerárquicos ──
