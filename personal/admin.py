@@ -4,7 +4,7 @@ Configuración del admin para el módulo personal.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Area, SubArea, Personal, Roster, RosterAudit
+from .models import Area, SubArea, Cargo, Personal, Roster, RosterAudit
 from .user_models import UserProfile
 
 
@@ -53,10 +53,34 @@ class SubAreaAdmin(admin.ModelAdmin):
     search_fields = ['nombre', 'area__nombre']
 
 
+@admin.register(Cargo)
+class CargoAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'nivel', 'es_confianza', 'es_fiscalizable', 'activo']
+    list_filter = ['nivel', 'es_confianza', 'es_fiscalizable', 'activo']
+    search_fields = ['nombre', 'descripcion', 'funciones']
+    list_editable = ['nivel', 'es_confianza', 'es_fiscalizable', 'activo']
+    fieldsets = (
+        (None, {
+            'fields': ('nombre', 'descripcion', 'nivel')
+        }),
+        ('Clasificación Laboral', {
+            'fields': ('es_confianza', 'es_fiscalizable'),
+            'description': 'Art. 43 DL 728: Personal de confianza no sujeto a fiscalización de jornada.',
+        }),
+        ('Funciones del Cargo', {
+            'fields': ('funciones',),
+            'description': 'Una función por línea. Se insertarán en los contratos laborales.',
+        }),
+        ('Estado', {
+            'fields': ('activo',)
+        }),
+    )
+
+
 @admin.register(Personal)
 class PersonalAdmin(admin.ModelAdmin):
     list_display = [
-        'apellidos_nombres', 'nro_doc', 'cargo', 'subarea',
+        'apellidos_nombres', 'nro_doc', 'cargo', 'cargo_obj', 'subarea',
         'estado', 'categoria', 'grupo_tareo', 'fecha_alta', 'tipo_trab',
     ]
     list_filter = ['estado', 'tipo_trab', 'categoria', 'grupo_tareo', 'subarea__area', 'subarea']
@@ -67,7 +91,7 @@ class PersonalAdmin(admin.ModelAdmin):
             'fields': ('usuario', 'tipo_doc', 'nro_doc', 'apellidos_nombres', 'codigo_fotocheck')
         }),
         ('Datos Laborales', {
-            'fields': ('cargo', 'tipo_trab', 'categoria', 'subarea', 'fecha_alta',
+            'fields': ('cargo', 'cargo_obj', 'tipo_trab', 'categoria', 'subarea', 'fecha_alta',
                        'fecha_cese', 'motivo_cese', 'estado', 'asignacion_familiar')
         }),
         ('Pensión y Banca', {

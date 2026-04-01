@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 2.5cm 2.5cm 2.5cm;
+    @frame footer {
+      -pdf-frame-content: footerContent;
+      bottom: 0.5cm;
+      margin-left: 2.5cm;
+      margin-right: 2.5cm;
+      height: 1.5cm;
+    }
+  }
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #0f766e;
+    padding-bottom: 15px;
+  }
+  .header img.logo {
+    max-height: 70px;
+    margin-bottom: 8px;
+  }
+  .header img.membrete {
+    max-width: 100%;
+    max-height: 100px;
+    margin-bottom: 8px;
+  }
+  .empresa-info {
+    font-size: 9pt;
+    color: #555;
+    text-align: center;
+    margin-bottom: 5px;
+  }
+  h1.titulo {
+    font-size: 14pt;
+    text-align: center;
+    color: #0f766e;
+    margin: 20px 0 5px 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  h2.subtitulo {
+    font-size: 11pt;
+    text-align: center;
+    color: #333;
+    margin: 0 0 20px 0;
+    font-weight: normal;
+  }
+  /* Estilos para contenido de plantillas */
+  h4, .clausula-titulo {
+    font-weight: bold;
+    color: #0f766e;
+    margin: 12px 0 4px 0;
+    font-size: 11pt;
+  }
+  p {
+    text-align: justify;
+    margin: 4px 0;
+  }
+  ol, ul {
+    margin: 5px 0;
+    padding-left: 20px;
+  }
+  li {
+    text-align: justify;
+    margin-bottom: 3px;
+    font-size: 10pt;
+  }
+  .datos-table {
+    width: 100%;
+    margin-bottom: 15px;
+    border-collapse: collapse;
+  }
+  .datos-table td {
+    padding: 4px 8px;
+    font-size: 10pt;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  .datos-table td.label {
+    font-weight: bold;
+    color: #0f766e;
+    width: 35%;
+  }
+  .firmas {
+    margin-top: 60px;
+    width: 100%;
+  }
+  .firmas td {
+    width: 45%;
+    text-align: center;
+    vertical-align: bottom;
+    padding: 0 20px;
+  }
+  .firma-linea {
+    border-top: 1px solid #333;
+    padding-top: 5px;
+    font-size: 10pt;
+    font-weight: bold;
+  }
+  .firma-cargo {
+    font-size: 9pt;
+    color: #555;
+  }
+  .firma-img {
+    max-height: 60px;
+    margin-bottom: 5px;
+  }
+  .footer-text {
+    font-size: 8pt;
+    color: #999;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+{# ── Cabecera ── #}
+<div class="header">
+  {% if empresa.membrete_header %}
+    <img src="{{ empresa.membrete_header.path }}" class="membrete">
+  {% elif empresa.logo %}
+    <img src="{{ empresa.logo.path }}" class="logo"><br>
+    <strong style="font-size:14pt; color:#0f766e;">{{ empresa.razon_social }}</strong>
+  {% else %}
+    <strong style="font-size:14pt; color:#0f766e;">{{ empresa.razon_social }}</strong>
+  {% endif %}
+  <div class="empresa-info">
+    RUC: {{ empresa.ruc }}
+    {% if empresa.direccion %} | {{ empresa.direccion }}{% endif %}
+    {% if empresa.telefono %} | Tel: {{ empresa.telefono }}{% endif %}
+  </div>
+</div>
+
+{# ── Titulo (opcional, puede venir en el contenido_html) ── #}
+{% if titulo_documento %}
+<h1 class="titulo">{{ titulo_documento }}</h1>
+{% endif %}
+{% if subtitulo_documento %}
+<h2 class="subtitulo">{{ subtitulo_documento }}</h2>
+{% endif %}
+
+{# ── Contenido resuelto de la plantilla ── #}
+{{ contenido_html|safe }}
+
+{# ── Firmas ── #}
+<table class="firmas">
+  <tr>
+    <td>
+      {% if empresa.firma_representante %}
+        <img src="{{ empresa.firma_representante.path }}" class="firma-img"><br>
+      {% else %}
+        <br><br><br>
+      {% endif %}
+      <div class="firma-linea">
+        {{ empresa.representante_legal|default:empresa.razon_social }}
+      </div>
+      <div class="firma-cargo">
+        {{ empresa.cargo_representante|default:"Representante Legal" }}<br>
+        {{ empresa.razon_social }}<br>
+        {% if empresa.tipo_doc_representante %}{{ empresa.tipo_doc_representante }}{% else %}D.N.I.{% endif %}
+        Nro. {{ empresa.nro_doc_representante|default:"---" }}<br>
+        EL EMPLEADOR
+      </div>
+    </td>
+    <td style="width:10%"></td>
+    <td>
+      <br><br><br>
+      <div class="firma-linea">
+        {{ personal.apellidos_nombres }}
+      </div>
+      <div class="firma-cargo">
+        {{ personal.tipo_doc }}: {{ personal.nro_doc }}<br>
+        EL TRABAJADOR
+      </div>
+    </td>
+  </tr>
+</table>
+
+{# ── Footer ── #}
+<div id="footerContent">
+  <div class="footer-text">
+    {{ empresa.razon_social }} | RUC {{ empresa.ruc }}
+    {% if empresa.email_rrhh %} | {{ empresa.email_rrhh }}{% endif %}
+    | Documento generado por Harmoni ERP
+  </div>
+</div>
+
+</body>
+</html>

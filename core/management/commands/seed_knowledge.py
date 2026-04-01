@@ -1558,6 +1558,368 @@ La liquidación es el documento que detalla todos los conceptos económicos que 
 **En Harmoni:** Nóminas → Utilidades → Cargar renta neta del ejercicio → el sistema calcula automáticamente la distribución por empleado según los dos criterios.
 ''',
     },
+
+    # ══════════════════════════════════════════════════════════════
+    # CONTRATOS LABORALES — NORMATIVA PERUANA
+    # ══════════════════════════════════════════════════════════════
+    {
+        'titulo': 'Tipos de Contrato Laboral — DL 728 / DS 003-97-TR',
+        'categoria': 'ley_laboral',
+        'tags': 'contrato, plazo fijo, indefinido, obra, modal, temporal, contrato laboral',
+        'prioridad': 1,
+        'contenido': '''
+# Tipos de Contrato Laboral en Perú
+
+Regulados por el D.Leg. 728, TUO aprobado por DS 003-97-TR (Ley de Productividad y Competitividad Laboral - LPCL).
+
+## Contrato a Plazo Indeterminado
+- Es la regla general. No requiere forma escrita.
+- Protección contra despido arbitrario después del período de prueba.
+
+## Contratos Sujetos a Modalidad (Plazo Fijo)
+Requieren forma escrita y registro ante el MTPE dentro de los 15 días naturales.
+
+### Por Inicio o Incremento de Actividad (Art. 57)
+- Duración máxima: 3 años.
+- Para nuevas actividades o incremento de las existentes.
+
+### Por Necesidad de Mercado (Art. 58)
+- Duración máxima: 5 años.
+- Variaciones sustanciales de la demanda del mercado.
+- Debe especificar la causa objetiva.
+
+### Por Reconversión Empresarial (Art. 59)
+- Duración máxima: 2 años.
+- Sustitución, ampliación o modificación de actividades.
+
+### Por Obra Determinada o Servicio Específico (Art. 63)
+- Duración: la que resulte necesaria para la obra.
+- Se puede prorrogar tantas veces como sea necesario hasta la conclusión de la obra.
+- No tiene límite de 5 años (Art. 74 no aplica mientras la obra continúe).
+- Termina al concluir la obra o servicio, sin necesidad de preaviso.
+
+### Otros: Intermitente, Temporada, Suplencia, Emergencia.
+
+## Límite General (Art. 74)
+Los contratos modales (excepto obra determinada durante la obra) no pueden exceder 5 años en conjunto. Si se supera, se convierten en indeterminados.
+
+## Desnaturalización (Art. 77)
+El contrato modal se convierte en indeterminado si:
+- El trabajador continúa laborando después del vencimiento sin renovación.
+- Se excede el límite máximo de 5 años.
+- Se demuestra fraude o simulación.
+- Se demuestra que no existe causa objetiva.
+''',
+    },
+    {
+        'titulo': 'Prórroga de Contratos — Límites y Requisitos',
+        'categoria': 'ley_laboral',
+        'tags': 'prorroga, renovacion, 5 anos, contrato modal, extension',
+        'prioridad': 1,
+        'contenido': '''
+# Prórroga de Contratos Laborales
+
+## Requisitos
+- Debe constar por escrito antes del vencimiento del contrato original.
+- Debe registrarse ante el MTPE dentro de 15 días naturales.
+- Debe mantener la causa objetiva vigente.
+
+## Contrato por Obra Determinada (Art. 63 LPCL)
+- Se puede prorrogar las veces necesarias mientras la obra continúe.
+- El límite de 5 años del Art. 74 no aplica si la obra sigue vigente.
+- La prórroga debe indicar que la obra aún está en ejecución.
+
+## Otros Contratos Modales
+- Prórroga dentro del límite máximo de cada modalidad.
+- Total acumulado (contrato + prórrogas + renovaciones) no puede exceder 5 años (Art. 74).
+
+## Prórroga Automática
+- Si el trabajador sigue laborando después del vencimiento sin prórroga escrita, el contrato se desnaturaliza (Art. 77) y se convierte en indeterminado.
+
+## Estructura Típica de una Prórroga
+1. **PRIMERA — Antecedentes**: Referencia al contrato original, cargo y fechas.
+2. **SEGUNDA — Objeto**: Causa objetiva vigente, nuevas fechas.
+3. **TERCERA — Ratificación**: Las demás cláusulas se mantienen.
+''',
+    },
+    {
+        'titulo': 'Adendas Contractuales — Base Legal',
+        'categoria': 'ley_laboral',
+        'tags': 'adenda, aumento, cambio cargo, modificacion, contrato',
+        'prioridad': 1,
+        'contenido': '''
+# Adendas al Contrato de Trabajo
+
+Una adenda es un documento que modifica una o más condiciones del contrato original, manteniendo vigente todo lo demás.
+
+## Tipos Comunes
+- **Aumento salarial**: Modifica la remuneración pactada.
+- **Cambio de cargo**: Modifica el puesto y funciones del trabajador.
+- **Cambio de horario**: Modifica la jornada o turno de trabajo.
+- **Cambio de condiciones**: Modifica lugar de trabajo, área, etc.
+
+## Requisitos
+- Debe constar por escrito y ser firmada por ambas partes.
+- No puede reducir derechos adquiridos del trabajador (principio de irrenunciabilidad).
+- Debe ser razonable (ius variandi del empleador tiene límites).
+- Un cambio de cargo no puede reducir la categoría del trabajador.
+
+## Ius Variandi (Art. 9 LPCL)
+El empleador puede modificar condiciones de trabajo dentro de criterios de razonabilidad, sin afectar:
+- Remuneración (no puede reducirse unilateralmente).
+- Categoría (no puede ser degradado).
+- Derechos fundamentales del trabajador.
+
+## En Harmoni
+Personal → Contratos → Adenda → Seleccionar tipo → Se genera documento automáticamente con los datos del contrato y la modificación.
+''',
+    },
+    {
+        'titulo': 'Período de Prueba por Categoría — Art. 10 LPCL',
+        'categoria': 'ley_laboral',
+        'tags': 'periodo prueba, 3 meses, 6 meses, 12 meses, confianza, direccion',
+        'prioridad': 1,
+        'contenido': '''
+# Período de Prueba
+
+Regulado por el Art. 10 del DS 003-97-TR (LPCL).
+
+## Duración según Categoría
+| Categoría | Período de Prueba |
+|-----------|------------------|
+| Personal ordinario | 3 meses |
+| Personal de confianza | 6 meses |
+| Personal de dirección | 12 meses |
+
+## Reglas
+- Durante el período de prueba, cualquiera de las partes puede resolver el contrato sin expresión de causa.
+- El período se computa desde el primer día efectivo de trabajo.
+- La suspensión del contrato (licencia, descanso médico) no interrumpe el cómputo.
+- Superado el período de prueba, el trabajador adquiere protección contra despido arbitrario.
+
+## Extensión por Acuerdo
+- Para trabajadores calificados o de confianza: hasta 6 meses.
+- Para personal de dirección: hasta 12 meses.
+- La extensión debe pactarse por escrito.
+''',
+    },
+    {
+        'titulo': 'Personal de Confianza y Dirección — Art. 43 LPCL',
+        'categoria': 'ley_laboral',
+        'tags': 'confianza, direccion, art 43, fiscalizacion, jornada',
+        'prioridad': 1,
+        'contenido': '''
+# Personal de Confianza y Dirección
+
+Regulado por el Art. 43 del DS 003-97-TR.
+
+## Personal de Dirección
+Ejerce la representación general del empleador, administra la empresa o toma decisiones que obligan a la organización.
+
+## Personal de Confianza
+Labora en contacto personal y directo con el empleador o personal de dirección, y tiene acceso a información confidencial.
+
+## Diferencias con Personal Ordinario
+| Aspecto | Ordinario | Confianza | Dirección |
+|---------|-----------|-----------|-----------|
+| Período prueba | 3 meses | 6 meses | 12 meses |
+| Jornada máxima | 8h/48h | No sujeto a fiscalización | No sujeto a fiscalización |
+| Horas extra | Sí aplica | No aplica | No aplica |
+| Registro asistencia | Obligatorio | Exonerado | Exonerado |
+| Indemnización por despido | Sí | Sí, pero con limitaciones | Sí, pero con limitaciones |
+
+## Art. 11 DS 008-2002-TR (Reglamento de Jornada)
+El personal de confianza y dirección está excluido de:
+- Jornada máxima legal.
+- Pago de sobretiempo.
+- Obligación de registro de asistencia.
+
+## Calificación
+- La califica el empleador mediante comunicación escrita al trabajador.
+- Debe informarse al MTPE (T-Registro).
+- El trabajador puede impugnar la calificación ante el juzgado.
+''',
+    },
+    {
+        'titulo': 'Registro de Contratos ante MTPE — Obligaciones',
+        'categoria': 'ley_laboral',
+        'tags': 'registro, MTPE, 15 dias, contrato modal, T-Registro',
+        'prioridad': 2,
+        'contenido': '''
+# Registro de Contratos ante el MTPE
+
+## Contratos Modales (Art. 73 LPCL)
+- Deben registrarse dentro de los **15 días naturales** de su suscripción.
+- Se presenta copia del contrato ante la Autoridad Administrativa de Trabajo (AAT).
+- El incumplimiento genera una multa pero **no desnaturaliza** el contrato.
+
+## T-Registro (SUNAT)
+- El alta del trabajador debe realizarse en el T-Registro **antes del inicio** de la prestación de servicios.
+- Incluye: datos del trabajador, tipo de contrato, remuneración, régimen pensionario.
+- Las modificaciones (cargo, remuneración) deben actualizarse en T-Registro.
+
+## Prórrogas y Renovaciones
+- También deben registrarse ante el MTPE dentro de 15 días.
+- El T-Registro debe actualizarse con las nuevas fechas.
+''',
+    },
+    {
+        'titulo': 'Derechos del Trabajador — Resumen Ejecutivo',
+        'categoria': 'ley_laboral',
+        'tags': 'derechos, vacaciones, gratificaciones, CTS, beneficios',
+        'prioridad': 2,
+        'contenido': '''
+# Derechos del Trabajador en el Régimen General
+
+## Beneficios Sociales Principales
+| Beneficio | Base Legal | Monto/Frecuencia |
+|-----------|-----------|------------------|
+| CTS | DL 650 | 1 remuneración/año (mayo y noviembre) |
+| Gratificaciones | Ley 27735 | 1 remuneración en julio y diciembre |
+| Vacaciones | DL 713 | 30 días/año de servicio |
+| Asignación Familiar | Ley 25129 | 10% de la RMV (S/ 113.00 en 2026) |
+| Seguro ESSALUD | Ley 26790 | 9% a cargo del empleador |
+| Utilidades | DL 892 | % de renta neta según actividad |
+
+## Derechos Irrenunciables
+- Remuneración mínima vital (RMV): S/ 1,130 (2026).
+- Jornada máxima: 8 horas diarias / 48 semanales.
+- Descanso semanal obligatorio (24 horas consecutivas).
+- SCTR (Seguro Complementario de Trabajo de Riesgo) para actividades de alto riesgo.
+
+## Protección contra Despido
+- Después del período de prueba: protección contra despido arbitrario.
+- Indemnización por despido arbitrario: 1.5 remuneraciones por año (máximo 12).
+- En contratos modales: 1.5 remuneraciones por mes faltante hasta vencimiento (máximo 12).
+''',
+    },
+    {
+        'titulo': 'Consorcios — Marco Legal Laboral',
+        'categoria': 'ley_laboral',
+        'tags': 'consorcio, colaboracion empresarial, responsabilidad solidaria, apoderado, RUC consorcio',
+        'prioridad': 1,
+        'contenido': '''
+# Consorcios — Marco Legal Laboral
+
+## Definición
+Un consorcio es un contrato de colaboración empresarial (Art. 445 de la Ley General de Sociedades - Ley 26887) por el cual dos o más personas se asocian para participar en forma activa y directa en un determinado negocio o empresa.
+
+## Características
+- **No tiene personalidad jurídica propia**, pero puede obtener RUC para fines tributarios.
+- Cada consorciado mantiene su autonomía.
+- Se rige por el contrato de consorcio y sus adendas.
+
+## Representación Legal
+- El consorcio actúa a través de un **apoderado** designado en el contrato de consorcio.
+- El apoderado firma los contratos laborales en representación del consorcio.
+- Su facultad debe constar en el contrato de consorcio o poder especial.
+
+## Responsabilidad Laboral
+- **Responsabilidad solidaria**: Todos los consorciados responden solidariamente por las obligaciones laborales de los trabajadores del consorcio.
+- El trabajador puede reclamar sus beneficios a cualquiera de los consorciados.
+- Base: Art. 448 LGS y principio de primacía de la realidad.
+
+## Contratación de Personal
+- El consorcio contrata directamente al personal bajo su RUC.
+- Los contratos deben indicar que EL EMPLEADOR es el consorcio.
+- El representante legal firma en nombre del consorcio.
+- Los contratos son por obra determinada (Art. 63 LPCL) cuando están vinculados a la ejecución de la obra del consorcio.
+
+## En Harmoni
+La empresa del consorcio se configura con su propio RUC, razón social, representante legal y firma. Las plantillas de contrato hacen referencia automática a estos datos.
+''',
+    },
+    {
+        'titulo': 'Contrato por Obra Determinada — Art. 63 DS 003-97-TR',
+        'categoria': 'ley_laboral',
+        'tags': 'obra determinada, servicio especifico, art 63, causa objetiva, prorroga sin limite',
+        'prioridad': 1,
+        'contenido': '''
+# Contrato por Obra Determinada o Servicio Específico
+
+## Base Legal
+Artículo 63 del DS 003-97-TR (LPCL).
+
+## Naturaleza
+- Contrato temporal vinculado a la ejecución de una **obra específica** o **servicio determinado**.
+- La duración está atada a la conclusión de la obra, no a un plazo fijo.
+- Termina automáticamente al concluir la obra o servicio.
+
+## Causa Objetiva
+- Debe especificarse claramente la obra o servicio que justifica la contratación temporal.
+- La causa debe ser real, verificable y temporal por naturaleza.
+- Ejemplo: construcción de un hospital, ejecución de un contrato con cliente específico.
+
+## Duración y Prórrogas
+- No tiene plazo máximo predeterminado.
+- Se puede prorrogar **tantas veces como sea necesario** mientras la obra continúe.
+- El límite de 5 años del Art. 74 LPCL **no aplica** mientras la obra esté vigente (criterio jurisprudencial predominante).
+- Si la obra excede 5 años y el trabajador continúa, la relación sigue siendo temporal si la causa objetiva subsiste.
+
+## Diferencia con otros contratos modales
+| Aspecto | Obra Determinada | Plazo Fijo |
+|---------|-----------------|------------|
+| Duración | Hasta fin de obra | Fecha fija |
+| Prórroga | Sin límite (mientras la obra siga) | Máximo 5 años total |
+| Terminación | Al concluir obra | Al vencer plazo |
+| Aviso previo | No necesario | No necesario |
+
+## Cláusulas Típicas
+1. Identificación de LA OBRA (nombre, ubicación, cliente).
+2. Cargo y funciones específicas del trabajador.
+3. Referencia expresa al Art. 63 de la LPCL.
+4. Fecha de inicio y fecha estimada de fin (o "hasta la conclusión de la obra").
+5. Posibilidad de prórroga.
+
+## Terminación Anticipada
+Se puede resolver antes si:
+- Concluye la obra anticipadamente.
+- Se resuelve el contrato principal con el cliente.
+- Causa justa de despido (Arts. 23-25 LPCL).
+- Con aviso de 5 días hábiles para resolución por causa objetiva.
+''',
+    },
+    {
+        'titulo': 'Contratación en Sector Construcción — Régimen Especial',
+        'categoria': 'ley_laboral',
+        'tags': 'construccion, D.Leg. 727, obrero, empleado, SCTR, subcontratacion',
+        'prioridad': 2,
+        'contenido': '''
+# Contratación en el Sector Construcción
+
+## Marco Legal
+- D.Leg. 727 — Ley de Fomento a la Inversión Privada en la Construcción.
+- DS 003-97-TR (LPCL) para contratos de trabajo.
+- DS 011-2019-TR para seguridad en construcción.
+
+## Diferencia Obrero vs Empleado
+| Aspecto | Obrero | Empleado |
+|---------|--------|----------|
+| Labor | Manual, en campo | Intelectual, en oficina |
+| Remuneración | Jornal diario | Sueldo mensual |
+| CTS | Porcentaje del jornal (12%) | Depósito semestral |
+| Régimen | Construcción civil | General |
+| Sindicato | Puede pertenecer a CGTP/FTCCP | Sindicato de empresa |
+
+## Cargos Típicos en Obra
+**Empleados de confianza**: Residente de Obra, Gerente de Proyecto, Gerente Técnico.
+**Empleados fiscalizables**: Ingenieros de área, Analistas, Asistentes, Técnicos.
+**Obreros**: Capataces, Operarios, Oficiales, Peones.
+
+## SCTR (Seguro Complementario de Trabajo de Riesgo)
+- Obligatorio para actividades de construcción (Anexo 5 del DS 003-98-SA).
+- Cubre: accidentes de trabajo y enfermedades profesionales.
+- Componentes: Salud (EPS o ESSALUD) + Pensión (ONP o aseguradora privada).
+
+## Subcontratación en Obra
+- El contratista principal responde solidariamente por las obligaciones laborales de sus subcontratistas.
+- Los trabajadores de subcontratistas tienen los mismos derechos que los del contratista principal.
+- Debe verificarse que los subcontratistas cumplan con SCTR y T-Registro.
+
+## En Harmoni
+Los contratos generados distinguen automáticamente entre personal de confianza (sin fiscalización de jornada) y personal fiscalizable (con control de asistencia), según la configuración del cargo en el módulo de Cargos.
+''',
+    },
 ]
 
 

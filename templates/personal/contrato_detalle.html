@@ -98,9 +98,31 @@
         </a>
       </div>
       <div class="col-auto">
+        <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}?formato=docx" class="btn btn-primary">
+          <i class="fas fa-file-word me-1"></i>Descargar DOCX
+        </a>
+      </div>
+      <div class="col-auto">
         <a href="{% url 'contrato_generar_pdf' contrato_vigente.pk %}?download=1" class="btn btn-outline-danger">
           <i class="fas fa-download me-1"></i>Descargar PDF
         </a>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'prorroga_generar_pdf' contrato_vigente.pk %}" class="btn btn-success" target="_blank">
+          <i class="fas fa-file-contract me-1"></i>Generar Prorroga
+        </a>
+      </div>
+      <div class="col-auto">
+        <div class="dropdown d-inline">
+          <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-file-signature me-1"></i>Adenda
+          </button>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'adenda_crear' contrato_vigente.pk %}?tipo=SUELDO"><i class="fas fa-dollar-sign me-2"></i>Aumento Salarial</a></li>
+            <li><a class="dropdown-item" href="{% url 'adenda_crear' contrato_vigente.pk %}?tipo=CARGO"><i class="fas fa-user-tie me-2"></i>Cambio de Cargo</a></li>
+            <li><a class="dropdown-item" href="{% url 'adenda_crear' contrato_vigente.pk %}?tipo=CONDICIONES"><i class="fas fa-cog me-2"></i>Cambio de Condiciones</a></li>
+          </ul>
+        </div>
       </div>
       <div class="col-auto">
         <form method="post" action="{% url 'contrato_enviar_email' contrato_vigente.pk %}" class="d-inline" id="formEnviarEmail2">
@@ -286,9 +308,15 @@
             <div class="list-group list-group-flush">
               {% for adenda in contrato_vigente.adendas.all %}
               <div class="list-group-item">
-                <div class="d-flex justify-content-between">
-                  <span class="badge bg-info text-dark">{{ adenda.get_tipo_modificacion_display }}</span>
-                  <small class="text-muted">{{ adenda.fecha|date:"d/m/Y" }}</small>
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="badge bg-info text-dark">{{ adenda.get_tipo_modificacion_display }}</span>
+                    <small class="text-muted ms-2">{{ adenda.fecha|date:"d/m/Y" }}</small>
+                  </div>
+                  <div class="d-flex gap-1">
+                    <a href="{% url 'adenda_generar_pdf' adenda.pk %}" class="btn btn-sm btn-outline-danger" target="_blank" title="PDF"><i class="fas fa-file-pdf"></i></a>
+                    <a href="{% url 'adenda_generar_pdf' adenda.pk %}?formato=docx" class="btn btn-sm btn-outline-primary" title="DOCX"><i class="fas fa-file-word"></i></a>
+                  </div>
                 </div>
                 <div class="small mt-1">{{ adenda.detalle|truncatewords:20 }}</div>
                 {% if adenda.valor_anterior or adenda.valor_nuevo %}
@@ -340,9 +368,15 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li><a class="dropdown-item" href="{% url 'contrato_generar_pdf' c.pk %}" target="_blank"><i class="fas fa-file-pdf me-2 text-danger"></i>Generar PDF</a></li>
+                  <li><a class="dropdown-item" href="{% url 'contrato_generar_pdf' c.pk %}?formato=docx"><i class="fas fa-file-word me-2 text-primary"></i>Descargar DOCX</a></li>
                   <li><a class="dropdown-item" href="{% url 'contrato_generar_pdf' c.pk %}?download=1"><i class="fas fa-download me-2"></i>Descargar PDF</a></li>
                   <li><a class="dropdown-item" href="{% url 'contrato_importar_plantilla' c.pk %}"><i class="fas fa-file-upload me-2"></i>Importar documento</a></li>
                   <li><hr class="dropdown-divider"></li>
+                  {% if c.estado == 'VIGENTE' %}
+                  <li><a class="dropdown-item" href="{% url 'prorroga_generar_pdf' c.pk %}" target="_blank"><i class="fas fa-file-contract me-2 text-success"></i>Generar Prorroga</a></li>
+                  <li><a class="dropdown-item" href="{% url 'prorroga_generar_pdf' c.pk %}?formato=docx"><i class="fas fa-file-word me-2 text-success"></i>Prorroga DOCX</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  {% endif %}
                   <li><a class="dropdown-item" href="{% url 'contrato_editar_obj' c.pk %}"><i class="fas fa-edit me-2"></i>Editar</a></li>
                   {% if c.estado == 'VIGENTE' %}
                   <li><a class="dropdown-item" href="{% url 'contrato_renovar' c.pk %}"><i class="fas fa-sync me-2"></i>Renovar</a></li>

@@ -95,6 +95,72 @@ class SubArea(models.Model):
         return f"{self.area.nombre} - {self.nombre}"
 
 
+class Cargo(models.Model):
+    """
+    Cargos/puestos de trabajo normalizados.
+    Sirve para: organigrama, funciones en contratos, clasificación confianza/fiscalizable.
+    """
+    NIVEL_CHOICES = [
+        (1, 'Alta Dirección'),
+        (2, 'Gerencia'),
+        (3, 'Jefatura / Coordinación'),
+        (4, 'Especialista / Profesional'),
+        (5, 'Técnico / Asistente'),
+        (6, 'Operativo'),
+    ]
+    nombre = models.CharField(
+        max_length=150, unique=True,
+        verbose_name='Nombre del Cargo',
+    )
+    descripcion = models.TextField(
+        blank=True,
+        verbose_name='Descripción',
+    )
+    nivel = models.PositiveSmallIntegerField(
+        choices=NIVEL_CHOICES, default=5,
+        verbose_name='Nivel jerárquico',
+        help_text='1=Alta Dirección, 2=Gerencia, 3=Jefatura, 4=Especialista, 5=Técnico, 6=Operativo',
+    )
+    funciones = models.TextField(
+        blank=True,
+        verbose_name='Funciones del cargo',
+        help_text='Lista de funciones para insertar en contratos laborales. Una función por línea.',
+    )
+    es_confianza = models.BooleanField(
+        default=False,
+        verbose_name='Personal de confianza',
+        help_text='Art. 43 DL 728. No sujeto a fiscalización de jornada. Período de prueba 6 meses.',
+    )
+    es_fiscalizable = models.BooleanField(
+        default=True,
+        verbose_name='Sujeto a fiscalización',
+        help_text='Sujeto a control de asistencia y jornada laboral (48h semanales).',
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Cargo'
+        verbose_name_plural = 'Cargos'
+        ordering = ['nivel', 'nombre']
+        indexes = [
+            models.Index(fields=['nivel', 'nombre']),
+            models.Index(fields=['activo']),
+            models.Index(fields=['es_confianza']),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def funciones_lista(self):
+        """Retorna las funciones como lista (para iterar en templates/contratos)."""
+        if not self.funciones:
+            return []
+        return [f.strip() for f in self.funciones.strip().split('\n') if f.strip()]
+
+
 class Personal(models.Model):
     """
     Personal disponible - tabla principal del sistema.
@@ -206,6 +272,14 @@ class Personal(models.Model):
     
     # --- Datos laborales ---
     cargo = models.CharField(max_length=150, verbose_name="Cargo")
+    cargo_obj = models.ForeignKey(
+        'Cargo',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='personal_asignado',
+        verbose_name='Cargo (normalizado)',
+        help_text='Cargo del catálogo. Usado para funciones en contratos y organigrama.',
+    )
     tipo_trab = models.CharField(
         max_length=20,
         choices=TIPO_TRAB_CHOICES,
@@ -1088,12 +1162,42 @@ class Adenda(models.Model):
 
 class PlantillaContrato(models.Model):
     """
-    Plantilla HTML reutilizable para generar contratos laborales.
-    Soporta placeholders como {{nombre_empleado}}, {{cargo}}, etc.
+    Plantilla HTML reutilizable para generar contratos, prórrogas y adendas laborales.
+    Soporta placeholders como {{nombre_empleado}}, {{cargo}}, {{funciones_cargo}}, etc.
     """
+    TIPO_DOCUMENTO_CHOICES = [
+        ('CONTRATO', 'Contrato'),
+        ('PRORROGA', 'Prórroga'),
+        ('ADENDA', 'Adenda'),
+        ('RENOVACION', 'Renovación'),
+    ]
+    CATEGORIA_CHOICES = [
+        ('', '--- Sin categoría ---'),
+        ('CONFIANZA', 'Personal de Confianza (no fiscalizable)'),
+        ('FISCALIZABLE', 'Personal Fiscalizable (ordinario)'),
+        ('OBRA_DETERMINADA', 'Obra Determinada (genérico)'),
+        ('INDEFINIDO', 'Indefinido'),
+        ('NECESIDAD_MERCADO', 'Necesidad de Mercado'),
+        ('AUMENTO_SALARIAL', 'Adenda — Aumento Salarial'),
+        ('CAMBIO_CARGO', 'Adenda — Cambio de Cargo'),
+        ('CAMBIO_CONDICIONES', 'Adenda — Cambio de Condiciones'),
+    ]
     nombre = models.CharField(
         max_length=150,
         verbose_name='Nombre de la plantilla',
+    )
+    tipo_documento = models.CharField(
+        max_length=15,
+        choices=TIPO_DOCUMENTO_CHOICES,
+        default='CONTRATO',
+        verbose_name='Tipo de documento',
+    )
+    categoria = models.CharField(
+        max_length=25,
+        choices=CATEGORIA_CHOICES,
+        blank=True,
+        verbose_name='Categoría',
+        help_text='Subcategoría para filtrar plantillas (ej: Confianza vs Fiscalizable)',
     )
     tipo_contrato = models.CharField(
         max_length=25,
@@ -1102,9 +1206,28 @@ class PlantillaContrato(models.Model):
         verbose_name='Tipo de contrato asociado',
         help_text='Tipo de contrato al que aplica esta plantilla (vacio = generico)',
     )
+    empresa = models.ForeignKey(
+        'empresas.Empresa',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='plantillas_contrato',
+        verbose_name='Empresa',
+        help_text='Si se asigna, esta plantilla solo aplica a esta empresa. Vacío = todas.',
+    )
     contenido_html = models.TextField(
         verbose_name='Contenido HTML',
-        help_text='Usar placeholders: {{nombre_empleado}}, {{cargo}}, {{fecha_inicio}}, {{fecha_fin}}, {{remuneracion}}, {{dni}}, {{empresa}}, {{ruc_empresa}}, {{direccion_empresa}}',
+        help_text=(
+            'Placeholders disponibles: {{nombre_empleado}}, {{cargo}}, {{funciones_cargo}}, '
+            '{{fecha_inicio}}, {{fecha_fin}}, {{remuneracion}}, {{remuneracion_letras}}, '
+            '{{dni}}, {{tipo_doc_trabajador}}, {{domicilio}}, {{distrito}}, {{provincia}}, '
+            '{{departamento}}, {{email_trabajador}}, {{empresa}}, {{ruc_empresa}}, '
+            '{{direccion_empresa}}, {{representante_legal}}, {{cargo_representante}}, '
+            '{{tipo_doc_representante}}, {{nro_doc_representante}}, {{jornada_semanal}}, '
+            '{{periodo_prueba}}, {{fecha_inicio_original}}, {{fecha_fin_anterior}}, '
+            '{{sueldo_anterior}}, {{sueldo_nuevo}}, {{cargo_anterior}}, {{cargo_nuevo}}, '
+            '{{obra_nombre}}, {{obra_cliente}}, {{logo}}, {{firma_representante}}, '
+            '{{fecha_firma}}, {{ciudad_firma}}'
+        ),
     )
     activo = models.BooleanField(
         default=True,
@@ -1118,10 +1241,13 @@ class PlantillaContrato(models.Model):
     class Meta:
         verbose_name = 'Plantilla de Contrato'
         verbose_name_plural = 'Plantillas de Contrato'
-        ordering = ['nombre']
+        ordering = ['tipo_documento', 'nombre']
+        indexes = [
+            models.Index(fields=['tipo_documento', 'categoria', 'activo']),
+        ]
 
     def __str__(self):
-        return self.nombre
+        return f"[{self.get_tipo_documento_display()}] {self.nombre}"
 
 
 class Roster(models.Model):

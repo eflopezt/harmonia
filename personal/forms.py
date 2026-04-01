@@ -65,7 +65,7 @@ class PersonalForm(forms.ModelForm):
         model = Personal
         fields = [
             'tipo_doc', 'nro_doc', 'apellidos_nombres', 'codigo_fotocheck',
-            'cargo', 'tipo_trab', 'categoria', 'subarea',
+            'cargo', 'cargo_obj', 'tipo_trab', 'categoria', 'subarea',
             'fecha_alta', 'fecha_cese', 'motivo_cese', 'estado',
             'regimen_pension', 'afp', 'cuspp', 'asignacion_familiar',
             'fecha_nacimiento', 'sexo', 'celular', 'correo_personal', 'correo_corporativo',

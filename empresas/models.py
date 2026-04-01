@@ -159,6 +159,21 @@ class Empresa(models.Model):
         verbose_name='Cargo del representante',
         help_text='Ej: Gerente General, Director Ejecutivo',
     )
+    TIPO_DOC_REPRESENTANTE_CHOICES = [
+        ('DNI', 'DNI'),
+        ('CE', 'Carné de Extranjería'),
+        ('Pasaporte', 'Pasaporte'),
+    ]
+    tipo_doc_representante = models.CharField(
+        max_length=20,
+        choices=TIPO_DOC_REPRESENTANTE_CHOICES,
+        default='DNI', blank=True,
+        verbose_name='Tipo doc. representante',
+    )
+    nro_doc_representante = models.CharField(
+        max_length=20, blank=True,
+        verbose_name='Nro. documento representante',
+    )
 
     # ── Configuración de corte de planilla ──────────────────
     dia_inicio_corte = models.PositiveSmallIntegerField(

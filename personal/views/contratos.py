@@ -782,42 +782,67 @@ def contratos_alertas_json(request):
 # GENERAR PDF DE CONTRATO
 # ═════════════════════════════════════════════════════════════════════════════
 
-@solo_admin
-def contrato_generar_pdf(request, pk):
-    """Genera un PDF profesional del contrato laboral."""
-    from io import BytesIO
-    from django.template.loader import get_template
-    from xhtml2pdf import pisa
+def _get_empresa_for_contrato(personal):
+    """Helper: obtiene empresa del personal o la principal."""
     from empresas.models import Empresa
-
-    contrato = get_object_or_404(Contrato, pk=pk)
-    personal = contrato.personal
-
-    # Obtener empresa (del personal o la principal)
     empresa = personal.empresa
     if not empresa:
         empresa = Empresa.objects.filter(es_principal=True).first()
     if not empresa:
         empresa = Empresa.objects.first()
+    return empresa
 
-    # Convertir sueldo a letras (simplificado)
-    sueldo_letras = ''
-    if contrato.sueldo_pactado:
-        try:
-            from num2words import num2words
-            sueldo_letras = num2words(float(contrato.sueldo_pactado), lang='es') + ' soles'
-        except Exception:
-            sueldo_letras = f'{contrato.sueldo_pactado} soles'
+
+def _find_plantilla(tipo_documento, contrato=None, empresa=None, categoria=None):
+    """Busca la plantilla más específica para el tipo de documento."""
+    qs = PlantillaContrato.objects.filter(tipo_documento=tipo_documento, activo=True)
+
+    # Intentar match con empresa específica primero
+    if empresa:
+        empresa_qs = qs.filter(empresa=empresa)
+        if categoria:
+            match = empresa_qs.filter(categoria=categoria).first()
+            if match:
+                return match
+        if contrato:
+            match = empresa_qs.filter(tipo_contrato=contrato.tipo_contrato).first()
+            if match:
+                return match
+        match = empresa_qs.filter(empresa=empresa).first()
+        if match:
+            return match
+
+    # Fallback: plantillas genéricas (sin empresa)
+    generic_qs = qs.filter(empresa__isnull=True)
+    if categoria:
+        match = generic_qs.filter(categoria=categoria).first()
+        if match:
+            return match
+    if contrato:
+        match = generic_qs.filter(tipo_contrato=contrato.tipo_contrato).first()
+        if match:
+            return match
+
+    return generic_qs.first()
+
+
+def _render_contrato_pdf(request, contenido_html, empresa, personal, contrato,
+                         titulo=None, subtitulo=None):
+    """Renderiza HTML a PDF usando xhtml2pdf."""
+    from io import BytesIO
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
 
     context = {
-        'contrato': contrato,
-        'personal': personal,
+        'contenido_html': contenido_html,
         'empresa': empresa,
-        'tipo_contrato_display': contrato.get_tipo_contrato_display(),
-        'sueldo_letras': sueldo_letras,
+        'personal': personal,
+        'contrato': contrato,
+        'titulo_documento': titulo,
+        'subtitulo_documento': subtitulo,
     }
 
-    template = get_template('personal/contrato_pdf.html')
+    template = get_template('personal/contrato_pdf_base.html')
     html = template.render(context)
 
     result = BytesIO()
@@ -825,14 +850,224 @@ def contrato_generar_pdf(request, pk):
 
     if pdf.err:
         return HttpResponse('Error generando el PDF', status=500)
+    return result.getvalue()
 
-    response = HttpResponse(result.getvalue(), content_type='application/pdf')
-    nombre_archivo = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}.pdf'
-    # Si se pide descarga directa
-    if request.GET.get('download') == '1':
-        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+
+def _render_contrato_docx(contenido_html, empresa, personal, contrato):
+    """Renderiza HTML a DOCX usando python-docx."""
+    from personal.services.docx_service import generar_contrato_docx
+    return generar_contrato_docx(contenido_html, empresa, personal, contrato)
+
+
+@solo_admin
+def contrato_generar_pdf(request, pk):
+    """Genera un PDF o DOCX profesional del contrato laboral."""
+    from io import BytesIO
+    from personal.services.placeholder_service import resolve_placeholders
+
+    contrato = get_object_or_404(Contrato, pk=pk)
+    personal = contrato.personal
+    empresa = _get_empresa_for_contrato(personal)
+    formato = request.GET.get('formato', 'pdf')
+
+    # Determinar categoría del contrato basada en el cargo
+    categoria = None
+    cargo_obj = getattr(personal, 'cargo_obj', None)
+    if cargo_obj:
+        if cargo_obj.es_confianza:
+            categoria = 'CONFIANZA'
+        elif cargo_obj.es_fiscalizable:
+            categoria = 'FISCALIZABLE'
+
+    # Buscar plantilla
+    plantilla = _find_plantilla('CONTRATO', contrato, empresa, categoria)
+
+    if plantilla and plantilla.contenido_html.strip():
+        # Resolver placeholders
+        html_body = resolve_placeholders(
+            plantilla.contenido_html, contrato, personal, empresa
+        )
     else:
-        response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+        # Fallback: usar template genérico anterior
+        from django.template.loader import get_template
+
+        sueldo_letras = ''
+        if contrato.sueldo_pactado:
+            try:
+                from num2words import num2words
+                sueldo_letras = num2words(float(contrato.sueldo_pactado), lang='es') + ' soles'
+            except Exception:
+                sueldo_letras = f'{contrato.sueldo_pactado} soles'
+
+        context = {
+            'contrato': contrato,
+            'personal': personal,
+            'empresa': empresa,
+            'tipo_contrato_display': contrato.get_tipo_contrato_display(),
+            'sueldo_letras': sueldo_letras,
+        }
+        template = get_template('personal/contrato_pdf.html')
+        full_html = template.render(context)
+
+        # Para el fallback, renderizar directamente el template completo
+        if formato == 'docx':
+            buffer = _render_contrato_docx(full_html, empresa, personal, contrato)
+            response = HttpResponse(
+                buffer.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+            nombre = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}.docx'
+            response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+            return response
+
+        from xhtml2pdf import pisa
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(full_html.encode('utf-8')), result, encoding='utf-8')
+        if pdf.err:
+            return HttpResponse('Error generando el PDF', status=500)
+        response = HttpResponse(result.getvalue(), content_type='application/pdf')
+        nombre = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}.pdf'
+        if request.GET.get('download') == '1':
+            response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+        else:
+            response['Content-Disposition'] = f'inline; filename="{nombre}"'
+        return response
+
+    # Generar con plantilla encontrada
+    nombre_base = f'contrato_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}'
+
+    if formato == 'docx':
+        buffer = _render_contrato_docx(html_body, empresa, personal, contrato)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_base}.docx"'
+        return response
+
+    # PDF
+    pdf_bytes = _render_contrato_pdf(request, html_body, empresa, personal, contrato)
+    if isinstance(pdf_bytes, HttpResponse):
+        return pdf_bytes  # Error response
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    if request.GET.get('download') == '1':
+        response['Content-Disposition'] = f'attachment; filename="{nombre_base}.pdf"'
+    else:
+        response['Content-Disposition'] = f'inline; filename="{nombre_base}.pdf"'
+    return response
+
+
+@solo_admin
+def adenda_generar_pdf(request, pk):
+    """Genera PDF o DOCX de una adenda contractual."""
+    from personal.services.placeholder_service import resolve_placeholders
+
+    adenda = get_object_or_404(Adenda, pk=pk)
+    contrato = adenda.contrato
+    personal = contrato.personal
+    empresa = _get_empresa_for_contrato(personal)
+    formato = request.GET.get('formato', 'pdf')
+
+    # Determinar categoría de adenda
+    cat_map = {
+        'SUELDO': 'AUMENTO_SALARIAL',
+        'CARGO': 'CAMBIO_CARGO',
+    }
+    categoria = cat_map.get(adenda.tipo_modificacion, 'CAMBIO_CONDICIONES')
+
+    plantilla = _find_plantilla('ADENDA', contrato, empresa, categoria)
+
+    if plantilla and plantilla.contenido_html.strip():
+        html_body = resolve_placeholders(
+            plantilla.contenido_html, contrato, personal, empresa, adenda=adenda
+        )
+    else:
+        # Fallback simple
+        html_body = f"""
+        <h2 style="text-align:center;">ADENDA AL CONTRATO DE TRABAJO</h2>
+        <p>Conste por el presente documento la <strong>Adenda</strong> al contrato de trabajo
+        que celebran EL EMPLEADOR y EL TRABAJADOR <strong>{personal.apellidos_nombres}</strong>.</p>
+        <h4>MODIFICACIÓN</h4>
+        <p>Tipo: <strong>{adenda.get_tipo_modificacion_display()}</strong></p>
+        <p>Valor anterior: {adenda.valor_anterior or '---'}</p>
+        <p>Valor nuevo: {adenda.valor_nuevo or '---'}</p>
+        <p>{adenda.detalle or ''}</p>
+        """
+
+    nombre_base = f'adenda_{personal.nro_doc}_{adenda.fecha.strftime("%Y%m%d")}'
+
+    if formato == 'docx':
+        buffer = _render_contrato_docx(html_body, empresa, personal, contrato)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_base}.docx"'
+        return response
+
+    pdf_bytes = _render_contrato_pdf(
+        request, html_body, empresa, personal, contrato,
+        titulo='ADENDA AL CONTRATO DE TRABAJO',
+    )
+    if isinstance(pdf_bytes, HttpResponse):
+        return pdf_bytes
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    if request.GET.get('download') == '1':
+        response['Content-Disposition'] = f'attachment; filename="{nombre_base}.pdf"'
+    else:
+        response['Content-Disposition'] = f'inline; filename="{nombre_base}.pdf"'
+    return response
+
+
+@solo_admin
+def prorroga_generar_pdf(request, pk):
+    """Genera PDF o DOCX de una prórroga (renovación de contrato)."""
+    from personal.services.placeholder_service import resolve_placeholders
+
+    contrato = get_object_or_404(Contrato, pk=pk)
+    personal = contrato.personal
+    empresa = _get_empresa_for_contrato(personal)
+    formato = request.GET.get('formato', 'pdf')
+
+    plantilla = _find_plantilla('PRORROGA', contrato, empresa)
+
+    if plantilla and plantilla.contenido_html.strip():
+        html_body = resolve_placeholders(
+            plantilla.contenido_html, contrato, personal, empresa
+        )
+    else:
+        html_body = f"""
+        <h2 style="text-align:center;">PRÓRROGA DEL CONTRATO DE TRABAJO</h2>
+        <p>Conste por el presente documento la <strong>Prórroga del Contrato de Trabajo</strong>
+        que celebran EL EMPLEADOR y EL TRABAJADOR <strong>{personal.apellidos_nombres}</strong>.</p>
+        <h4>PRIMERA: ANTECEDENTES</h4>
+        <p>EL EMPLEADOR y EL TRABAJADOR suscribieron un Contrato de Trabajo sujeto a modalidad.</p>
+        <h4>SEGUNDA: OBJETO</h4>
+        <p>Las partes acuerdan prorrogar el contrato.</p>
+        """
+
+    nombre_base = f'prorroga_{personal.nro_doc}_{contrato.fecha_inicio.strftime("%Y%m%d")}'
+
+    if formato == 'docx':
+        buffer = _render_contrato_docx(html_body, empresa, personal, contrato)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_base}.docx"'
+        return response
+
+    pdf_bytes = _render_contrato_pdf(request, html_body, empresa, personal, contrato)
+    if isinstance(pdf_bytes, HttpResponse):
+        return pdf_bytes
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    if request.GET.get('download') == '1':
+        response['Content-Disposition'] = f'attachment; filename="{nombre_base}.pdf"'
+    else:
+        response['Content-Disposition'] = f'inline; filename="{nombre_base}.pdf"'
     return response
 
 
@@ -1221,18 +1456,24 @@ def plantilla_contrato_crear(request):
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
         tipo_contrato = request.POST.get('tipo_contrato', '')
+        tipo_documento = request.POST.get('tipo_documento', 'CONTRATO')
+        categoria = request.POST.get('categoria', '')
         contenido_html = request.POST.get('contenido_html', '')
 
         if not nombre:
             messages.error(request, 'El nombre de la plantilla es obligatorio.')
             return render(request, 'personal/plantilla_contrato_form.html', {
                 'tipos': Personal.TIPO_CONTRATO_CHOICES,
+                'tipos_documento': PlantillaContrato.TIPO_DOCUMENTO_CHOICES,
+                'categorias': PlantillaContrato.CATEGORIA_CHOICES,
                 'es_nuevo': True,
             })
 
         PlantillaContrato.objects.create(
             nombre=nombre,
             tipo_contrato=tipo_contrato,
+            tipo_documento=tipo_documento,
+            categoria=categoria,
             contenido_html=contenido_html,
         )
         messages.success(request, f'Plantilla "{nombre}" creada exitosamente.')
@@ -1240,6 +1481,8 @@ def plantilla_contrato_crear(request):
 
     context = {
         'tipos': Personal.TIPO_CONTRATO_CHOICES,
+        'tipos_documento': PlantillaContrato.TIPO_DOCUMENTO_CHOICES,
+        'categorias': PlantillaContrato.CATEGORIA_CHOICES,
         'es_nuevo': True,
     }
     return render(request, 'personal/plantilla_contrato_form.html', context)
@@ -1253,6 +1496,8 @@ def plantilla_contrato_editar(request, pk):
     if request.method == 'POST':
         plantilla.nombre = request.POST.get('nombre', '').strip()
         plantilla.tipo_contrato = request.POST.get('tipo_contrato', '')
+        plantilla.tipo_documento = request.POST.get('tipo_documento', 'CONTRATO')
+        plantilla.categoria = request.POST.get('categoria', '')
         plantilla.contenido_html = request.POST.get('contenido_html', '')
         plantilla.activo = bool(request.POST.get('activo'))
 
@@ -1266,6 +1511,8 @@ def plantilla_contrato_editar(request, pk):
     context = {
         'plantilla': plantilla,
         'tipos': Personal.TIPO_CONTRATO_CHOICES,
+        'tipos_documento': PlantillaContrato.TIPO_DOCUMENTO_CHOICES,
+        'categorias': PlantillaContrato.CATEGORIA_CHOICES,
         'es_nuevo': False,
     }
     return render(request, 'personal/plantilla_contrato_form.html', context)

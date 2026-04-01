@@ -18,18 +18,25 @@
       <form method="post">
         {% csrf_token %}
         <div class="row g-3 mb-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">Nombre de la plantilla <span class="text-danger">*</span></label>
             <input type="text" name="nombre" class="form-control"
                    value="{% if not es_nuevo %}{{ plantilla.nombre }}{% endif %}" required
-                   placeholder="Ej: Contrato indefinido estandar">
+                   placeholder="Ej: Contrato por Obra - Confianza">
           </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Tipo de contrato asociado</label>
-            <select name="tipo_contrato" class="form-select">
-              <option value="">Generico (cualquiera)</option>
-              {% for val, label in tipos %}
-              <option value="{{ val }}" {% if not es_nuevo and plantilla.tipo_contrato == val %}selected{% endif %}>{{ label }}</option>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Tipo de documento</label>
+            <select name="tipo_documento" class="form-select">
+              {% for val, label in tipos_documento %}
+              <option value="{{ val }}" {% if not es_nuevo and plantilla.tipo_documento == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Categoria</label>
+            <select name="categoria" class="form-select">
+              {% for val, label in categorias %}
+              <option value="{{ val }}" {% if not es_nuevo and plantilla.categoria == val %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </div>
@@ -45,22 +52,78 @@
           {% endif %}
         </div>
 
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Tipo de contrato asociado</label>
+            <select name="tipo_contrato" class="form-select">
+              <option value="">Generico (cualquiera)</option>
+              {% for val, label in tipos %}
+              <option value="{{ val }}" {% if not es_nuevo and plantilla.tipo_contrato == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
         <div class="mb-3">
           <label class="form-label fw-semibold">Contenido HTML</label>
           <textarea name="contenido_html" class="form-control font-monospace" rows="20"
-                    placeholder="Ingrese el contenido HTML de la plantilla. Puede usar placeholders como {{nombre_empleado}}, {{cargo}}, {{fecha_inicio}}, {{fecha_fin}}, {{remuneracion}}, {{dni}}, {{empresa}}, {{ruc_empresa}}, {{direccion_empresa}}">{% if not es_nuevo %}{{ plantilla.contenido_html }}{% endif %}</textarea>
-          <small class="text-muted">
-            Placeholders disponibles:
-            <code>{% templatetag openvariable %}nombre_empleado{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}cargo{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}fecha_inicio{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}fecha_fin{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}remuneracion{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}dni{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}empresa{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}ruc_empresa{% templatetag closevariable %}</code>,
-            <code>{% templatetag openvariable %}direccion_empresa{% templatetag closevariable %}</code>
-          </small>
+                    placeholder="Ingrese el contenido HTML de la plantilla con placeholders {% templatetag openvariable %}nombre_empleado{% templatetag closevariable %}, {% templatetag openvariable %}cargo{% templatetag closevariable %}, etc.">{% if not es_nuevo %}{{ plantilla.contenido_html }}{% endif %}</textarea>
+          <div class="mt-2">
+            <a class="text-decoration-none small" data-bs-toggle="collapse" href="#placeholdersHelp">
+              <i class="fas fa-info-circle me-1"></i>Ver placeholders disponibles
+            </a>
+            <div class="collapse mt-2" id="placeholdersHelp">
+              <div class="card card-body bg-light small">
+                <div class="row">
+                  <div class="col-md-4">
+                    <strong>Empleador:</strong><br>
+                    <code>{% templatetag openvariable %}empresa{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}ruc_empresa{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}direccion_empresa{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}representante_legal{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}cargo_representante{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}tipo_doc_representante{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}nro_doc_representante{% templatetag closevariable %}</code>
+                  </div>
+                  <div class="col-md-4">
+                    <strong>Trabajador:</strong><br>
+                    <code>{% templatetag openvariable %}nombre_empleado{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}dni{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}tipo_doc_trabajador{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}domicilio{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}email_trabajador{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}cargo{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}funciones_cargo{% templatetag closevariable %}</code>
+                  </div>
+                  <div class="col-md-4">
+                    <strong>Contrato:</strong><br>
+                    <code>{% templatetag openvariable %}fecha_inicio{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}fecha_fin{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}remuneracion{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}remuneracion_letras{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}jornada_semanal{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}periodo_prueba{% templatetag closevariable %}</code><br>
+                    <strong>Prorroga:</strong>
+                    <code>{% templatetag openvariable %}fecha_inicio_original{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}fecha_fin_anterior{% templatetag closevariable %}</code><br>
+                    <strong>Adenda:</strong>
+                    <code>{% templatetag openvariable %}sueldo_anterior{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}sueldo_nuevo{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}cargo_anterior{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}cargo_nuevo{% templatetag closevariable %}</code><br>
+                    <strong>Obra:</strong>
+                    <code>{% templatetag openvariable %}obra_nombre{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}obra_cliente{% templatetag closevariable %}</code><br>
+                    <strong>Firma:</strong>
+                    <code>{% templatetag openvariable %}fecha_firma{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}ciudad_firma{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}logo{% templatetag closevariable %}</code>,
+                    <code>{% templatetag openvariable %}firma_representante{% templatetag closevariable %}</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="d-flex justify-content-end gap-2">
