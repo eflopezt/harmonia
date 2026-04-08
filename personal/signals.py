@@ -81,30 +81,163 @@ def _invalidar_badge_superusers():
 
 @receiver(pre_save, sender='personal.Personal')
 def _capturar_estado_anterior(sender, instance, **kwargs):
-    """Guarda el estado anterior antes de persistir para detectar cambios."""
+    """Guarda el estado anterior y condicion antes de persistir para detectar cambios."""
     if instance.pk:
         try:
-            instance._estado_anterior = sender.objects.get(pk=instance.pk).estado
+            old = sender.objects.get(pk=instance.pk)
+            instance._estado_anterior = old.estado
+            instance._condicion_anterior = old.condicion
         except sender.DoesNotExist:
             instance._estado_anterior = None
+            instance._condicion_anterior = None
     else:
         instance._estado_anterior = None
+        instance._condicion_anterior = None
 
 
 @receiver(post_save, sender='personal.Personal')
 def _on_personal_post_save(sender, instance, created, **kwargs):
-    """Dispatcher principal para cambios de estado de Personal."""
-    estado_anterior = getattr(instance, '_estado_anterior', None)
-    estado_actual = instance.estado
+    """Dispatcher principal para cambios de estado y condicion de Personal."""
     if created:
         _handle_nueva_alta(instance)
         return
+
+    # Cambio de condicion → reprocesar asistencia
+    condicion_anterior = getattr(instance, '_condicion_anterior', None)
+    if condicion_anterior and condicion_anterior != instance.condicion:
+        _handle_cambio_condicion(instance, condicion_anterior)
+
+    # Cambio de estado
+    estado_anterior = getattr(instance, '_estado_anterior', None)
+    estado_actual = instance.estado
     if estado_anterior == estado_actual:
         return
     if estado_actual == 'Cesado' and estado_anterior != 'Cesado':
         _handle_cese(instance)
     elif estado_actual == 'Activo' and estado_anterior not in ('Activo', None):
         _handle_reingreso(instance, estado_anterior)
+
+
+# -- Handler de cambio de condicion ----------------------------------------
+
+def _handle_cambio_condicion(personal, condicion_anterior):
+    """
+    Reprocesa TODOS los registros de asistencia cuando cambia la condicion
+    (LOCAL ↔ FORÁNEO ↔ LIMA). La condicion afecta la jornada diaria y
+    el calculo de horas extra.
+
+    Jornadas (Consorcio SRT):
+      LOCAL:   L-V 8.5h, Sab 5.5h, Dom todo al 100%
+      FORÁNEO: L-S 10h (efectiva), Dom 4h jornada
+      LIMA:    auto-presente L-S sin biometrico
+    """
+    from asistencia.models import RegistroTareo
+    from datetime import date
+    from decimal import Decimal, ROUND_FLOOR
+
+    condicion_nueva = (personal.condicion or '').upper().replace('Á', 'A')
+    logger.info(
+        '[Signal Condicion] %s (%s): %s → %s — reprocesando asistencia',
+        personal.apellidos_nombres, personal.nro_doc,
+        condicion_anterior, personal.condicion
+    )
+
+    CERO = Decimal('0')
+    GRACIA = Decimal('7') / 60
+
+    def round_half(h):
+        return ((h + GRACIA) * 2).to_integral_value(rounding=ROUND_FLOOR) / 2
+
+    # Jornadas por condicion
+    if condicion_nueva == 'FORANEO':
+        jornada_lv = Decimal('10')
+        jornada_sab = Decimal('10')
+        dom_todo_100 = False
+        jornada_dom = Decimal('4')
+    elif condicion_nueva == 'LIMA':
+        jornada_lv = Decimal('8')
+        jornada_sab = Decimal('5.5')
+        dom_todo_100 = True
+        jornada_dom = CERO
+    else:  # LOCAL
+        jornada_lv = Decimal('8.5')
+        jornada_sab = Decimal('5.5')
+        dom_todo_100 = True
+        jornada_dom = CERO
+
+    # Reprocesar todos los registros con horas (no tocar feriados ni ausencias)
+    regs = RegistroTareo.objects.filter(
+        personal=personal,
+        fecha__gte=date(2026, 1, 1),  # desde inicio de año
+    ).exclude(
+        codigo_dia__in=['VAC', 'DL', 'LCG', 'LSG', 'FER', 'FA', 'NA', 'DM', 'LPT', 'LFA']
+    )
+
+    fixed = 0
+    for r in regs:
+        total_h = r.horas_normales + r.he_25 + r.he_35 + r.he_100
+        if total_h == CERO:
+            continue
+
+        dow = r.fecha.weekday()  # 0=Lu, 5=Sa, 6=Do
+
+        if dow == 6:  # DOMINGO
+            if dom_todo_100:
+                # LOCAL/LIMA: todo al 100%
+                r.horas_normales = CERO
+                r.he_25 = CERO
+                r.he_35 = CERO
+                r.he_100 = total_h
+                if r.codigo_dia not in ('DS', 'DSE'):
+                    r.codigo_dia = 'DS'
+            else:
+                # FORÁNEO: normal hasta jornada_dom, exceso 100%
+                r.horas_normales = min(total_h, jornada_dom)
+                r.he_25 = CERO
+                r.he_35 = CERO
+                r.he_100 = max(CERO, total_h - jornada_dom)
+        elif dow == 5:  # SÁBADO
+            jornada = jornada_sab
+            exceso = round_half(max(CERO, total_h - jornada))
+            r.horas_normales = jornada
+            r.he_25 = min(exceso, Decimal('2'))
+            r.he_35 = max(CERO, exceso - Decimal('2'))
+            r.he_100 = CERO
+        else:  # L-V
+            jornada = jornada_lv
+            exceso = round_half(max(CERO, total_h - jornada))
+            r.horas_normales = jornada
+            r.he_25 = min(exceso, Decimal('2'))
+            r.he_35 = max(CERO, exceso - Decimal('2'))
+            r.he_100 = CERO
+
+        r.save(update_fields=['horas_normales', 'he_25', 'he_35', 'he_100', 'codigo_dia'])
+        fixed += 1
+
+    logger.info(
+        '[Signal Condicion] %s: %d registros reprocesados (%s → %s)',
+        personal.nro_doc, fixed, condicion_anterior, personal.condicion
+    )
+
+    # Notificar al admin
+    try:
+        from comunicaciones.services import NotificacionService
+        from django.contrib.auth.models import User
+        for admin in User.objects.filter(is_superuser=True, is_active=True):
+            personal_admin = getattr(admin, 'personal_data', None)
+            NotificacionService.enviar(
+                destinatario=personal_admin,
+                asunto=f'Condición cambiada: {personal.apellidos_nombres}',
+                mensaje=(
+                    f'{personal.apellidos_nombres} ({personal.nro_doc}) cambió de '
+                    f'{condicion_anterior} a {personal.condicion}. '
+                    f'{fixed} registros de asistencia reprocesados automáticamente.'
+                ),
+                tipo='INFO',
+                url=f'/personal/{personal.pk}/',
+            )
+    except Exception as e:
+        logger.warning('[Signal Condicion] Error notificando: %s', e)
 
 
 # -- Handlers de cese ------------------------------------------------------
@@ -281,6 +414,23 @@ def _handle_reingreso(personal, estado_anterior):
         logger.info('[Signal Reingreso] Notificaciones enviadas para %s', personal)
     except Exception as exc:
         logger.warning('[Signal Reingreso] Error: %s', exc)
+
+
+# -- M2. Sincronizar Contrato VIGENTE → campos de Personal -----------------
+
+@receiver(post_save, sender='personal.Contrato')
+def sincronizar_contrato_con_personal(sender, instance, **kwargs):
+    """
+    Cuando se guarda un Contrato VIGENTE, sincroniza automáticamente los campos
+    de contrato en la ficha Personal (tipo_contrato, fecha_inicio/fin, renovacion).
+    Evita que ambos registros diverjan silenciosamente.
+    """
+    if instance.estado == 'VIGENTE':
+        try:
+            instance.sincronizar_con_personal()
+        except Exception as exc:
+            logger.warning('[Signal Contrato] Error sincronizando con Personal pk=%s: %s',
+                           instance.personal_id, exc)
 
 
 # -- Funcion utilitaria: alertar contratos por vencer ----------------------
