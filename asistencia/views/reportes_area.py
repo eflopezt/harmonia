@@ -1242,22 +1242,57 @@ def reporte_pdf_area(request):
     MARGIN = 15 * mm
     usable_w = PAGE_W - 2 * MARGIN
 
-    # Anchos fijos: NOMBRE, CARGO, COND
-    W_NOMBRE = 105
-    W_CARGO  = 68
+    # Anchos fijos (NOMBRE y CARGO se calculan dinámicamente en _build_pdf_area)
     W_COND   = 22
-    # Resumen al final: NORM, FALT, TARD
     W_NORM   = 28
     W_FALT   = 22
     W_TARD   = 22
-    W_FIJOS  = W_NOMBRE + W_CARGO + W_COND
     W_SUM    = W_NORM + W_FALT + W_TARD
-    W_DIAS   = usable_w - W_FIJOS - W_SUM
-    w_dia    = max(14, W_DIAS / max(n_dias, 1))  # mín 14pt por día
+
+    # Leyenda completa: code → (color_hex, descripción)
+    LEYENDA_DEFS = {
+        'TARD': ('#FFCCCC', 'Tardanza'),
+        'SS':   ('#FFE5CC', 'SS – marcación incompleta'),
+        'DS':   ('#D9D9D9', 'DS – descanso semanal'),
+        'FER':  ('#D9B3FF', 'Feriado trabajado'),
+        'F':    ('#C00000', 'F – Falta/Ausencia'),
+        # Papeletas comunes
+        'DL':   ('#BDD7EE', 'DL – Día libre'),
+        'DLA':  ('#BDD7EE', 'DLA – Día libre adicional'),
+        'VAC':  ('#BDD7EE', 'VAC – Vacaciones'),
+        'LM':   ('#BDD7EE', 'LM – Licencia médica'),
+        'LCG':  ('#BDD7EE', 'LCG – Licencia con goce'),
+        'LSG':  ('#BDD7EE', 'LSG – Licencia sin goce'),
+        'CHE':  ('#BDD7EE', 'CHE – Comisión de servicio'),
+        'CDT':  ('#BDD7EE', 'CDT – Capacitación'),
+        'CPF':  ('#BDD7EE', 'CPF – Permiso por fallecimiento'),
+        'SUB':  ('#BDD7EE', 'SUB – Subsidio'),
+        'ATM':  ('#BDD7EE', 'ATM – Atención médica'),
+        'PER':  ('#BDD7EE', 'PER – Permiso'),
+        'B':    ('#D9D9D9', 'B – Bajada/Descanso'),
+    }
 
     def _build_pdf_area(area, empleados, tareos_map, papeletas_map):
+        from reportlab.pdfbase import pdfmetrics
+
+        # ── Auto-ajuste de anchos por contenido ──────────────────────
+        FSIZE = 7
+        max_n = max(
+            (pdfmetrics.stringWidth(e.apellidos_nombres, 'Helvetica', FSIZE) for e in empleados),
+            default=60,
+        )
+        max_c = max(
+            (pdfmetrics.stringWidth(e.cargo or '—', 'Helvetica', FSIZE) for e in empleados),
+            default=35,
+        )
+        w_nombre = min(max(max_n + 8, 60), 160)
+        w_cargo  = min(max(max_c + 8, 35), 110)
+        w_dias_avail = usable_w - w_nombre - w_cargo - W_COND - W_SUM
+        w_d = max(14, w_dias_avail / max(n_dias, 1))
+
+        col_widths = [w_nombre, w_cargo, W_COND] + [w_d] * n_dias + [W_NORM, W_FALT, W_TARD]
+
         story = []
-        # ── Título ──
         title_p = Paragraph(
             f'REPORTE DE ASISTENCIA  |  ÁREA: {area.nombre.upper()}  |  {periodo_lbl}',
             st_title,
@@ -1265,33 +1300,27 @@ def reporte_pdf_area(request):
         story.append(title_p)
         story.append(Spacer(1, 3))
 
-        # ── Cabecera días ──
-        hdr_dia   = ['', '', ''] + [
+        hdr_dia = ['', '', ''] + [
             Paragraph(f'{DIAS_ES[f.weekday()]}<br/>{f.day:02d}/{f.month:02d}', st_sub)
             for f in fechas
         ] + ['NORM', 'FALT', 'TARD']
 
-        col_widths = [W_NOMBRE, W_CARGO, W_COND] + [w_dia]*n_dias + [W_NORM, W_FALT, W_TARD]
-
         table_data = [hdr_dia]
         table_styles = [
-            # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), COL_SUBHDR),
-            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE',   (0, 0), (-1, 0), 6.5),
-            ('ALIGN',      (0, 0), (-1, 0), 'CENTER'),
-            ('VALIGN',     (0, 0), (-1, 0), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 0), (-1, 0), [COL_SUBHDR]),
-            ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#CCCCCC')),
-            ('LINEAFTER',  (0, 0), (-1, -1), 0.3, colors.HexColor('#CCCCCC')),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BACKGROUND',    (0, 0), (-1, 0), COL_SUBHDR),
+            ('TEXTCOLOR',     (0, 0), (-1, 0), colors.white),
+            ('FONTNAME',      (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE',      (0, 0), (-1, 0), 6.5),
+            ('ALIGN',         (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID',          (0, 0), (-1, -1), 0.3, colors.HexColor('#CCCCCC')),
+            ('TOPPADDING',    (0, 0), (-1, -1), 2),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ('LEFTPADDING',   (0, 0), (-1, -1), 2),
             ('RIGHTPADDING',  (0, 0), (-1, -1), 2),
+            ('WORDWRAP',      (0, 1), (1, -1), 1),  # wrap nombre y cargo
         ]
 
-        # Colorear columnas de fin de semana en header
         for i, f in enumerate(fechas):
             if f.weekday() >= 5:
                 c_idx = 3 + i
@@ -1299,6 +1328,8 @@ def reporte_pdf_area(request):
                 table_styles.append(('TEXTCOLOR',  (c_idx, 0), (c_idx, 0), colors.HexColor('#555555')))
 
         resumen_rows = []
+        used_codes   = set()   # para leyenda dinámica
+        pap_codes    = set()   # códigos de papeleta que aparecen
 
         for row_idx, emp in enumerate(empleados):
             condicion = emp.condicion or 'LOCAL'
@@ -1306,92 +1337,102 @@ def reporte_pdf_area(request):
             total_faltas = 0
             total_tardanzas = 0
 
-            row_cells = [
-                Paragraph(emp.apellidos_nombres, st_cell),
-                Paragraph(emp.cargo or '—', st_cell),
+            st_nombre = ParagraphStyle(
+                f'nm{row_idx}', parent=styles['Normal'],
+                fontSize=FSIZE, alignment=TA_LEFT, fontName='Helvetica',
+                leading=8,
+            )
+            st_cargo_r = ParagraphStyle(
+                f'cg{row_idx}', parent=styles['Normal'],
+                fontSize=FSIZE, alignment=TA_LEFT, fontName='Helvetica',
+                leading=8,
+            )
+
+            row_cells  = [
+                Paragraph(emp.apellidos_nombres, st_nombre),
+                Paragraph(emp.cargo or '—', st_cargo_r),
                 Paragraph(condicion[:3].upper(), st_num),
             ]
-            cell_styles = []  # (col_idx, bg_color, text_color, bold)
+            cell_styles = []
 
             for i, f in enumerate(fechas):
-                col_idx = 3 + i  # en la tabla
-                pap = papeletas_map.get((emp.nro_doc, f))
-                reg = tareos_map.get((emp.nro_doc, f))
+                col_idx      = 3 + i
+                pap          = papeletas_map.get((emp.nro_doc, f))
+                reg          = tareos_map.get((emp.nro_doc, f))
                 es_fin_semana = f.weekday() >= 5
 
-                if pap and not reg:
+                # ① Papeleta tiene siempre prioridad sobre el código del tareo
+                if pap:
                     row_cells.append(Paragraph(pap, st_num))
                     cell_styles.append((col_idx, COL_PAP, colors.HexColor('#1F4E79'), True))
+                    pap_codes.add(pap)
                     continue
 
+                # ② Sin registro
                 if reg is None:
-                    txt = ''
                     if es_fin_semana:
-                        row_cells.append(Paragraph(txt, st_num))
+                        row_cells.append(Paragraph('', st_num))
                         cell_styles.append((col_idx, COL_WEEKEND, colors.black, False))
                     else:
                         total_faltas += 1
                         row_cells.append(Paragraph('F', st_bold))
                         cell_styles.append((col_idx, COL_FALTA, colors.white, True))
+                        used_codes.add('F')
                     continue
 
+                # ③ SS – marcación incompleta (presente)
                 if reg.codigo_dia == 'SS':
                     total_hnorm += float(reg.horas_normales or reg.horas_efectivas or 0)
-                    entrada_ss = reg.hora_entrada_real
-                    salida_ss  = reg.hora_salida_real
-                    hora_disp  = entrada_ss or salida_ss
+                    hora_disp = reg.hora_entrada_real or reg.hora_salida_real
                     txt = hora_disp.strftime('%H:%M') if hora_disp else 'SS'
                     row_cells.append(Paragraph(txt, st_num))
                     cell_styles.append((col_idx, COL_SS, colors.HexColor('#8B4000'), False))
+                    used_codes.add('SS')
                     continue
 
+                # ④ DS – descanso semanal
                 if reg.codigo_dia == 'DS':
                     row_cells.append(Paragraph('DS', st_num))
                     cell_styles.append((col_idx, COL_DS, colors.HexColor('#555555'), True))
+                    used_codes.add('DS')
                     continue
 
-                # Código T (trabajado)
-                total_hnorm  += float(reg.horas_normales or 0)
-                entrada = reg.hora_entrada_real
-                es_tarde = _es_tarde_pdf(entrada, condicion)
+                # ⑤ Código T – trabajado
+                total_hnorm += float(reg.horas_normales or 0)
+                entrada   = reg.hora_entrada_real
+                es_tarde  = _es_tarde_pdf(entrada, condicion)
+                es_feriado = reg.es_feriado
                 if es_tarde:
                     total_tardanzas += 1
-                es_feriado = reg.es_feriado
-
-                if entrada:
-                    txt = entrada.strftime('%H:%M')
-                else:
-                    txt = '—'
-
+                    used_codes.add('TARD')
                 if es_feriado:
-                    bg = COL_FERIADO
-                    tc = colors.black
+                    used_codes.add('FER')
+
+                txt = entrada.strftime('%H:%M') if entrada else '—'
+                if es_feriado:
+                    bg, tc = COL_FERIADO, colors.black
                 elif es_tarde:
-                    bg = COL_TARDE_E
-                    tc = colors.HexColor('#C00000')
+                    bg, tc = COL_TARDE_E, colors.HexColor('#C00000')
                 else:
-                    bg = None
-                    tc = colors.black
+                    bg, tc = None, colors.black
 
                 row_cells.append(Paragraph(txt, ParagraphStyle(
                     f'dyn{row_idx}_{i}', parent=styles['Normal'],
-                    fontSize=7, alignment=TA_CENTER,
+                    fontSize=FSIZE, alignment=TA_CENTER,
                     fontName='Helvetica-Bold' if es_tarde else 'Helvetica',
                     textColor=tc,
                 )))
                 cell_styles.append((col_idx, bg, tc, es_tarde))
 
-            # Columnas resumen
             row_cells += [
-                Paragraph(f'{round(total_hnorm,1)}', st_num),
-                Paragraph(str(total_faltas) if total_faltas else '—', st_num),
+                Paragraph(f'{round(total_hnorm, 1)}', st_num),
+                Paragraph(str(total_faltas)    if total_faltas    else '—', st_num),
                 Paragraph(str(total_tardanzas) if total_tardanzas else '—', st_num),
             ]
             table_data.append(row_cells)
 
-            # Estilos de fila
-            data_row = row_idx + 1  # +1 por header
-            bg_fila = COL_ROWALT if row_idx % 2 == 0 else colors.white
+            data_row = row_idx + 1
+            bg_fila  = COL_ROWALT if row_idx % 2 == 0 else colors.white
             table_styles.append(('BACKGROUND', (0, data_row), (2, data_row), bg_fila))
             table_styles.append(('BACKGROUND', (-3, data_row), (-1, data_row), bg_fila))
             for (col_i, bg, tc, bold) in cell_styles:
@@ -1414,30 +1455,38 @@ def reporte_pdf_area(request):
 
         # Separadores verticales entre semanas
         for i, f in enumerate(fechas):
-            if f.weekday() == 6 and i < n_dias - 1:  # después del domingo
-                col_i = 3 + i
-                table_styles.append(('LINEAFTER', (col_i, 0), (col_i, -1), 1.5, COL_SUBHDR))
+            if f.weekday() == 6 and i < n_dias - 1:
+                table_styles.append(('LINEAFTER', (3 + i, 0), (3 + i, -1), 1.5, COL_SUBHDR))
 
         t = Table(table_data, colWidths=col_widths, repeatRows=1)
         t.setStyle(TableStyle(table_styles))
         story.append(t)
 
-        # ── Leyenda ──
+        # ── Leyenda dinámica (solo los códigos que aparecen) ─────────
         story.append(Spacer(1, 4))
-        leyenda = (
-            '<font color="#C00000">■</font> Tardanza  '
-            '<font color="#8B4000">■</font> SS (marcación incompleta)  '
-            '<font color="#555555">■</font> DS (descanso)  '
-            '<font color="#1F4E79">■</font> Papeleta/Permiso  '
-            '<font color="#7B2FBE">■</font> Feriado  '
-            '<font color="#C00000"><b>F</b></font> = Falta/Ausencia'
-        )
-        story.append(Paragraph(leyenda, ParagraphStyle(
-            'ley', parent=styles['Normal'], fontSize=6.5,
-            textColor=colors.HexColor('#555555'),
-        )))
+        ley_parts = []
+        # Códigos fijos con prioridad de aparición
+        for code in ('TARD', 'SS', 'DS', 'FER', 'F'):
+            if code in used_codes and code in LEYENDA_DEFS:
+                col_hex, desc = LEYENDA_DEFS[code]
+                txt_color = '#FFFFFF' if code == 'F' else col_hex
+                bg_color  = col_hex
+                ley_parts.append(
+                    f'<font color="{col_hex}">■</font> {desc}'
+                )
+        # Papeletas que aparecen
+        for pcode in sorted(pap_codes):
+            col_hex, desc = LEYENDA_DEFS.get(pcode, ('#BDD7EE', f'{pcode} – Papeleta'))
+            ley_parts.append(f'<font color="#1F4E79">■</font> {desc}')
 
-        # ── Resumen ──
+        if ley_parts:
+            story.append(Paragraph(
+                '  <font color="#555555">LEYENDA:</font>  ' + '   ·   '.join(ley_parts),
+                ParagraphStyle('ley', parent=styles['Normal'], fontSize=6.5,
+                               textColor=colors.HexColor('#555555')),
+            ))
+
+        # ── Resumen ──────────────────────────────────────────────────
         story.append(Spacer(1, 8))
         story.append(Paragraph('RESUMEN POR EMPLEADO', ParagraphStyle(
             'rs_title', parent=styles['Normal'],
@@ -1447,24 +1496,30 @@ def reporte_pdf_area(request):
         story.append(Spacer(1, 3))
 
         resumen_rows.sort(key=lambda r: (-r['faltas'], -r['tardanzas'], r['nombre']))
-        sum_hdr = ['APELLIDOS Y NOMBRES', 'CARGO', 'COND.', 'H. NORM.', 'FALTAS', 'TARDANZAS']
+        sum_hdr  = ['APELLIDOS Y NOMBRES', 'CARGO', 'COND.', 'H. NORM.', 'FALTAS', 'TARDANZAS']
         sum_data = [sum_hdr] + [
-            [r['nombre'], r['cargo'], r['condicion'][:3], r['h_norm'], r['faltas'] or '—', r['tardanzas'] or '—']
+            [r['nombre'], r['cargo'], r['condicion'][:3], r['h_norm'],
+             r['faltas'] or '—', r['tardanzas'] or '—']
             for r in resumen_rows
         ]
-        sum_widths = [W_NOMBRE + W_CARGO * 0.4, W_CARGO * 0.6 + 20, W_COND + 10, W_NORM + 10, W_FALT + 10, W_TARD + 10]
+        sum_widths = [
+            w_nombre, w_cargo,
+            W_COND + 10, W_NORM + 10, W_FALT + 10, W_TARD + 10,
+        ]
         sum_styles = [
-            ('BACKGROUND', (0, 0), (-1, 0), COL_SUMHDR),
-            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE',   (0, 0), (-1, -1), 7),
-            ('ALIGN',      (0, 0), (-1, 0), 'CENTER'),
-            ('ALIGN',      (2, 1), (-1, -1), 'CENTER'),
-            ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#AAAAAA')),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BACKGROUND',    (0, 0), (-1, 0), COL_SUMHDR),
+            ('TEXTCOLOR',     (0, 0), (-1, 0), colors.white),
+            ('FONTNAME',      (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE',      (0, 0), (-1, -1), 7),
+            ('ALIGN',         (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN',         (2, 1), (-1, -1), 'CENTER'),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID',          (0, 0), (-1, -1), 0.3, colors.HexColor('#AAAAAA')),
+            ('TOPPADDING',    (0, 0), (-1, -1), 2),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ('LEFTPADDING',   (0, 0), (-1, -1), 3),
             ('RIGHTPADDING',  (0, 0), (-1, -1), 3),
+            ('WORDWRAP',      (0, 1), (1, -1), 1),
         ]
         for i, r in enumerate(resumen_rows):
             row_i = i + 1
