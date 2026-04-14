@@ -25,7 +25,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 # ── Rutas de los archivos ──────────────────────────────────────────────────
-BASE_DIR = Path(r"C:\Users\EDWIN LOPEZ\Downloads")
+import os as _os
+BASE_DIR = Path(_os.environ.get('SYNC_BASE_DIR', r"C:\Users\EDWIN LOPEZ\Downloads"))
 ARCHIVO_PERSONAL    = BASE_DIR / "Lista_Personal.xlsx"
 ARCHIVO_ASISTENCIA  = BASE_DIR / "Asistencia_Detalle_Consorcio.xlsx"
 ARCHIVO_PAPELETAS   = BASE_DIR / "PermisosLicencias_Personal.xlsx"
@@ -134,18 +135,37 @@ def _parse_hora_str(val) -> str | None:
     return None
 
 
-def _hora_str_a_time(h: str | None) -> time | None:
-    if not h:
+def _hora_str_a_time(h) -> time | None:
+    import math
+    if h is None:
+        return None
+    if isinstance(h, float) and math.isnan(h):
+        return None
+    s = str(h).strip()
+    if not s or s in ('nan', 'NaN', 'NaT', 'None'):
         return None
     try:
-        t = datetime.strptime(h, '%H:%M')
+        t = datetime.strptime(s[:5], '%H:%M')
         return t.time()
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
-def _calc_horas(ingreso: str | None, salida: str | None,
-                refrigerio: str | None, fin_ref: str | None) -> float | None:
+def _str_hora(val) -> str | None:
+    import math
+    if val is None:
+        return None
+    if isinstance(val, float) and math.isnan(val):
+        return None
+    s = str(val).strip()
+    return s if s else None
+
+
+def _calc_horas(ingreso, salida, refrigerio, fin_ref) -> float | None:
+    ingreso    = _str_hora(ingreso)
+    salida     = _str_hora(salida)
+    refrigerio = _str_hora(refrigerio)
+    fin_ref    = _str_hora(fin_ref)
     if not ingreso or not salida:
         return None
     fmt = '%H:%M'
