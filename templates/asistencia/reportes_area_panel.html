@@ -69,13 +69,16 @@
         </div>
 
         <div class="col-md-3 d-flex gap-2 flex-wrap">
-          <button class="btn btn-outline-secondary btn-sm" onclick="descargarHorario()" title="Excel simple: entrada/salida por empleado">
-            <i class="bi bi-table me-1"></i>Horario Excel
+          <button class="btn btn-success btn-sm flex-fill" onclick="descargarExcelAreas()" title="Excel por área: asistencia diaria + resumen">
+            <i class="bi bi-file-earmark-excel me-1"></i>Excel por Área
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="descargarHorario()" title="Excel simple: entrada/salida">
+            <i class="bi bi-table me-1"></i>Horario
           </button>
           <button class="btn btn-outline-primary btn-sm" onclick="descargarZip()">
             <i class="bi bi-download me-1"></i>ZIP PDFs
           </button>
-          <button class="btn btn-success btn-sm" onclick="abrirModalEnvio()">
+          <button class="btn btn-outline-success btn-sm" onclick="abrirModalEnvio()">
             <i class="bi bi-send me-1"></i>Enviar
           </button>
         </div>
@@ -219,12 +222,17 @@
         </div>
 
         <!-- Footer con acciones -->
-        <div class="card-footer bg-white border-0 py-2 d-flex gap-2">
-          <button class="btn btn-sm btn-outline-primary flex-fill"
+        <div class="card-footer bg-white border-0 py-2 d-flex gap-1">
+          <button class="btn btn-sm btn-success flex-fill"
+                  onclick="descargarExcelArea({{ d.area.pk }})"
+                  title="Excel: asistencia diaria + resumen">
+            <i class="bi bi-file-earmark-excel"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill"
                   onclick="descargarZipArea({{ d.area.pk }})">
             <i class="bi bi-download me-1"></i>ZIP
           </button>
-          <button class="btn btn-sm {% if d.emails_jefatura %}btn-success{% else %}btn-outline-secondary{% endif %} flex-fill"
+          <button class="btn btn-sm {% if d.emails_jefatura %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} flex-fill"
                   onclick="enviarArea({{ d.area.pk }}, '{{ d.area.nombre|escapejs }}')"
                   {% if not d.emails_jefatura %}title="Configura email primero"{% endif %}>
             <i class="bi bi-send me-1"></i>Enviar
@@ -369,6 +377,20 @@ async function guardarConfig(id) {
   } catch(e) {
     showToast('Error de red: ' + e.message, 'danger');
   }
+}
+
+// ── Excel por Área (asistencia completa) ───────────────────────
+function descargarExcelAreas() {
+  const p = getPeriodoParams();
+  showToast('Generando Excel por área…', 'success');
+  window.location.href = '{% url "asistencia_reporte_excel_areas" %}?' + p.toString();
+}
+
+function descargarExcelArea(id) {
+  const p = getPeriodoParams();
+  p.delete('areas'); p.append('areas', id);
+  showToast('Generando Excel del área…', 'success');
+  window.location.href = '{% url "asistencia_reporte_excel_areas" %}?' + p.toString();
 }
 
 // ── Descarga Horario Excel ─────────────────────────────────────

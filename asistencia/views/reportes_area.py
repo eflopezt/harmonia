@@ -493,6 +493,485 @@ def historial_envios(request):
 
 @login_required
 @solo_admin
+def reporte_excel_areas(request):
+    """
+    Genera ZIP con un Excel por área.
+    Cada Excel:
+      Sheet 1 "Asistencia": matriz empleado × fecha (entrada | salida por día)
+      Sheet 2 "Resumen": totales por empleado
+    Si se pasa solo un área, devuelve el Excel directo (sin ZIP).
+    """
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from collections import defaultdict
+    from asistencia.models import RegistroTareo, RegistroPapeleta
+
+    tipo_periodo  = request.GET.get('tipo_periodo', 'SEMANAL')
+    fecha_ini_str = request.GET.get('fecha_inicio', '')
+    fecha_fin_str = request.GET.get('fecha_fin', '')
+    area_ids      = request.GET.getlist('areas')
+
+    inicio, fin = _get_rango(tipo_periodo, fecha_ini_str, fecha_fin_str)
+    periodo_lbl = _periodo_label(inicio, fin)
+
+    # Rango de fechas
+    n_dias = (fin - inicio).days + 1
+    fechas = [inicio + timedelta(days=i) for i in range(n_dias)]
+    DIAS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+    # Colores
+    C_FALTA    = PatternFill('solid', fgColor='C00000')
+    C_TARDE    = PatternFill('solid', fgColor='FFCCCC')
+    C_SALIDA_T = PatternFill('solid', fgColor='FFE0B2')
+    C_DS       = PatternFill('solid', fgColor='D9D9D9')
+    C_FERIADO  = PatternFill('solid', fgColor='D9B3FF')
+    C_PAPELETA = PatternFill('solid', fgColor='BDD7EE')
+    C_WEEKEND  = PatternFill('solid', fgColor='F5F5F5')
+    C_HEADER   = PatternFill('solid', fgColor='1F4E79')
+    C_SUBHDR   = PatternFill('solid', fgColor='2E75B6')
+    C_TITLE    = PatternFill('solid', fgColor='D6E4F0')
+    C_RESUMEN  = PatternFill('solid', fgColor='E2EFDA')
+
+    thin = Border(
+        left=Side(style='thin', color='CCCCCC'),
+        right=Side(style='thin', color='CCCCCC'),
+        top=Side(style='thin', color='CCCCCC'),
+        bottom=Side(style='thin', color='CCCCCC'),
+    )
+    center = Alignment(horizontal='center', vertical='center', wrap_text=False)
+    center_w = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    # Hora referencia de entrada según condición (para detectar tardanza)
+    HORA_REF = {
+        'LOCAL':   time(8, 0),
+        'FORANEO': time(7, 0),
+        'FORÁNEO': time(7, 0),
+        'LIMA':    time(8, 0),
+    }
+    MARGEN_TARDE = timedelta(minutes=15)
+
+    def _es_tarde(hora_entrada, condicion):
+        if hora_entrada is None:
+            return False
+        ref = HORA_REF.get(condicion or 'LOCAL', time(8, 0))
+        from datetime import datetime as _dt
+        ref_dt  = _dt.combine(date.today(), ref)
+        entr_dt = _dt.combine(date.today(), hora_entrada)
+        return (entr_dt - ref_dt) > MARGEN_TARDE
+
+    def _es_salida_temp(hora_salida, horas_ef, condicion):
+        """Salida temprana: menos de 80% de la jornada cumplida."""
+        if hora_salida is None:
+            return False
+        return float(horas_ef or 0) < 6.0
+
+    def _build_excel(area, empleados, tareos_map, papeletas_map, fechas, periodo_lbl):
+        """Construye el workbook para un área."""
+        wb = openpyxl.Workbook()
+
+        # ──────────────────────────────────────────────────────────────
+        # SHEET 1: ASISTENCIA
+        # ──────────────────────────────────────────────────────────────
+        ws = wb.active
+        ws.title = 'Asistencia'
+
+        N_FIJOS = 4  # Nombre, Cargo, Cond, Grupo
+        # Cada fecha ocupa 2 columnas (E y S)
+        # Luego 4 columnas resumen
+
+        total_cols = N_FIJOS + len(fechas) * 2 + 4
+
+        # ── Fila 1: Título ────────────────────────────────────────────
+        ws.merge_cells(start_row=1, start_column=1,
+                       end_row=1, end_column=total_cols)
+        c = ws.cell(1, 1, f'REPORTE DE ASISTENCIA  |  ÁREA: {area.nombre.upper()}  |  {periodo_lbl}')
+        c.font  = Font(bold=True, size=13, color='FFFFFF')
+        c.fill  = C_HEADER
+        c.alignment = center
+        ws.row_dimensions[1].height = 22
+
+        # ── Fila 2: Días de semana (encabezado de fechas) ─────────────
+        for col_fijo in range(1, N_FIJOS + 1):
+            c = ws.cell(2, col_fijo, '')
+            c.fill = C_SUBHDR
+        for i, f in enumerate(fechas):
+            col = N_FIJOS + 1 + i * 2
+            dia = DIAS_ES[f.weekday()]
+            es_fin_semana = f.weekday() >= 5
+            ws.merge_cells(start_row=2, start_column=col, end_row=2, end_column=col+1)
+            c = ws.cell(2, col, f'{dia} {f.day:02d}/{f.month:02d}')
+            c.font = Font(bold=True, size=9, color='FFFFFF')
+            c.fill = C_WEEKEND if es_fin_semana else C_SUBHDR
+            c.alignment = center
+        # Resumen cols header
+        for i, lbl in enumerate(['H.NORM', 'H.EXTRA', 'FALTAS', 'TARDZ']):
+            c = ws.cell(2, N_FIJOS + 1 + len(fechas)*2 + i, lbl)
+            c.font = Font(bold=True, size=8, color='FFFFFF')
+            c.fill = C_HEADER
+            c.alignment = center
+        ws.row_dimensions[2].height = 16
+
+        # ── Fila 3: Etiquetas fijas + E/S por día ─────────────────────
+        for col, lbl in enumerate(['APELLIDOS Y NOMBRES', 'CARGO', 'COND.', 'GRP.'], 1):
+            c = ws.cell(3, col, lbl)
+            c.font  = Font(bold=True, size=9, color='FFFFFF')
+            c.fill  = C_HEADER
+            c.alignment = center
+        for i, f in enumerate(fechas):
+            col = N_FIJOS + 1 + i * 2
+            es_fin_semana = f.weekday() >= 5
+            fill = C_WEEKEND if es_fin_semana else C_SUBHDR
+            for j, lbl in enumerate(['E', 'S']):
+                cc = ws.cell(3, col + j, lbl)
+                cc.font = Font(bold=True, size=9, color='FFFFFF' if not es_fin_semana else '555555')
+                cc.fill = fill
+                cc.alignment = center
+        for i in range(4):
+            c = ws.cell(3, N_FIJOS + 1 + len(fechas)*2 + i, '')
+            c.fill = C_HEADER
+        ws.row_dimensions[3].height = 14
+
+        # ── Anchos de columnas ────────────────────────────────────────
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 22
+        ws.column_dimensions['C'].width = 8
+        ws.column_dimensions['D'].width = 6
+        for i in range(len(fechas) * 2):
+            ws.column_dimensions[get_column_letter(N_FIJOS + 1 + i)].width = 7
+        for i in range(4):
+            ws.column_dimensions[get_column_letter(N_FIJOS + 1 + len(fechas)*2 + i)].width = 8
+
+        ws.freeze_panes = ws.cell(4, N_FIJOS + 1)
+
+        # ── Datos por empleado ────────────────────────────────────────
+        TIPOS_PAPELETA_LABEL = {
+            'VAC': 'VAC', 'LCG': 'LCG', 'DL': 'DL', 'PP': 'PP',
+            'PERM': 'PER', 'LM': 'LM', 'COMP': 'COMP',
+        }
+        resumen_rows = []
+
+        for row_num, emp in enumerate(empleados, start=4):
+            dni = emp.nro_doc
+            condicion = emp.condicion or 'LOCAL'
+            ws.row_dimensions[row_num].height = 14
+
+            # Cols fijas
+            for col, val in enumerate([
+                emp.apellidos_nombres,
+                emp.cargo or '—',
+                condicion[:3].upper(),
+                (emp.grupo_tareo or 'RCO')[:3],
+            ], 1):
+                c = ws.cell(row_num, col, val)
+                c.font = Font(size=9)
+                c.border = thin
+                c.alignment = Alignment(vertical='center',
+                                        horizontal='left' if col == 1 else 'center')
+
+            total_hnorm = 0.0
+            total_hextra = 0.0
+            total_faltas = 0
+            total_tardanzas = 0
+
+            for i, f in enumerate(fechas):
+                col_e = N_FIJOS + 1 + i * 2
+                col_s = col_e + 1
+                es_fin_semana = f.weekday() >= 5
+
+                reg = tareos_map.get((dni, f))
+                pap = papeletas_map.get((dni, f))
+
+                bg_e = C_WEEKEND if es_fin_semana else None
+                bg_s = bg_e
+
+                val_e = val_s = ''
+
+                if pap and not reg:
+                    # Día cubierto por papeleta sin registro
+                    tipo_short = TIPOS_PAPELETA_LABEL.get(pap, pap[:3])
+                    ws.merge_cells(start_row=row_num, start_column=col_e,
+                                   end_row=row_num, end_column=col_s)
+                    c = ws.cell(row_num, col_e, tipo_short)
+                    c.fill = C_PAPELETA
+                    c.font = Font(bold=True, size=9, color='1F4E79')
+                    c.alignment = center
+                    c.border = thin
+                    ws.cell(row_num, col_s).border = thin
+                    continue
+
+                if reg is None:
+                    # Sin registro — día sin trabajo (fin de semana normal o sin dato)
+                    for col in (col_e, col_s):
+                        cc = ws.cell(row_num, col, '')
+                        cc.border = thin
+                        if es_fin_semana:
+                            cc.fill = C_WEEKEND
+                    continue
+
+                if reg.codigo_dia == 'SS':
+                    total_faltas += 1
+                    ws.merge_cells(start_row=row_num, start_column=col_e,
+                                   end_row=row_num, end_column=col_s)
+                    label = pap if pap else 'FALTA'
+                    c = ws.cell(row_num, col_e, label)
+                    c.fill = C_PAPELETA if pap else C_FALTA
+                    c.font = Font(bold=True, size=9,
+                                  color='1F4E79' if pap else 'FFFFFF')
+                    c.alignment = center
+                    c.border = thin
+                    ws.cell(row_num, col_s).border = thin
+                    continue
+
+                if reg.codigo_dia == 'DS':
+                    ws.merge_cells(start_row=row_num, start_column=col_e,
+                                   end_row=row_num, end_column=col_s)
+                    c = ws.cell(row_num, col_e, 'DESC')
+                    c.fill = C_DS
+                    c.font = Font(bold=True, size=9, color='555555')
+                    c.alignment = center
+                    c.border = thin
+                    ws.cell(row_num, col_s).border = thin
+                    continue
+
+                # Código T (o feriado trabajado)
+                entrada = reg.hora_entrada_real
+                salida  = reg.hora_salida_real
+                hef     = float(reg.horas_efectivas or 0)
+                hextra  = float((reg.he_25 or 0) + (reg.he_35 or 0) + (reg.he_100 or 0))
+
+                total_hnorm  += float(reg.horas_normales or 0)
+                total_hextra += hextra
+
+                val_e = entrada.strftime('%H:%M') if entrada else '—'
+                val_s = salida.strftime('%H:%M')  if salida  else '—'
+
+                es_tarde = _es_tarde(entrada, condicion)
+                if es_tarde:
+                    total_tardanzas += 1
+
+                fill_e = C_FERIADO if reg.es_feriado else (C_TARDE if es_tarde else bg_e)
+                fill_s = C_FERIADO if reg.es_feriado else (
+                    C_SALIDA_T if _es_salida_temp(salida, hef, condicion) else bg_s
+                )
+
+                for col, val, fill in ((col_e, val_e, fill_e), (col_s, val_s, fill_s)):
+                    c = ws.cell(row_num, col, val)
+                    c.font = Font(size=9, bold=es_tarde and col == col_e,
+                                  color='C00000' if es_tarde and col == col_e else '000000')
+                    c.alignment = center
+                    c.border = thin
+                    if fill:
+                        c.fill = fill
+
+            # Columnas resumen
+            base_col = N_FIJOS + 1 + len(fechas) * 2
+            for j, (val, fmt) in enumerate([
+                (round(total_hnorm, 1),  '0.0'),
+                (round(total_hextra, 1), '0.0'),
+                (total_faltas,           '0'),
+                (total_tardanzas,        '0'),
+            ]):
+                c = ws.cell(row_num, base_col + j, val)
+                c.font = Font(size=9, bold=True)
+                c.alignment = center
+                c.border = thin
+                c.number_format = fmt
+                if j == 2 and total_faltas > 0:
+                    c.fill = PatternFill('solid', fgColor='FFCCCC')
+                elif j == 3 and total_tardanzas > 0:
+                    c.fill = PatternFill('solid', fgColor='FFE0B2')
+
+            resumen_rows.append({
+                'nombre':    emp.apellidos_nombres,
+                'cargo':     emp.cargo or '—',
+                'condicion': condicion,
+                'grupo':     emp.grupo_tareo or 'RCO',
+                'h_norm':    round(total_hnorm, 1),
+                'h_extra':   round(total_hextra, 1),
+                'faltas':    total_faltas,
+                'tardanzas': total_tardanzas,
+            })
+
+        # ── Fila de totales diarios ───────────────────────────────────
+        tot_row = 4 + len(empleados)
+        ws.merge_cells(start_row=tot_row, start_column=1, end_row=tot_row, end_column=N_FIJOS)
+        c = ws.cell(tot_row, 1, 'TOTALES DEL DÍA →')
+        c.font = Font(bold=True, size=9)
+        c.fill = C_RESUMEN
+        c.alignment = Alignment(horizontal='right', vertical='center')
+
+        for i, f in enumerate(fechas):
+            col_e = N_FIJOS + 1 + i * 2
+            # Contar T del día
+            t_count = sum(
+                1 for emp in empleados
+                if (reg := tareos_map.get((emp.nro_doc, f))) and reg.codigo_dia == 'T'
+            )
+            ss_count = sum(
+                1 for emp in empleados
+                if (reg := tareos_map.get((emp.nro_doc, f))) and reg.codigo_dia == 'SS'
+            )
+            ws.merge_cells(start_row=tot_row, start_column=col_e, end_row=tot_row, end_column=col_e+1)
+            label = f'✓{t_count}' + (f' ✗{ss_count}' if ss_count else '')
+            c = ws.cell(tot_row, col_e, label)
+            c.font = Font(size=8, bold=True)
+            c.fill = C_RESUMEN
+            c.alignment = center
+            c.border = thin
+        ws.row_dimensions[tot_row].height = 13
+
+        # Leyenda
+        leyenda_row = tot_row + 2
+        ws.merge_cells(start_row=leyenda_row, start_column=1,
+                       end_row=leyenda_row, end_column=total_cols)
+        leyenda_items = [
+            'ROJO=Tardanza entrada',
+            'NARANJA=Salida temprana',
+            'GRIS=DESC compensatorio',
+            'AZUL=Papeleta/Permiso',
+            'MORADO=Feriado trabajado',
+            'FALTA=Ausencia sin justificar',
+            'E>8:00 LOCAL / E>7:00 FORÁNEO = tardanza',
+        ]
+        c = ws.cell(leyenda_row, 1, '  LEYENDA:  ' + '   |   '.join(leyenda_items))
+        c.font = Font(size=8, italic=True, color='555555')
+        c.alignment = Alignment(vertical='center')
+
+        # ──────────────────────────────────────────────────────────────
+        # SHEET 2: RESUMEN
+        # ──────────────────────────────────────────────────────────────
+        ws2 = wb.create_sheet('Resumen')
+        ws2.merge_cells('A1:H1')
+        c = ws2.cell(1, 1, f'RESUMEN — {area.nombre}  |  {periodo_lbl}')
+        c.font  = Font(bold=True, size=12, color='FFFFFF')
+        c.fill  = C_HEADER
+        c.alignment = center
+        ws2.row_dimensions[1].height = 20
+
+        hdrs2 = ['APELLIDOS Y NOMBRES', 'CARGO', 'COND.', 'GRUPO',
+                 'H. NORM.', 'H. EXTRA', 'FALTAS', 'TARDANZAS']
+        widths2 = [32, 22, 8, 7, 9, 9, 8, 9]
+        for col, (h, w) in enumerate(zip(hdrs2, widths2), 1):
+            c = ws2.cell(2, col, h)
+            c.font = Font(bold=True, size=9, color='FFFFFF')
+            c.fill = C_SUBHDR
+            c.alignment = center
+            c.border = thin
+            ws2.column_dimensions[get_column_letter(col)].width = w
+        ws2.row_dimensions[2].height = 15
+
+        # Ordenar por faltas desc, tardanzas desc
+        resumen_rows.sort(key=lambda r: (-r['faltas'], -r['tardanzas'], r['nombre']))
+        for row_num, r in enumerate(resumen_rows, start=3):
+            vals = [r['nombre'], r['cargo'], r['condicion'][:3], r['grupo'][:3],
+                    r['h_norm'], r['h_extra'], r['faltas'], r['tardanzas']]
+            for col, val in enumerate(vals, 1):
+                c = ws2.cell(row_num, col, val)
+                c.font = Font(size=9)
+                c.border = thin
+                c.alignment = Alignment(horizontal='left' if col <= 2 else 'center',
+                                        vertical='center')
+                if col == 7 and r['faltas'] > 0:
+                    c.fill = PatternFill('solid', fgColor='FFCCCC')
+                    c.font = Font(size=9, bold=True, color='C00000')
+                elif col == 8 and r['tardanzas'] > 0:
+                    c.fill = PatternFill('solid', fgColor='FFE0B2')
+                    c.font = Font(size=9, bold=True, color='C06000')
+            ws2.row_dimensions[row_num].height = 13
+
+        ws2.freeze_panes = 'A3'
+        ws2.auto_filter.ref = f'A2:H{2 + len(resumen_rows)}'
+
+        return wb
+
+    # ── Construir los Excels ──────────────────────────────────────────
+    areas_qs = Area.objects.filter(activa=True).order_by('nombre')
+    if area_ids:
+        areas_qs = areas_qs.filter(pk__in=area_ids)
+
+    # Pre-cargar todos los tareos del rango
+    empleo_qs = Personal.objects.filter(
+        estado='Activo', subarea__isnull=False,
+    ).select_related('subarea__area').order_by('apellidos_nombres')
+    if area_ids:
+        empleo_qs = empleo_qs.filter(subarea__area_id__in=area_ids)
+
+    all_tareos = RegistroTareo.objects.filter(
+        fecha__gte=inicio, fecha__lte=fin,
+        personal__in=empleo_qs,
+    ).select_related('personal')
+
+    all_papeletas = RegistroPapeleta.objects.filter(
+        fecha_inicio__lte=fin, fecha_fin__gte=inicio,
+        personal__in=empleo_qs,
+        estado__in=['APROBADA', 'EJECUTADA', 'PENDIENTE'],
+    ).select_related('personal')
+
+    # Indexar tareos: (dni, fecha) → RegistroTareo
+    tareos_idx = {}
+    for t in all_tareos:
+        tareos_idx[(t.dni, t.fecha)] = t
+
+    # Indexar papeletas: (dni, fecha) → tipo
+    papeletas_idx = defaultdict(dict)
+    for p in all_papeletas:
+        dni = p.personal.nro_doc
+        f = p.fecha_inicio
+        while f <= p.fecha_fin:
+            if inicio <= f <= fin:
+                papeletas_idx[dni][f] = p.tipo
+            f += timedelta(days=1)
+
+    # Empleados por área
+    emp_por_area = defaultdict(list)
+    for emp in empleo_qs:
+        emp_por_area[emp.subarea.area_id].append(emp)
+
+    # Generar archivos
+    archivos = []
+    for area in areas_qs:
+        empleados = emp_por_area.get(area.pk, [])
+        if not empleados:
+            continue
+
+        tareos_map   = {(emp.nro_doc, f): tareos_idx.get((emp.nro_doc, f))
+                        for emp in empleados for f in fechas}
+        papeletas_map = {(emp.nro_doc, f): papeletas_idx.get(emp.nro_doc, {}).get(f)
+                         for emp in empleados for f in fechas}
+
+        wb = _build_excel(area, empleados, tareos_map, papeletas_map, fechas, periodo_lbl)
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        fname = f'Asistencia_{slugify(area.nombre)}_{inicio.strftime("%Y%m%d")}.xlsx'
+        archivos.append((fname, buf.getvalue()))
+
+    if not archivos:
+        return HttpResponse('No hay registros para el período seleccionado.', status=404)
+
+    # Devolver Excel directo si es una sola área
+    if len(archivos) == 1:
+        fname, data = archivos[0]
+        resp = HttpResponse(data,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        resp['Content-Disposition'] = f'attachment; filename="{fname}"'
+        return resp
+
+    # ZIP con todos
+    zip_buf = io.BytesIO()
+    with ZipFile(zip_buf, 'w') as zf:
+        for fname, data in archivos:
+            zf.writestr(fname, data)
+    zip_buf.seek(0)
+    zip_name = f'Asistencia_Areas_{inicio.strftime("%Y%m%d")}_{fin.strftime("%Y%m%d")}.zip'
+    resp = HttpResponse(zip_buf.getvalue(), content_type='application/zip')
+    resp['Content-Disposition'] = f'attachment; filename="{zip_name}"'
+    return resp
+
+
+@login_required
+@solo_admin
 def gestionar_emails(request):
     """
     Página de gestión rápida de emails por área.
