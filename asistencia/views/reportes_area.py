@@ -668,7 +668,7 @@ def reporte_excel_areas(request):
                 emp.apellidos_nombres,
                 emp.cargo or '—',
                 condicion[:3].upper(),
-                (emp.grupo_tareo or 'RCO')[:3],
+                emp.grupo_tareo or 'RCO',
             ], 1):
                 c = ws.cell(row_num, col, val)
                 c.font = Font(size=9)
@@ -875,7 +875,7 @@ def reporte_excel_areas(request):
         # Ordenar por faltas desc, tardanzas desc
         resumen_rows.sort(key=lambda r: (-r['faltas'], -r['tardanzas'], r['nombre']))
         for row_num, r in enumerate(resumen_rows, start=3):
-            vals = [r['nombre'], r['cargo'], r['condicion'][:3], r['grupo'][:3],
+            vals = [r['nombre'], r['cargo'], r['condicion'][:3], r['grupo'],
                     r['h_norm'], r['h_extra'], r['faltas'], r['tardanzas']]
             for col, val in enumerate(vals, 1):
                 c = ws2.cell(row_num, col, val)
