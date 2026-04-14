@@ -72,6 +72,9 @@
           <button class="btn btn-success btn-sm flex-fill" onclick="descargarExcelAreas()" title="Excel por área: asistencia diaria + resumen">
             <i class="bi bi-file-earmark-excel me-1"></i>Excel por Área
           </button>
+          <button class="btn btn-danger btn-sm" onclick="descargarPdfAreas()" title="PDF por área: matriz diaria imprimible">
+            <i class="bi bi-file-earmark-pdf me-1"></i>PDF por Área
+          </button>
           <button class="btn btn-outline-secondary btn-sm" onclick="descargarHorario()" title="Excel simple: entrada/salida">
             <i class="bi bi-table me-1"></i>Horario
           </button>
@@ -227,6 +230,11 @@
                   onclick="descargarExcelArea({{ d.area.pk }})"
                   title="Excel: asistencia diaria + resumen">
             <i class="bi bi-file-earmark-excel"></i>
+          </button>
+          <button class="btn btn-sm btn-danger flex-fill"
+                  onclick="descargarPdfArea({{ d.area.pk }})"
+                  title="PDF: matriz diaria imprimible">
+            <i class="bi bi-file-earmark-pdf"></i>
           </button>
           <button class="btn btn-sm btn-outline-secondary flex-fill"
                   onclick="descargarZipArea({{ d.area.pk }})">
@@ -384,6 +392,19 @@ function descargarExcelAreas() {
   const p = getPeriodoParams();
   showToast('Generando Excel por área…', 'success');
   window.location.href = '{% url "asistencia_reporte_excel_areas" %}?' + p.toString();
+}
+
+// ── PDF por Área ────────────────────────────────────────────────
+function descargarPdfAreas() {
+  const p = getPeriodoParams();
+  showToast('Generando PDF por área…', 'danger');
+  window.location.href = '{% url "asistencia_reporte_pdf_areas" %}?' + p.toString();
+}
+function descargarPdfArea(id) {
+  const p = getPeriodoParams();
+  p.delete('areas'); p.append('areas', id);
+  showToast('Generando PDF…', 'danger');
+  window.location.href = '{% url "asistencia_reporte_pdf_areas" %}?' + p.toString();
 }
 
 function descargarExcelArea(id) {

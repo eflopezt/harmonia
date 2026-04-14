@@ -1165,3 +1165,401 @@ def reporte_horario_simple(request):
                         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="{fname}"'
     return resp
+
+
+@login_required
+@solo_admin
+def reporte_pdf_area(request):
+    """
+    Genera un PDF de asistencia por área (matriz empleado × día).
+    Formato: A4 horizontal, una columna por día con código/hora de entrada.
+    Si se filtra por una sola área, devuelve el PDF directo.
+    Si son varias, genera un ZIP con un PDF por área.
+    """
+    from collections import defaultdict
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle, Paragraph,
+        Spacer, PageBreak,
+    )
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from asistencia.models import RegistroTareo, RegistroPapeleta
+
+    tipo_periodo  = request.GET.get('tipo_periodo', 'SEMANAL')
+    fecha_ini_str = request.GET.get('fecha_inicio', '')
+    fecha_fin_str = request.GET.get('fecha_fin', '')
+    area_ids      = request.GET.getlist('areas')
+
+    inicio, fin = _get_rango(tipo_periodo, fecha_ini_str, fecha_fin_str)
+    periodo_lbl = _periodo_label(inicio, fin)
+
+    n_dias = (fin - inicio).days + 1
+    fechas = [inicio + timedelta(days=i) for i in range(n_dias)]
+    DIAS_ES = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']
+    HORA_REF = {'LOCAL': time(8, 0), 'FORANEO': time(7, 0), 'FORÁNEO': time(7, 0), 'LIMA': time(8, 0)}
+    MARGEN_TARDE = timedelta(minutes=15)
+
+    def _es_tarde_pdf(hora_entrada, condicion):
+        if hora_entrada is None:
+            return False
+        from datetime import datetime as _dt
+        ref = HORA_REF.get(condicion or 'LOCAL', time(8, 0))
+        return (_dt.combine(date.today(), hora_entrada) - _dt.combine(date.today(), ref)) > MARGEN_TARDE
+
+    # Colores ReportLab
+    COL_FALTA   = colors.HexColor('#C00000')
+    COL_TARDE_E = colors.HexColor('#FFCCCC')
+    COL_DS      = colors.HexColor('#D9D9D9')
+    COL_FERIADO = colors.HexColor('#D9B3FF')
+    COL_PAP     = colors.HexColor('#BDD7EE')
+    COL_SS      = colors.HexColor('#FFE5CC')
+    COL_HEADER  = colors.HexColor('#1F4E79')
+    COL_SUBHDR  = colors.HexColor('#2E75B6')
+    COL_WEEKEND = colors.HexColor('#E8E8E8')
+    COL_ROWALT  = colors.HexColor('#F7FBFF')
+    COL_SUMHDR  = colors.HexColor('#375623')
+    COL_SUMALT  = colors.HexColor('#EBF1E6')
+
+    styles = getSampleStyleSheet()
+    st_title = ParagraphStyle('t', parent=styles['Normal'],
+                               fontSize=10, textColor=colors.white,
+                               alignment=TA_CENTER, fontName='Helvetica-Bold')
+    st_sub   = ParagraphStyle('s', parent=styles['Normal'],
+                               fontSize=7, textColor=colors.white,
+                               alignment=TA_CENTER, fontName='Helvetica-Bold')
+    st_cell  = ParagraphStyle('c', parent=styles['Normal'],
+                               fontSize=7, alignment=TA_LEFT, fontName='Helvetica')
+    st_num   = ParagraphStyle('n', parent=styles['Normal'],
+                               fontSize=7, alignment=TA_CENTER, fontName='Helvetica')
+    st_bold  = ParagraphStyle('b', parent=styles['Normal'],
+                               fontSize=7, alignment=TA_CENTER, fontName='Helvetica-Bold',
+                               textColor=colors.white)
+
+    PAGE_W, PAGE_H = landscape(A4)
+    MARGIN = 15 * mm
+    usable_w = PAGE_W - 2 * MARGIN
+
+    # Anchos fijos: NOMBRE, CARGO, COND
+    W_NOMBRE = 105
+    W_CARGO  = 68
+    W_COND   = 22
+    # Resumen al final: NORM, FALT, TARD
+    W_NORM   = 28
+    W_FALT   = 22
+    W_TARD   = 22
+    W_FIJOS  = W_NOMBRE + W_CARGO + W_COND
+    W_SUM    = W_NORM + W_FALT + W_TARD
+    W_DIAS   = usable_w - W_FIJOS - W_SUM
+    w_dia    = max(14, W_DIAS / max(n_dias, 1))  # mín 14pt por día
+
+    def _build_pdf_area(area, empleados, tareos_map, papeletas_map):
+        story = []
+        # ── Título ──
+        title_p = Paragraph(
+            f'REPORTE DE ASISTENCIA  |  ÁREA: {area.nombre.upper()}  |  {periodo_lbl}',
+            st_title,
+        )
+        story.append(title_p)
+        story.append(Spacer(1, 3))
+
+        # ── Cabecera días ──
+        hdr_dia   = ['', '', ''] + [
+            Paragraph(f'{DIAS_ES[f.weekday()]}<br/>{f.day:02d}/{f.month:02d}', st_sub)
+            for f in fechas
+        ] + ['NORM', 'FALT', 'TARD']
+
+        col_widths = [W_NOMBRE, W_CARGO, W_COND] + [w_dia]*n_dias + [W_NORM, W_FALT, W_TARD]
+
+        table_data = [hdr_dia]
+        table_styles = [
+            # Header row
+            ('BACKGROUND', (0, 0), (-1, 0), COL_SUBHDR),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0, 0), (-1, 0), 6.5),
+            ('ALIGN',      (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, 0), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0, 0), (-1, 0), [COL_SUBHDR]),
+            ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#CCCCCC')),
+            ('LINEAFTER',  (0, 0), (-1, -1), 0.3, colors.HexColor('#CCCCCC')),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 2),
+        ]
+
+        # Colorear columnas de fin de semana en header
+        for i, f in enumerate(fechas):
+            if f.weekday() >= 5:
+                c_idx = 3 + i
+                table_styles.append(('BACKGROUND', (c_idx, 0), (c_idx, 0), COL_WEEKEND))
+                table_styles.append(('TEXTCOLOR',  (c_idx, 0), (c_idx, 0), colors.HexColor('#555555')))
+
+        resumen_rows = []
+
+        for row_idx, emp in enumerate(empleados):
+            condicion = emp.condicion or 'LOCAL'
+            total_hnorm = 0.0
+            total_faltas = 0
+            total_tardanzas = 0
+
+            row_cells = [
+                Paragraph(emp.apellidos_nombres, st_cell),
+                Paragraph(emp.cargo or '—', st_cell),
+                Paragraph(condicion[:3].upper(), st_num),
+            ]
+            cell_styles = []  # (col_idx, bg_color, text_color, bold)
+
+            for i, f in enumerate(fechas):
+                col_idx = 3 + i  # en la tabla
+                pap = papeletas_map.get((emp.nro_doc, f))
+                reg = tareos_map.get((emp.nro_doc, f))
+                es_fin_semana = f.weekday() >= 5
+
+                if pap and not reg:
+                    row_cells.append(Paragraph(pap, st_num))
+                    cell_styles.append((col_idx, COL_PAP, colors.HexColor('#1F4E79'), True))
+                    continue
+
+                if reg is None:
+                    txt = ''
+                    if es_fin_semana:
+                        row_cells.append(Paragraph(txt, st_num))
+                        cell_styles.append((col_idx, COL_WEEKEND, colors.black, False))
+                    else:
+                        total_faltas += 1
+                        row_cells.append(Paragraph('F', st_bold))
+                        cell_styles.append((col_idx, COL_FALTA, colors.white, True))
+                    continue
+
+                if reg.codigo_dia == 'SS':
+                    total_hnorm += float(reg.horas_normales or reg.horas_efectivas or 0)
+                    entrada_ss = reg.hora_entrada_real
+                    salida_ss  = reg.hora_salida_real
+                    hora_disp  = entrada_ss or salida_ss
+                    txt = hora_disp.strftime('%H:%M') if hora_disp else 'SS'
+                    row_cells.append(Paragraph(txt, st_num))
+                    cell_styles.append((col_idx, COL_SS, colors.HexColor('#8B4000'), False))
+                    continue
+
+                if reg.codigo_dia == 'DS':
+                    row_cells.append(Paragraph('DS', st_num))
+                    cell_styles.append((col_idx, COL_DS, colors.HexColor('#555555'), True))
+                    continue
+
+                # Código T (trabajado)
+                total_hnorm  += float(reg.horas_normales or 0)
+                entrada = reg.hora_entrada_real
+                es_tarde = _es_tarde_pdf(entrada, condicion)
+                if es_tarde:
+                    total_tardanzas += 1
+                es_feriado = reg.es_feriado
+
+                if entrada:
+                    txt = entrada.strftime('%H:%M')
+                else:
+                    txt = '—'
+
+                if es_feriado:
+                    bg = COL_FERIADO
+                    tc = colors.black
+                elif es_tarde:
+                    bg = COL_TARDE_E
+                    tc = colors.HexColor('#C00000')
+                else:
+                    bg = None
+                    tc = colors.black
+
+                row_cells.append(Paragraph(txt, ParagraphStyle(
+                    f'dyn{row_idx}_{i}', parent=styles['Normal'],
+                    fontSize=7, alignment=TA_CENTER,
+                    fontName='Helvetica-Bold' if es_tarde else 'Helvetica',
+                    textColor=tc,
+                )))
+                cell_styles.append((col_idx, bg, tc, es_tarde))
+
+            # Columnas resumen
+            row_cells += [
+                Paragraph(f'{round(total_hnorm,1)}', st_num),
+                Paragraph(str(total_faltas) if total_faltas else '—', st_num),
+                Paragraph(str(total_tardanzas) if total_tardanzas else '—', st_num),
+            ]
+            table_data.append(row_cells)
+
+            # Estilos de fila
+            data_row = row_idx + 1  # +1 por header
+            bg_fila = COL_ROWALT if row_idx % 2 == 0 else colors.white
+            table_styles.append(('BACKGROUND', (0, data_row), (2, data_row), bg_fila))
+            table_styles.append(('BACKGROUND', (-3, data_row), (-1, data_row), bg_fila))
+            for (col_i, bg, tc, bold) in cell_styles:
+                if bg:
+                    table_styles.append(('BACKGROUND', (col_i, data_row), (col_i, data_row), bg))
+            if total_faltas > 0:
+                table_styles.append(('BACKGROUND', (-2, data_row), (-2, data_row), colors.HexColor('#FFCCCC')))
+                table_styles.append(('TEXTCOLOR',  (-2, data_row), (-2, data_row), colors.HexColor('#C00000')))
+                table_styles.append(('FONTNAME',   (-2, data_row), (-2, data_row), 'Helvetica-Bold'))
+            if total_tardanzas > 0:
+                table_styles.append(('BACKGROUND', (-1, data_row), (-1, data_row), colors.HexColor('#FFE0B2')))
+                table_styles.append(('FONTNAME',   (-1, data_row), (-1, data_row), 'Helvetica-Bold'))
+
+            resumen_rows.append({
+                'nombre': emp.apellidos_nombres, 'cargo': emp.cargo or '—',
+                'condicion': condicion,
+                'h_norm': round(total_hnorm, 1),
+                'faltas': total_faltas, 'tardanzas': total_tardanzas,
+            })
+
+        # Separadores verticales entre semanas
+        for i, f in enumerate(fechas):
+            if f.weekday() == 6 and i < n_dias - 1:  # después del domingo
+                col_i = 3 + i
+                table_styles.append(('LINEAFTER', (col_i, 0), (col_i, -1), 1.5, COL_SUBHDR))
+
+        t = Table(table_data, colWidths=col_widths, repeatRows=1)
+        t.setStyle(TableStyle(table_styles))
+        story.append(t)
+
+        # ── Leyenda ──
+        story.append(Spacer(1, 4))
+        leyenda = (
+            '<font color="#C00000">■</font> Tardanza  '
+            '<font color="#8B4000">■</font> SS (marcación incompleta)  '
+            '<font color="#555555">■</font> DS (descanso)  '
+            '<font color="#1F4E79">■</font> Papeleta/Permiso  '
+            '<font color="#7B2FBE">■</font> Feriado  '
+            '<font color="#C00000"><b>F</b></font> = Falta/Ausencia'
+        )
+        story.append(Paragraph(leyenda, ParagraphStyle(
+            'ley', parent=styles['Normal'], fontSize=6.5,
+            textColor=colors.HexColor('#555555'),
+        )))
+
+        # ── Resumen ──
+        story.append(Spacer(1, 8))
+        story.append(Paragraph('RESUMEN POR EMPLEADO', ParagraphStyle(
+            'rs_title', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica-Bold',
+            textColor=colors.HexColor('#375623'),
+        )))
+        story.append(Spacer(1, 3))
+
+        resumen_rows.sort(key=lambda r: (-r['faltas'], -r['tardanzas'], r['nombre']))
+        sum_hdr = ['APELLIDOS Y NOMBRES', 'CARGO', 'COND.', 'H. NORM.', 'FALTAS', 'TARDANZAS']
+        sum_data = [sum_hdr] + [
+            [r['nombre'], r['cargo'], r['condicion'][:3], r['h_norm'], r['faltas'] or '—', r['tardanzas'] or '—']
+            for r in resumen_rows
+        ]
+        sum_widths = [W_NOMBRE + W_CARGO * 0.4, W_CARGO * 0.6 + 20, W_COND + 10, W_NORM + 10, W_FALT + 10, W_TARD + 10]
+        sum_styles = [
+            ('BACKGROUND', (0, 0), (-1, 0), COL_SUMHDR),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0, 0), (-1, -1), 7),
+            ('ALIGN',      (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN',      (2, 1), (-1, -1), 'CENTER'),
+            ('GRID',       (0, 0), (-1, -1), 0.3, colors.HexColor('#AAAAAA')),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 3),
+        ]
+        for i, r in enumerate(resumen_rows):
+            row_i = i + 1
+            bg = COL_SUMALT if i % 2 == 0 else colors.white
+            sum_styles.append(('BACKGROUND', (0, row_i), (-1, row_i), bg))
+            if r['faltas'] > 0:
+                sum_styles.append(('BACKGROUND', (4, row_i), (4, row_i), colors.HexColor('#FFCCCC')))
+                sum_styles.append(('TEXTCOLOR',  (4, row_i), (4, row_i), colors.HexColor('#C00000')))
+                sum_styles.append(('FONTNAME',   (4, row_i), (4, row_i), 'Helvetica-Bold'))
+
+        sum_t = Table(sum_data, colWidths=sum_widths)
+        sum_t.setStyle(TableStyle(sum_styles))
+        story.append(sum_t)
+
+        return story
+
+    # ── Pre-cargar datos ──────────────────────────────────────────────
+    areas_qs = Area.objects.filter(activa=True).order_by('nombre')
+    if area_ids:
+        areas_qs = areas_qs.filter(pk__in=area_ids)
+
+    empleo_qs = Personal.objects.filter(
+        estado='Activo', subarea__isnull=False,
+    ).select_related('subarea__area').order_by('apellidos_nombres')
+    if area_ids:
+        empleo_qs = empleo_qs.filter(subarea__area_id__in=area_ids)
+
+    all_tareos = RegistroTareo.objects.filter(
+        fecha__gte=inicio, fecha__lte=fin, personal__in=empleo_qs,
+    ).select_related('personal')
+    all_papeletas = RegistroPapeleta.objects.filter(
+        fecha_inicio__lte=fin, fecha_fin__gte=inicio,
+        personal__in=empleo_qs,
+        estado__in=['APROBADA', 'EJECUTADA', 'PENDIENTE'],
+    ).select_related('personal')
+
+    tareos_idx = {}
+    for t in all_tareos:
+        tareos_idx[(t.dni, t.fecha)] = t
+
+    from collections import defaultdict
+    papeletas_idx = defaultdict(dict)
+    for p in all_papeletas:
+        dni = p.personal.nro_doc
+        label = (p.iniciales or p.tipo_permiso or 'PER')[:4].upper()
+        f = p.fecha_inicio
+        while f <= p.fecha_fin:
+            if inicio <= f <= fin:
+                papeletas_idx[dni][f] = label
+            f += timedelta(days=1)
+
+    emp_por_area = defaultdict(list)
+    for emp in empleo_qs:
+        emp_por_area[emp.subarea.area_id].append(emp)
+
+    # ── Generar PDFs ──────────────────────────────────────────────────
+    archivos_pdf = []
+    for area in areas_qs:
+        empleados = emp_por_area.get(area.pk, [])
+        if not empleados:
+            continue
+        tareos_map   = {(emp.nro_doc, f): tareos_idx.get((emp.nro_doc, f))
+                        for emp in empleados for f in fechas}
+        papeletas_map = {(emp.nro_doc, f): papeletas_idx.get(emp.nro_doc, {}).get(f)
+                         for emp in empleados for f in fechas}
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=landscape(A4),
+            leftMargin=MARGIN, rightMargin=MARGIN,
+            topMargin=12 * mm, bottomMargin=12 * mm,
+            title=f'Asistencia {area.nombre} {periodo_lbl}',
+        )
+        story = _build_pdf_area(area, empleados, tareos_map, papeletas_map)
+        doc.build(story)
+        buf.seek(0)
+        fname = f'Asistencia_{slugify(area.nombre)}_{inicio.strftime("%Y%m%d")}.pdf'
+        archivos_pdf.append((fname, buf.getvalue()))
+
+    if not archivos_pdf:
+        return HttpResponse('No hay registros para el período seleccionado.', status=404)
+
+    if len(archivos_pdf) == 1:
+        fname, data = archivos_pdf[0]
+        resp = HttpResponse(data, content_type='application/pdf')
+        resp['Content-Disposition'] = f'inline; filename="{fname}"'
+        return resp
+
+    zip_buf = io.BytesIO()
+    with ZipFile(zip_buf, 'w') as zf:
+        for fname, data in archivos_pdf:
+            zf.writestr(fname, data)
+    zip_buf.seek(0)
+    zip_name = f'Asistencia_Areas_{inicio.strftime("%Y%m%d")}_{fin.strftime("%Y%m%d")}.zip'
+    resp = HttpResponse(zip_buf.getvalue(), content_type='application/zip')
+    resp['Content-Disposition'] = f'attachment; filename="{zip_name}"'
+    return resp

@@ -7,6 +7,7 @@ from asistencia.views.reportes_area import (
     panel_reportes_area, configurar_area,
     generar_zip_por_area, enviar_reportes_por_area, historial_envios,
     gestionar_emails, reporte_horario_simple, reporte_excel_areas,
+    reporte_pdf_area,
 )
 
 urlpatterns = [
@@ -126,6 +127,7 @@ urlpatterns = [
     path('reportes/areas/emails/', gestionar_emails, name='asistencia_gestionar_emails'),
     path('reportes/areas/horario/', reporte_horario_simple, name='asistencia_reporte_horario'),
     path('reportes/areas/excel/', reporte_excel_areas, name='asistencia_reporte_excel_areas'),
+    path('reportes/areas/pdf/', reporte_pdf_area, name='asistencia_reporte_pdf_areas'),
 
     # Reportes Individuales
     path('reportes/', views.reporte_panel, name='asistencia_reportes'),
