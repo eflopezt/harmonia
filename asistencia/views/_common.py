@@ -4,7 +4,7 @@ Utilidades compartidas entre las vistas del módulo Tareo.
 from datetime import timedelta
 
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import OuterRef, Subquery
+from django.db.models import Max, OuterRef, Subquery
 
 solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff, login_url='login')
 
@@ -43,20 +43,25 @@ def _qs_staff_dedup(mes_ini, mes_fin):
 
     Evita doble-conteo cuando el mismo período fue importado varias veces
     (ej. import #1 SYNKRO y #5 RELOJ cubren el mismo rango de fechas).
+
+    Implementación: Subquery con MAX(importacion_id) por (personal_id, fecha).
+    El índice parcial tareo_staff_dedup_idx (personal_id, fecha, importacion_id DESC)
+    WHERE grupo='STAFF' convierte el inner scan en un Index-Only Scan sin sort.
     """
     from asistencia.models import RegistroTareo
 
-    # Subquery: para cada (personal_id, fecha) STAFF, devuelve el id
-    # del registro con el mayor importacion_id (el más reciente).
-    latest_id = (
+    # MAX importacion_id para cada (personal_id, fecha) STAFF —
+    # el índice tareo_staff_dedup_idx hace esto un Index-Only Scan instantáneo.
+    max_imp_subq = (
         RegistroTareo.objects
         .filter(
             personal_id=OuterRef('personal_id'),
             fecha=OuterRef('fecha'),
             grupo='STAFF',
         )
-        .order_by('-importacion_id')
-        .values('id')[:1]
+        .values('personal_id', 'fecha')
+        .annotate(max_imp=Max('importacion_id'))
+        .values('max_imp')
     )
 
     return RegistroTareo.objects.filter(
@@ -64,9 +69,16 @@ def _qs_staff_dedup(mes_ini, mes_fin):
         fecha__gte=mes_ini,
         fecha__lte=mes_fin,
         personal__isnull=False,
-        id=Subquery(latest_id),
+        importacion_id=Subquery(max_imp_subq),
     )
 
+
+# ── Códigos de ausencia pagada (no descuentan, cuentan como 8h jornada legal) ──
+# Fuente canónica — importar desde aquí en banco.py y reporte_individual.py
+CODIGOS_AUSENCIA_PAGADA = {
+    'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE',
+    'CT', 'CDT', 'CPF', 'FR', 'TR',
+}
 
 # ── Mapeo tipo_permiso → código tareo para papeletas ─────────
 TIPO_PERMISO_A_CODIGO = {

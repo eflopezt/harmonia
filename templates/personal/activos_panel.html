@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Activos Asignados{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="fas fa-laptop me-2 text-teal"></i>Activos y Herramientas</h4>
+    <small class="text-muted">Control de equipos asignados al personal | {{ total }} registros</small>
+  </div>
+</div>
+
+<div class="row g-2 mb-3">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-primary">{{ kpi.asignados|default:"0" }}</div>
+      <small class="text-muted">Asignados</small>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-success">{{ kpi.devueltos|default:"0" }}</div>
+      <small class="text-muted">Devueltos</small>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-danger">{{ kpi.extraviados|default:"0" }}</div>
+      <small class="text-muted">Extraviados</small>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body p-2">
+    <form method="get" class="d-flex gap-2 flex-wrap">
+      <input type="text" name="q" class="form-control form-control-sm" style="max-width:250px" placeholder="Buscar nombre, serial..." value="{{ buscar }}">
+      <select name="estado" class="form-select form-select-sm" style="max-width:150px">
+        <option value="">Estado</option>
+        <option value="ASIGNADO" {% if filtro_estado == 'ASIGNADO' %}selected{% endif %}>Asignado</option>
+        <option value="DEVUELTO" {% if filtro_estado == 'DEVUELTO' %}selected{% endif %}>Devuelto</option>
+        <option value="EXTRAVIADO" {% if filtro_estado == 'EXTRAVIADO' %}selected{% endif %}>Extraviado</option>
+      </select>
+      <select name="tipo" class="form-select form-select-sm" style="max-width:180px">
+        <option value="">Tipo</option>
+        {% for code, label in tipos %}
+        <option value="{{ code }}" {% if filtro_tipo == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <table class="table table-sm table-hover mb-0" style="font-size:.82rem;">
+    <thead style="background:#f1f5f9;">
+      <tr><th>Trabajador</th><th>Tipo</th><th>Descripcion</th><th>Serial</th><th>Asignado</th><th>Estado</th><th>Acciones</th></tr>
+    </thead>
+    <tbody>
+      {% for a in activos %}
+      <tr>
+        <td class="fw-semibold">{{ a.personal.apellidos_nombres|truncatechars:30 }}</td>
+        <td><span class="badge bg-secondary">{{ a.get_tipo_display }}</span></td>
+        <td>{{ a.descripcion|truncatechars:35 }}</td>
+        <td class="text-muted"><code>{{ a.serial|default:"—" }}</code></td>
+        <td style="white-space:nowrap;">{{ a.fecha_asignacion|date:"d/m/Y" }}</td>
+        <td>
+          {% if a.estado == 'ASIGNADO' %}<span class="badge bg-info">Asignado</span>
+          {% elif a.estado == 'DEVUELTO' %}<span class="badge bg-success">Devuelto</span>
+          {% elif a.estado == 'EXTRAVIADO' %}<span class="badge bg-danger">Extraviado</span>
+          {% else %}<span class="badge bg-warning">{{ a.get_estado_display }}</span>{% endif %}
+        </td>
+        <td>
+          {% if a.estado == 'ASIGNADO' %}
+          <form method="post" action="{% url 'activo_devolver' a.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-outline-success btn-sm py-0 px-1" title="Registrar devolucion" onclick="return confirm('Confirmar devolucion?')">
+              <i class="fas fa-undo-alt" style="font-size:.7rem;"></i>
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-center py-4 text-muted">
+        <i class="fas fa-laptop d-block mb-2" style="font-size:1.5rem;opacity:.3"></i>
+        Sin activos registrados. Asigne activos desde la ficha del empleado.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -2574,12 +2574,15 @@ textarea,
 }
 
 /* ── Smooth page transitions ── */
+/* NOTE: Do NOT use transform here — it creates a stacking context that
+   traps position:fixed modals (Bootstrap) inside .harmoni-content,
+   preventing the backdrop from covering the full viewport.             */
 .harmoni-content {
   animation: fadeInPage 0.25s ease both;
 }
 @keyframes fadeInPage {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Progress bar animated ── */

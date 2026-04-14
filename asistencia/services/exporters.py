@@ -27,15 +27,16 @@ CERO = Decimal('0')
 # Conceptos S10 estándar que genera el sistema
 # Mapeados desde tareo → columna S10
 CONCEPTOS_S10_DEFAULT = [
-    ('HE25',  'HORAS EXTRAS 25%',            'HORAS'),
-    ('HE35',  'HORAS EXTRAS 35%',            'HORAS'),
-    ('HE100', 'HORAS EXTRAS 100%',           'HORAS'),
-    ('DM',    'DIAS DESCANSO MEDICO',        'DIAS'),
-    ('LF',    'DIAS LICENCIA FALLECIMIENTO', 'DIAS'),
-    ('LSG',   'DIAS LICENCIA S/GOCE',        'DIAS'),
-    ('LP',    'DIAS LICENCIA PATERNIDAD',    'DIAS'),
-    ('FA',    'DIAS FALTA NO JUST.',         'DIAS'),
-    ('VAC',   'DIAS DESCANSO VACACIONAL',    'DIAS'),
+    ('HE25',  'HORAS EXTRAS 25%',                 'HORAS'),
+    ('HE35',  'HORAS EXTRAS 35%',                 'HORAS'),
+    ('HE100', 'HORAS EXTRAS 100%',                'HORAS'),
+    ('DM',    'DIAS DESCANSO MEDICO',             'DIAS'),
+    ('LF',    'DIAS LICENCIA FALLECIMIENTO',      'DIAS'),
+    ('LSG',   'DIAS LICENCIA S/GOCE',             'DIAS'),
+    ('LP',    'DIAS LICENCIA PATERNIDAD',         'DIAS'),
+    ('FA',    'DIAS FALTA NO JUST.',              'DIAS'),
+    ('SAI',   'DIAS SUSPENSION ACTO INSEGURO',    'DIAS'),
+    ('VAC',   'DIAS DESCANSO VACACIONAL',         'DIAS'),
 ]
 
 
@@ -178,7 +179,7 @@ class CargaS10Exporter:
         if self.config.regularizacion_activa:
             for r in qs_asist.filter(
                 fecha__gte=dia_regularizacion_inicio,
-                codigo_dia__in=['FA', 'LSG']
+                codigo_dia__in=['FA', 'LSG', 'SAI']
             ).values('personal_id', 'codigo_dia'):
                 pid = r['personal_id']
                 cod = r['codigo_dia']
@@ -245,6 +246,8 @@ class CargaS10Exporter:
                     val = dias.get('LP', 0)
                 elif cod == 'FA':
                     val = dias.get('FA', 0)
+                elif cod == 'SAI':
+                    val = dias.get('SAI', 0)
                 elif cod == 'VAC':
                     val = dias.get('VAC', 0) + dias.get('V', 0)
                 else:
@@ -338,6 +341,8 @@ class ReporteCierreExporter:
             cat = 'dl'
         elif cod == 'LSG':
             cat = 'lsg'
+        elif cod == 'SAI':
+            cat = 'sai'
         elif cod in ('LF', 'LP', 'LM'):
             cat = 'otros'
         elif cod in ('DS', 'FR', 'FER', 'DOM'):
@@ -483,7 +488,7 @@ class ReporteCierreExporter:
         for pid, info in info_personal.items():
             d = {
                 **info,
-                'dias_trabajados': 0, 'faltas': 0, 'lsg': 0,
+                'dias_trabajados': 0, 'faltas': 0, 'lsg': 0, 'sai': 0,
                 'vacaciones': 0, 'dm': 0, 'dl': 0,
                 'ds_feriado': 0, 'na': 0, 'otros': 0,
                 'he25': he_acum.get(pid, {}).get('he25', CERO),
@@ -542,13 +547,13 @@ class ReporteCierreExporter:
         header_font = Font(bold=True, size=9)
 
         tipo_label = 'CORTE' if self.tipo_periodo == 'corte' else 'MES CALENDARIO'
-        ws.merge_cells('A1:R1')
+        ws.merge_cells('A1:S1')
         ws['A1'] = f'REPORTE DE CIERRE — {self.mes_nombre.upper()} {self.anio} | {tipo_label} | {label_periodo} | {total_dias} días'
         ws['A1'].font = title_font
         ws['A1'].alignment = Alignment(horizontal='center')
 
         headers = ['Código SAP', 'DNI', 'Apellidos y Nombres', 'Grupo',
-                   'Días Trabajados', 'Faltas', 'LSG', 'Vacaciones', 'DM', 'DL/Bajadas',
+                   'Días Trabajados', 'Faltas', 'LSG', 'SAI', 'Vacaciones', 'DM', 'DL/Bajadas',
                    'DS/Feriado', 'NA', 'Otros', 'TOTAL',
                    'HE 25% (h)', 'HE 35% (h)', 'HE 100% (h)', '% Asistencia']
 
@@ -562,18 +567,19 @@ class ReporteCierreExporter:
         for row_idx, d in enumerate(sorted(datos.values(), key=lambda x: x['nombre']), 3):
             dias_lab = total_dias - d['ds_feriado'] - d['na']
             pct_asist = (d['dias_trabajados'] / dias_lab * 100) if dias_lab else 0
-            total_sum = (d['dias_trabajados'] + d['faltas'] + d['lsg'] + d['vacaciones']
-                         + d['dm'] + d['dl'] + d['ds_feriado'] + d['na'] + d['otros'])
+            total_sum = (d['dias_trabajados'] + d['faltas'] + d['lsg'] + d['sai']
+                         + d['vacaciones'] + d['dm'] + d['dl']
+                         + d['ds_feriado'] + d['na'] + d['otros'])
             ws.append([
                 d['sap'], d['dni'], d['nombre'], d['grupo'],
-                d['dias_trabajados'], d['faltas'], d['lsg'], d['vacaciones'],
+                d['dias_trabajados'], d['faltas'], d['lsg'], d['sai'], d['vacaciones'],
                 d['dm'], d['dl'], d['ds_feriado'], d['na'], d['otros'], total_sum,
                 float(d['he25']), float(d['he35']), float(d['he100']),
                 round(pct_asist, 1),
             ])
             ws.cell(row=row_idx, column=2).number_format = '@'  # DNI texto
 
-        for col_idx in range(1, 19):
+        for col_idx in range(1, 20):
             ws.column_dimensions[get_column_letter(col_idx)].width = 16
         ws.column_dimensions['C'].width = 35
 

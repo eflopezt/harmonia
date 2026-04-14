@@ -455,6 +455,8 @@ class RegistroTareo(models.Model):
         ('FERIADO', 'Feriado del Calendario'),
         ('FALTA_AUTO', 'Falta Automática (sin marca ni papeleta)'),
         ('MANUAL', 'Corrección Manual'),
+        ('REGLA_ESPECIAL', 'Regla Especial por Empleado'),
+        ('DESCANSO_SEMANAL', 'Descanso Semanal Automático'),
     ]
 
     importacion = models.ForeignKey(
@@ -1083,6 +1085,148 @@ class CruceTareoRoster(models.Model):
         return (f"{self.registro_tareo.dni} | "
                 f"{self.registro_tareo.fecha} | "
                 f"{self.get_variacion_display()}")
+
+
+# ─────────────────────────────────────────────────────────────
+# SECCIÓN 6b ▸ ENVÍO DE REPORTES POR ÁREA
+# ─────────────────────────────────────────────────────────────
+
+class ConfiguracionReporteArea(models.Model):
+    """
+    Configuración de envío de reportes de asistencia por área.
+    Almacena los destinatarios (jefaturas) y CC por área.
+    """
+    area = models.OneToOneField(
+        'personal.Area',
+        on_delete=models.CASCADE,
+        related_name='config_reporte',
+        verbose_name='Área',
+    )
+    emails_jefatura = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Emails jefatura (destinatarios)',
+        help_text='Lista de correos principales. Ej: ["jefe@empresa.com"]',
+    )
+    emails_cc = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Emails con copia (CC)',
+        help_text='Lista de correos en copia.',
+    )
+    asunto_template = models.CharField(
+        max_length=300,
+        default='Reporte de Asistencia - {area} - {periodo}',
+        verbose_name='Plantilla de asunto',
+        help_text='Vars: {area}, {periodo}, {empresa}',
+    )
+    cuerpo_template = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Plantilla de cuerpo del correo',
+        help_text='Vars: {area}, {periodo}, {empresa}, {total_empleados}. Dejar vacío para usar el predeterminado.',
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    # Jefe/responsable del área (nombre para mostrar en UI)
+    nombre_jefe = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='Nombre del jefe / responsable',
+        help_text='Nombre de referencia para mostrar en el panel',
+    )
+    # Historial de cambios de emails (auditoría)
+    historial_emails = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Historial de cambios de emails',
+        help_text='Registro automático de cada vez que se cambian los destinatarios',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración Reporte por Área'
+        verbose_name_plural = 'Configuraciones Reporte por Área'
+        ordering = ['area__nombre']
+
+    def __str__(self):
+        n = len(self.emails_jefatura or [])
+        return f'{self.area.nombre} ({n} destinatario{"s" if n != 1 else ""})'
+
+    def get_emails_jefatura(self) -> list[str]:
+        return [e.strip() for e in (self.emails_jefatura or []) if e.strip()]
+
+    def get_emails_cc(self) -> list[str]:
+        return [e.strip() for e in (self.emails_cc or []) if e.strip()]
+
+    def render_asunto(self, area_nombre: str, periodo: str, empresa: str = '') -> str:
+        tpl = self.asunto_template or 'Reporte de Asistencia - {area} - {periodo}'
+        return tpl.format(area=area_nombre, periodo=periodo, empresa=empresa)
+
+    def render_cuerpo(self, area_nombre: str, periodo: str, empresa: str = '', total: int = 0) -> str:
+        if self.cuerpo_template:
+            return self.cuerpo_template.format(
+                area=area_nombre, periodo=periodo, empresa=empresa,
+                total_empleados=total,
+            )
+        return (
+            f'Estimado equipo,\n\n'
+            f'Adjunto encontrará el paquete de reportes de asistencia del área '
+            f'{area_nombre} correspondiente al periodo {periodo}.\n\n'
+            f'Los reportes están organizados por colaborador en el archivo ZIP adjunto.\n\n'
+            f'Ante cualquier consulta o discrepancia, comunicarse con el área de '
+            f'Gestión Humana a la brevedad, ya que esta información impacta en el '
+            f'cálculo de la nómina.\n\n'
+            f'Saludos,\n'
+            f'{empresa or "Recursos Humanos"}'
+        )
+
+
+class EnvioReporteArea(models.Model):
+    """Log de cada envío de reporte de asistencia por área."""
+    TIPO_CHOICES = [
+        ('SEMANAL', 'Semanal'),
+        ('QUINCENAL', 'Quincenal'),
+        ('MENSUAL', 'Mensual'),
+        ('PERSONALIZADO', 'Personalizado'),
+    ]
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('ENVIADO', 'Enviado'),
+        ('PARCIAL', 'Enviado con errores'),
+        ('ERROR', 'Error'),
+    ]
+
+    area = models.ForeignKey(
+        'personal.Area',
+        on_delete=models.CASCADE,
+        related_name='envios_reporte',
+        verbose_name='Área',
+    )
+    tipo_periodo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='PERSONALIZADO')
+    fecha_inicio = models.DateField(verbose_name='Fecha inicio')
+    fecha_fin = models.DateField(verbose_name='Fecha fin')
+    emails_destino = models.JSONField(default=list)
+    emails_cc = models.JSONField(default=list)
+    asunto = models.CharField(max_length=300, blank=True)
+    cuerpo = models.TextField(blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
+    empleados_total = models.PositiveIntegerField(default=0)
+    empleados_enviados = models.PositiveIntegerField(default=0)
+    errores = models.JSONField(default=list)
+    creado_por = models.ForeignKey(
+        User, null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='envios_reporte_area',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Envío de Reporte por Área'
+        verbose_name_plural = 'Envíos de Reporte por Área'
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f'{self.area.nombre} | {self.fecha_inicio}→{self.fecha_fin} | {self.estado}'
 
 
 # ─────────────────────────────────────────────────────────────
@@ -2005,3 +2149,134 @@ class CambioCodigoLog(models.Model):
 
     def __str__(self):
         return f'{self.registro.dni} {self.registro.fecha}: {self.codigo_anterior} → {self.codigo_nuevo}'
+
+
+# ═══════════════════════════════════════════════════════════
+#  REGLAS ESPECIALES POR EMPLEADO
+# ═══════════════════════════════════════════════════════════
+
+DIAS_SEMANA_CHOICES = [
+    (0, 'Lunes'), (1, 'Martes'), (2, 'Miércoles'), (3, 'Jueves'),
+    (4, 'Viernes'), (5, 'Sábado'), (6, 'Domingo'),
+]
+
+
+class ReglaEspecialPersonal(models.Model):
+    """
+    Regla de excepción recurrente para un empleado específico.
+
+    Se evalúa en el processor entre Papeleta (prioridad 1) y Feriado (prioridad 2).
+    Ejemplo: "Palma Barrera, sábados siempre = DL por régimen 21×7".
+
+    Todas las condiciones deben cumplirse para que la regla aplique (AND lógico).
+    Si un campo de condición es null/vacío, se ignora (= acepta cualquier valor).
+    """
+    # ── A quién aplica ───────────────────────────────
+    personal = models.ForeignKey(
+        'personal.Personal', on_delete=models.CASCADE,
+        related_name='reglas_asistencia',
+        verbose_name='Empleado')
+
+    # ── Condiciones (cuándo aplica) ──────────────────
+    dias_semana = models.JSONField(
+        default=list, blank=True,
+        verbose_name='Días de la semana',
+        help_text='Lista de enteros: 0=Lun..6=Dom. Vacío = todos los días.')
+    condicion_laboral = models.CharField(
+        max_length=20, blank=True, default='',
+        verbose_name='Condición laboral',
+        help_text='LOCAL, FORÁNEO, LIMA. Vacío = cualquiera.')
+    codigo_reloj_trigger = models.CharField(
+        max_length=20, blank=True, default='',
+        verbose_name='Código reloj trigger',
+        help_text='Solo aplica si el reloj muestra este código. Vacío = cualquiera.')
+    solo_feriados = models.BooleanField(
+        default=False,
+        verbose_name='Solo en feriados',
+        help_text='Si True, solo aplica cuando el día es feriado.')
+
+    # ── Vigencia ─────────────────────────────────────
+    fecha_desde = models.DateField(
+        verbose_name='Vigente desde')
+    fecha_hasta = models.DateField(
+        null=True, blank=True,
+        verbose_name='Vigente hasta',
+        help_text='Dejar vacío = vigencia indefinida.')
+
+    # ── Resultado ────────────────────────────────────
+    codigo_resultado = models.CharField(
+        max_length=10,
+        verbose_name='Código resultante',
+        help_text='Código de asistencia a aplicar: DL, FA, DS, T, VAC, etc.')
+    horas_override = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name='Horas override',
+        help_text='Si se especifica, overridea las horas calculadas.')
+
+    # ── Metadata ─────────────────────────────────────
+    descripcion = models.CharField(
+        max_length=300,
+        verbose_name='Descripción',
+        help_text='Descripción corta para la tabla.')
+    descripcion_natural = models.TextField(
+        blank=True, default='',
+        verbose_name='Descripción original',
+        help_text='Texto original que el usuario escribió en el chat IA.')
+    conversacion_ia = models.JSONField(
+        default=list, blank=True,
+        verbose_name='Conversación IA',
+        help_text='Historial del chat que generó esta regla (auditoría).')
+    prioridad = models.PositiveSmallIntegerField(
+        default=10,
+        verbose_name='Prioridad',
+        help_text='Menor número = mayor prioridad. Primera regla que matchea gana.')
+    activa = models.BooleanField(
+        default=True,
+        verbose_name='Activa')
+    aplicar_retroactivamente = models.BooleanField(
+        default=False,
+        verbose_name='Aplicar retroactivamente',
+        help_text='Si True, al guardar se recalculan registros pasados.')
+
+    # ── Auditoría ────────────────────────────────────
+    creado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        related_name='reglas_asistencia_creadas',
+        verbose_name='Creado por')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'tareo'
+        ordering = ['personal', 'prioridad']
+        verbose_name = 'Regla Especial de Asistencia'
+        verbose_name_plural = 'Reglas Especiales de Asistencia'
+
+    def __str__(self):
+        dias_str = ', '.join(
+            dict(DIAS_SEMANA_CHOICES).get(d, '?') for d in (self.dias_semana or [])
+        ) or 'Todos'
+        return f'{self.personal} → {self.codigo_resultado} ({dias_str})'
+
+    def aplica_a(self, fecha, dia_semana: int, condicion: str,
+                 codigo_reloj: str, es_feriado: bool) -> bool:
+        """Evalúa si esta regla aplica al registro dado (AND lógico)."""
+        if not self.activa:
+            return False
+        if self.fecha_desde and fecha < self.fecha_desde:
+            return False
+        if self.fecha_hasta and fecha > self.fecha_hasta:
+            return False
+        if self.dias_semana and dia_semana not in self.dias_semana:
+            return False
+        if self.condicion_laboral:
+            cond_norm = (condicion or '').upper().replace('\xc1', 'A')
+            regla_norm = self.condicion_laboral.upper().replace('\xc1', 'A')
+            if cond_norm != regla_norm:
+                return False
+        if self.codigo_reloj_trigger:
+            if (codigo_reloj or '').upper().strip() != self.codigo_reloj_trigger.upper().strip():
+                return False
+        if self.solo_feriados and not es_feriado:
+            return False
+        return True

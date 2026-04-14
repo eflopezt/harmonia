@@ -21,7 +21,7 @@ from django.views.decorators.http import require_POST
 from xhtml2pdf import pisa
 
 from asistencia.models import RegistroTareo, RegistroPapeleta, ConfiguracionSistema
-from asistencia.views._common import solo_admin, _qs_staff_dedup, _papeletas_por_fecha
+from asistencia.views._common import solo_admin, _qs_staff_dedup, _papeletas_por_fecha, CODIGOS_AUSENCIA_PAGADA
 
 logger = logging.getLogger('asistencia')
 from personal.models import Personal, Area
@@ -36,7 +36,8 @@ PRESENCIA = {'T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'S
 DESCANSO = {'DS', 'B'}
 LIBRE = {'DL', 'DLA'}
 # Ausencias pagadas: cuentan 8h normales cuando no hay registro (papeleta sin marcación)
-AUSENCIA_PAGADA = {'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE', 'CT', 'CDT', 'CPF', 'FR', 'TR'}
+# Definición canónica en _common.CODIGOS_AUSENCIA_PAGADA — importada arriba
+AUSENCIA_PAGADA = CODIGOS_AUSENCIA_PAGADA
 JORNADA_AUSENCIA = 8.0
 
 CODE_COLORS = {
@@ -322,6 +323,15 @@ def _get_email_empleado(personal):
 
 def _cuerpo_reporte(nombre, mes_nombre, anio):
     """Genera el cuerpo del correo de reporte de asistencia."""
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.get()
+    empresa = config.nombre_empresa or 'la empresa'
+    contacto = config.email or ''
+    linea_contacto = (
+        f'    - {contacto}\n\n'
+        if contacto else
+        'el area de Recursos Humanos.\n\n'
+    )
     return (
         f'Estimado(a) {nombre},\n'
         f'\n'
@@ -331,13 +341,9 @@ def _cuerpo_reporte(nombre, mes_nombre, anio):
         f'\n'
         f'Le pedimos revisarlo con atencion. Si identifica alguna diferencia en sus '
         f'marcaciones, papeletas no registradas o cualquier dato que requiera '
-        f'correccion, por favor comuniquelo a la brevedad a cualquiera de los '
-        f'siguientes correos para su regularizacion:\n'
+        f'correccion, por favor comuniquelo a la brevedad a:\n'
         f'\n'
-        f'    - jochoa@consorciosrt.com\n'
-        f'    - eflopez@consorciosrt.com\n'
-        f'    - randrade@consorciosrt.com\n'
-        f'\n'
+        f'{linea_contacto}'
         f'Esta informacion sera utilizada para el calculo de la nomina del periodo, '
         f'por lo que es importante contar con datos actualizados.\n'
         f'\n'
@@ -345,7 +351,7 @@ def _cuerpo_reporte(nombre, mes_nombre, anio):
         f'\n'
         f'Saludos cordiales,\n'
         f'Area de Recursos Humanos\n'
-        f'Consorcio SRT'
+        f'{empresa}'
     )
 
 
@@ -452,6 +458,8 @@ def _header(p, inicio, fin, mes, anio, tipo):
         from asistencia.membrete_b64 import HEADER_IMG
     except ImportError:
         HEADER_IMG = ''
+    from asistencia.models import ConfiguracionSistema
+    _cfg = ConfiguracionSistema.get()
     area = p.subarea.area.nombre if p.subarea else '-'
     fecha_ing = p.fecha_alta.strftime('%d/%m/%Y') if p.fecha_alta else '-'
     regimen = p.regimen_pension or '-'
@@ -461,7 +469,8 @@ def _header(p, inicio, fin, mes, anio, tipo):
     if HEADER_IMG:
         logo_html = f'<p style="text-align:center;margin:0 0 6px 0"><img src="{HEADER_IMG}" height="50"></p>'
     else:
-        logo_html = '<p style="text-align:center;font-size:10pt;font-weight:bold;color:#0f766e;margin:0 0 6px 0">CONSORCIO STILER - RIPCONCIV - TECNOEDIL</p>'
+        nombre_emp = _cfg.nombre_empresa or 'EMPRESA'
+        logo_html = f'<p style="text-align:center;font-size:10pt;font-weight:bold;color:#0f766e;margin:0 0 6px 0">{nombre_emp}</p>'
 
     return f"""{logo_html}
 <table style="margin-bottom:3px">

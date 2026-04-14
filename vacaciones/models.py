@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
+from django.db import models, transaction
 
 from personal.models import Personal
 
@@ -87,6 +87,18 @@ class SaldoVacacional(models.Model):
 
     def __str__(self):
         return f"{self.personal.apellidos_nombres} — {self.periodo_inicio.year}/{self.periodo_fin.year} — {self.dias_pendientes}d pend."
+
+    @property
+    def max_adelanto(self):
+        """Máximo días de adelanto disponibles (proporcional a meses trabajados)."""
+        from datetime import date as _date
+        hoy = _date.today()
+        if not self.personal or not self.personal.fecha_alta:
+            return 0
+        dias_serv = (hoy - self.personal.fecha_alta).days
+        meses = dias_serv / 30.0
+        proporcional = min(30, round(30 / 12 * meses))
+        return max(0, proporcional - self.dias_gozados - (self.dias_vendidos or 0))
 
     def recalcular(self):
         """Recalcula días pendientes."""
@@ -217,19 +229,28 @@ class SolicitudVacacion(models.Model):
             self.dias_habiles = habiles
         super().save(*args, **kwargs)
 
+    @transaction.atomic
     def aprobar(self, usuario):
-        """Aprueba la solicitud y descuenta del saldo. Valida disponibilidad."""
-        # Validar saldo suficiente
-        if self.saldo and self.dias_calendario > self.saldo.dias_pendientes:
-            raise ValueError(
-                f'Saldo insuficiente: solicita {self.dias_calendario} días '
-                f'pero solo tiene {self.saldo.dias_pendientes} disponibles.'
+        """Aprueba la solicitud y descuenta del saldo. Valida disponibilidad.
+
+        Usa select_for_update() para bloquear el saldo y evitar race conditions
+        cuando dos aprobaciones concurrentes apuntan al mismo período vacacional.
+        """
+        if self.saldo:
+            # Lock a nivel de fila: ninguna otra transacción puede leer/modificar
+            # este saldo hasta que esta transacción termine (COMMIT o ROLLBACK).
+            saldo_locked = type(self.saldo).objects.select_for_update().get(
+                pk=self.saldo.pk
             )
+            if self.dias_calendario > saldo_locked.dias_pendientes:
+                raise ValueError(
+                    f'Saldo insuficiente: solicita {self.dias_calendario} días '
+                    f'pero solo tiene {saldo_locked.dias_pendientes} disponibles.'
+                )
         self.estado = 'APROBADA'
         self.aprobado_por = usuario
         self.fecha_aprobacion = date.today()
         self.save(update_fields=['estado', 'aprobado_por', 'fecha_aprobacion'])
-        # Descontar del saldo con lock para evitar race conditions
         if self.saldo:
             from django.db.models import F
             type(self.saldo).objects.filter(pk=self.saldo.pk).update(

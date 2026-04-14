@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}CTS — Deposito Bancario{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="fas fa-piggy-bank me-2 text-teal"></i>CTS — Deposito Bancario</h4>
+    <small class="text-muted">Compensacion por Tiempo de Servicios — D.Leg. 650 | Mayo y Noviembre</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'cts_bancos_exportar' %}" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i>Exportar Excel</a>
+    <a href="{% url 'integraciones_panel' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Integraciones</a>
+  </div>
+</div>
+
+<div class="row g-2 mb-3">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-teal">{{ total_empleados }}</div>
+      <small class="text-muted">Empleados con cuenta CTS</small>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-success">S/ {{ total_monto|floatformat:2 }}</div>
+      <small class="text-muted">Monto total a depositar</small>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <table class="table table-sm table-hover mb-0" style="font-size:.82rem;">
+    <thead style="background:#f1f5f9;">
+      <tr><th>#</th><th>DNI</th><th>Trabajador</th><th>Banco</th><th>Cuenta CTS</th><th class="text-end">Rem. Comp.</th><th class="text-end">CTS</th></tr>
+    </thead>
+    <tbody>
+      {% for d in detalle %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ d.personal.nro_doc }}</td>
+        <td class="fw-semibold">{{ d.personal.apellidos_nombres }}</td>
+        <td>{{ d.personal.banco|default:"—" }}</td>
+        <td><code>{{ d.personal.cuenta_cts }}</code></td>
+        <td class="text-end">{{ d.rem_comp|floatformat:2 }}</td>
+        <td class="text-end fw-bold text-success">{{ d.cts|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-center py-4 text-muted">Sin empleados con cuenta CTS registrada.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if detalle %}
+    <tfoot style="background:#f0fdf4;">
+      <tr class="fw-bold">
+        <td colspan="6" class="text-end">TOTAL</td>
+        <td class="text-end text-success">S/ {{ total_monto|floatformat:2 }}</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+{% endblock %}

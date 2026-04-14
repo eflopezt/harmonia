@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Historial Envíos por Área{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-clock-history text-primary me-2"></i>Historial de Envíos por Área</h4>
+    <a href="{% url 'asistencia_reportes_areas' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver al panel
+    </a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Área</th>
+            <th>Período</th>
+            <th>Tipo</th>
+            <th>Destinatarios</th>
+            <th>Empleados</th>
+            <th>Estado</th>
+            <th>Enviado por</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in envios %}
+          <tr>
+            <td class="fw-semibold">{{ e.area.nombre }}</td>
+            <td class="small text-muted">{{ e.fecha_inicio|date:"d/m/Y" }} – {{ e.fecha_fin|date:"d/m/Y" }}</td>
+            <td><span class="badge bg-secondary-subtle text-secondary">{{ e.get_tipo_periodo_display }}</span></td>
+            <td class="small">{{ e.emails_destino|join:", " }}</td>
+            <td class="text-center">
+              <span class="badge bg-primary-subtle text-primary">{{ e.empleados_enviados }}/{{ e.empleados_total }}</span>
+            </td>
+            <td>
+              {% if e.estado == 'ENVIADO' %}
+                <span class="badge bg-success">Enviado</span>
+              {% elif e.estado == 'PARCIAL' %}
+                <span class="badge bg-warning text-dark">Parcial</span>
+              {% elif e.estado == 'ERROR' %}
+                <span class="badge bg-danger">Error</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ e.estado }}</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ e.creado_por.get_full_name|default:e.creado_por.username|default:"—" }}</td>
+            <td class="small text-muted">{{ e.creado_en|date:"d/m/Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No hay envíos registrados aún.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

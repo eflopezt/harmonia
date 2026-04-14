@@ -132,6 +132,44 @@ def personal_update(request, pk):
             if cambios:
                 log_update(request, personal, cambios)
 
+            # ── Reproceso automático si cambió condición o grupo ──
+            campos_reproceso = {'condicion', 'grupo_tareo'}
+            cambios_reproceso = {k: v for k, v in cambios.items() if k in campos_reproceso}
+            if cambios_reproceso:
+                try:
+                    from asistencia.services.reprocesar_personal import reprocesar_asistencia_personal
+                    old_cond = cambios.get('condicion', {}).get('old', '')
+                    old_grupo = cambios.get('grupo_tareo', {}).get('old', '')
+                    stats = reprocesar_asistencia_personal(
+                        personal,
+                        old_condicion=old_cond,
+                        old_grupo=old_grupo,
+                    )
+                    det = []
+                    if 'condicion' in cambios_reproceso:
+                        det.append(f'condición: {old_cond} → {personal.condicion}')
+                    if 'grupo_tareo' in cambios_reproceso:
+                        det.append(f'grupo: {old_grupo} → {personal.grupo_tareo}')
+                    msg = (
+                        f'Asistencia reprocesada automáticamente ({", ".join(det)}): '
+                        f'{stats["registros_actualizados"]} registros y '
+                        f'{stats["banco_horas_actualizados"]} meses de BancoHoras actualizados.'
+                    )
+                    if stats.get('registros_omitidos_cerrado'):
+                        msg += (
+                            f' ⚠️ {stats["registros_omitidos_cerrado"]} registros en períodos '
+                            f'cerrados NO fueron modificados ({stats["periodos_cerrados"]}).'
+                        )
+                    messages.info(request, msg)
+                except Exception as e:
+                    import logging
+                    logging.getLogger('personal').error(f'Error reprocesando asistencia: {e}', exc_info=True)
+                    messages.warning(
+                        request,
+                        f'Personal actualizado, pero hubo un error al reprocesar la asistencia: {str(e)[:200]}. '
+                        f'Contacte al administrador.'
+                    )
+
             messages.success(request, 'Personal actualizado exitosamente.')
             return redirect('personal_list')
     else:
@@ -365,6 +403,13 @@ def personal_detail(request, pk):
         'today':         date.today(),
         'motivos_cese':  Personal.MOTIVO_CESE_CHOICES,
     }
+    # Reglas especiales de asistencia
+    try:
+        from asistencia.models import ReglaEspecialPersonal
+        context['reglas_especiales'] = ReglaEspecialPersonal.objects.filter(
+            personal=personal).order_by('prioridad')
+    except Exception:
+        context['reglas_especiales'] = []
     context.update(get_context_usuario(request.user))
     return render(request, 'personal/personal_detail.html', context)
 

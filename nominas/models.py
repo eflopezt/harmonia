@@ -17,6 +17,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 from personal.models import Personal
 
@@ -146,7 +147,15 @@ class PeriodoNomina(models.Model):
         verbose_name = 'Período de Nómina'
         verbose_name_plural = 'Períodos de Nómina'
         ordering = ['-anio', '-mes', 'tipo']
-        unique_together = [['tipo', 'anio', 'mes']]
+        constraints = [
+            # Permite solo un período de cada tipo (REGULAR, GRATIFICACION, etc.) por mes,
+            # excepto LIQUIDACION donde puede haber uno por empleado cesado en el mismo mes.
+            models.UniqueConstraint(
+                fields=['tipo', 'anio', 'mes'],
+                condition=~Q(tipo='LIQUIDACION'),
+                name='nominas_periodo_unique_no_liquidacion',
+            ),
+        ]
 
     def __str__(self):
         return self.descripcion or f'{self.get_tipo_display()} {self.mes:02d}/{self.anio}'
@@ -468,3 +477,57 @@ class LineaPlan(models.Model):
         if fin and fin < mes_inicio:
             return False
         return True
+
+
+# ═══════════════════════════════════════════════════════════
+#  RECARGA DE TARJETAS DE ALIMENTACIÓN
+# ═══════════════════════════════════════════════════════════
+
+class RecargaAlimentacion(models.Model):
+    """
+    Control de recargas mensuales de tarjetas de alimentación (Edenred, Sodexo).
+    Cada registro = una recarga mensual para un empleado.
+    """
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente de Procesamiento'),
+        ('PROCESADA', 'Procesada (enviada al proveedor)'),
+        ('RECHAZADA', 'Rechazada'),
+    ]
+
+    personal = models.ForeignKey(
+        'personal.Personal', on_delete=models.CASCADE,
+        related_name='recargas_alimentacion')
+    anio = models.PositiveSmallIntegerField(verbose_name='Año')
+    mes = models.PositiveSmallIntegerField(verbose_name='Mes')
+    monto = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name='Monto Recarga')
+    comision = models.DecimalField(
+        max_digits=8, decimal_places=2, default=0,
+        verbose_name='Comisión Proveedor')
+    total = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name='Total (monto + comisión)')
+    estado = models.CharField(
+        max_length=15, choices=ESTADO_CHOICES, default='PENDIENTE')
+    proveedor = models.CharField(
+        max_length=50, default='EDENRED',
+        verbose_name='Proveedor',
+        help_text='Edenred, Sodexo, etc.')
+    numero_tarjeta = models.CharField(
+        max_length=30, blank=True, default='')
+    procesado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('personal', 'anio', 'mes')]
+        ordering = ['-anio', '-mes', 'personal__apellidos_nombres']
+        verbose_name = 'Recarga de Alimentación'
+        verbose_name_plural = 'Recargas de Alimentación'
+
+    def __str__(self):
+        return f'{self.personal} — {self.mes:02d}/{self.anio} — S/{self.monto}'
+
+    def save(self, *args, **kwargs):
+        self.total = self.monto + self.comision
+        super().save(*args, **kwargs)

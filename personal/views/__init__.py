@@ -79,3 +79,5 @@ from .organigrama import (
     organigrama_auto_asignar, organigrama_asignar_jefe_area,
     organigrama_bulk_reporta,
 )
+
+from .activos import activos_panel, activo_asignar, activo_devolver

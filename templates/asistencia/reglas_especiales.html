@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Reglas Especiales de Asistencia{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="mb-0 fw-bold"><i class="fas fa-cogs me-2 text-teal"></i>{{ titulo }}</h4>
+  <span class="badge bg-info fs-6">{{ total }} regla{{ total|pluralize:"s" }}</span>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="d-flex gap-2 mb-3 flex-wrap">
+  <input type="text" name="buscar" class="form-control form-control-sm" style="max-width:280px;"
+         placeholder="Buscar empleado, código..." value="{{ buscar }}">
+  <select name="estado" class="form-select form-select-sm" style="max-width:160px;" onchange="this.form.submit()">
+    <option value="">Todas</option>
+    <option value="activas" {% if estado == 'activas' %}selected{% endif %}>Solo activas</option>
+    <option value="inactivas" {% if estado == 'inactivas' %}selected{% endif %}>Solo inactivas</option>
+  </select>
+  <button class="btn btn-sm btn-primary"><i class="fas fa-search me-1"></i>Buscar</button>
+</form>
+
+{% if reglas %}
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0" style="font-size:.82rem;">
+      <thead style="background:#f1f5f9;">
+        <tr>
+          <th>Empleado</th>
+          <th>Descripción</th>
+          <th>Días</th>
+          <th>Código</th>
+          <th>Condición</th>
+          <th>Vigencia</th>
+          <th>Prioridad</th>
+          <th>Estado</th>
+          <th>Creado por</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reglas %}
+        <tr class="{% if not r.obj.activa %}text-muted{% endif %}">
+          <td class="fw-semibold">
+            <a href="{% url 'personal_detail' r.obj.personal_id %}">{{ r.obj.personal.apellidos_nombres|truncatechars:35 }}</a>
+          </td>
+          <td>{{ r.obj.descripcion|truncatechars:50 }}</td>
+          <td style="white-space:nowrap;">{{ r.dias_str }}</td>
+          <td><span class="badge bg-secondary">{{ r.obj.codigo_resultado }}</span></td>
+          <td>{{ r.obj.condicion_laboral|default:"—" }}</td>
+          <td style="white-space:nowrap; font-size:.75rem;">
+            {{ r.obj.fecha_desde|date:"d/m/Y" }} → {% if r.obj.fecha_hasta %}{{ r.obj.fecha_hasta|date:"d/m/Y" }}{% else %}∞{% endif %}
+          </td>
+          <td class="text-center">{{ r.obj.prioridad }}</td>
+          <td>
+            {% if r.obj.activa %}
+              <span class="badge bg-success" style="font-size:.65rem;">Activa</span>
+            {% else %}
+              <span class="badge bg-secondary" style="font-size:.65rem;">Inactiva</span>
+            {% endif %}
+          </td>
+          <td class="text-muted" style="font-size:.72rem;">
+            {{ r.obj.creado_por.get_short_name|default:r.obj.creado_por.username|default:"—" }}<br>
+            {{ r.obj.creado_en|date:"d/m/Y" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="fas fa-cogs d-block mb-2" style="font-size:2rem; opacity:.3;"></i>
+  <p>No hay reglas especiales configuradas{% if buscar %} para "{{ buscar }}"{% endif %}.</p>
+  <p class="small">Para crear reglas, ve a la ficha del empleado → pestaña <strong>⚙️ Reglas</strong></p>
+</div>
+{% endif %}
+{% endblock %}

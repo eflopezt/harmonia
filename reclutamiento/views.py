@@ -325,6 +325,14 @@ def postulacion_detalle(request, pk):
 def postulacion_mover_etapa(request, pk):
     """Mover postulacion a otra etapa del pipeline (AJAX)."""
     postulacion = get_object_or_404(Postulacion, pk=pk)
+
+    # Solo postulaciones activas pueden moverse entre etapas
+    if postulacion.estado != 'ACTIVA':
+        return JsonResponse(
+            {'ok': False, 'error': 'Solo se puede mover postulaciones activas.'},
+            status=400
+        )
+
     etapa_id = request.POST.get('etapa_id')
 
     if not etapa_id:
@@ -332,19 +340,20 @@ def postulacion_mover_etapa(request, pk):
 
     etapa = get_object_or_404(EtapaPipeline, pk=etapa_id, activa=True)
     etapa_anterior = postulacion.etapa
+    texto_etapa_anterior = str(etapa_anterior) if etapa_anterior else 'Sin etapa'
 
     postulacion.etapa = etapa
     postulacion.save(update_fields=['etapa'])
 
     log_update(request, postulacion, {
-        'etapa': {'old': str(etapa_anterior), 'new': str(etapa)},
+        'etapa': {'old': texto_etapa_anterior, 'new': str(etapa)},
     })
 
     # Crear nota automatica
     NotaPostulacion.objects.create(
         postulacion=postulacion,
         autor=request.user,
-        texto=f'Movido de "{etapa_anterior}" a "{etapa}"',
+        texto=f'Movido de "{texto_etapa_anterior}" a "{etapa}"',
         tipo='NOTA',
     )
 
@@ -360,14 +369,15 @@ def postulacion_mover_etapa(request, pk):
 @require_POST
 def postulacion_descartar(request, pk):
     """Descartar una postulacion (AJAX)."""
-    postulacion = get_object_or_404(Postulacion, pk=pk)
+    postulacion = get_object_or_404(Postulacion, pk=pk, estado='ACTIVA')
     motivo = request.POST.get('motivo', '')
 
+    estado_anterior = postulacion.estado
     postulacion.estado = 'DESCARTADA'
     postulacion.save(update_fields=['estado'])
 
     log_update(request, postulacion, {
-        'estado': {'old': 'ACTIVA', 'new': 'DESCARTADA'},
+        'estado': {'old': estado_anterior, 'new': 'DESCARTADA'},
     })
 
     # Crear nota con motivo
@@ -1782,3 +1792,76 @@ def contratar_candidato(request, pk):
 
     # Redirigir al registro de personal recién creado
     return redirect('personal_detail', pk=personal.pk)
+
+
+# ══════════════════════════════════════════════════════════════
+# API — GENERADOR DE DESCRIPCION CON IA
+# ══════════════════════════════════════════════════════════════
+
+@login_required
+@require_POST
+def api_generar_descripcion(request):
+    """
+    Genera descripción y requisitos del puesto usando IA.
+    Similar a BUK AI "Crear" — generador de descripciones de puesto.
+    """
+    import json as _json
+    try:
+        data = _json.loads(request.body)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'})
+
+    titulo = data.get('titulo', '').strip()
+    area = data.get('area', '').strip()
+
+    if not titulo:
+        return JsonResponse({'ok': False, 'error': 'Título requerido'})
+
+    from asistencia.services.ai_service import get_service
+    svc = get_service()
+    if not svc:
+        return JsonResponse({'ok': False, 'error': 'IA no configurada. Ir a Configuración > IA.'})
+
+    system = (
+        'Eres un experto en RRHH del sector construcción en Perú. '
+        'Genera descripciones de puesto profesionales y requisitos para una empresa constructora. '
+        'El formato debe ser claro y estructurado. '
+        'Responde en español. No uses markdown, solo texto plano con viñetas (-).'
+    )
+
+    prompt = (
+        f'Genera la DESCRIPCIÓN DEL PUESTO y los REQUISITOS para el cargo:\n\n'
+        f'Puesto: {titulo}\n'
+        f'Área: {area or "General"}\n'
+        f'Empresa: Consorcio constructora (obra hospitalaria)\n\n'
+        f'Formato de respuesta:\n'
+        f'DESCRIPCION:\n[texto de 3-5 líneas describiendo responsabilidades principales]\n\n'
+        f'REQUISITOS:\n[lista con - de 5-8 requisitos: educación, experiencia, conocimientos, habilidades]'
+    )
+
+    try:
+        resultado = svc.generate(prompt, system=system)
+        if not resultado:
+            return JsonResponse({'ok': False, 'error': 'La IA no devolvió resultado.'})
+
+        # Parsear respuesta
+        desc = ''
+        reqs = ''
+        if 'DESCRIPCION:' in resultado.upper() and 'REQUISITOS:' in resultado.upper():
+            parts = resultado.upper().split('REQUISITOS:')
+            desc_part = resultado[:resultado.upper().index('REQUISITOS:')]
+            reqs_part = resultado[resultado.upper().index('REQUISITOS:') + len('REQUISITOS:'):]
+            desc = desc_part.replace('DESCRIPCION:', '').replace('DESCRIPCIÓN:', '').strip()
+            reqs = reqs_part.strip()
+        else:
+            # Sin formato esperado — usar todo como descripción
+            desc = resultado.strip()
+
+        return JsonResponse({
+            'ok': True,
+            'descripcion': desc,
+            'requisitos': reqs,
+        })
+
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error IA: {str(e)[:200]}'})

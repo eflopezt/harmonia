@@ -47,4 +47,8 @@ urlpatterns = [
     path('sctr/crear/', views.sctr_crear, name='sctr_crear'),
     path('sctr/<int:pk>/editar/', views.sctr_editar, name='sctr_editar'),
     path('sctr/<int:pk>/estado/', views.sctr_estado, name='sctr_estado'),
+
+    # CTS — Depósito bancario
+    path('cts-bancos/', views.cts_bancos_panel, name='cts_bancos_panel'),
+    path('cts-bancos/exportar/', views.cts_bancos_exportar, name='cts_bancos_exportar'),
 ]

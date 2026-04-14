@@ -2,7 +2,11 @@
 URLs del módulo Asistencia y Control.
 """
 from django.urls import path
-from asistencia import views, views_ai
+from asistencia import views, views_ai, views_reglas, views_reglas_ia
+from asistencia.views.reportes_area import (
+    panel_reportes_area, configurar_area,
+    generar_zip_por_area, enviar_reportes_por_area, historial_envios,
+)
 
 urlpatterns = [
     # Dashboard principal
@@ -112,6 +116,13 @@ urlpatterns = [
     path('biometrico/test/', views.test_dispositivo, name='asistencia_biometrico_test'),
     path('biometrico/logs/', views.logs_sincronizacion, name='asistencia_biometrico_logs'),
 
+    # Reportes por Área
+    path('reportes/areas/', panel_reportes_area, name='asistencia_reportes_areas'),
+    path('reportes/areas/<int:area_id>/configurar/', configurar_area, name='asistencia_reportes_area_config'),
+    path('reportes/areas/zip/', generar_zip_por_area, name='asistencia_reportes_area_zip'),
+    path('reportes/areas/enviar/', enviar_reportes_por_area, name='asistencia_reportes_area_enviar'),
+    path('reportes/areas/historial/', historial_envios, name='asistencia_reportes_area_historial'),
+
     # Reportes Individuales
     path('reportes/', views.reporte_panel, name='asistencia_reportes'),
     path('reportes/<int:personal_id>/pdf/', views.reporte_individual_pdf, name='asistencia_reporte_pdf'),
@@ -130,4 +141,12 @@ urlpatterns = [
     path('ajax/staff-data/', views.ajax_staff_data, name='asistencia_ajax_staff'),
     path('ajax/rco-data/', views.ajax_rco_data, name='asistencia_ajax_rco'),
     path('ajax/importaciones/', views.ajax_importaciones, name='asistencia_ajax_imports'),
+
+    # Reglas Especiales de Asistencia
+    path('reglas-especiales/', views_reglas.lista_reglas, name='reglas_especiales'),
+    path('reglas-ia/chat/', views_reglas_ia.chat_regla, name='regla_ia_chat'),
+    path('reglas-ia/preview/', views_reglas_ia.preview_regla, name='regla_ia_preview'),
+    path('reglas-ia/confirmar/', views_reglas_ia.confirmar_regla, name='regla_ia_confirmar'),
+    path('reglas-ia/<int:pk>/toggle/', views_reglas_ia.toggle_regla, name='regla_ia_toggle'),
+    path('reglas-ia/<int:pk>/delete/', views_reglas_ia.delete_regla, name='regla_ia_delete'),
 ]

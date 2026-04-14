@@ -37,7 +37,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 
     <!-- Harmoni ERP CSS -->
-    <link rel="stylesheet" href="{% static 'css/harmoni.css' %}?v=4">
+    <link rel="stylesheet" href="{% static 'css/harmoni.css' %}?v=5">
     <link rel="stylesheet" href="{% static 'css/harmoni-ai.css' %}?v=2">
     <link rel="stylesheet" href="{% static 'css/responsive-mobile.css' %}?v=2">
 
@@ -349,6 +349,9 @@
                     </a>
                     <a href="{% url 'asistencia_reportes' %}" class="nav-item" data-match="/asistencia/reportes">
                         <i class="fas fa-file-pdf"></i><span>Reportes PDF</span>
+                    </a>
+                    <a href="{% url 'asistencia_reportes_areas' %}" class="nav-item" data-match="/asistencia/reportes/areas">
+                        <i class="fas fa-layer-group"></i><span>Reportes por Área</span>
                     </a>
                     <a href="{% url 'asistencia_exportar_panel' %}" class="nav-item" data-match="/asistencia/exportar">
                         <i class="fas fa-file-export"></i><span>Exportaciones</span>
@@ -914,6 +917,10 @@
         <button class="sidebar-toggle d-lg-none" id="sidebarToggle" aria-label="Menú">
             <i class="fas fa-bars"></i>
         </button>
+        <button onclick="history.back()" class="btn btn-sm btn-link text-muted px-2 py-0 d-none"
+                id="btnBack" title="Volver atrás" style="font-size:1.1rem;">
+            <i class="fas fa-arrow-left"></i>
+        </button>
         <div class="topbar-title">
             {% block page_title %}{% endblock %}
         </div>
@@ -1453,6 +1460,16 @@
 {% endif %}
 
 {% block extra_js %}{% endblock %}
+
+<!-- Fix Bootstrap modals: move to <body> to avoid stacking context issues
+     when modals are inside containers with transform/overflow/z-index -->
+<script>
+document.querySelectorAll('.modal').forEach(function(modal) {
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+});
+</script>
 
 {% if user.is_authenticated %}
 <!-- ══════════════════════════════════════════════════════════════════════════
@@ -2112,6 +2129,12 @@ window.cmdClose = close;
   // ── Initialize Push Notifications ──
   if (window.HarmoniPush) {
     HarmoniPush.init();
+  }
+
+  // ── Show back button in PWA/standalone mode ──
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    var btnBack = document.getElementById('btnBack');
+    if (btnBack) btnBack.classList.remove('d-none');
   }
 
 })();

@@ -33,4 +33,11 @@ urlpatterns = [
     path('mis-permisos/', views.mis_permisos, name='mis_permisos'),
     path('mis-permisos/solicitar/', views.permiso_solicitar, name='permiso_solicitar'),
     path('anular/<str:tipo>/<int:pk>/', views.solicitud_anular, name='solicitud_anular'),
+
+    # Admin — Detalle de Saldo
+    path('saldos/<int:pk>/', views.saldo_detalle, name='saldo_detalle'),
+
+    # Admin — Venta de Vacaciones
+    path('ventas/', views.venta_vacaciones_lista, name='venta_vacaciones_lista'),
+    path('ventas/crear/', views.venta_vacaciones_crear, name='venta_vacaciones_crear'),
 ]

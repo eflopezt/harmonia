@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reportes por Área{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="bi bi-folder2-open text-primary me-2"></i>Reportes de Asistencia por Área</h4>
+      <p class="text-muted mb-0 small">Genera y envía reportes agrupados por área a las jefaturas</p>
+    </div>
+    <a href="{% url 'asistencia_reportes_area_historial' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-clock-history me-1"></i>Historial de envíos
+    </a>
+  </div>
+
+  <!-- Panel de Controles -->
+  <div class="card shadow-sm mb-4 border-0">
+    <div class="card-body py-3">
+      <div class="row g-3 align-items-end">
+
+        <div class="col-md-3">
+          <label class="form-label fw-semibold small text-muted mb-1">PERÍODO</label>
+          <select id="tipoPeriodo" class="form-select form-select-sm" onchange="actualizarFechas()">
+            <option value="ESTA_SEMANA">Esta semana (lun – hoy)</option>
+            <option value="SEMANAL" selected>Semana pasada</option>
+            <option value="QUINCENAL">Última quincena</option>
+            <option value="ESTE_MES">Este mes (a hoy)</option>
+            <option value="MENSUAL">Mes anterior completo</option>
+            <option value="PERSONALIZADO">Personalizado…</option>
+          </select>
+        </div>
+
+        <div class="col-md-2" id="colFechaIni" style="display:none">
+          <label class="form-label fw-semibold small text-muted mb-1">DESDE</label>
+          <input type="date" id="fechaInicio" class="form-control form-control-sm" value="{{ hoy|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-2" id="colFechaFin" style="display:none">
+          <label class="form-label fw-semibold small text-muted mb-1">HASTA</label>
+          <input type="date" id="fechaFin" class="form-control form-control-sm" value="{{ hoy|date:'Y-m-d' }}">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label fw-semibold small text-muted mb-1">GRUPO</label>
+          <select id="grupoFiltro" class="form-select form-select-sm">
+            <option value="TODOS">STAFF + RCO</option>
+            <option value="STAFF">Solo STAFF</option>
+            <option value="RCO">Solo RCO</option>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label fw-semibold small text-muted mb-1">ÁREAS</label>
+          <select id="areasFiltro" class="form-select form-select-sm" multiple size="1">
+            <option value="" selected>Todas</option>
+            {% for d in area_data %}
+            <option value="{{ d.area.pk }}">{{ d.area.nombre }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text" style="font-size:10px">Ctrl+clic para múltiple</div>
+        </div>
+
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-outline-primary btn-sm flex-fill" onclick="descargarZip()">
+            <i class="bi bi-download me-1"></i>Descargar ZIP
+          </button>
+          <button class="btn btn-success btn-sm flex-fill" onclick="abrirModalEnvio()">
+            <i class="bi bi-send me-1"></i>Enviar todo
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards de Áreas -->
+  <div class="row g-3">
+    {% for d in area_data %}
+    <div class="col-lg-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0 {% if d.tiene_config and d.activo %}border-start border-3 border-success{% elif d.tiene_config %}border-start border-3 border-secondary{% endif %}">
+
+        <!-- Header del card -->
+        <div class="card-header bg-white d-flex align-items-center justify-content-between py-2 border-bottom">
+          <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+            <span class="badge bg-primary-subtle text-primary rounded-pill flex-shrink-0">{{ d.n_empleados }} emp.</span>
+            <span class="fw-semibold text-truncate">{{ d.area.nombre }}</span>
+          </div>
+          <button class="btn btn-sm btn-link text-muted p-0 ms-2 flex-shrink-0"
+                  id="btnEdit-{{ d.area.pk }}"
+                  onclick="toggleConfig({{ d.area.pk }})" title="Editar configuración">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+        </div>
+
+        <!-- Cuerpo: vista normal -->
+        <div class="card-body py-2 px-3" id="vista-{{ d.area.pk }}">
+
+          <!-- Jefe / responsable -->
+          {% if d.nombre_jefe %}
+          <div class="d-flex align-items-center gap-1 mb-2">
+            <i class="bi bi-person-badge text-primary small"></i>
+            <span class="small fw-semibold">{{ d.nombre_jefe }}</span>
+          </div>
+          {% endif %}
+
+          <!-- Email principal (visible, clickeable) -->
+          {% if d.emails_jefatura %}
+          <div class="mb-2">
+            <div class="small text-muted mb-1"><i class="bi bi-envelope-fill text-success me-1"></i>Para:</div>
+            <div class="d-flex flex-wrap gap-1">
+              {% for em in d.emails_jefatura %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-3 font-monospace" style="font-size:11px">{{ em }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <div class="alert alert-warning py-1 px-2 small mb-2">
+            <i class="bi bi-exclamation-triangle me-1"></i>Sin destinatario configurado
+          </div>
+          {% endif %}
+
+          <!-- CC -->
+          {% if d.emails_cc %}
+          <div class="mb-2">
+            <div class="small text-muted mb-1"><i class="bi bi-envelope-arrow-up text-info me-1"></i>CC:</div>
+            <div class="d-flex flex-wrap gap-1">
+              {% for em in d.emails_cc %}
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-3 font-monospace" style="font-size:11px">{{ em }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Último envío -->
+          {% if d.ultimo_envio %}
+          <div class="small text-muted mt-2 pt-2 border-top">
+            <i class="bi bi-check-circle text-success me-1"></i>
+            Último envío: <strong>{{ d.ultimo_envio|date:"d/m/Y H:i" }}</strong>
+          </div>
+          {% else %}
+          <div class="small text-muted mt-2 pt-2 border-top">
+            <i class="bi bi-dash-circle text-muted me-1"></i>Sin envíos registrados
+          </div>
+          {% endif %}
+
+          <!-- Historial de emails (desplegable) -->
+          {% if d.historial %}
+          <button class="btn btn-link btn-sm p-0 mt-1 text-muted" style="font-size:11px"
+                  type="button" data-bs-toggle="collapse" data-bs-target="#hist-{{ d.area.pk }}">
+            <i class="bi bi-clock me-1"></i>Ver historial de cambios ({{ d.historial|length }})
+          </button>
+          <div class="collapse" id="hist-{{ d.area.pk }}">
+            {% for h in d.historial %}
+            <div class="border rounded p-2 mt-1 bg-light" style="font-size:10px">
+              <div class="text-muted">{{ h.fecha }} — {{ h.usuario }}</div>
+              {% if h.emails_antes %}
+              <div class="text-danger">Antes: {{ h.emails_antes|join:", " }}</div>
+              {% endif %}
+              <div class="text-success">Después: {{ h.emails_despues|join:", " }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+        </div>
+
+        <!-- Panel de edición (oculto) -->
+        <div class="card-body py-2 px-3 d-none bg-light rounded-bottom" id="editar-{{ d.area.pk }}">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">NOMBRE JEFE / RESPONSABLE</label>
+            <input type="text" class="form-control form-control-sm"
+                   id="jefe-{{ d.area.pk }}" value="{{ d.nombre_jefe }}"
+                   placeholder="Ej: Carlos Ucañay">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">
+              EMAIL DESTINO
+              <span class="text-muted fw-normal">(uno por línea o separados por coma)</span>
+            </label>
+            <textarea class="form-control form-control-sm font-monospace" rows="2"
+                      id="emails-jef-{{ d.area.pk }}"
+                      placeholder="jefe@empresa.com">{{ d.emails_jefatura|join:", " }}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">CC</label>
+            <textarea class="form-control form-control-sm font-monospace" rows="1"
+                      id="emails-cc-{{ d.area.pk }}"
+                      placeholder="rrhh@empresa.com">{{ d.emails_cc|join:", " }}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">ASUNTO</label>
+            <input type="text" class="form-control form-control-sm"
+                   id="asunto-{{ d.area.pk }}" value="{{ d.asunto_template }}"
+                   placeholder="Reporte de Asistencia - {area} - {periodo}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">CUERPO (vacío = predeterminado)</label>
+            <textarea class="form-control form-control-sm" rows="3"
+                      id="cuerpo-{{ d.area.pk }}"
+                      placeholder="Vars: {area}, {periodo}, {empresa}, {total_empleados}">{{ d.cuerpo_template }}</textarea>
+          </div>
+          <div class="d-flex gap-2 justify-content-end">
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleConfig({{ d.area.pk }})">Cancelar</button>
+            <button class="btn btn-sm btn-primary" onclick="guardarConfig({{ d.area.pk }})">
+              <i class="bi bi-floppy me-1"></i>Guardar
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer con acciones -->
+        <div class="card-footer bg-white border-0 py-2 d-flex gap-2">
+          <button class="btn btn-sm btn-outline-primary flex-fill"
+                  onclick="descargarZipArea({{ d.area.pk }})">
+            <i class="bi bi-download me-1"></i>ZIP
+          </button>
+          <button class="btn btn-sm {% if d.emails_jefatura %}btn-success{% else %}btn-outline-secondary{% endif %} flex-fill"
+                  onclick="enviarArea({{ d.area.pk }}, '{{ d.area.nombre|escapejs }}')"
+                  {% if not d.emails_jefatura %}title="Configura email primero"{% endif %}>
+            <i class="bi bi-send me-1"></i>Enviar
+          </button>
+        </div>
+
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><div class="alert alert-info">No hay áreas con empleados activos.</div></div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- Modal Envío Global -->
+<div class="modal fade" id="modalEnvio" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-send me-2"></i>Enviar Reportes por Área</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 mb-3 small" id="resumenPeriodo">
+          Período seleccionado según el panel de controles.
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold text-muted">EMAILS ADICIONALES (todas las áreas)</label>
+            <textarea id="envioEmailsExtra" class="form-control form-control-sm" rows="2"
+                      placeholder="extra@empresa.com (se agrega a los emails de cada área)"></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold text-muted">CC ADICIONAL (todas las áreas)</label>
+            <textarea id="envioCCExtra" class="form-control form-control-sm" rows="2"
+                      placeholder="gerencia@empresa.com"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold text-muted">ASUNTO GLOBAL (vacío = usa el de cada área)</label>
+            <input type="text" id="envioAsunto" class="form-control form-control-sm"
+                   placeholder="Reporte de Asistencia - {area} - {periodo}">
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold text-muted">
+              CUERPO (vacío = predeterminado por área)
+              <span class="fw-normal text-muted">— vars: {area}, {periodo}, {empresa}, {total_empleados}</span>
+            </label>
+            <textarea id="envioCuerpo" class="form-control form-control-sm" rows="5" placeholder="Dejar vacío para usar el texto predeterminado…"></textarea>
+          </div>
+        </div>
+        <div id="resultadoEnvio" class="d-none mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnConfirmarEnvio" onclick="confirmarEnvio()">
+          <i class="bi bi-send me-1"></i>Enviar a todas las áreas configuradas
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toast" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg">…</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+function showToast(msg, tipo='success') {
+  const t = document.getElementById('toast');
+  t.className = `toast align-items-center text-white border-0 bg-${tipo}`;
+  document.getElementById('toastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(t, {delay: 4000}).show();
+}
+
+function getPeriodoParams() {
+  const tipo = document.getElementById('tipoPeriodo').value;
+  const p = new URLSearchParams();
+  p.set('tipo_periodo', tipo);
+  p.set('grupo', document.getElementById('grupoFiltro').value);
+  for (const opt of document.getElementById('areasFiltro').selectedOptions) {
+    if (opt.value) p.append('areas', opt.value);
+  }
+  if (tipo === 'PERSONALIZADO') {
+    p.set('fecha_inicio', document.getElementById('fechaInicio').value);
+    p.set('fecha_fin', document.getElementById('fechaFin').value);
+  }
+  return p;
+}
+
+function actualizarFechas() {
+  const show = document.getElementById('tipoPeriodo').value === 'PERSONALIZADO';
+  document.getElementById('colFechaIni').style.display = show ? '' : 'none';
+  document.getElementById('colFechaFin').style.display = show ? '' : 'none';
+}
+
+// ── Config inline ──────────────────────────────────────────────
+function toggleConfig(id) {
+  const vista  = document.getElementById('vista-' + id);
+  const editar = document.getElementById('editar-' + id);
+  const btn    = document.getElementById('btnEdit-' + id);
+  const editando = !editar.classList.contains('d-none');
+  vista .classList.toggle('d-none', !editando);
+  editar.classList.toggle('d-none', editando);
+  btn.querySelector('i').className = editando ? 'bi bi-pencil-square' : 'bi bi-x-lg';
+}
+
+async function guardarConfig(id) {
+  const body = new URLSearchParams({
+    nombre_jefe:     document.getElementById('jefe-' + id).value,
+    emails_jefatura: document.getElementById('emails-jef-' + id).value,
+    emails_cc:       document.getElementById('emails-cc-' + id).value,
+    asunto_template: document.getElementById('asunto-' + id).value,
+    cuerpo_template: document.getElementById('cuerpo-' + id).value,
+    activo: '1',
+  });
+  try {
+    const resp = await fetch(`/asistencia/reportes/areas/${id}/configurar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+      body,
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const cambioTxt = data.cambio ? ' (email actualizado)' : '';
+      showToast(`✓ ${data.area}: ${data.destinatarios} dest., ${data.cc} CC${cambioTxt}`, 'success');
+      // Recargar página para reflejar cambios incluyendo historial
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      showToast('Error al guardar', 'danger');
+    }
+  } catch(e) {
+    showToast('Error de red: ' + e.message, 'danger');
+  }
+}
+
+// ── Descarga ZIP ───────────────────────────────────────────────
+function descargarZip() {
+  const p = getPeriodoParams();
+  showToast('Generando ZIP… puede tardar unos segundos.', 'primary');
+  window.location.href = '{% url "asistencia_reportes_area_zip" %}?' + p.toString();
+}
+
+function descargarZipArea(id) {
+  const p = getPeriodoParams();
+  p.delete('areas'); p.append('areas', id);
+  showToast('Generando ZIP del área…', 'primary');
+  window.location.href = '{% url "asistencia_reportes_area_zip" %}?' + p.toString();
+}
+
+// ── Envío individual por área ─────────────────────────────────
+async function enviarArea(areaId, areaNombre) {
+  if (!confirm(`¿Enviar reportes del área ${areaNombre}?\n\nSe adjuntará un ZIP con los PDFs a los destinatarios configurados.`)) return;
+  const p = getPeriodoParams();
+  p.delete('areas'); p.append('areas', areaId);
+  const btn = event.target.closest('button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando…';
+  try {
+    const body = new URLSearchParams({
+      tipo_periodo: p.get('tipo_periodo'), fecha_inicio: p.get('fecha_inicio')||'',
+      fecha_fin: p.get('fecha_fin')||'', grupo: p.get('grupo'), areas: areaId,
+    });
+    const resp = await fetch('{% url "asistencia_reportes_area_enviar" %}', {
+      method:'POST', headers:{'X-CSRFToken':csrfToken,'Content-Type':'application/x-www-form-urlencoded'}, body,
+    });
+    const data = await resp.json();
+    if (data.ok && data.enviados > 0) {
+      showToast(`✓ ${areaNombre}: ${data.resultados[0]?.empleados||0} PDFs enviados`, 'success');
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      showToast(`${areaNombre}: ${data.resultados[0]?.estado||'sin datos'}`, 'warning');
+    }
+  } catch(e) { showToast('Error: '+e.message, 'danger'); }
+  finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-1"></i>Enviar';
+  }
+}
+
+// ── Modal envío global ────────────────────────────────────────
+function abrirModalEnvio() {
+  const tipo = document.getElementById('tipoPeriodo').options[document.getElementById('tipoPeriodo').selectedIndex].text;
+  const grupo = document.getElementById('grupoFiltro').value;
+  document.getElementById('resumenPeriodo').innerHTML =
+    `<i class="bi bi-calendar-range me-2"></i><strong>Período:</strong> ${tipo} &nbsp;|&nbsp; <strong>Grupo:</strong> ${grupo}`;
+  new bootstrap.Modal(document.getElementById('modalEnvio')).show();
+}
+
+async function confirmarEnvio() {
+  const btn = document.getElementById('btnConfirmarEnvio');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando…';
+  document.getElementById('resultadoEnvio').classList.add('d-none');
+
+  const p = getPeriodoParams();
+  const body = new URLSearchParams({
+    tipo_periodo:    p.get('tipo_periodo')||'SEMANAL',
+    fecha_inicio:    p.get('fecha_inicio')||'',
+    fecha_fin:       p.get('fecha_fin')||'',
+    grupo:           p.get('grupo')||'TODOS',
+    override_emails: document.getElementById('envioEmailsExtra').value,
+    override_cc:     document.getElementById('envioCCExtra').value,
+    asunto_override: document.getElementById('envioAsunto').value,
+    cuerpo_override: document.getElementById('envioCuerpo').value,
+  });
+  for (const opt of document.getElementById('areasFiltro').selectedOptions) {
+    if (opt.value) body.append('areas', opt.value);
+  }
+
+  try {
+    const resp = await fetch('{% url "asistencia_reportes_area_enviar" %}', {
+      method:'POST', headers:{'X-CSRFToken':csrfToken,'Content-Type':'application/x-www-form-urlencoded'}, body,
+    });
+    const data = await resp.json();
+    let html = `<div class="alert alert-${data.enviados>0?'success':'warning'} mb-2 py-2">
+      <strong>${data.enviados}/${data.total_areas}</strong> áreas enviadas — Período: ${data.periodo}
+    </div><ul class="list-group list-group-flush">`;
+    for (const r of (data.resultados||[])) {
+      const ico = r.enviado ? 'check-circle text-success' : 'exclamation-triangle text-warning';
+      html += `<li class="list-group-item py-1 px-0 small">
+        <i class="bi bi-${ico} me-2"></i><strong>${r.area}</strong>: ${r.estado}${r.empleados?` (${r.empleados} PDFs)`:''}
+      </li>`;
+    }
+    html += '</ul>';
+    const div = document.getElementById('resultadoEnvio');
+    div.innerHTML = html; div.classList.remove('d-none');
+    if (data.enviados > 0) setTimeout(() => location.reload(), 3000);
+  } catch(e) { showToast('Error: '+e.message, 'danger'); }
+  finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send me-1"></i>Enviar a todas las áreas configuradas';
+  }
+}
+</script>
+{% endblock %}

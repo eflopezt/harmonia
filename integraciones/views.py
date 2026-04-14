@@ -1122,3 +1122,57 @@ def sctr_estado(request, pk):
         poliza.save(update_fields=['estado', 'activa'])
         messages.success(request, f'Estado de póliza {poliza.numero_poliza} actualizado a {poliza.get_estado_display()}.')
     return redirect('sctr_panel')
+
+
+# ─────────────────────────────────────────────────
+# CTS — DEPÓSITO BANCARIO
+# ─────────────────────────────────────────────────
+
+@login_required
+@solo_admin
+def cts_bancos_panel(request):
+    """Panel para generar archivo de depósito CTS."""
+    from personal.models import Personal
+    from decimal import Decimal
+
+    activos = Personal.objects.filter(estado='Activo').exclude(
+        cuenta_cts__isnull=True
+    ).exclude(cuenta_cts='')
+
+    detalle = []
+    total = Decimal('0')
+    for p in activos.order_by('apellidos_nombres'):
+        sueldo = p.sueldo_base or Decimal('0')
+        asig_fam = Decimal('113') if p.asignacion_familiar else Decimal('0')
+        rem_comp = sueldo + asig_fam
+        cts = ((rem_comp + rem_comp / 6) / 12 * 6).quantize(Decimal('0.01'))
+        if cts > 0:
+            detalle.append({'personal': p, 'sueldo': sueldo, 'rem_comp': rem_comp, 'cts': cts})
+            total += cts
+
+    return render(request, 'integraciones/cts_bancos.html', {
+        'detalle': detalle, 'total_empleados': len(detalle), 'total_monto': total,
+    })
+
+
+@login_required
+@solo_admin
+def cts_bancos_exportar(request):
+    """Exportar archivo bancario CTS en Excel."""
+    from personal.models import Personal
+    from integraciones.exportadores import generar_cts_banco_excel
+    from decimal import Decimal
+
+    activos = Personal.objects.filter(estado='Activo')
+    montos = {}
+    for p in activos:
+        sueldo = p.sueldo_base or Decimal('0')
+        asig_fam = Decimal('113') if p.asignacion_familiar else Decimal('0')
+        rem_comp = sueldo + asig_fam
+        cts = ((rem_comp + rem_comp / 6) / 12 * 6).quantize(Decimal('0.01'))
+        if cts > 0: montos[p.pk] = cts
+
+    excel_bytes, count, total = generar_cts_banco_excel(activos, montos)
+    response = HttpResponse(excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=CTS_Deposito_{date.today().isoformat()}.xlsx'
+    return response

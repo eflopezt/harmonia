@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Nueva Venta de Vacaciones{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header text-white py-2" style="background:linear-gradient(135deg,#0f766e,#134e4a);">
+        <h5 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Nueva Venta de Vacaciones</h5>
+      </div>
+      <div class="card-body p-4">
+        <p class="small text-muted mb-3">
+          <i class="fas fa-gavel me-1"></i>D.Leg. 713 Art. 19: El trabajador puede vender hasta 15 dias de vacaciones por periodo.
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small text-muted">Trabajador *</label>
+            <select name="personal" class="form-select" required>
+              <option value="">-- Seleccionar --</option>
+              {% for e in empleados %}
+              <option value="{{ e.pk }}">{{ e.apellidos_nombres }} ({{ e.nro_doc }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-muted">Dias a vender * (max 15)</label>
+            <input type="number" name="dias_vendidos" class="form-control" min="1" max="15" required>
+          </div>
+          <div class="alert alert-info py-2 small">
+            <i class="fas fa-calculator me-1"></i>El monto se calcula automaticamente: Remuneracion diaria (sueldo/30) x dias.
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Registrar Venta</button>
+            <a href="{% url 'venta_vacaciones_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

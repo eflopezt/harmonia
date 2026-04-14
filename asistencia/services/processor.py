@@ -26,6 +26,8 @@ from django.utils import timezone
 
 logger = logging.getLogger('personal.business')
 
+CERO = Decimal('0')
+
 # ──────────────────────────────────────────────────────────────
 # MAPEO DE TIPO PERMISO (texto → choice interno)
 # ──────────────────────────────────────────────────────────────
@@ -151,6 +153,12 @@ class TareoProcessor:
                 .values_list('personal_id', 'fecha')
             )
 
+        # Cargar reglas especiales por empleado (activas, ordenadas por prioridad)
+        from asistencia.models import ReglaEspecialPersonal
+        self._reglas: dict[int, list] = {}
+        for regla in ReglaEspecialPersonal.objects.filter(activa=True).order_by('prioridad'):
+            self._reglas.setdefault(regla.personal_id, []).append(regla)
+
     @transaction.atomic
     def procesar(self, registros_reloj: list[dict], papeletas: list[dict],
                  grupo_default: str = 'STAFF') -> dict:
@@ -208,6 +216,15 @@ class TareoProcessor:
         # Índice de papeletas por (dni, fecha)
         papeletas_idx = self._indexar_papeletas(papeletas)
 
+        # Pre-cargar overrides de almuerzo_manual (ediciones manuales previas a re-importación)
+        almuerzo_overrides: dict[tuple, Decimal] = {
+            (r['dni'], r['fecha']): r['almuerzo_manual']
+            for r in RegistroTareo.objects.filter(
+                importacion=self.importacion,
+                almuerzo_manual__isnull=False,
+            ).values('dni', 'fecha', 'almuerzo_manual')
+        }
+
         # ── 2. Procesar registros del Reloj ────────────────────
         for reg in registros_reloj:
             dni = reg['dni']
@@ -230,7 +247,8 @@ class TareoProcessor:
 
             # ── Determinar código y fuente ────────────────────
             codigo_dia, fuente, horas_marcadas, es_ss = self._determinar_codigo(
-                reg, fecha, papeletas_idx.get((dni, fecha)), condicion)
+                reg, fecha, papeletas_idx.get((dni, fecha)), condicion,
+                personal_id=personal_obj.pk if personal_obj else None)
 
             # ── Calcular horas ────────────────────────────────
             personal_id = personal_obj.pk if personal_obj else None
@@ -245,12 +263,16 @@ class TareoProcessor:
                 and (personal_id, fecha) not in self._solicitudes_he
             )
 
+            # Override de almuerzo manual (editado previamente en calendario)
+            almuerzo_manual = almuerzo_overrides.get((dni, fecha))
+
             horas_ef, h_norm, he25, he35, he100 = self._calcular_horas(
                 codigo_dia, horas_marcadas, jornada_h,
                 fecha in self._feriados, grupo, es_ss,
                 dia_semana=fecha.weekday(),
                 tiene_papeleta_comp=tiene_papeleta,
-                he_bloqueado=he_bloqueado)
+                he_bloqueado=he_bloqueado,
+                almuerzo_manual=almuerzo_manual)
 
             he_al_banco = (grupo == 'STAFF')
 
@@ -382,9 +404,13 @@ class TareoProcessor:
                 and Decimal(str(personal_obj.jornada_horas)) != Decimal('8')):
             return Decimal(str(personal_obj.jornada_horas))
 
-        # Domingo: jornada reducida (aplica a LOCAL y FORÁNEO)
-        if dia_semana == 6:          # domingo
-            return Decimal(str(self.config.jornada_domingo_horas))
+        # Domingo
+        if dia_semana == 6:
+            if condicion.upper().replace('Á', 'A') == 'FORANEO':
+                # FORÁNEO: domingo es parte del ciclo 21×7, jornada reducida 4h
+                return Decimal(str(self.config.jornada_domingo_horas))
+            # LOCAL/LIMA: domingo es descanso semanal, si labora todo al 100%
+            return CERO
 
         if condicion in ('FORANEO', 'FORÁNEO'):
             return Decimal(str(self.config.jornada_foraneo_horas))
@@ -396,7 +422,9 @@ class TareoProcessor:
 
     def _determinar_codigo(self, reg: dict, fecha: date,
                             papeleta: dict | None,
-                            condicion: str) -> tuple[str, str, Decimal | None, bool]:
+                            condicion: str,
+                            personal_id: int | None = None,
+                            ) -> tuple[str, str, Decimal | None, bool]:
         """
         Aplica reglas de prioridad:
           1. Papeleta (prioridad 1)
@@ -412,6 +440,14 @@ class TareoProcessor:
             ini = papeleta['iniciales'].upper().strip()
             codigo = INICIALES_A_CODIGO.get(ini, ini)
             return codigo, 'PAPELETA', None, False
+
+        # Prioridad 1.5: Regla especial del personal
+        if personal_id and personal_id in self._reglas:
+            codigo_reloj = (reg.get('codigo') or '').upper().strip()
+            for regla in self._reglas[personal_id]:
+                if regla.aplica_a(fecha, fecha.weekday(), condicion,
+                                  codigo_reloj, fecha in self._feriados):
+                    return regla.codigo_resultado, 'REGLA_ESPECIAL', regla.horas_override, False
 
         # Prioridad 2: Feriado (solo si no hay marcación de trabajo real)
         if fecha in self._feriados and reg.get('codigo') in (None, 'FA', ''):
@@ -458,6 +494,7 @@ class TareoProcessor:
                         dia_semana: int | None = None,
                         tiene_papeleta_comp: bool = False,
                         he_bloqueado: bool = False,
+                        almuerzo_manual: Decimal | None = None,
                         ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
         """
         Retorna (horas_efectivas, horas_normales, he_25, he_35, he_100).
@@ -479,11 +516,15 @@ class TareoProcessor:
           - RCO: HE se pagan en nómina (se exportan a CargaS10)
           - El cálculo de HE es idéntico; solo difiere el destino.
         """
-        CERO = Decimal('0')
-
-        # ── SS (Sin Salida): paga jornada, sin HE ─────────────
+        # ── SS (Sin Salida): paga jornada, sin HE adicional ──
         if es_ss:
-            return jornada_h, jornada_h, CERO, CERO, CERO
+            j = jornada_h if jornada_h > CERO else Decimal('8.5')
+            # LOCAL domingo o feriado: SS también se paga al 100%
+            # D.Leg. 713: trabajar en descanso semanal o feriado → 100%
+            es_descanso = (dia_semana == 6) if dia_semana is not None else False
+            if (es_feriado or es_descanso) and (es_feriado or jornada_h == CERO):
+                return j, CERO, CERO, CERO, j
+            return j, j, CERO, CERO, CERO
 
         # ── Marcación incompleta: horas < mitad de jornada → SS implícito
         # Si marcó entrada pero no salida (o solo salida a refrigerio),
@@ -498,12 +539,15 @@ class TareoProcessor:
             return CERO, CERO, CERO, CERO, CERO
 
         # ── Descontar almuerzo ─────────────────────────────────
-        # Si marcó más de 7h → descontar 1h de almuerzo (toda condición, todo día)
-        # Jornadas normales no superan 7h brutas sin almuerzo:
-        #   FORÁNEO L-S: 11h bruto - 1h = 10h efectivo
-        #   LOCAL L-V: 9.5h bruto - 1h = 8.5h efectivo
-        #   Sábado/Domingo: jornada corta, no almuerza salvo que trabaje >7h
-        almuerzo_h = Decimal('1') if horas_marcadas > 7 else CERO
+        # Override manual tiene prioridad absoluta.
+        # Auto-descuento: solo en jornadas largas (>6h) para evitar descontar
+        # en sábados LOCAL (5.5h) y domingos donde el almuerzo no aplica.
+        if almuerzo_manual is not None:
+            almuerzo_h = Decimal(str(almuerzo_manual))
+        elif horas_marcadas > 7 and jornada_h > Decimal('6'):
+            almuerzo_h = Decimal('1')
+        else:
+            almuerzo_h = CERO
         horas_ef = max(CERO, horas_marcadas - almuerzo_h)
 
         # ── Feriado laborado o Descanso Semanal trabajado: todo al 100%
@@ -514,11 +558,16 @@ class TareoProcessor:
         # (D.Leg. 713 Art. 6 — compensación en lugar de pago HE 100%)
         es_descanso_semanal = (dia_semana == 6) if dia_semana is not None else False
         if (es_feriado or es_descanso_semanal) and not tiene_papeleta_comp:
-            # Jornada normal + exceso como HE 100%
             jornada = Decimal(str(jornada_h))
-            h_norm = min(horas_ef, jornada)
-            he100 = max(CERO, horas_ef - jornada)
-            return horas_ef, h_norm, CERO, CERO, he100
+            if es_feriado or jornada == CERO:
+                # Feriado (toda condición) o LOCAL domingo: TODAS las horas al 100%
+                # D.Leg. 713, Art. 3-4 (descanso semanal) y Art. 9 (feriados)
+                return horas_ef, CERO, CERO, CERO, horas_ef
+            else:
+                # FORÁNEO domingo (4h jornada): normal hasta jornada, exceso HE 100%
+                h_norm = min(horas_ef, jornada)
+                he100 = max(CERO, horas_ef - jornada)
+                return horas_ef, h_norm, CERO, CERO, he100
 
         # ── Día normal ─────────────────────────────────────────
         jornada = Decimal(str(jornada_h))

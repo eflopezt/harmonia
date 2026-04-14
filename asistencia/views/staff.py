@@ -38,9 +38,8 @@ def vista_staff(request):
     buscar   = request.GET.get('buscar', '').strip()
 
     anios_disponibles = sorted(
-        set(RegistroTareo.objects.filter(grupo='STAFF')
-            .values_list('fecha__year', flat=True)),
-        reverse=True
+        {d.year for d in RegistroTareo.objects.filter(grupo='STAFF').dates('fecha', 'year')},
+        reverse=True,
     ) or [hoy.year]
 
     # Mes calendario seleccionado (para display de asistencia)

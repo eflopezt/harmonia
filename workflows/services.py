@@ -2,13 +2,19 @@ import logging
 from datetime import timedelta
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
+@transaction.atomic
 def iniciar_flujo(objeto, solicitante=None):
-    """Busca si existe un FlujoTrabajo activo para este objeto/estado y lo inicia."""
+    """Busca si existe un FlujoTrabajo activo para este objeto/estado y lo inicia.
+
+    Usa select_for_update() para evitar race conditions cuando el signal se
+    dispara concurrentemente (ej. dos requests paralelos guardando el mismo objeto).
+    """
     from .models import FlujoTrabajo, InstanciaFlujo
 
     ct     = ContentType.objects.get_for_model(objeto.__class__)
@@ -26,7 +32,9 @@ def iniciar_flujo(objeto, solicitante=None):
     if not flujo:
         return None
 
-    existente = InstanciaFlujo.objects.filter(
+    # Lock: bloquea cualquier otra transacción que intente crear/leer instancias
+    # EN_PROCESO para este mismo objeto hasta que esta transacción termine.
+    existente = InstanciaFlujo.objects.select_for_update().filter(
         flujo=flujo, content_type=ct, object_id=objeto.pk, estado='EN_PROCESO',
     ).first()
     if existente:
@@ -51,8 +59,14 @@ def iniciar_flujo(objeto, solicitante=None):
     return instancia
 
 
+@transaction.atomic
 def decidir(instancia, usuario, decision, comentario=''):
-    """El usuario toma una decision en la etapa actual. decision: APROBADO|RECHAZADO"""
+    """El usuario toma una decision en la etapa actual. decision: APROBADO|RECHAZADO
+
+    Envuelto en @transaction.atomic para garantizar que PasoFlujo y el avance
+    de etapa se graben juntos o no se graben: evita el estado inconsistente donde
+    el paso queda registrado pero la instancia no avanzó.
+    """
     from .models import PasoFlujo
 
     if not instancia.puede_aprobar(usuario):
@@ -165,11 +179,15 @@ def verificar_vencimientos():
         elif accion == 'ESCALAR':
             escalar_a = instancia.etapa_actual.escalar_a
             if escalar_a:
-                # Guardar escalación en metadata de la instancia (NO mutar el template EtapaFlujo)
                 instancia.metadata = instancia.metadata or {}
+                # Idempotente: si ya fue escalado en esta ejecución anterior de Celery,
+                # no volver a extender el plazo (evita acumulación de 24h por cada tick).
+                if instancia.metadata.get('escalado_ya'):
+                    continue
                 instancia.metadata['escalado_a_user_id'] = escalar_a.pk
                 instancia.metadata['escalado_a_username'] = escalar_a.username
                 instancia.metadata['tipo_aprobador_override'] = 'USUARIO'
+                instancia.metadata['escalado_ya'] = True
                 instancia.etapa_vence_en = ahora + timedelta(hours=24)
                 instancia.save()
                 PasoFlujo.objects.create(

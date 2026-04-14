@@ -149,6 +149,17 @@ def vacacion_crear(request):
             fecha_fin = request.POST['fecha_fin']
             motivo = request.POST.get('motivo', '')
 
+            # Validación: D.Leg. 713 Art. 10 — derecho tras 1 año de servicio
+            if personal.fecha_alta:
+                dias_servicio = (date.today() - personal.fecha_alta).days
+                if dias_servicio < 365:
+                    messages.warning(
+                        request,
+                        f'{personal.apellidos_nombres} tiene {dias_servicio} días de servicio. '
+                        f'El derecho a vacaciones se genera tras 1 año completo (D.Leg. 713 Art. 10). '
+                        f'Se registra la solicitud pero considere que aún no cumple el año.'
+                    )
+
             solicitud = SolicitudVacacion(
                 personal=personal,
                 fecha_inicio=fecha_inicio,
@@ -339,37 +350,137 @@ def saldos_panel(request):
 @solo_admin
 @require_POST
 def saldo_generar_masivo(request):
-    """Genera saldos vacacionales para todo el personal activo."""
+    """
+    Genera/actualiza saldos vacacionales para todo el personal activo.
+
+    Reglas (D.Leg. 713):
+    - Art. 10: Derecho a vacaciones tras 1 año completo de servicio continuo.
+    - Art. 22: Vacaciones truncas proporcionales al cese (30/12 × meses).
+    - dias_derecho = 30 para año completo, proporcional para periodo incompleto.
+    - dias_gozados se sincroniza con:
+      a) SolicitudVacacion con estado APROBADA en el período
+      b) RegistroTareo con codigo_dia='VAC' en el período
+      c) RegistroPapeleta con tipo_permiso VACACIONES estado APROBADA
+    """
+    from asistencia.models import RegistroTareo
+
     personal_qs = Personal.objects.filter(estado='Activo', fecha_alta__isnull=False)
     creados = 0
+    actualizados = 0
     hoy = date.today()
 
+    from .models import SolicitudVacacion
+
     for emp in personal_qs:
-        # Calcular período actual basado en fecha de alta
-        anios_servicio = (hoy - emp.fecha_alta).days // 365
-        try:
-            periodo_inicio = emp.fecha_alta.replace(year=emp.fecha_alta.year + anios_servicio)
-        except ValueError:
-            # Feb 29 en año no bisiesto → usar Feb 28
-            periodo_inicio = emp.fecha_alta.replace(year=emp.fecha_alta.year + anios_servicio, day=28)
-        try:
-            periodo_fin = periodo_inicio.replace(year=periodo_inicio.year + 1) - __import__('datetime').timedelta(days=1)
-        except ValueError:
-            periodo_fin = periodo_inicio.replace(year=periodo_inicio.year + 1, day=28) - __import__('datetime').timedelta(days=1)
+        f_alta = emp.fecha_alta
+        if isinstance(f_alta, str):
+            try:
+                f_alta = date.fromisoformat(f_alta[:10])
+            except ValueError:
+                continue
 
-        _, created = SaldoVacacional.objects.get_or_create(
-            personal=emp,
-            periodo_inicio=periodo_inicio,
-            defaults={
+        # Generar TODOS los períodos desde la fecha de alta hasta hoy
+        dias_servicio = (hoy - f_alta).days
+        anios_completos = dias_servicio // 365
+
+        # PASO 1: Calcular total de días gozados del empleado (de todas las fuentes)
+        total_dias_gozados_emp = 0
+
+        # Fuente 1: SolicitudVacacion APROBADA (todas)
+        vac_sol = SolicitudVacacion.objects.filter(
+            personal=emp, estado='APROBADA',
+        ).aggregate(total=Sum('dias_calendario'))
+        total_dias_gozados_emp += vac_sol['total'] or 0
+
+        # Fuente 2: RegistroTareo VAC (solo si no hay solicitudes)
+        if total_dias_gozados_emp == 0:
+            total_dias_gozados_emp = RegistroTareo.objects.filter(
+                personal=emp, codigo_dia='VAC',
+            ).count()
+
+        # PASO 2: Distribuir días gozados FIFO (período más antiguo primero)
+        dias_por_distribuir = total_dias_gozados_emp
+        periodos_data = []
+
+        for anio_idx in range(anios_completos + 1):
+            try:
+                periodo_inicio = f_alta.replace(year=f_alta.year + anio_idx)
+            except ValueError:
+                periodo_inicio = f_alta.replace(year=f_alta.year + anio_idx, day=28)
+            try:
+                periodo_fin = periodo_inicio.replace(year=periodo_inicio.year + 1) - timedelta(days=1)
+            except ValueError:
+                periodo_fin = periodo_inicio.replace(year=periodo_inicio.year + 1, day=28) - timedelta(days=1)
+
+            # Días de derecho
+            if periodo_fin <= hoy:
+                dias_derecho = 30
+            else:
+                dias_en_periodo = (hoy - periodo_inicio).days
+                meses_en_periodo = dias_en_periodo / 30.0
+                dias_derecho = min(30, round(30 / 12 * meses_en_periodo))
+
+            # Días vendidos existentes
+            dias_vendidos = 0
+            existing = SaldoVacacional.objects.filter(
+                personal=emp, periodo_inicio=periodo_inicio
+            ).first()
+            if existing:
+                dias_vendidos = existing.dias_vendidos or 0
+
+            periodos_data.append({
+                'periodo_inicio': periodo_inicio,
                 'periodo_fin': periodo_fin,
-                'dias_derecho': 30,
-                'dias_pendientes': 30,
-            }
-        )
-        if created:
-            creados += 1
+                'dias_derecho': dias_derecho,
+                'dias_vendidos': dias_vendidos,
+            })
 
-    return JsonResponse({'ok': True, 'creados': creados})
+        # PASO 3: Asignar gozados FIFO — primero al período más antiguo
+        for pd in periodos_data:
+            disponible = pd['dias_derecho'] - pd['dias_vendidos']
+            if disponible <= 0:
+                pd['dias_gozados'] = 0
+            elif dias_por_distribuir >= disponible:
+                pd['dias_gozados'] = disponible
+                dias_por_distribuir -= disponible
+            else:
+                pd['dias_gozados'] = dias_por_distribuir
+                dias_por_distribuir = 0
+
+            pd['dias_pendientes'] = max(0, pd['dias_derecho'] - pd['dias_gozados'] - pd['dias_vendidos'])
+
+            if pd['dias_gozados'] >= pd['dias_derecho'] and pd['dias_derecho'] > 0:
+                pd['estado'] = 'GOZADO'
+            elif pd['dias_gozados'] > 0:
+                pd['estado'] = 'PARCIAL'
+            else:
+                pd['estado'] = 'PENDIENTE'
+
+        # PASO 4: Guardar
+        for pd in periodos_data:
+            saldo, created = SaldoVacacional.objects.update_or_create(
+                personal=emp,
+                periodo_inicio=pd['periodo_inicio'],
+                defaults={
+                    'periodo_fin': pd['periodo_fin'],
+                    'dias_derecho': pd['dias_derecho'],
+                    'dias_gozados': pd['dias_gozados'],
+                    'dias_vendidos': pd['dias_vendidos'],
+                    'dias_pendientes': pd['dias_pendientes'],
+                    'estado': pd['estado'],
+                }
+            )
+            if created:
+                creados += 1
+            else:
+                actualizados += 1
+
+    return JsonResponse({
+        'ok': True,
+        'creados': creados,
+        'actualizados': actualizados,
+        'mensaje': f'{creados} nuevos, {actualizados} actualizados',
+    })
 
 
 @login_required
@@ -514,6 +625,99 @@ def saldos_exportar_excel(request):
     )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+@login_required
+@solo_admin
+def saldo_detalle(request, pk):
+    """
+    Detalle de saldos vacacionales de un empleado.
+    Muestra TODOS los períodos con desglose por período:
+    solicitudes, días VAC del tareo, adelanto máximo global.
+    """
+    from asistencia.models import RegistroTareo
+    from collections import defaultdict
+
+    saldo = get_object_or_404(
+        SaldoVacacional.objects.select_related('personal'),
+        pk=pk
+    )
+    personal = saldo.personal
+    hoy = date.today()
+
+    # ── TODOS los períodos del empleado ──
+    todos_saldos = SaldoVacacional.objects.filter(
+        personal=personal
+    ).order_by('periodo_inicio')
+
+    # Para cada período: solicitudes + días VAC del tareo
+    periodos_detalle = []
+    total_derecho = 0
+    total_gozados = 0
+    total_vendidos = 0
+    total_pendientes = 0
+
+    for s in todos_saldos:
+        tope = min(s.periodo_fin, hoy)
+
+        # Solicitudes del período
+        solicitudes = SolicitudVacacion.objects.filter(
+            personal=personal,
+            fecha_inicio__gte=s.periodo_inicio,
+            fecha_inicio__lte=tope,
+        ).exclude(estado='ANULADA').order_by('fecha_inicio')
+
+        # Días VAC del tareo
+        dias_vac = list(
+            RegistroTareo.objects.filter(
+                personal=personal,
+                codigo_dia='VAC',
+                fecha__gte=s.periodo_inicio,
+                fecha__lte=tope,
+            ).values_list('fecha', flat=True).order_by('fecha')
+        )
+
+        periodos_detalle.append({
+            'saldo': s,
+            'solicitudes': solicitudes,
+            'dias_vac': dias_vac,
+            'total_dias_vac': len(dias_vac),
+            'es_actual': s.pk == saldo.pk,
+        })
+
+        total_derecho += s.dias_derecho
+        total_gozados += s.dias_gozados
+        total_vendidos += s.dias_vendidos or 0
+        total_pendientes += s.dias_pendientes
+
+    # ── Adelanto máximo GLOBAL (total acumulado que ha generado) ──
+    dias_servicio = (hoy - personal.fecha_alta).days if personal.fecha_alta else 0
+    meses_servicio = dias_servicio / 30.0
+    # Total generado proporcional a toda la antigüedad
+    total_generado = min(dias_servicio // 365 * 30 + min(30, round(30 / 12 * (meses_servicio % 12))), dias_servicio // 365 * 30 + 30)
+    # Más simple: suma de todos los dias_derecho
+    total_generado = total_derecho
+    adelanto_max_global = max(0, total_generado - total_gozados - total_vendidos)
+
+    cumple_anio = dias_servicio >= 365
+    fecha_cumple_anio = personal.fecha_alta + timedelta(days=365) if personal.fecha_alta else None
+
+    context = {
+        'saldo': saldo,
+        'personal': personal,
+        'periodos_detalle': periodos_detalle,
+        'total_periodos': len(periodos_detalle),
+        'total_derecho': total_derecho,
+        'total_gozados': total_gozados,
+        'total_vendidos': total_vendidos,
+        'total_pendientes': total_pendientes,
+        'adelanto_max_global': adelanto_max_global,
+        'cumple_anio': cumple_anio,
+        'fecha_cumple_anio': fecha_cumple_anio,
+        'dias_servicio': dias_servicio,
+        'meses_servicio': round(meses_servicio, 1),
+    }
+    return render(request, 'vacaciones/saldo_detalle.html', context)
 
 
 @login_required
@@ -787,3 +991,100 @@ def solicitud_anular(request, tipo, pk):
         obj.save(update_fields=['estado'])
         return JsonResponse({'ok': True})
     return JsonResponse({'ok': False, 'error': 'No se puede anular en este estado.'})
+
+
+# ─────────────────────────────────────────────────
+# VENTA DE VACACIONES (DL 713 Art. 19)
+# ─────────────────────────────────────────────────
+
+solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff, login_url='login')
+
+
+@login_required
+@solo_admin
+def venta_vacaciones_lista(request):
+    """Lista de ventas de vacaciones."""
+    ventas = VentaVacaciones.objects.select_related(
+        'personal', 'saldo', 'aprobado_por'
+    ).order_by('-fecha')
+
+    buscar = request.GET.get('q', '').strip()
+    anio = request.GET.get('anio', '')
+    if buscar:
+        ventas = ventas.filter(
+            Q(personal__apellidos_nombres__icontains=buscar)
+            | Q(personal__nro_doc__icontains=buscar)
+        )
+    if anio:
+        ventas = ventas.filter(fecha__year=int(anio))
+
+    totales = ventas.aggregate(
+        total_dias=Sum('dias_vendidos'),
+        total_monto=Sum('monto'),
+    )
+
+    return render(request, 'vacaciones/venta_lista.html', {
+        'ventas': ventas,
+        'total': ventas.count(),
+        'totales': totales,
+        'buscar': buscar,
+        'anio': anio,
+    })
+
+
+@login_required
+@solo_admin
+def venta_vacaciones_crear(request):
+    """Crear nueva venta de vacaciones."""
+    if request.method == 'POST':
+        personal_id = request.POST.get('personal')
+        dias = int(request.POST.get('dias_vendidos', 0))
+
+        if dias < 1 or dias > 15:
+            messages.error(request, 'Los días a vender deben ser entre 1 y 15.')
+            return redirect('venta_vacaciones_crear')
+
+        personal = get_object_or_404(Personal, pk=personal_id)
+        saldo = personal.saldos_vacacionales.filter(
+            estado__in=['PENDIENTE', 'PARCIAL']
+        ).first()
+
+        if not saldo:
+            messages.error(request, f'{personal} no tiene saldo vacacional disponible.')
+            return redirect('venta_vacaciones_crear')
+
+        if dias > saldo.dias_pendientes:
+            messages.error(request, f'Solo tiene {saldo.dias_pendientes} días disponibles.')
+            return redirect('venta_vacaciones_crear')
+
+        # Calcular monto: remuneración diaria × días
+        rem_diaria = (personal.sueldo_base or Decimal('0')) / Decimal('30')
+        monto = rem_diaria * Decimal(str(dias))
+
+        venta = VentaVacaciones.objects.create(
+            personal=personal,
+            saldo=saldo,
+            dias_vendidos=dias,
+            monto=monto,
+            aprobado_por=request.user,
+        )
+
+        # Actualizar saldo
+        saldo.dias_vendidos = (saldo.dias_vendidos or 0) + dias
+        saldo.recalcular()
+
+        messages.success(
+            request,
+            f'Venta registrada: {personal.apellidos_nombres} — '
+            f'{dias} días por S/ {monto:,.2f}'
+        )
+        return redirect('venta_vacaciones_lista')
+
+    # GET: mostrar formulario
+    empleados = Personal.objects.filter(
+        estado='Activo'
+    ).order_by('apellidos_nombres')
+
+    return render(request, 'vacaciones/venta_crear.html', {
+        'empleados': empleados,
+    })

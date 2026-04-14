@@ -553,3 +553,68 @@ def generar_plame(queryset_personal, queryset_nomina=None, periodo_str=''):
 
     return output.getvalue(), count
 
+
+# ──────────────────────────────────────────────────────────────────────
+# CTS — DEPÓSITO BANCARIO (Mayo y Noviembre)
+# ──────────────────────────────────────────────────────────────────────
+
+def generar_cts_banco_excel(queryset_personal, montos_cts, banco_filtro=None):
+    """
+    Genera Excel para depósito de CTS en cuentas CTS de cada trabajador.
+
+    Args:
+        queryset_personal: QuerySet de Personal (activos)
+        montos_cts: dict {personal_id: Decimal(monto_cts)}
+        banco_filtro: 'BCP', 'BBVA', etc. o None para todos
+
+    Returns:
+        (bytes_excel, count, total_monto)
+    """
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'CTS Deposito'
+
+    headers = ['N', 'DNI', 'NOMBRES', 'BANCO CTS', 'CUENTA CTS', 'MONTO CTS', 'MONEDA']
+    hdr_fill = PatternFill('solid', fgColor='0F766E')
+    hdr_font = Font(bold=True, color='FFFFFF')
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.fill = hdr_fill
+        cell.font = hdr_font
+
+    qs = queryset_personal.filter(cuenta_cts__gt='').exclude(cuenta_cts__isnull=True)
+    if banco_filtro:
+        qs = qs.filter(banco__icontains=banco_filtro)
+
+    count = 0
+    total = Decimal('0')
+    for p in qs.order_by('apellidos_nombres'):
+        monto = montos_cts.get(p.pk, Decimal('0'))
+        if monto <= 0:
+            continue
+        count += 1
+        total += monto
+        ws.cell(row=count+1, column=1, value=count)
+        ws.cell(row=count+1, column=2, value=p.nro_doc)
+        ws.cell(row=count+1, column=3, value=p.apellidos_nombres)
+        ws.cell(row=count+1, column=4, value=p.banco or '')
+        ws.cell(row=count+1, column=5, value=p.cuenta_cts)
+        ws.cell(row=count+1, column=6, value=float(monto))
+        ws.cell(row=count+1, column=6).number_format = '#,##0.00'
+        ws.cell(row=count+1, column=7, value='PEN')
+
+    ws.cell(row=count+2, column=5, value='TOTAL').font = Font(bold=True)
+    ws.cell(row=count+2, column=6, value=float(total))
+    ws.cell(row=count+2, column=6).font = Font(bold=True)
+    ws.cell(row=count+2, column=6).number_format = '#,##0.00'
+
+    for c in range(1, 8):
+        ws.column_dimensions[chr(64+c)].width = 18
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue(), count, float(total)
+

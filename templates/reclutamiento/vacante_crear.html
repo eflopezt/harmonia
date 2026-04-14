@@ -31,7 +31,12 @@
 
                 <!-- Descripcion -->
                 <div class="col-12">
-                    <label class="form-label small fw-semibold">Descripcion del Puesto</label>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label class="form-label small fw-semibold">Descripcion del Puesto</label>
+                        <button type="button" class="btn btn-sm btn-outline-primary mb-1" onclick="generarConIA()" id="btnGenerarIA">
+                            <i class="fas fa-magic me-1"></i>Generar con IA
+                        </button>
+                    </div>
                     {{ form.descripcion }}
                 </div>
 
@@ -114,4 +119,47 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generarConIA() {
+    var titulo = document.querySelector('[name="titulo"]').value;
+    var area = document.querySelector('[name="area"]');
+    var areaText = area.options[area.selectedIndex] ? area.options[area.selectedIndex].text : '';
+
+    if (!titulo) {
+        alert('Ingresa primero el titulo del puesto');
+        return;
+    }
+
+    var btn = document.getElementById('btnGenerarIA');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generando...';
+
+    fetch('/reclutamiento/api/generar-descripcion/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+        body: JSON.stringify({titulo: titulo, area: areaText})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic me-1"></i>Generar con IA';
+        if (data.ok) {
+            var descField = document.querySelector('[name="descripcion"]');
+            var reqField = document.querySelector('[name="requisitos"]');
+            if (descField) descField.value = data.descripcion;
+            if (reqField) reqField.value = data.requisitos;
+        } else {
+            alert(data.error || 'Error al generar');
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic me-1"></i>Generar con IA';
+        alert('Error de conexion');
+    });
+}
+</script>
 {% endblock %}

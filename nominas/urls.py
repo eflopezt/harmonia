@@ -60,4 +60,13 @@ urlpatterns = [
     path('planes/<int:pk>/importar-excel/', views.plan_import_excel, name='nominas_plan_import_excel'),
     path('planes/<int:plan_pk>/lineas/', views.plan_linea_upsert, name='nominas_plan_linea_upsert'),
     path('planes/<int:plan_pk>/lineas/<int:linea_pk>/eliminar/', views.plan_linea_eliminar, name='nominas_plan_linea_eliminar'),
+
+    # API: Explicador IA de boleta
+    path('registros/<int:pk>/explicar/', views.explicar_boleta_ia, name='nominas_explicar_boleta'),
+
+    # Recargas de Alimentación (Edenred/Sodexo)
+    path('alimentacion/', views.alimentacion_panel, name='alimentacion_panel'),
+    path('alimentacion/generar/', views.alimentacion_generar, name='alimentacion_generar'),
+    path('alimentacion/exportar/', views.alimentacion_exportar, name='alimentacion_exportar'),
+    path('alimentacion/procesar/', views.alimentacion_procesar, name='alimentacion_procesar'),
 ]

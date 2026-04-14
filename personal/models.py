@@ -1015,6 +1015,15 @@ class Contrato(models.Model):
             models.Index(fields=['fecha_fin'], name='contrato_fecha_fin_idx'),
             models.Index(fields=['tipo_contrato'], name='contrato_tipo_idx'),
         ]
+        constraints = [
+            # Un empleado solo puede tener un contrato VIGENTE a la vez.
+            # Otros estados (VENCIDO, RENOVADO, etc.) pueden coexistir.
+            models.UniqueConstraint(
+                fields=['personal'],
+                condition=models.Q(estado='VIGENTE'),
+                name='personal_contrato_one_vigente_per_person',
+            ),
+        ]
 
     def __str__(self):
         tipo = self.get_tipo_contrato_display()
@@ -1442,3 +1451,74 @@ class RosterAudit(models.Model):
     
     def __str__(self):
         return f"{self.personal} - {self.fecha} - {self.campo_modificado}"
+
+
+# ═══════════════════════════════════════════════════════════
+#  CONTROL DE ACTIVOS / HERRAMIENTAS ASIGNADAS
+# ═══════════════════════════════════════════════════════════
+
+class ActivoAsignado(models.Model):
+    """
+    Registro de activos, herramientas o equipos asignados a un trabajador.
+    Integrado con offboarding para checklist de devolución al cese.
+    """
+    TIPO_CHOICES = [
+        ('LAPTOP', 'Laptop / Computador'),
+        ('CELULAR', 'Celular / Smartphone'),
+        ('RADIO', 'Radio / Walkie-Talkie'),
+        ('TABLET', 'Tablet'),
+        ('HERRAMIENTA', 'Herramienta de Trabajo'),
+        ('VEHICULO', 'Vehículo'),
+        ('LLAVE', 'Llave / Tarjeta de Acceso'),
+        ('MOBILIARIO', 'Mobiliario de Oficina'),
+        ('OTRO', 'Otro'),
+    ]
+
+    ESTADO_CHOICES = [
+        ('ASIGNADO', 'Asignado al trabajador'),
+        ('DEVUELTO', 'Devuelto'),
+        ('EXTRAVIADO', 'Extraviado / Perdido'),
+        ('DANADO', 'Dañado'),
+    ]
+
+    personal = models.ForeignKey(
+        'Personal', on_delete=models.CASCADE,
+        related_name='activos_asignados',
+        verbose_name='Trabajador')
+    tipo = models.CharField(
+        max_length=20, choices=TIPO_CHOICES,
+        verbose_name='Tipo de Activo')
+    descripcion = models.CharField(
+        max_length=200,
+        verbose_name='Descripción',
+        help_text='Ej: Laptop Dell Latitude 5520, S/N ABC123')
+    serial = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name='N° Serie / Código')
+    fecha_asignacion = models.DateField(
+        verbose_name='Fecha de Asignación')
+    fecha_devolucion = models.DateField(
+        null=True, blank=True,
+        verbose_name='Fecha de Devolución')
+    estado = models.CharField(
+        max_length=15, choices=ESTADO_CHOICES, default='ASIGNADO')
+    valor_estimado = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name='Valor Estimado (S/)')
+    observaciones = models.TextField(blank=True, default='')
+    registrado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        related_name='activos_registrados')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_asignacion']
+        verbose_name = 'Activo Asignado'
+        verbose_name_plural = 'Activos Asignados'
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} — {self.descripcion[:40]} → {self.personal}'
+
+    @property
+    def pendiente_devolucion(self):
+        return self.estado == 'ASIGNADO'

@@ -186,4 +186,9 @@ urlpatterns = [
     path('reportes/he/', views.reporte_he_detallado, name='reporte_he'),
     path('reportes/vacaciones/', views.reporte_vacaciones, name='reporte_vacaciones'),
     path('reportes/contratos/', views.reporte_contratos, name='reporte_contratos'),
+
+    # Activos / Herramientas asignadas
+    path('activos/', views.activos_panel, name='activos_panel'),
+    path('activos/<int:personal_pk>/asignar/', views.activo_asignar, name='activo_asignar'),
+    path('activos/<int:pk>/devolver/', views.activo_devolver, name='activo_devolver'),
 ]

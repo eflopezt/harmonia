@@ -32,9 +32,8 @@ def vista_rco(request):
     mes_sel  = int(request.GET.get('mes',  hoy.month))
 
     anios_disponibles = sorted(
-        set(RegistroTareo.objects.filter(grupo='RCO')
-            .values_list('fecha__year', flat=True)),
-        reverse=True
+        {d.year for d in RegistroTareo.objects.filter(grupo='RCO').dates('fecha', 'year')},
+        reverse=True,
     ) or [hoy.year]
 
     mes_ini = date(anio_sel, mes_sel, 1)
@@ -75,7 +74,8 @@ def vista_rco(request):
         )
 
     # Detail rows (+ solo_he filter)
-    qs = qs_filtrado.order_by('personal__apellidos_nombres', 'fecha')
+    # select_related('personal') evita N+1: el template accede a reg.personal.apellidos_nombres
+    qs = qs_filtrado.select_related('personal').order_by('personal__apellidos_nombres', 'fecha')
     if solo_he:
         qs = qs.filter(Q(he_25__gt=0) | Q(he_35__gt=0) | Q(he_100__gt=0))
 
@@ -111,6 +111,9 @@ def vista_rco(request):
                              (totales['t_he_35'] or Decimal('0')) + \
                              (totales['t_he_100'] or Decimal('0'))
 
+    # Evaluar UNA sola vez: evita el doble hit (template iteration + .count())
+    registros_list = list(qs)
+
     context = {
         'titulo': f'RCO — Horas Extra {MESES_ES[mes_sel-1]} {anio_sel}',
         'anio_sel': anio_sel,
@@ -121,12 +124,12 @@ def vista_rco(request):
         'mes_ini': mes_ini,
         'mes_fin': mes_fin,
         'kpi': kpi,
-        'registros': qs,
+        'registros': registros_list,
         'resumen': resumen,
         'totales': totales,
         'buscar': buscar,
         'solo_he': solo_he,
-        'total_registros': qs.count(),
+        'total_registros': len(registros_list),
     }
     return render(request, 'asistencia/vista_rco.html', context)
 

@@ -72,6 +72,11 @@
         </small>
     </div>
     <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-primary"
+           onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPostulacion')).show()"
+           title="Registrar candidato manualmente">
+            <i class="fas fa-user-plus me-1"></i>Registrar Candidato
+        </button>
         <a href="{% url 'reclutamiento_exportar_candidatos' vacante.pk %}"
            class="btn btn-sm btn-outline-success"
            title="Exportar candidatos a Excel">

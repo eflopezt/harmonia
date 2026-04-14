@@ -17,7 +17,7 @@ logger = logging.getLogger('nominas.views')
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -677,6 +677,62 @@ def registro_detalle(request, pk):
 
 
 @login_required
+def explicar_boleta_ia(request, pk):
+    """
+    Explica una boleta de pago en lenguaje simple usando IA.
+    Similar a BUK AI — interpretación automática de boletas.
+    Accesible tanto para admin como para el trabajador (portal).
+    """
+    reg = get_object_or_404(
+        RegistroNomina.objects.select_related('personal', 'periodo'),
+        pk=pk
+    )
+
+    # Seguridad: solo admin o el propio trabajador
+    if not request.user.is_staff:
+        if not hasattr(request.user, 'personal') or request.user.personal != reg.personal:
+            return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    from asistencia.services.ai_service import get_service
+    svc = get_service()
+    if not svc:
+        return JsonResponse({'ok': False, 'error': 'IA no configurada'})
+
+    # Construir datos de la boleta
+    lineas_txt = ''
+    for l in reg.lineas.select_related('concepto').all():
+        lineas_txt += f'  {l.concepto.nombre}: S/ {l.monto}\n'
+
+    prompt = (
+        f'Explica esta boleta de pago de forma simple y clara para el trabajador.\n\n'
+        f'Trabajador: {reg.personal.apellidos_nombres}\n'
+        f'Periodo: {reg.periodo}\n'
+        f'Sueldo Base: S/ {reg.sueldo_base}\n'
+        f'Dias Trabajados: {reg.dias_trabajados}\n'
+        f'Total Ingresos: S/ {reg.total_ingresos}\n'
+        f'Total Descuentos: S/ {reg.total_descuentos}\n'
+        f'Neto a Pagar: S/ {reg.neto_a_pagar}\n'
+        f'EsSalud (empleador): S/ {reg.aporte_essalud}\n'
+        f'Regimen Pension: {reg.regimen_pension}\n\n'
+        f'Detalle:\n{lineas_txt}\n\n'
+        f'Explica cada concepto de forma que un trabajador sin conocimiento contable '
+        f'entienda: que es cada descuento, por que se cobra, y cuanto le queda. '
+        f'Responde en espanol, tono amigable, maximo 200 palabras.'
+    )
+
+    system = (
+        'Eres un asistente de RRHH que explica boletas de pago a trabajadores peruanos. '
+        'Usa lenguaje simple, amigable y directo. Evita tecnicismos.'
+    )
+
+    try:
+        resultado = svc.generate(prompt, system=system)
+        return JsonResponse({'ok': True, 'explicacion': resultado or 'Sin explicacion disponible'})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)[:200]})
+
+
+@login_required
 @solo_admin
 def registro_editar(request, pk):
     """Editar ajustes manuales de un registro y recalcular."""
@@ -705,6 +761,25 @@ def registro_editar(request, pk):
         with transaction.atomic():
             reg.save()
 
+            # Marcar la cuota de préstamo como pagada si hay descuento registrado
+            if reg.descuento_prestamo and reg.descuento_prestamo > 0 and reg.personal_id:
+                try:
+                    from prestamos.models import CuotaPrestamo
+                    cuota = CuotaPrestamo.objects.filter(
+                        prestamo__personal_id=reg.personal_id,
+                        prestamo__estado='EN_CURSO',
+                        estado='PENDIENTE',
+                        periodo__year=reg.periodo.anio,
+                        periodo__month=reg.periodo.mes,
+                    ).first()
+                    if cuota:
+                        cuota.registrar_pago(
+                            monto=reg.descuento_prestamo,
+                            referencia=f'Nómina {reg.periodo}',
+                        )
+                except Exception:
+                    pass  # No interrumpir el guardado de nómina por un error de préstamo
+
             # Recalcular
             conceptos = ConceptoRemunerativo.objects.filter(activo=True).order_by('tipo', 'orden')
             resultado = engine.calcular_registro(reg, conceptos)
@@ -726,6 +801,22 @@ def registro_editar(request, pk):
             reg.costo_total_empresa = resultado['costo_total_empresa']
             reg.estado = 'CALCULADO'
             reg.save()
+
+            # Resync period aggregates after individual edit
+            from django.db.models import Sum
+            agg = reg.periodo.registros.aggregate(
+                t_bruto=Sum('total_ingresos'),
+                t_desc=Sum('total_descuentos'),
+                t_neto=Sum('neto_a_pagar'),
+                t_costo=Sum('costo_total_empresa'),
+            )
+            reg.periodo.total_bruto = agg['t_bruto'] or Decimal('0')
+            reg.periodo.total_descuentos = agg['t_desc'] or Decimal('0')
+            reg.periodo.total_neto = agg['t_neto'] or Decimal('0')
+            reg.periodo.total_costo_empresa = agg['t_costo'] or Decimal('0')
+            reg.periodo.save(update_fields=[
+                'total_bruto', 'total_descuentos', 'total_neto', 'total_costo_empresa'
+            ])
 
         messages.success(request, 'Registro recalculado correctamente.')
         return redirect('nominas_registro_detalle', pk=pk)
@@ -1932,3 +2023,144 @@ def plan_import_excel(request, pk):
         LineaPlan.objects.bulk_create(to_create)
 
     return JsonResponse({'ok': True, 'created': len(to_create), 'errors': errors})
+
+
+# ─────────────────────────────────────────────────
+# RECARGAS DE ALIMENTACIÓN (Edenred / Sodexo)
+# ─────────────────────────────────────────────────
+
+@login_required
+@solo_admin
+def alimentacion_panel(request):
+    """Panel de recargas de tarjetas de alimentación."""
+    from .models import RecargaAlimentacion
+
+    hoy = date.today()
+    anio = int(request.GET.get('anio', hoy.year))
+    mes = int(request.GET.get('mes', hoy.month))
+
+    recargas = RecargaAlimentacion.objects.filter(anio=anio, mes=mes).select_related('personal')
+    totales = recargas.aggregate(
+        total_monto=Sum('monto'), total_comision=Sum('comision'), total_total=Sum('total'),
+        pendientes=Count('id', filter=Q(estado='PENDIENTE')),
+        procesadas=Count('id', filter=Q(estado='PROCESADA')),
+    )
+
+    MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+             'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+    return render(request, 'nominas/alimentacion_panel.html', {
+        'recargas': recargas,
+        'totales': totales,
+        'anio': anio, 'mes': mes,
+        'mes_nombre': MESES[mes-1],
+        'total_recargas': recargas.count(),
+    })
+
+
+@login_required
+@solo_admin
+@require_POST
+def alimentacion_generar(request):
+    """Genera recargas para todos los empleados con alimentación > 0."""
+    from .models import RecargaAlimentacion
+    from personal.models import Personal
+
+    anio = int(request.POST.get('anio', date.today().year))
+    mes = int(request.POST.get('mes', date.today().month))
+    comision_pct = Decimal(request.POST.get('comision_pct', '0.55')) / 100
+
+    activos = Personal.objects.filter(estado='Activo')
+    creados = 0
+    for p in activos:
+        # alimentacion_mensual field or similar
+        alim = getattr(p, 'alimentacion_mensual', None)
+        if not alim:
+            # Try to get from a field pattern
+            for field_name in ['alimentacion_mensual', 'alimentacion']:
+                alim = getattr(p, field_name, None)
+                if alim and alim > 0:
+                    break
+        if not alim or alim <= 0:
+            continue
+
+        monto = Decimal(str(alim))
+        comision = (monto * comision_pct).quantize(Decimal('0.01'))
+
+        _, created = RecargaAlimentacion.objects.update_or_create(
+            personal=p, anio=anio, mes=mes,
+            defaults={
+                'monto': monto,
+                'comision': comision,
+                'proveedor': 'EDENRED',
+            }
+        )
+        if created:
+            creados += 1
+
+    messages.success(request, f'Recargas generadas: {creados} empleados para {mes:02d}/{anio}')
+    return redirect(f'/nominas/alimentacion/?anio={anio}&mes={mes}')
+
+
+@login_required
+@solo_admin
+def alimentacion_exportar(request):
+    """Exportar recargas a Excel para enviar al proveedor."""
+    from .models import RecargaAlimentacion
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+
+    anio = int(request.GET.get('anio', date.today().year))
+    mes = int(request.GET.get('mes', date.today().month))
+
+    recargas = RecargaAlimentacion.objects.filter(
+        anio=anio, mes=mes
+    ).select_related('personal').order_by('personal__apellidos_nombres')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f'Recarga {mes:02d}-{anio}'
+
+    headers = ['N', 'DNI', 'NOMBRES', 'TARJETA', 'MONTO', 'COMISION', 'TOTAL', 'ESTADO']
+    hdr_fill = PatternFill('solid', fgColor='0F766E')
+    hdr_font = Font(bold=True, color='FFFFFF')
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.fill = hdr_fill; cell.font = hdr_font
+
+    for i, r in enumerate(recargas, 1):
+        ws.cell(row=i+1, column=1, value=i)
+        ws.cell(row=i+1, column=2, value=r.personal.nro_doc)
+        ws.cell(row=i+1, column=3, value=r.personal.apellidos_nombres)
+        ws.cell(row=i+1, column=4, value=r.numero_tarjeta)
+        ws.cell(row=i+1, column=5, value=float(r.monto)).number_format = '#,##0.00'
+        ws.cell(row=i+1, column=6, value=float(r.comision)).number_format = '#,##0.00'
+        ws.cell(row=i+1, column=7, value=float(r.total)).number_format = '#,##0.00'
+        ws.cell(row=i+1, column=8, value=r.get_estado_display())
+
+    for c in range(1, 9): ws.column_dimensions[chr(64+c)].width = 18
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    response = HttpResponse(buf.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Recarga_Alimentacion_{mes:02d}_{anio}.xlsx'
+    return response
+
+
+@login_required
+@solo_admin
+@require_POST
+def alimentacion_procesar(request):
+    """Marcar recargas pendientes como procesadas."""
+    from .models import RecargaAlimentacion
+
+    anio = int(request.POST.get('anio', date.today().year))
+    mes = int(request.POST.get('mes', date.today().month))
+
+    updated = RecargaAlimentacion.objects.filter(
+        anio=anio, mes=mes, estado='PENDIENTE'
+    ).update(estado='PROCESADA', procesado_en=timezone.now())
+
+    messages.success(request, f'{updated} recargas marcadas como procesadas.')
+    return redirect(f'/nominas/alimentacion/?anio={anio}&mes={mes}')

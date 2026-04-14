@@ -80,21 +80,25 @@
                     <th class="text-center">Gozados</th>
                     <th class="text-center">Vendidos</th>
                     <th class="text-center">Pendientes</th>
+                    <th class="text-center" style="color:#d97706;">Adelanto</th>
                     <th class="text-center">Estado</th>
                 </tr>
             </thead>
             <tbody>
                 {% for s in saldos %}
-                <tr>
+                <tr style="cursor:pointer;" onclick="window.location='{% url 'saldo_detalle' s.pk %}'">
                     <td>
-                        <div class="fw-semibold">{{ s.personal.apellidos_nombres|truncatechars:35 }}</div>
-                        <small class="text-muted">{{ s.personal.nro_doc }}</small>
+                        <a href="{% url 'saldo_detalle' s.pk %}" class="text-decoration-none">
+                          <div class="fw-semibold">{{ s.personal.apellidos_nombres|truncatechars:35 }}</div>
+                          <small class="text-muted">{{ s.personal.nro_doc }}</small>
+                        </a>
                     </td>
                     <td style="font-size:.78rem;">{{ s.periodo_inicio|date:"d/m/Y" }} — {{ s.periodo_fin|date:"d/m/Y" }}</td>
                     <td class="text-center">{{ s.dias_derecho }}</td>
                     <td class="text-center">{{ s.dias_gozados }}</td>
                     <td class="text-center">{{ s.dias_vendidos }}</td>
                     <td class="text-center fw-bold">{{ s.dias_pendientes }}</td>
+                    <td class="text-center"><span class="fw-bold" style="color:#d97706;">{{ s.max_adelanto }}</span></td>
                     <td class="text-center">
                         {% if s.estado == 'PENDIENTE' %}<span class="badge bg-info">Pendiente</span>
                         {% elif s.estado == 'PARCIAL' %}<span class="badge bg-warning text-dark">Parcial</span>

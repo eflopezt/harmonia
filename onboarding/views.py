@@ -236,6 +236,19 @@ def paso_omitir(request, pk):
     pendientes = proceso.pasos.exclude(estado__in=['COMPLETADO', 'OMITIDO']).count()
     proceso_recien_completado = False
     if pendientes == 0 and proceso.estado != 'COMPLETADO':
+        # Verificar que no haya pasos obligatorios omitidos
+        obligatorios_omitidos = proceso.pasos.filter(
+            estado='OMITIDO',
+            paso_plantilla__obligatorio=True,
+        ).count()
+        if obligatorios_omitidos > 0:
+            return JsonResponse({
+                'ok': False,
+                'error': (
+                    f'Hay {obligatorios_omitidos} paso(s) obligatorio(s) omitido(s). '
+                    'Complételos antes de finalizar el proceso.'
+                ),
+            }, status=400)
         proceso.estado = 'COMPLETADO'
         proceso.save(update_fields=['estado', 'actualizado_en'])
         proceso_recien_completado = True

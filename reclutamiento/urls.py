@@ -57,4 +57,7 @@ urlpatterns = [
     # ── Publico: Portal de Empleo ──
     path('empleo/', views.portal_empleo, name='portal_empleo'),
     path('empleo/<int:pk>/postular/', views.portal_postular, name='portal_postular'),
+
+    # ── API: IA ──
+    path('api/generar-descripcion/', views.api_generar_descripcion, name='reclutamiento_api_generar_desc'),
 ]

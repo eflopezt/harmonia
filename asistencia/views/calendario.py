@@ -362,8 +362,13 @@ def _recalcular_horas(reg):
     if (personal and personal.jornada_horas
             and Decimal(str(personal.jornada_horas)) != Decimal('8')):
         jornada_h = Decimal(str(personal.jornada_horas))
-    elif dia_semana == 6:  # domingo: jornada reducida para todos
-        jornada_h = Decimal(str(config.jornada_domingo_horas))
+    elif dia_semana == 6:  # domingo
+        if condicion.replace('Á', 'A') == 'FORANEO':
+            # FORÁNEO: domingo es parte del ciclo 21×7, jornada reducida 4h
+            jornada_h = Decimal(str(config.jornada_domingo_horas))
+        else:
+            # LOCAL/LIMA: domingo es descanso semanal, si labora todo al 100%
+            jornada_h = CERO
     elif condicion in ('FORANEO', 'FORÁNEO'):
         jornada_h = Decimal(str(config.jornada_foraneo_horas))
     elif dia_semana == 5:  # sábado
@@ -398,11 +403,22 @@ def _recalcular_horas(reg):
                       'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI', 'F',
                       'V', 'FER', 'FL', 'SUB', 'DS', 'B', 'LIM', 'NA'}
 
-    # SS: paga jornada, sin HE
+    # SS: paga jornada completa
+    # En LOCAL domingo o feriado: SS también va al 100% (D.Leg. 713)
     if codigo == 'SS':
-        reg.horas_efectivas = jornada_h
-        reg.horas_normales = jornada_h
-        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        j = jornada_h if jornada_h > CERO else Decimal('8.5')
+        _es_feriado_ss = reg.es_feriado or FeriadoCalendario.objects.filter(
+            fecha=reg.fecha, activo=True).exists()
+        _es_dom = reg.fecha.weekday() == 6
+        if (_es_feriado_ss or _es_dom) and (_es_feriado_ss or jornada_h == CERO):
+            reg.horas_efectivas = j
+            reg.horas_normales = CERO
+            reg.he_25 = reg.he_35 = CERO
+            reg.he_100 = j
+        else:
+            reg.horas_efectivas = j
+            reg.horas_normales = j
+            reg.he_25 = reg.he_35 = reg.he_100 = CERO
         return
 
     # Marcación incompleta: horas < jornada/2 → SS implícito
@@ -435,9 +451,15 @@ def _recalcular_horas(reg):
     codigo_fuerza_normal = codigo in ('NOR', 'T', 'A') and reg.fuente_codigo == 'MANUAL'
     if (es_feriado or es_descanso_semanal) and not codigo_fuerza_normal:
         reg.horas_efectivas = horas_ef
-        reg.horas_normales = min(horas_ef, jornada_h)
+        if es_feriado or jornada_h == CERO:
+            # Feriado (toda condición) o LOCAL domingo: TODAS al 100%
+            reg.horas_normales = CERO
+            reg.he_100 = horas_ef
+        else:
+            # FORÁNEO domingo (4h jornada): normal hasta jornada, exceso HE 100%
+            reg.horas_normales = min(horas_ef, jornada_h)
+            reg.he_100 = max(CERO, horas_ef - jornada_h)
         reg.he_25 = reg.he_35 = CERO
-        reg.he_100 = max(CERO, horas_ef - jornada_h)
         return
 
     # Día normal

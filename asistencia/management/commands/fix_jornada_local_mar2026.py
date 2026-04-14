@@ -64,12 +64,15 @@ def _jornada_correcta(config, condicion: str, dia_semana: int) -> Decimal:
     Nota: ConfiguracionSistema solo tiene jornada_local_horas y jornada_foraneo_horas.
     El sábado LOCAL/LIMA = 5.5h está hardcodeado (media jornada, sin almuerzo).
     """
-    if condicion == 'FORANEO':
+    cond_norm = (condicion or '').upper().replace('Á', 'A')
+    if dia_semana == 6:                          # domingo
+        if cond_norm == 'FORANEO':
+            return Decimal(str(config.jornada_domingo_horas))  # 4h ciclo 21×7
+        return CERO                              # LOCAL: descanso, todo al 100%
+    if cond_norm == 'FORANEO':
         return Decimal(str(config.jornada_foraneo_horas))
     if dia_semana == 5:                          # sábado
         return JORNADA_SABADO_LOCAL              # 5.5h — sin descuento almuerzo
-    if dia_semana == 6:                          # domingo
-        return CERO                              # no aplica (paga 100% igual)
     return Decimal(str(config.jornada_local_horas))
 
 
@@ -89,9 +92,13 @@ def _recalcular_horas(
       - Código productivo (NOR, A, T…): jornada completa, sin HE
       - Código en CODIGOS_SIN_HE: cero (ausencia, permiso, etc.)
     """
-    # SS (sin salida): presente sin marca de salida → paga jornada completa, sin HE
+    # SS (sin salida): presente sin marca de salida → paga jornada completa
+    # En domingo LOCAL o feriado: SS también va al 100%
     if codigo == 'SS':
         j = jornada_h if jornada_h > CERO else Decimal('8.5')
+        es_descanso = (dia_semana == 6)
+        if (es_feriado or es_descanso) and (es_feriado or jornada_h == CERO):
+            return j, CERO, CERO, CERO, j
         return j, j, CERO, CERO, CERO
 
     # Códigos que no generan horas
@@ -119,9 +126,16 @@ def _recalcular_horas(
     if horas_ef <= CERO:
         return CERO, CERO, CERO, CERO, CERO
 
-    # Feriado laborado o domingo (descanso semanal): todo al 100%
+    # Feriado laborado o descanso semanal
     if es_feriado or dia_semana == 6:
-        return horas_ef, CERO, CERO, CERO, horas_ef
+        if es_feriado or jornada_h == CERO:
+            # Feriado (toda condición) o LOCAL domingo: TODAS al 100%
+            return horas_ef, CERO, CERO, CERO, horas_ef
+        else:
+            # FORÁNEO domingo (4h jornada): normal hasta jornada, exceso HE 100%
+            h_norm = min(horas_ef, jornada_h)
+            he100 = max(CERO, horas_ef - jornada_h)
+            return horas_ef, h_norm, CERO, CERO, he100
 
     # Día normal
     if horas_ef <= jornada_h:

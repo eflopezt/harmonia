@@ -1,0 +1,491 @@
+"""
+Módulo: Reportes de Asistencia por Área
+========================================
+Permite generar y enviar reportes de asistencia agrupados por área,
+con destinos configurables (jefaturas + CC) y rango de fechas flexible.
+
+Funcionalidades:
+  - Panel principal con todas las áreas y su configuración
+  - Guardar destinatarios por área (jefatura + CC)
+  - Descargar ZIP con PDFs agrupados por área / subcarpeta
+  - Enviar reportes por email a jefaturas con cuerpo personalizable
+  - Rangos: semanal, quincenal, mensual, personalizado
+"""
+from __future__ import annotations
+
+import io
+import json
+import logging
+from datetime import date, timedelta
+from zipfile import ZipFile
+
+from django.contrib.auth.decorators import login_required
+from django.core.mail import EmailMessage
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.utils.text import slugify
+from django.views.decorators.http import require_POST
+
+from asistencia.views._common import solo_admin
+from personal.models import Area, Personal
+
+logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────
+# Helpers internos de PDF (reutiliza lógica de reporte_individual)
+# ─────────────────────────────────────────────────────────────
+
+def _pdf_empleado_rango(personal, inicio: date, fin: date) -> bytes | None:
+    """
+    Genera el PDF de asistencia de un empleado para un rango de fechas
+    arbitrario (semanal, quincenal, mensual, personalizado).
+    """
+    from asistencia.views.reporte_individual import (
+        _build_staff_data, _build_rco_data,
+        _render_staff_html, _render_rco_html,
+        _get_papeletas, _render_pdf,
+    )
+    grupo = personal.grupo_tareo or 'STAFF'
+    mes = inicio.month
+    anio = inicio.year
+    papeletas = _get_papeletas(personal, inicio, fin)
+    try:
+        if grupo == 'RCO':
+            dias, totales = _build_rco_data(personal, inicio, fin)
+            html = _render_rco_html(personal, dias, totales, papeletas, inicio, fin, mes, anio)
+        else:
+            dias, conteo = _build_staff_data(personal, inicio, fin)
+            html = _render_staff_html(personal, dias, conteo, papeletas, inicio, fin, mes, anio)
+        return _render_pdf(html)
+    except Exception as e:
+        logger.error(f'Error generando PDF para {personal.nro_doc}: {e}')
+        return None
+
+
+def _get_rango(tipo_periodo: str, fecha_inicio_str: str = '', fecha_fin_str: str = '') -> tuple[date, date]:
+    """Calcula inicio/fin según el tipo de periodo seleccionado."""
+    hoy = date.today()
+
+    if tipo_periodo == 'SEMANAL':
+        # Semana pasada: lun–dom
+        lun = hoy - timedelta(days=hoy.weekday() + 7)
+        return lun, lun + timedelta(days=6)
+
+    if tipo_periodo == 'QUINCENAL':
+        if hoy.day <= 15:
+            # Primera quincena del mes anterior
+            mes_ant = (hoy.replace(day=1) - timedelta(days=1))
+            return mes_ant.replace(day=16), mes_ant.replace(day=mes_ant.day)
+        else:
+            return hoy.replace(day=1), hoy.replace(day=15)
+
+    if tipo_periodo == 'MENSUAL':
+        # Mes anterior completo
+        primer_dia = hoy.replace(day=1)
+        fin_mes = primer_dia - timedelta(days=1)
+        return fin_mes.replace(day=1), fin_mes
+
+    if tipo_periodo == 'ESTA_SEMANA':
+        lun = hoy - timedelta(days=hoy.weekday())
+        return lun, hoy
+
+    if tipo_periodo == 'ESTE_MES':
+        return hoy.replace(day=1), hoy
+
+    # PERSONALIZADO — usa las fechas del request
+    try:
+        ini = date.fromisoformat(fecha_inicio_str)
+        fin = date.fromisoformat(fecha_fin_str)
+        return ini, fin
+    except (ValueError, TypeError):
+        # Default: últimos 7 días
+        return hoy - timedelta(days=6), hoy
+
+
+def _periodo_label(inicio: date, fin: date) -> str:
+    meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    if inicio.month == fin.month and inicio.year == fin.year:
+        return f'{inicio.day}–{fin.day} de {meses[inicio.month]} {inicio.year}'
+    return f'{inicio.strftime("%d/%m/%Y")} – {fin.strftime("%d/%m/%Y")}'
+
+
+def _get_empresa() -> str:
+    try:
+        from asistencia.models import ConfiguracionSistema
+        cfg = ConfiguracionSistema.get()
+        return cfg.nombre_empresa or ''
+    except Exception:
+        return ''
+
+
+# ─────────────────────────────────────────────────────────────
+# VISTAS
+# ─────────────────────────────────────────────────────────────
+
+@login_required
+@solo_admin
+def panel_reportes_area(request):
+    """Panel principal: muestra todas las áreas con sus configs y acciones."""
+    from asistencia.models import ConfiguracionReporteArea, EnvioReporteArea
+    from django.db.models import Max
+
+    areas = Area.objects.filter(activa=True).order_by('nombre')
+
+    # Cargar configuraciones existentes
+    configs = {c.area_id: c for c in ConfiguracionReporteArea.objects.all()}
+
+    # Último envío por área
+    ultimos = {
+        r['area_id']: r['ultimo']
+        for r in EnvioReporteArea.objects.filter(
+            estado__in=['ENVIADO', 'PARCIAL']
+        ).values('area_id').annotate(ultimo=Max('creado_en'))
+    }
+
+    area_data = []
+    for area in areas:
+        n_empleados = Personal.objects.filter(
+            subarea__area=area, estado='Activo'
+        ).count()
+        if n_empleados == 0:
+            continue
+        cfg = configs.get(area.pk)
+        ultimo_envio = ultimos.get(area.pk)
+
+        # Historial de emails (últimos 3)
+        historial = []
+        if cfg and cfg.historial_emails:
+            historial = cfg.historial_emails[-3:][::-1]  # más recientes primero
+
+        area_data.append({
+            'area': area,
+            'n_empleados': n_empleados,
+            'cfg': cfg,
+            'nombre_jefe': cfg.nombre_jefe if cfg else '',
+            'emails_jefatura': cfg.get_emails_jefatura() if cfg else [],
+            'emails_cc': cfg.get_emails_cc() if cfg else [],
+            'asunto_template': cfg.asunto_template if cfg else 'Reporte de Asistencia - {area} - {periodo}',
+            'cuerpo_template': cfg.cuerpo_template if cfg else '',
+            'activo': cfg.activo if cfg else False,
+            'tiene_config': bool(cfg),
+            'ultimo_envio': ultimo_envio,
+            'historial': historial,
+        })
+
+    context = {
+        'area_data': area_data,
+        'hoy': date.today(),
+        'empresa': _get_empresa(),
+        'titulo': 'Reportes de Asistencia por Área',
+    }
+    return render(request, 'asistencia/reportes_area_panel.html', context)
+
+
+@login_required
+@solo_admin
+@require_POST
+def configurar_area(request, area_id):
+    """Guarda/actualiza la configuración de destinatarios de un área, con historial."""
+    from asistencia.models import ConfiguracionReporteArea
+    import re
+    from django.utils import timezone
+
+    area = get_object_or_404(Area, pk=area_id)
+
+    def parse_emails(raw: str) -> list[str]:
+        parts = re.split(r'[,;\n\r]+', raw or '')
+        return [e.strip() for e in parts if '@' in e.strip()]
+
+    emails_jefatura = parse_emails(request.POST.get('emails_jefatura', ''))
+    emails_cc       = parse_emails(request.POST.get('emails_cc', ''))
+    asunto_template = request.POST.get('asunto_template', '').strip() or \
+                      'Reporte de Asistencia - {area} - {periodo}'
+    cuerpo_template = request.POST.get('cuerpo_template', '').strip()
+    nombre_jefe     = request.POST.get('nombre_jefe', '').strip()
+    activo          = request.POST.get('activo', '1') == '1'
+
+    cfg, created = ConfiguracionReporteArea.objects.get_or_create(area=area)
+
+    # Registrar cambio en historial si los emails cambiaron
+    emails_antes = cfg.emails_jefatura or []
+    cc_antes     = cfg.emails_cc or []
+    hubo_cambio  = sorted(emails_antes) != sorted(emails_jefatura) or \
+                   sorted(cc_antes) != sorted(emails_cc)
+
+    if hubo_cambio or created:
+        entrada = {
+            'fecha':          timezone.now().strftime('%d/%m/%Y %H:%M'),
+            'accion':         'creacion' if created else 'actualizacion',
+            'emails_antes':   emails_antes,
+            'emails_despues': emails_jefatura,
+            'cc_antes':       cc_antes,
+            'cc_despues':     emails_cc,
+            'usuario':        request.user.username if request.user.is_authenticated else 'sistema',
+        }
+        historial = list(cfg.historial_emails or [])
+        historial.append(entrada)
+        cfg.historial_emails = historial[-50:]  # máx 50 entradas
+
+    cfg.emails_jefatura = emails_jefatura
+    cfg.emails_cc       = emails_cc
+    cfg.asunto_template = asunto_template
+    cfg.cuerpo_template = cuerpo_template
+    cfg.nombre_jefe     = nombre_jefe or cfg.nombre_jefe
+    cfg.activo          = activo
+    cfg.save()
+
+    return JsonResponse({
+        'ok':           True,
+        'created':      created,
+        'cambio':       hubo_cambio,
+        'area':         area.nombre,
+        'nombre_jefe':  cfg.nombre_jefe,
+        'destinatarios': len(emails_jefatura),
+        'cc':           len(emails_cc),
+    })
+
+
+@login_required
+@solo_admin
+def generar_zip_por_area(request):
+    """
+    Genera un ZIP con PDFs agrupados por área:
+      reporte_asistencia/
+        AREA_NOMBRE/
+          12345678_APELLIDO_NOMBRE.pdf
+    """
+    tipo_periodo  = request.GET.get('tipo_periodo', 'PERSONALIZADO')
+    fecha_ini_str = request.GET.get('fecha_inicio', '')
+    fecha_fin_str = request.GET.get('fecha_fin', '')
+    area_ids_str  = request.GET.getlist('areas')  # vacío = todas
+    grupo_filter  = request.GET.get('grupo', 'TODOS')
+
+    inicio, fin = _get_rango(tipo_periodo, fecha_ini_str, fecha_fin_str)
+    periodo_lbl = _periodo_label(inicio, fin)
+
+    # Empleados activos con area
+    qs = Personal.objects.filter(
+        estado='Activo',
+        subarea__isnull=False,
+    ).select_related('subarea__area').order_by(
+        'subarea__area__nombre', 'apellidos_nombres'
+    )
+
+    if area_ids_str:
+        qs = qs.filter(subarea__area_id__in=area_ids_str)
+    if grupo_filter != 'TODOS':
+        qs = qs.filter(grupo_tareo=grupo_filter)
+
+    zip_buffer = io.BytesIO()
+    total = 0
+    with ZipFile(zip_buffer, 'w') as zf:
+        for emp in qs:
+            area_nombre = emp.subarea.area.nombre
+            # Nombre de carpeta seguro
+            carpeta = slugify(area_nombre, allow_unicode=False).upper().replace('-', '_')
+            pdf = _pdf_empleado_rango(emp, inicio, fin)
+            if pdf:
+                nombre_pdf = (
+                    f'{emp.nro_doc}_{emp.apellidos_nombres.replace(",","").replace(" ","_")}.pdf'
+                )
+                zf.writestr(f'reporte_asistencia/{carpeta}/{nombre_pdf}', pdf)
+                total += 1
+
+    if total == 0:
+        return HttpResponse('No se encontraron registros para el período seleccionado.', status=404)
+
+    zip_buffer.seek(0)
+    fname = f'Asistencia_Areas_{inicio.strftime("%Y%m%d")}_{fin.strftime("%Y%m%d")}.zip'
+    response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return response
+
+
+@login_required
+@solo_admin
+@require_POST
+def enviar_reportes_por_area(request):
+    """
+    Envía los reportes por email a los destinatarios configurados por área.
+    Acepta sobreescritura de destinatarios, CC, asunto y cuerpo desde el form.
+
+    POST params:
+      tipo_periodo, fecha_inicio, fecha_fin
+      areas[]          → IDs de áreas a enviar (vacío = todas configuradas)
+      grupo            → TODOS / STAFF / RCO
+      override_emails  → emails adicionales separados por coma (van a todas las áreas)
+      override_cc      → CC adicionales
+      asunto_override  → Asunto personalizado (si no, usa config de área)
+      cuerpo_override  → Cuerpo personalizado
+    """
+    from asistencia.models import ConfiguracionReporteArea, EnvioReporteArea
+    from django.core.mail import get_connection, EmailMessage as DjEmail
+
+    tipo_periodo  = request.POST.get('tipo_periodo', 'PERSONALIZADO')
+    fecha_ini_str = request.POST.get('fecha_inicio', '')
+    fecha_fin_str = request.POST.get('fecha_fin', '')
+    area_ids      = request.POST.getlist('areas')
+    grupo_filter  = request.POST.get('grupo', 'TODOS')
+    asunto_override = request.POST.get('asunto_override', '').strip()
+    cuerpo_override = request.POST.get('cuerpo_override', '').strip()
+
+    def parse_emails_post(key):
+        import re
+        raw = request.POST.get(key, '')
+        return [e.strip() for e in re.split(r'[,;\n\r]+', raw) if '@' in e.strip()]
+
+    override_emails = parse_emails_post('override_emails')
+    override_cc     = parse_emails_post('override_cc')
+
+    inicio, fin = _get_rango(tipo_periodo, fecha_ini_str, fecha_fin_str)
+    periodo_lbl = _periodo_label(inicio, fin)
+    empresa = _get_empresa()
+
+    # Cargar configuraciones
+    configs_qs = ConfiguracionReporteArea.objects.filter(activo=True).select_related('area')
+    if area_ids:
+        configs_qs = configs_qs.filter(area_id__in=area_ids)
+
+    if not configs_qs.exists():
+        return JsonResponse({'ok': False, 'error': 'No hay áreas configuradas para envío.'}, status=400)
+
+    resultados = []
+    errores_globales = []
+
+    for cfg in configs_qs:
+        area = cfg.area
+
+        # Empleados del área en el período
+        qs_emp = Personal.objects.filter(
+            subarea__area=area,
+            estado='Activo',
+        ).order_by('apellidos_nombres')
+        if grupo_filter != 'TODOS':
+            qs_emp = qs_emp.filter(grupo_tareo=grupo_filter)
+
+        if not qs_emp.exists():
+            resultados.append({
+                'area': area.nombre,
+                'estado': 'sin_empleados',
+                'enviado': False,
+            })
+            continue
+
+        # Generar ZIP del área
+        zip_buf = io.BytesIO()
+        n_pdfs = 0
+        with ZipFile(zip_buf, 'w') as zf:
+            for emp in qs_emp:
+                pdf = _pdf_empleado_rango(emp, inicio, fin)
+                if pdf:
+                    nombre_pdf = (
+                        f'{emp.nro_doc}_{emp.apellidos_nombres.replace(",","").replace(" ","_")}.pdf'
+                    )
+                    zf.writestr(nombre_pdf, pdf)
+                    n_pdfs += 1
+
+        if n_pdfs == 0:
+            resultados.append({
+                'area': area.nombre,
+                'estado': 'sin_pdfs',
+                'enviado': False,
+            })
+            continue
+
+        # Destinatarios
+        to_list = cfg.get_emails_jefatura() + override_emails
+        cc_list = cfg.get_emails_cc() + override_cc
+
+        if not to_list:
+            resultados.append({
+                'area': area.nombre,
+                'estado': 'sin_destinatarios',
+                'enviado': False,
+            })
+            continue
+
+        # Asunto y cuerpo
+        if asunto_override:
+            asunto = asunto_override.format(area=area.nombre, periodo=periodo_lbl, empresa=empresa)
+        else:
+            asunto = cfg.render_asunto(area.nombre, periodo_lbl, empresa)
+
+        if cuerpo_override:
+            cuerpo = cuerpo_override.format(
+                area=area.nombre, periodo=periodo_lbl,
+                empresa=empresa, total_empleados=n_pdfs,
+            )
+        else:
+            cuerpo = cfg.render_cuerpo(area.nombre, periodo_lbl, empresa, n_pdfs)
+
+        # Enviar
+        zip_buf.seek(0)
+        zip_name = f'Asistencia_{slugify(area.nombre)}_{inicio.strftime("%Y%m%d")}_{fin.strftime("%Y%m%d")}.zip'
+
+        try:
+            msg = DjEmail(
+                subject=asunto,
+                body=cuerpo,
+                to=to_list,
+                cc=cc_list if cc_list else None,
+            )
+            msg.attach(zip_name, zip_buf.read(), 'application/zip')
+            msg.send(fail_silently=False)
+            enviado = True
+            estado = 'enviado'
+        except Exception as e:
+            logger.error(f'Error enviando a {area.nombre}: {e}')
+            enviado = False
+            estado = f'error: {str(e)[:100]}'
+            errores_globales.append({'area': area.nombre, 'error': str(e)})
+
+        # Registrar en log
+        try:
+            EnvioReporteArea.objects.create(
+                area=area,
+                tipo_periodo=tipo_periodo,
+                fecha_inicio=inicio,
+                fecha_fin=fin,
+                emails_destino=to_list,
+                emails_cc=cc_list,
+                asunto=asunto,
+                cuerpo=cuerpo,
+                estado='ENVIADO' if enviado else 'ERROR',
+                empleados_total=qs_emp.count(),
+                empleados_enviados=n_pdfs if enviado else 0,
+                errores=[] if enviado else [estado],
+                creado_por=request.user if request.user.is_authenticated else None,
+            )
+        except Exception as log_e:
+            logger.warning(f'No se pudo crear log de envío: {log_e}')
+
+        resultados.append({
+            'area': area.nombre,
+            'estado': estado,
+            'enviado': enviado,
+            'empleados': n_pdfs,
+            'destinatarios': to_list,
+        })
+
+    total_enviados = sum(1 for r in resultados if r['enviado'])
+    return JsonResponse({
+        'ok': True,
+        'total_areas': len(resultados),
+        'enviados': total_enviados,
+        'resultados': resultados,
+        'errores': errores_globales,
+        'periodo': periodo_lbl,
+    })
+
+
+@login_required
+@solo_admin
+def historial_envios(request):
+    """Lista los últimos envíos registrados."""
+    from asistencia.models import EnvioReporteArea
+    envios = EnvioReporteArea.objects.select_related('area', 'creado_por').order_by('-creado_en')[:100]
+    return render(request, 'asistencia/reportes_area_historial.html', {
+        'envios': envios,
+        'titulo': 'Historial de Envíos por Área',
+    })

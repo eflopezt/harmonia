@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from xhtml2pdf import pisa
 
-from asistencia.views._common import solo_admin, _papeletas_por_fecha
+from asistencia.views._common import solo_admin, _papeletas_por_fecha, CODIGOS_AUSENCIA_PAGADA
 
 
 MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -128,11 +128,8 @@ table{border-collapse:collapse}
 td,th{padding:0;text-align:center;font-size:7pt}"""
 
 
-# Códigos de ausencia pagada → cuentan como jornada estándar (8h)
-CODIGOS_DIA_PAGADO = {
-    'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE',
-    'CT', 'CDT', 'CPF', 'FR', 'TR',
-}
+# Alias local para compatibilidad con código de esta vista
+CODIGOS_DIA_PAGADO = CODIGOS_AUSENCIA_PAGADA
 
 # Jornada estándar para ausencias pagadas (jornada legal 8h, no depende de condición)
 JORNADA_AUSENCIA = 8.0
@@ -142,9 +139,14 @@ def _get_jornada_dia(condicion, dia_semana):
     """Jornada diaria según condición y día — misma lógica que processor."""
     from asistencia.models import ConfiguracionSistema
     config = ConfiguracionSistema.get()
+    cond_norm = (condicion or '').upper().replace('Á', 'A')
     if dia_semana == 6:
-        return float(config.jornada_domingo_horas)
-    if condicion == 'FORANEO':
+        if cond_norm == 'FORANEO':
+            # FORÁNEO: domingo es parte del ciclo 21×7, jornada reducida 4h
+            return float(config.jornada_domingo_horas)
+        # LOCAL/LIMA: domingo es descanso semanal, si labora todo al 100%
+        return 0.0
+    if cond_norm == 'FORANEO':
         return float(config.jornada_foraneo_horas)
     if dia_semana == 5:
         return float(config.jornada_sabado_horas)

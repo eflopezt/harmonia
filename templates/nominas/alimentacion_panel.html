@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Recargas de Alimentacion{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="fas fa-utensils me-2 text-teal"></i>Recargas de Alimentacion</h4>
+    <small class="text-muted">Control de tarjetas Edenred / Sodexo — {{ mes_nombre }} {{ anio }}</small>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="post" action="{% url 'alimentacion_generar' %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="anio" value="{{ anio }}">
+      <input type="hidden" name="mes" value="{{ mes }}">
+      <input type="hidden" name="comision_pct" value="0.55">
+      <button class="btn btn-sm btn-primary"><i class="fas fa-sync me-1"></i>Generar Recargas</button>
+    </form>
+    {% if total_recargas %}
+    <a href="{% url 'alimentacion_exportar' %}?anio={{ anio }}&mes={{ mes }}" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i>Exportar</a>
+    <form method="post" action="{% url 'alimentacion_procesar' %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="anio" value="{{ anio }}">
+      <input type="hidden" name="mes" value="{{ mes }}">
+      <button class="btn btn-sm btn-outline-success" onclick="return confirm('Marcar todas como procesadas?')"><i class="fas fa-check-double me-1"></i>Procesar</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-2 mb-3">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-teal">{{ total_recargas }}</div>
+      <small class="text-muted">Recargas</small>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-primary">S/ {{ totales.total_monto|floatformat:2|default:"0.00" }}</div>
+      <small class="text-muted">Monto Recargas</small>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-5 fw-bold text-warning">S/ {{ totales.total_comision|floatformat:2|default:"0.00" }}</div>
+      <small class="text-muted">Comision (0.55%)</small>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <div class="fs-4 fw-bold text-success">S/ {{ totales.total_total|floatformat:2|default:"0.00" }}</div>
+      <small class="text-muted">Total a Pagar</small>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <table class="table table-sm table-hover mb-0" style="font-size:.82rem;">
+    <thead style="background:#f1f5f9;">
+      <tr><th>#</th><th>DNI</th><th>Trabajador</th><th>Proveedor</th><th>Tarjeta</th><th class="text-end">Monto</th><th class="text-end">Comision</th><th class="text-end">Total</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+      {% for r in recargas %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ r.personal.nro_doc }}</td>
+        <td class="fw-semibold">{{ r.personal.apellidos_nombres }}</td>
+        <td><span class="badge bg-info">{{ r.proveedor }}</span></td>
+        <td><code>{{ r.numero_tarjeta|default:"—" }}</code></td>
+        <td class="text-end">{{ r.monto|floatformat:2 }}</td>
+        <td class="text-end text-muted">{{ r.comision|floatformat:2 }}</td>
+        <td class="text-end fw-bold">{{ r.total|floatformat:2 }}</td>
+        <td>
+          {% if r.estado == 'PROCESADA' %}<span class="badge bg-success">Procesada</span>
+          {% elif r.estado == 'RECHAZADA' %}<span class="badge bg-danger">Rechazada</span>
+          {% else %}<span class="badge bg-warning text-dark">Pendiente</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" class="text-center py-4 text-muted">
+        <i class="fas fa-utensils d-block mb-2" style="font-size:1.5rem;opacity:.3"></i>
+        Sin recargas para {{ mes_nombre }} {{ anio }}. Click "Generar Recargas" para crear.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
