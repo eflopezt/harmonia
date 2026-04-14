@@ -489,3 +489,183 @@ def historial_envios(request):
         'envios': envios,
         'titulo': 'Historial de Envíos por Área',
     })
+
+
+@login_required
+@solo_admin
+def gestionar_emails(request):
+    """
+    Página de gestión rápida de emails por área.
+    Tabla con todas las áreas y modal de edición completa.
+    Muestra correo personal y corporativo del empleado si está en BD.
+    """
+    from asistencia.models import ConfiguracionReporteArea
+    from personal.models import Personal
+
+    areas = Area.objects.filter(activa=True).order_by('nombre')
+    configs = {c.area_id: c for c in ConfiguracionReporteArea.objects.all()}
+
+    rows = []
+    for area in areas:
+        n = Personal.objects.filter(subarea__area=area, estado='Activo').count()
+        if n == 0:
+            continue
+        cfg = configs.get(area.pk)
+        # Buscar correos del jefe si está como empleado en BD
+        correos_jefe = {}
+        if cfg and cfg.nombre_jefe:
+            nombre_norm = cfg.nombre_jefe.upper().strip()
+            match = Personal.objects.filter(
+                apellidos_nombres__icontains=nombre_norm.split()[0]
+            ).first() if nombre_norm else None
+            if match:
+                correos_jefe = {
+                    'personal':     match.correo_personal or '',
+                    'corporativo':  match.correo_corporativo or '',
+                }
+        rows.append({
+            'area':            area,
+            'n_empleados':     n,
+            'cfg':             cfg,
+            'nombre_jefe':     cfg.nombre_jefe if cfg else '',
+            'emails_jefatura': cfg.get_emails_jefatura() if cfg else [],
+            'emails_cc':       cfg.get_emails_cc() if cfg else [],
+            'asunto':          cfg.asunto_template if cfg else 'Reporte de Asistencia - {area} - {periodo}',
+            'cuerpo':          cfg.cuerpo_template if cfg else '',
+            'activo':          cfg.activo if cfg else False,
+            'correos_jefe':    correos_jefe,
+        })
+
+    return render(request, 'asistencia/gestionar_emails.html', {
+        'rows':   rows,
+        'titulo': 'Gestionar Emails por Área',
+    })
+
+
+@login_required
+@solo_admin
+def reporte_horario_simple(request):
+    """
+    Genera Excel con: ÁREA, DNI, NOMBRE, FECHA, DÍA, HORA ENTRADA, HORA SALIDA, CÓDIGO
+    Un reporte liviano de marcaciones, sin cálculos complejos.
+    """
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from asistencia.models import RegistroTareo
+
+    tipo_periodo  = request.GET.get('tipo_periodo', 'SEMANAL')
+    fecha_ini_str = request.GET.get('fecha_inicio', '')
+    fecha_fin_str = request.GET.get('fecha_fin', '')
+    area_ids      = request.GET.getlist('areas')
+    grupo_filter  = request.GET.get('grupo', 'TODOS')
+
+    inicio, fin = _get_rango(tipo_periodo, fecha_ini_str, fecha_fin_str)
+    periodo_lbl = _periodo_label(inicio, fin)
+
+    DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+    qs = RegistroTareo.objects.filter(
+        fecha__gte=inicio, fecha__lte=fin,
+    ).select_related('personal__subarea__area').order_by(
+        'personal__subarea__area__nombre',
+        'personal__apellidos_nombres',
+        'fecha',
+    )
+    if area_ids:
+        qs = qs.filter(personal__subarea__area_id__in=area_ids)
+    if grupo_filter != 'TODOS':
+        qs = qs.filter(grupo=grupo_filter)
+
+    if not qs.exists():
+        return HttpResponse('No hay registros para el período seleccionado.', status=404)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Horario'
+
+    # ── Estilos ──────────────────────────────────────────────────────
+    hdr_fill  = PatternFill('solid', fgColor='1F4E79')
+    hdr_font  = Font(color='FFFFFF', bold=True, size=10)
+    area_fill = PatternFill('solid', fgColor='D6E4F0')
+    area_font = Font(bold=True, size=10)
+    mono      = Font(name='Courier New', size=9)
+    center    = Alignment(horizontal='center', vertical='center')
+    thin      = Border(
+        left=Side(style='thin', color='CCCCCC'),
+        right=Side(style='thin', color='CCCCCC'),
+        top=Side(style='thin', color='CCCCCC'),
+        bottom=Side(style='thin', color='CCCCCC'),
+    )
+
+    # ── Título ───────────────────────────────────────────────────────
+    ws.merge_cells('A1:H1')
+    ws['A1'] = f'REPORTE DE HORARIOS — {periodo_lbl}'
+    ws['A1'].font = Font(bold=True, size=12, color='1F4E79')
+    ws.row_dimensions[1].height = 22
+
+    # ── Cabecera ─────────────────────────────────────────────────────
+    headers = ['ÁREA', 'DNI', 'APELLIDOS Y NOMBRES', 'FECHA', 'DÍA', 'ENTRADA', 'SALIDA', 'CÓD.']
+    widths  = [28, 11, 36, 12, 6, 10, 10, 7]
+    for col, (h, w) in enumerate(zip(headers, widths), 1):
+        cell = ws.cell(row=2, column=col, value=h)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = center
+        cell.border    = thin
+        ws.column_dimensions[cell.column_letter].width = w
+    ws.row_dimensions[2].height = 16
+    ws.freeze_panes = 'A3'
+
+    # ── Datos ────────────────────────────────────────────────────────
+    row_num = 3
+    prev_area = None
+    for reg in qs:
+        area_nombre = ''
+        if reg.personal and reg.personal.subarea and reg.personal.subarea.area:
+            area_nombre = reg.personal.subarea.area.nombre
+
+        # Separador de área
+        if area_nombre != prev_area:
+            ws.merge_cells(f'A{row_num}:H{row_num}')
+            c = ws.cell(row=row_num, column=1, value=f'▶  {area_nombre}')
+            c.fill = area_fill
+            c.font = area_font
+            c.alignment = Alignment(vertical='center')
+            ws.row_dimensions[row_num].height = 14
+            row_num += 1
+            prev_area = area_nombre
+
+        nombre = reg.personal.apellidos_nombres if reg.personal else reg.dni
+        entrada = reg.hora_entrada_real.strftime('%H:%M') if reg.hora_entrada_real else '—'
+        salida  = reg.hora_salida_real.strftime('%H:%M') if reg.hora_salida_real else '—'
+        dia_str = DIAS[reg.dia_semana] if reg.dia_semana is not None else ''
+
+        vals = [area_nombre, reg.dni, nombre,
+                reg.fecha.strftime('%d/%m/%Y'), dia_str,
+                entrada, salida, reg.codigo_dia]
+
+        for col, v in enumerate(vals, 1):
+            c = ws.cell(row=row_num, column=col, value=v)
+            c.border    = thin
+            c.alignment = center if col in (1, 2, 4, 5, 6, 7, 8) else Alignment(vertical='center')
+            if col in (6, 7):
+                c.font = mono
+            if reg.codigo_dia in ('DS', 'SS') and col == 8:
+                c.font = Font(bold=True, color='E74C3C' if reg.codigo_dia == 'SS' else '27AE60')
+            if reg.es_feriado and col == 4:
+                c.fill = PatternFill('solid', fgColor='FDEBD0')
+
+        ws.row_dimensions[row_num].height = 13
+        row_num += 1
+
+    # ── Autofilter ───────────────────────────────────────────────────
+    ws.auto_filter.ref = f'A2:H{row_num - 1}'
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f'Horario_{inicio.strftime("%Y%m%d")}_{fin.strftime("%Y%m%d")}.xlsx'
+    resp = HttpResponse(buf.getvalue(),
+                        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return resp

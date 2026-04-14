@@ -12,9 +12,14 @@
       <h4 class="mb-1 fw-bold"><i class="bi bi-folder2-open text-primary me-2"></i>Reportes de Asistencia por Área</h4>
       <p class="text-muted mb-0 small">Genera y envía reportes agrupados por área a las jefaturas</p>
     </div>
-    <a href="{% url 'asistencia_reportes_area_historial' %}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-clock-history me-1"></i>Historial de envíos
-    </a>
+    <div class="d-flex gap-2">
+      <a href="{% url 'asistencia_gestionar_emails' %}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-envelope-gear me-1"></i>Gestionar emails
+      </a>
+      <a href="{% url 'asistencia_reportes_area_historial' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-clock-history me-1"></i>Historial envíos
+      </a>
+    </div>
   </div>
 
   <!-- Panel de Controles -->
@@ -63,12 +68,15 @@
           <div class="form-text" style="font-size:10px">Ctrl+clic para múltiple</div>
         </div>
 
-        <div class="col-md-3 d-flex gap-2">
-          <button class="btn btn-outline-primary btn-sm flex-fill" onclick="descargarZip()">
-            <i class="bi bi-download me-1"></i>Descargar ZIP
+        <div class="col-md-3 d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-secondary btn-sm" onclick="descargarHorario()" title="Excel simple: entrada/salida por empleado">
+            <i class="bi bi-table me-1"></i>Horario Excel
           </button>
-          <button class="btn btn-success btn-sm flex-fill" onclick="abrirModalEnvio()">
-            <i class="bi bi-send me-1"></i>Enviar todo
+          <button class="btn btn-outline-primary btn-sm" onclick="descargarZip()">
+            <i class="bi bi-download me-1"></i>ZIP PDFs
+          </button>
+          <button class="btn btn-success btn-sm" onclick="abrirModalEnvio()">
+            <i class="bi bi-send me-1"></i>Enviar
           </button>
         </div>
 
@@ -361,6 +369,13 @@ async function guardarConfig(id) {
   } catch(e) {
     showToast('Error de red: ' + e.message, 'danger');
   }
+}
+
+// ── Descarga Horario Excel ─────────────────────────────────────
+function descargarHorario() {
+  const p = getPeriodoParams();
+  showToast('Generando Excel de horarios…', 'primary');
+  window.location.href = '{% url "asistencia_reporte_horario" %}?' + p.toString();
 }
 
 // ── Descarga ZIP ───────────────────────────────────────────────

@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gestionar Emails por Área{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="bi bi-envelope-gear text-primary me-2"></i>Gestionar Emails por Área</h4>
+      <p class="text-muted mb-0 small">Configura destinatarios, asunto y cuerpo del correo para cada área</p>
+    </div>
+    <a href="{% url 'asistencia_reportes_areas' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver al panel
+    </a>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th style="width:22%">ÁREA</th>
+            <th style="width:14%">JEFE / RESPONSABLE</th>
+            <th style="width:22%">EMAILS DESTINO (Para:)</th>
+            <th style="width:18%">CC</th>
+            <th style="width:8%" class="text-center">EMP.</th>
+            <th style="width:8%" class="text-center">ESTADO</th>
+            <th style="width:8%" class="text-center">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr id="row-{{ r.area.pk }}">
+            <td class="fw-semibold small">{{ r.area.nombre }}</td>
+            <td class="small">
+              {% if r.nombre_jefe %}
+                <i class="bi bi-person-fill text-primary me-1"></i>{{ r.nombre_jefe }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% for em in r.emails_jefatura %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace me-1" style="font-size:10px">{{ em }}</span>
+              {% empty %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size:10px"><i class="bi bi-exclamation-triangle me-1"></i>Sin configurar</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% for em in r.emails_cc %}
+                <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace me-1" style="font-size:10px">{{ em }}</span>
+              {% empty %}
+                <span class="text-muted small">—</span>
+              {% endfor %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-primary-subtle text-primary">{{ r.n_empleados }}</span>
+            </td>
+            <td class="text-center">
+              {% if r.activo and r.emails_jefatura %}
+                <span class="badge bg-success rounded-pill"><i class="bi bi-check2"></i> OK</span>
+              {% elif r.activo %}
+                <span class="badge bg-warning text-dark rounded-pill">Sin email</span>
+              {% else %}
+                <span class="badge bg-secondary rounded-pill">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-primary py-0 px-2"
+                      onclick="abrirModal({{ r.area.pk }},
+                        '{{ r.area.nombre|escapejs }}',
+                        '{{ r.nombre_jefe|escapejs }}',
+                        {{ r.emails_jefatura|safe }},
+                        {{ r.emails_cc|safe }},
+                        '{{ r.asunto|escapejs }}',
+                        '{{ r.cuerpo|escapejs }}',
+                        {{ r.correos_jefe|safe }}
+                      )" title="Editar configuración">
+                <i class="bi bi-pencil-square me-1"></i>Editar
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No hay áreas con empleados activos.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal Edición -->
+<div class="modal fade" id="modalEmail" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white py-2">
+        <h6 class="modal-title mb-0"><i class="bi bi-envelope-gear me-2"></i><span id="modalAreaNombre"></span></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pb-2">
+        <input type="hidden" id="modalAreaId">
+
+        <!-- Jefe -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small mb-1">NOMBRE JEFE / RESPONSABLE</label>
+          <input type="text" id="mJefe" class="form-control form-control-sm" placeholder="Ej: Carlos Ucañay">
+        </div>
+
+        <!-- Emails destino -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small mb-1">EMAILS DESTINO <span class="text-muted fw-normal">(uno por línea)</span></label>
+
+          <!-- Quick-pick si el jefe está en BD -->
+          <div id="quickPickPara" class="mb-2 d-none">
+            <span class="small text-muted me-2">Seleccionar del empleado:</span>
+            <button type="button" class="btn btn-xs btn-outline-secondary me-1" id="btnPersonal" onclick="usarEmail('para','personal')">
+              <i class="bi bi-person me-1"></i><span id="emailPersonalLbl"></span>
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-primary me-1" id="btnCorp" onclick="usarEmail('para','corporativo')">
+              <i class="bi bi-building me-1"></i><span id="emailCorpLbl"></span>
+            </button>
+          </div>
+          <textarea id="mEmailsPara" class="form-control form-control-sm font-monospace" rows="3"
+                    placeholder="jefe@empresa.com"></textarea>
+        </div>
+
+        <!-- CC -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small mb-1">CC <span class="text-muted fw-normal">(uno por línea)</span></label>
+          <div id="quickPickCC" class="mb-2 d-none">
+            <span class="small text-muted me-2">Seleccionar del empleado:</span>
+            <button type="button" class="btn btn-xs btn-outline-secondary me-1" onclick="usarEmail('cc','personal')">
+              <i class="bi bi-person me-1"></i><span class="emailPersonalLblCC"></span>
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-primary me-1" onclick="usarEmail('cc','corporativo')">
+              <i class="bi bi-building me-1"></i><span class="emailCorpLblCC"></span>
+            </button>
+          </div>
+          <textarea id="mEmailsCC" class="form-control form-control-sm font-monospace" rows="2"
+                    placeholder="frank.vilchez@empresa.com"></textarea>
+        </div>
+
+        <!-- Asunto y Cuerpo -->
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label fw-semibold small mb-1">ASUNTO</label>
+            <input type="text" id="mAsunto" class="form-control form-control-sm"
+                   placeholder="Reporte de Asistencia - {area} - {periodo}">
+            <div class="form-text" style="font-size:10px">Vars disponibles: <code>{area}</code> <code>{periodo}</code> <code>{empresa}</code></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold small mb-1">CUERPO DEL CORREO <span class="text-muted fw-normal">(vacío = texto predeterminado)</span></label>
+            <textarea id="mCuerpo" class="form-control form-control-sm" rows="5"
+                      placeholder="Estimado {nombre_jefe},&#10;&#10;Adjunto encontrará el reporte de asistencia del área {area} correspondiente al período {periodo}.&#10;&#10;Atentamente,&#10;Gestión Humana"></textarea>
+            <div class="form-text" style="font-size:10px">Vars: <code>{area}</code> <code>{periodo}</code> <code>{empresa}</code> <code>{total_empleados}</code></div>
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="mActivo" checked>
+            <label class="form-check-label small" for="mActivo">Área activa para envío</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnGuardarModal" onclick="guardarModal()">
+          <i class="bi bi-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toast" class="toast align-items-center text-white border-0">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.btn-xs { padding: 1px 8px; font-size: 11px; }
+.font-monospace { font-size: 12px; }
+</style>
+<script>
+const csrfToken = '{{ csrf_token }}';
+let _correosJefe = {};
+
+function showToast(msg, tipo='success') {
+  const t = document.getElementById('toast');
+  t.className = `toast align-items-center text-white border-0 bg-${tipo}`;
+  document.getElementById('toastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(t, {delay: 4000}).show();
+}
+
+function abrirModal(id, nombre, jefe, emailsPara, emailsCC, asunto, cuerpo, correosJefe) {
+  document.getElementById('modalAreaId').value   = id;
+  document.getElementById('modalAreaNombre').textContent = nombre;
+  document.getElementById('mJefe').value          = jefe;
+  document.getElementById('mEmailsPara').value    = emailsPara.join('\n');
+  document.getElementById('mEmailsCC').value      = emailsCC.join('\n');
+  document.getElementById('mAsunto').value        = asunto;
+  document.getElementById('mCuerpo').value        = cuerpo;
+
+  _correosJefe = correosJefe || {};
+
+  // Quick-pick botones
+  const qpPara = document.getElementById('quickPickPara');
+  if (_correosJefe.personal || _correosJefe.corporativo) {
+    qpPara.classList.remove('d-none');
+    document.getElementById('emailPersonalLbl').textContent = _correosJefe.personal || '(sin personal)';
+    document.getElementById('emailCorpLbl').textContent     = _correosJefe.corporativo || '(sin corporativo)';
+    document.getElementById('btnPersonal').disabled = !_correosJefe.personal;
+    document.getElementById('btnCorp').disabled     = !_correosJefe.corporativo;
+  } else {
+    qpPara.classList.add('d-none');
+  }
+
+  new bootstrap.Modal(document.getElementById('modalEmail')).show();
+}
+
+function usarEmail(campo, tipo) {
+  const email = _correosJefe[tipo];
+  if (!email) return;
+  const el = campo === 'para'
+    ? document.getElementById('mEmailsPara')
+    : document.getElementById('mEmailsCC');
+  const actual = el.value.trim();
+  el.value = actual ? (actual + '\n' + email) : email;
+}
+
+async function guardarModal() {
+  const id  = document.getElementById('modalAreaId').value;
+  const btn = document.getElementById('btnGuardarModal');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
+
+  const body = new URLSearchParams({
+    nombre_jefe:     document.getElementById('mJefe').value,
+    emails_jefatura: document.getElementById('mEmailsPara').value,
+    emails_cc:       document.getElementById('mEmailsCC').value,
+    asunto_template: document.getElementById('mAsunto').value,
+    cuerpo_template: document.getElementById('mCuerpo').value,
+    activo:          document.getElementById('mActivo').checked ? '1' : '0',
+  });
+
+  try {
+    const resp = await fetch(`/asistencia/reportes/areas/${id}/configurar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded'},
+      body,
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showToast(`✓ ${data.area}: guardado`, 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modalEmail')).hide();
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showToast('Error al guardar', 'danger');
+    }
+  } catch(e) {
+    showToast('Error de red: ' + e.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-floppy me-1"></i>Guardar';
+  }
+}
+</script>
+{% endblock %}
