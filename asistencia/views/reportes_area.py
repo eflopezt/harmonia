@@ -718,17 +718,20 @@ def reporte_excel_areas(request):
                     continue
 
                 if reg.codigo_dia == 'SS':
-                    total_faltas += 1
-                    ws.merge_cells(start_row=row_num, start_column=col_e,
-                                   end_row=row_num, end_column=col_s)
-                    label = pap if pap else 'FALTA'
-                    c = ws.cell(row_num, col_e, label)
-                    c.fill = C_PAPELETA if pap else C_FALTA
-                    c.font = Font(bold=True, size=9,
-                                  color='1F4E79' if pap else 'FFFFFF')
-                    c.alignment = center
-                    c.border = borde_s
-                    ws.cell(row_num, col_s).border = borde_s
+                    # SS = marcación incompleta (presente, pero falta entrada o salida)
+                    # NO es ausencia — mostrar la hora disponible y "SS" en la columna faltante
+                    total_hnorm += float(reg.horas_normales or reg.horas_efectivas or 0)
+                    entrada_ss = reg.hora_entrada_real
+                    salida_ss  = reg.hora_salida_real
+                    val_e = entrada_ss.strftime('%H:%M') if entrada_ss else 'SS'
+                    val_s = salida_ss.strftime('%H:%M')  if salida_ss  else 'SS'
+                    C_SS = PatternFill('solid', fgColor='FFE5CC')  # naranja claro
+                    for col, val, brd in ((col_e, val_e, borde_e), (col_s, val_s, borde_s)):
+                        c = ws.cell(row_num, col, val)
+                        c.fill = C_SS
+                        c.font = Font(size=9, bold=(val == 'SS'), color='8B4000' if val == 'SS' else '000000')
+                        c.alignment = center
+                        c.border = brd
                     continue
 
                 if reg.codigo_dia == 'DS':
@@ -817,14 +820,14 @@ def reporte_excel_areas(request):
             # Contar T del día
             t_count = sum(
                 1 for emp in empleados
-                if (reg := tareos_map.get((emp.nro_doc, f))) and reg.codigo_dia == 'T'
+                if (reg := tareos_map.get((emp.nro_doc, f))) and reg.codigo_dia in ('T', 'SS')
             )
-            ss_count = sum(
+            abs_count = sum(
                 1 for emp in empleados
-                if (reg := tareos_map.get((emp.nro_doc, f))) and reg.codigo_dia == 'SS'
+                if tareos_map.get((emp.nro_doc, f)) is None
             )
             ws.merge_cells(start_row=tot_row, start_column=col_e, end_row=tot_row, end_column=col_e+1)
-            label = f'✓{t_count}' + (f' ✗{ss_count}' if ss_count else '')
+            label = f'✓{t_count}' + (f' ✗{abs_count}' if abs_count else '')
             c = ws.cell(tot_row, col_e, label)
             c.font = Font(size=8, bold=True)
             c.fill = C_RESUMEN
@@ -842,6 +845,7 @@ def reporte_excel_areas(request):
             'GRIS=DESC compensatorio',
             'AZUL=Papeleta/Permiso',
             'MORADO=Feriado trabajado',
+            'NARANJA CLARO=SS (marcación incompleta, presente)',
             'FALTA=Ausencia sin justificar',
             'E>8:00 LOCAL / E>7:00 FORÁNEO = tardanza',
         ]
