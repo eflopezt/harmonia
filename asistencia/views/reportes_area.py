@@ -645,10 +645,7 @@ def reporte_excel_areas(request):
         ws.freeze_panes = ws.cell(4, N_FIJOS + 1)
 
         # ── Datos por empleado ────────────────────────────────────────
-        TIPOS_PAPELETA_LABEL = {
-            'VAC': 'VAC', 'LCG': 'LCG', 'DL': 'DL', 'PP': 'PP',
-            'PERM': 'PER', 'LM': 'LM', 'COMP': 'COMP',
-        }
+        # papeletas_map ya trae la etiqueta corta (iniciales o 4 primeros chars)
         resumen_rows = []
 
         for row_num, emp in enumerate(empleados, start=4):
@@ -689,7 +686,7 @@ def reporte_excel_areas(request):
 
                 if pap and not reg:
                     # Día cubierto por papeleta sin registro
-                    tipo_short = TIPOS_PAPELETA_LABEL.get(pap, pap[:3])
+                    tipo_short = pap  # ya viene como etiqueta corta
                     ws.merge_cells(start_row=row_num, start_column=col_e,
                                    end_row=row_num, end_column=col_s)
                     c = ws.cell(row_num, col_e, tipo_short)
@@ -913,14 +910,16 @@ def reporte_excel_areas(request):
     for t in all_tareos:
         tareos_idx[(t.dni, t.fecha)] = t
 
-    # Indexar papeletas: (dni, fecha) → tipo
+    # Indexar papeletas: (dni, fecha) → etiqueta corta
     papeletas_idx = defaultdict(dict)
     for p in all_papeletas:
         dni = p.personal.nro_doc
+        # Usar iniciales si existen, si no las primeras 3 letras del tipo
+        label = (p.iniciales or p.tipo_permiso or 'PER')[:4].upper()
         f = p.fecha_inicio
         while f <= p.fecha_fin:
             if inicio <= f <= fin:
-                papeletas_idx[dni][f] = p.tipo
+                papeletas_idx[dni][f] = label
             f += timedelta(days=1)
 
     # Empleados por área
