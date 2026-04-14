@@ -539,6 +539,15 @@ def reporte_excel_areas(request):
         top=Side(style='thin', color='CCCCCC'),
         bottom=Side(style='thin', color='CCCCCC'),
     )
+    # Borde derecho grueso para separar días
+    sep_right = Side(style='medium', color='2E75B6')
+    def _thin_sep(is_last_of_day=False):
+        return Border(
+            left=Side(style='thin', color='CCCCCC'),
+            right=sep_right if is_last_of_day else Side(style='thin', color='CCCCCC'),
+            top=Side(style='thin', color='CCCCCC'),
+            bottom=Side(style='thin', color='CCCCCC'),
+        )
     center = Alignment(horizontal='center', vertical='center', wrap_text=False)
     center_w = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
@@ -627,6 +636,7 @@ def reporte_excel_areas(request):
                 cc.font = Font(bold=True, size=9, color='FFFFFF' if not es_fin_semana else '555555')
                 cc.fill = fill
                 cc.alignment = center
+                cc.border = _thin_sep(j == 1)  # borde sep en col S
         for i in range(4):
             c = ws.cell(3, N_FIJOS + 1 + len(fechas)*2 + i, '')
             c.fill = C_HEADER
@@ -684,24 +694,25 @@ def reporte_excel_areas(request):
 
                 val_e = val_s = ''
 
+                borde_e = _thin_sep(False)
+                borde_s = _thin_sep(True)   # borde derecho grueso en col Salida
+
                 if pap and not reg:
-                    # Día cubierto por papeleta sin registro
-                    tipo_short = pap  # ya viene como etiqueta corta
+                    tipo_short = pap
                     ws.merge_cells(start_row=row_num, start_column=col_e,
                                    end_row=row_num, end_column=col_s)
                     c = ws.cell(row_num, col_e, tipo_short)
                     c.fill = C_PAPELETA
                     c.font = Font(bold=True, size=9, color='1F4E79')
                     c.alignment = center
-                    c.border = thin
-                    ws.cell(row_num, col_s).border = thin
+                    c.border = borde_s
+                    ws.cell(row_num, col_s).border = borde_s
                     continue
 
                 if reg is None:
-                    # Sin registro — día sin trabajo (fin de semana normal o sin dato)
-                    for col in (col_e, col_s):
+                    for col, brd in ((col_e, borde_e), (col_s, borde_s)):
                         cc = ws.cell(row_num, col, '')
-                        cc.border = thin
+                        cc.border = brd
                         if es_fin_semana:
                             cc.fill = C_WEEKEND
                     continue
@@ -716,8 +727,8 @@ def reporte_excel_areas(request):
                     c.font = Font(bold=True, size=9,
                                   color='1F4E79' if pap else 'FFFFFF')
                     c.alignment = center
-                    c.border = thin
-                    ws.cell(row_num, col_s).border = thin
+                    c.border = borde_s
+                    ws.cell(row_num, col_s).border = borde_s
                     continue
 
                 if reg.codigo_dia == 'DS':
@@ -727,11 +738,11 @@ def reporte_excel_areas(request):
                     c.fill = C_DS
                     c.font = Font(bold=True, size=9, color='555555')
                     c.alignment = center
-                    c.border = thin
-                    ws.cell(row_num, col_s).border = thin
+                    c.border = borde_s
+                    ws.cell(row_num, col_s).border = borde_s
                     continue
 
-                # Código T (o feriado trabajado)
+                # Código T (trabajado / feriado trabajado)
                 entrada = reg.hora_entrada_real
                 salida  = reg.hora_salida_real
                 hef     = float(reg.horas_efectivas or 0)
@@ -752,12 +763,15 @@ def reporte_excel_areas(request):
                     C_SALIDA_T if _es_salida_temp(salida, hef, condicion) else bg_s
                 )
 
-                for col, val, fill in ((col_e, val_e, fill_e), (col_s, val_s, fill_s)):
+                for col, val, fill, brd in (
+                    (col_e, val_e, fill_e, borde_e),
+                    (col_s, val_s, fill_s, borde_s),
+                ):
                     c = ws.cell(row_num, col, val)
                     c.font = Font(size=9, bold=es_tarde and col == col_e,
                                   color='C00000' if es_tarde and col == col_e else '000000')
                     c.alignment = center
-                    c.border = thin
+                    c.border = brd
                     if fill:
                         c.fill = fill
 
