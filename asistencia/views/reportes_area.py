@@ -16,7 +16,7 @@ from __future__ import annotations
 import io
 import json
 import logging
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from zipfile import ZipFile
 
 from django.contrib.auth.decorators import login_required
