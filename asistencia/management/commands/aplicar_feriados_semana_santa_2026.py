@@ -58,24 +58,27 @@ class Command(BaseCommand):
                 es_feriado=True,
             )
 
-        # ─── 2. Compensaciones FORÁNEO ───────────────────────────────────
-        cond_filter = {'condicion__in': ['FORANEO', 'FORÁNEO']}
-
-        # 02/04 trabajado → compensa 04/04
+        # ─── 2. Compensaciones ───────────────────────────────────────────
+        # 02/04 trabajado (TODAS las condiciones) → compensa 04/04 sábado
+        #   LOCAL sábado = 5.5h laborables → CPF reemplaza FA
+        #   FORÁNEO sábado = 10h laborables → CPF reemplaza FA
         trabajaron_02 = set(
             RegistroTareo.objects.filter(
-                fecha=fer_jue, horas_efectivas__gt=0, **cond_filter,
+                fecha=fer_jue, horas_efectivas__gt=0,
             ).values_list('personal_id', flat=True)
         )
         qs_04 = RegistroTareo.objects.filter(
             personal_id__in=trabajaron_02, fecha=comp_sab, codigo_dia='FA',
         )
         self.stdout.write(
-            f'\nFORÁNEOs trabajaron 02/04: {len(trabajaron_02)} → 04/04 FA a CPF: {qs_04.count()}')
+            f'\nTrabajaron 02/04 (todas condiciones): {len(trabajaron_02)} → 04/04 FA a CPF: {qs_04.count()}')
         for r in qs_04[:5]:
             self.stdout.write(f'  {r.personal.apellidos_nombres[:35]}')
 
-        # 03/04 trabajado → compensa 05/04 y 12/04
+        # 03/04 trabajado → compensa 05/04 y 12/04 (solo FORÁNEO)
+        # Los LOCAL no tienen compensación adicional: sus domingos ya son DS.
+        # El LOCAL que trabajó 03/04 recibe pago 100% HE ese mismo día.
+        cond_filter = {'condicion__in': ['FORANEO', 'FORÁNEO']}
         trabajaron_03 = set(
             RegistroTareo.objects.filter(
                 fecha=fer_vie, horas_efectivas__gt=0, **cond_filter,
