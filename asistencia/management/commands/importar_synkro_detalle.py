@@ -244,9 +244,12 @@ def _calcular_horas(
     horas_netas proviene de _calc_horas_biometrico(); el almuerzo ya fue deducido.
     Esta función NO aplica ningún descuento adicional.
     """
-    # SS (sin salida): presente sin marca de salida → paga jornada completa
+    # SS (sin salida): presente sin marca de salida → paga jornada completa.
+    # En feriado laborado o LOCAL domingo trabajado, la jornada va al 100%.
     if codigo == 'SS':
         j = jornada_h if jornada_h > CERO else Decimal('8.5')
+        if es_feriado or (dia_semana == 6 and jornada_h == CERO):
+            return j, CERO, CERO, CERO, j
         return j, j, CERO, CERO, CERO
 
     # Códigos de ausencia/permiso
