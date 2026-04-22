@@ -55,10 +55,10 @@ class Command(BaseCommand):
         if hasta:
             qs = qs.filter(fecha__lte=hasta)
 
-        # Filtro SQL para tomar solo los que tienen al menos un campo feo.
-        # Usamos %% para escapar el % de string-formatting que hace psycopg2.
+        # Filtro SQL: MOD numérico (NO ::int, que trunca: 9.53*10=95 → falso OK).
+        # Detecta cualquier decimal distinto de .0 o .5.
         where_or = ' OR '.join(
-            f"(({c} * 10)::int %% 5 != 0 AND {c} IS NOT NULL AND {c} > 0)"
+            f"(MOD(({c} * 10)::numeric, 5) != 0 AND {c} IS NOT NULL AND {c} > 0)"
             for c in CAMPOS
         )
         qs = qs.extra(where=[where_or])
