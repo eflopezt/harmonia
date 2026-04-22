@@ -348,24 +348,24 @@ def exportar_faltas_mes(request):
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Registros de FA/F/LSG del mes (excluir FA en domingos para LOCAL/LIMA)
-    qs = (
+    regs_detalle = list(
         RegistroTareo.objects.filter(
             fecha__gte=mes_ini, fecha__lte=mes_fin,
             codigo_dia__in=['FA', 'F', 'LSG'],
             personal__isnull=False,
         )
         .exclude(codigo_dia__in=['FA', 'F'], dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
-        .values('personal_id', 'codigo_dia')
-        .annotate(cantidad=Count('id'))
+        .select_related('personal__subarea__area')
+        .order_by('fecha', 'personal__apellidos_nombres')
     )
 
     # Agrupar por personal
     faltas_map: dict[int, dict] = {}
-    for r in qs:
-        pid = r['personal_id']
+    for r in regs_detalle:
+        pid = r.personal_id
         if pid not in faltas_map:
             faltas_map[pid] = {'FA': 0, 'F': 0, 'LSG': 0}
-        faltas_map[pid][r['codigo_dia']] = faltas_map[pid].get(r['codigo_dia'], 0) + r['cantidad']
+        faltas_map[pid][r.codigo_dia] = faltas_map[pid].get(r.codigo_dia, 0) + 1
 
     if not faltas_map:
         # Nada que reportar
@@ -477,6 +477,71 @@ def exportar_faltas_mes(request):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
         ws.freeze_panes = 'A5'
+
+        # ──────────────────────────────────────────────────────────
+        # HOJA 2 — Detalle por Fecha
+        # ──────────────────────────────────────────────────────────
+        ws2 = wb.create_sheet(title='Detalle por fecha')
+        dias_es = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+        cod_color = {
+            'FA':  Font(size=9, bold=True, color='991B1B'),
+            'F':   Font(size=9, bold=True, color='991B1B'),
+            'LSG': Font(size=9, bold=True, color='7C2D12'),
+        }
+
+        ws2.cell(row=1, column=1,
+                 value=f'DETALLE DE FALTAS POR FECHA — {MESES_ES[mes - 1].upper()} {anio}').font = title_font
+        ws2.cell(row=2, column=1, value=label_periodo).font = sub_font
+
+        headers2 = ['N°', 'Fecha', 'Día', 'DNI', 'Apellidos y Nombres',
+                    'Cargo', 'Área', 'Condición', 'Código', 'Observaciones']
+        for c, h in enumerate(headers2, 1):
+            cell = ws2.cell(row=4, column=c, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+
+        for i, r in enumerate(regs_detalle, 1):
+            row = i + 4
+            p = r.personal
+            fill = alt_fill if i % 2 == 0 else None
+            for c in range(1, 11):
+                cell = ws2.cell(row=row, column=c)
+                if fill:
+                    cell.fill = fill
+                cell.border = border
+
+            ws2.cell(row=row, column=1, value=i).font = data_font
+            c_fecha = ws2.cell(row=row, column=2, value=r.fecha)
+            c_fecha.font = data_font
+            c_fecha.number_format = 'dd/mm/yyyy'
+            ws2.cell(row=row, column=3, value=dias_es[r.fecha.weekday()]).font = data_font
+            c_dni = ws2.cell(row=row, column=4, value=p.nro_doc)
+            c_dni.font = data_font
+            c_dni.number_format = '@'
+            ws2.cell(row=row, column=5, value=p.apellidos_nombres).font = data_font
+            ws2.cell(row=row, column=6, value=p.cargo or '').font = Font(size=8, color='64748b')
+            ws2.cell(row=row, column=7, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
+            ws2.cell(row=row, column=8, value=r.condicion or '').font = Font(size=8, color='64748b')
+            ws2.cell(row=row, column=9, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
+            ws2.cell(row=row, column=10, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
+
+            for c in [1, 2, 3, 4, 8, 9]:
+                ws2.cell(row=row, column=c).alignment = center
+
+        # Totales hoja 2
+        total_row2 = len(regs_detalle) + 5
+        for c in range(1, 11):
+            ws2.cell(row=total_row2, column=c).fill = total_fill
+            ws2.cell(row=total_row2, column=c).font = total_font
+        ws2.cell(row=total_row2, column=5, value='TOTAL REGISTROS').alignment = center
+        ws2.cell(row=total_row2, column=9, value=len(regs_detalle)).alignment = center
+
+        # Anchos
+        widths2 = [5, 12, 6, 12, 38, 25, 20, 10, 8, 40]
+        for i, w in enumerate(widths2, 1):
+            ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+        ws2.freeze_panes = 'A5'
 
     output = BytesIO()
     wb.save(output)
