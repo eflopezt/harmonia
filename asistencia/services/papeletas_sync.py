@@ -54,16 +54,41 @@ def _cond_norm(c: str) -> str:
 
 
 def _codigo_default(personal, fecha: date, es_feriado: bool) -> tuple[str, str]:
-    """Retorna (codigo, fuente) para un día sin papeleta ni marcación real."""
+    """Retorna (codigo, fuente) para un día sin papeleta ni marcación real.
+
+    Evalúa ReglaEspecialPersonal activas: si el default hubiera sido X y
+    una regla tiene codigo_reloj_trigger=X, devuelve codigo_resultado.
+    """
     cond = _cond_norm(personal.condicion)
     dow = fecha.weekday()
+
     if es_feriado:
-        return 'FER', 'FERIADO'
-    if dow == 6 and cond in ('LOCAL', 'LIMA'):
-        return 'DS', 'DESCANSO_SEMANAL'
-    if cond == 'LIMA' and dow < 6:
-        return 'A', 'AUTO_LIMA'
-    return 'FA', 'FALTA_AUTO'
+        codigo, fuente = 'FER', 'FERIADO'
+    elif dow == 6 and cond in ('LOCAL', 'LIMA'):
+        codigo, fuente = 'DS', 'DESCANSO_SEMANAL'
+    elif cond == 'LIMA' and dow < 6:
+        codigo, fuente = 'A', 'AUTO_LIMA'
+    else:
+        codigo, fuente = 'FA', 'FALTA_AUTO'
+
+    # Evaluar ReglaEspecialPersonal (overrride por empleado)
+    from django.db.models import Q
+    from asistencia.models import ReglaEspecialPersonal
+    reglas = ReglaEspecialPersonal.objects.filter(
+        personal=personal, activa=True, fecha_desde__lte=fecha,
+    ).filter(Q(fecha_hasta__isnull=True) | Q(fecha_hasta__gte=fecha))
+    for regla in reglas.order_by('prioridad', 'id'):
+        if regla.dias_semana and dow not in regla.dias_semana:
+            continue
+        if regla.condicion_laboral and _cond_norm(regla.condicion_laboral) != cond:
+            continue
+        if regla.solo_feriados and not es_feriado:
+            continue
+        if regla.codigo_reloj_trigger and regla.codigo_reloj_trigger != codigo:
+            continue
+        return regla.codigo_resultado, 'REGLA_ESPECIAL'
+
+    return codigo, fuente
 
 
 def _es_trabajo_real(r: RegistroTareo) -> bool:

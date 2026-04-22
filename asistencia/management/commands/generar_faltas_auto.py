@@ -27,6 +27,7 @@ from asistencia.models import (
     FeriadoCalendario, RegistroPapeleta,
     RegistroTareo, TareoImportacion,
 )
+from asistencia.services.papeletas_sync import _codigo_default
 from personal.models import Personal
 
 
@@ -133,19 +134,11 @@ class Command(BaseCommand):
                     f += timedelta(days=1)
                     continue
 
-                # Determinar código
+                # Determinar código (aplica ReglaEspecialPersonal si hay)
                 dow = f.weekday()  # 0=Lun ... 6=Dom
                 es_fer = f in feriados
-
-                if dow == 6 and cond in ('LOCAL', 'LIMA'):
-                    codigo, fuente = 'DS', 'DESCANSO_SEMANAL'
-                    stats['DS'] += 1
-                elif cond == 'LIMA' and dow < 6:
-                    codigo, fuente = 'A', 'AUTO_LIMA'
-                    stats['A_LIMA'] += 1
-                else:
-                    codigo, fuente = 'FA', 'FALTA_AUTO'
-                    stats['FA'] += 1
+                codigo, fuente = _codigo_default(p, f, es_fer)
+                stats[codigo] = stats.get(codigo, 0) + 1
 
                 a_crear.append(RegistroTareo(
                     importacion=imp,
