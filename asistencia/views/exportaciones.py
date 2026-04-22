@@ -368,10 +368,27 @@ def exportar_faltas_mes(request):
         faltas_map[pid][r.codigo_dia] = faltas_map[pid].get(r.codigo_dia, 0) + 1
 
     if not faltas_map:
-        # Nada que reportar
+        # Sin faltas: crear 2 hojas igual que el caso con datos, solo con
+        # mensaje informativo. Mantiene estructura consistente del archivo.
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws['A1'] = f'Sin faltas registradas en {MESES_ES[mes - 1]} {anio}'
+        ws.title = f'Faltas {MESES_ES[mes - 1]} {anio}'
+        ws['A1'] = f'REPORTE DE FALTAS — {MESES_ES[mes - 1].upper()} {anio}'
+        ws['A1'].font = Font(bold=True, size=14, color='991B1B')
+        ws['A2'] = label_periodo
+        ws['A2'].font = Font(size=9, color='64748b')
+        ws['A4'] = 'Sin faltas registradas en el período.'
+        ws['A4'].font = Font(size=10, italic=True, color='64748b')
+        ws.column_dimensions['A'].width = 70
+
+        ws2 = wb.create_sheet(title='Detalle por fecha')
+        ws2['A1'] = f'DETALLE DE FALTAS POR FECHA — {MESES_ES[mes - 1].upper()} {anio}'
+        ws2['A1'].font = Font(bold=True, size=14, color='991B1B')
+        ws2['A2'] = label_periodo
+        ws2['A2'].font = Font(size=9, color='64748b')
+        ws2['A4'] = 'Sin faltas registradas en el período.'
+        ws2['A4'].font = Font(size=10, italic=True, color='64748b')
+        ws2.column_dimensions['A'].width = 70
     else:
         pids = list(faltas_map.keys())
         personal_qs = Personal.objects.filter(id__in=pids).select_related('subarea__area').order_by('apellidos_nombres')
