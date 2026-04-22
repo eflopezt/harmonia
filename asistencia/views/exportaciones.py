@@ -139,10 +139,15 @@ def _calcular_periodo(anio: int, mes: int, tipo: str = 'calendario',
 
 
 def _get_corte_config(request):
-    """Obtiene los días de corte configurados en la empresa activa."""
-    empresa = getattr(request, 'empresa_actual', None)
-    if empresa:
-        return empresa.dia_inicio_corte, empresa.dia_fin_corte
+    """Obtiene los días de corte de ConfiguracionSistema.dia_corte_planilla.
+
+    dia_corte=21 → ciclo (22 mes-ant → 21 mes). Retorna (dia_inicio, dia_fin).
+    """
+    from asistencia.models import ConfiguracionSistema
+    cfg = ConfiguracionSistema.objects.first()
+    if cfg:
+        corte = cfg.dia_corte_planilla or 21
+        return corte + 1, corte
     return 22, 21
 
 

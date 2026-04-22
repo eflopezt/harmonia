@@ -46,13 +46,18 @@ def tareo_dashboard(request):
     mes_ini = date(anio_sel, mes_sel, 1)
     mes_fin = date(anio_sel, mes_sel, calendar.monthrange(anio_sel, mes_sel)[1])
 
-    # Ciclo HE (referencia: 21 mes anterior → fin del mes) ────────
-    if mes_sel == 1:
-        mes_ant, anio_ant = 12, anio_sel - 1
+    # Ciclo HE según ConfiguracionSistema.dia_corte_planilla
+    from asistencia.models import ConfiguracionSistema as _CS
+    _cfg = _CS.objects.first()
+    if _cfg:
+        ciclo_ini, ciclo_fin = _cfg.get_ciclo_he(anio_sel, mes_sel)
     else:
-        mes_ant, anio_ant = mes_sel - 1, anio_sel
-    ciclo_ini = date(anio_ant, mes_ant, 21)
-    ciclo_fin = mes_fin
+        if mes_sel == 1:
+            mes_ant, anio_ant = 12, anio_sel - 1
+        else:
+            mes_ant, anio_ant = mes_sel - 1, anio_sel
+        ciclo_ini = date(anio_ant, mes_ant, 22)
+        ciclo_fin = date(anio_sel, mes_sel, 21)
 
     # Stats filtrados por mes calendario (no ciclo HE)
     # STAFF: deduplicado por (personal, fecha) → importación más reciente

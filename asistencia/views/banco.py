@@ -97,12 +97,20 @@ def banco_horas_view(request):
 # ---------------------------------------------------------------------------
 
 def _get_ciclo(anio, mes):
-    """Ciclo STAFF: del 21 del mes anterior al 20 del mes actual."""
+    """Ciclo STAFF: lee ConfiguracionSistema.dia_corte_planilla.
+
+    Con dia_corte=21 → ciclo 22 mes anterior → 21 mes actual.
+    """
+    from asistencia.models import ConfiguracionSistema
+    config = ConfiguracionSistema.objects.first()
+    if config:
+        return config.get_ciclo_he(anio, mes)
+    # Fallback
     if mes == 1:
-        inicio = date(anio - 1, 12, 21)
+        inicio = date(anio - 1, 12, 22)
     else:
-        inicio = date(anio, mes - 1, 21)
-    return inicio, date(anio, mes, 20)
+        inicio = date(anio, mes - 1, 22)
+    return inicio, date(anio, mes, 21)
 
 
 def _render_pdf(html_string):

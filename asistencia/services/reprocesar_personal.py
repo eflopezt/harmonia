@@ -190,12 +190,17 @@ def reprocesar_asistencia_personal(personal, old_condicion=None, old_grupo=None)
             banco_omitidos += 1
             continue
 
-        # Ciclo 21 del mes anterior → 20 del mes actual
-        if mes == 1:
-            ciclo_ini = date(anio - 1, 12, 21)
+        # Ciclo según ConfiguracionSistema.dia_corte_planilla
+        from asistencia.models import ConfiguracionSistema
+        config_ciclo = ConfiguracionSistema.objects.first()
+        if config_ciclo:
+            ciclo_ini, ciclo_fin = config_ciclo.get_ciclo_he(anio, mes)
         else:
-            ciclo_ini = date(anio, mes - 1, 21)
-        ciclo_fin = date(anio, mes, 20)
+            if mes == 1:
+                ciclo_ini = date(anio - 1, 12, 22)
+            else:
+                ciclo_ini = date(anio, mes - 1, 22)
+            ciclo_fin = date(anio, mes, 21)
 
         sums = (
             RegistroTareo.objects
