@@ -422,7 +422,7 @@
       <ul class="list-unstyled mb-0">
         <li>
           <i class="fas fa-circle"></i>
-          <span><strong style="color:#fff;">Ciclo planilla regular:</strong> del día 21 del mes anterior al día 20 del mes actual (Art. 1 D.Leg. 728).</span>
+          <span><strong style="color:#fff;">Ciclo planilla regular:</strong> del día 22 del mes anterior al día 21 del mes actual (Art. 1 D.Leg. 728).</span>
         </li>
         <li>
           <i class="fas fa-circle"></i>
@@ -485,13 +485,13 @@
     var tipo = tipoInput ? tipoInput.value : 'REGULAR';
 
     if (tipo === 'REGULAR') {
-      /* Inicio: día 21 del mes anterior */
+      /* Inicio: día 22 del mes anterior */
       var mesAnterior = mes === 1 ? 12 : mes - 1;
       var anioAnterior = mes === 1 ? anio - 1 : anio;
-      var inicio = anioAnterior + '-' + String(mesAnterior).padStart(2,'0') + '-21';
+      var inicio = anioAnterior + '-' + String(mesAnterior).padStart(2,'0') + '-22';
 
-      /* Fin: día 20 del mes actual */
-      var fin = anio + '-' + String(mes).padStart(2,'0') + '-20';
+      /* Fin: día 21 del mes actual */
+      var fin = anio + '-' + String(mes).padStart(2,'0') + '-21';
 
       /* Pago: último día hábil del mes (aproximado: día 25) */
       var pago = anio + '-' + String(mes).padStart(2,'0') + '-25';
