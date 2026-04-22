@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from django.db import transaction
@@ -27,6 +27,21 @@ from django.utils import timezone
 logger = logging.getLogger('personal.business')
 
 CERO = Decimal('0')
+MEDIA = Decimal('0.5')
+
+
+def redondear_media_hora(valor: Decimal | float | int | None) -> Decimal:
+    """Redondea al múltiplo más cercano de 0.5.
+
+    Regla: x → round(x*2)/2 con ROUND_HALF_UP.
+    Ej: 0.24→0.0, 0.25→0.5, 0.42→0.5, 0.78→1.0, 1.62→1.5, 2.08→2.0.
+    """
+    if valor is None:
+        return CERO
+    d = valor if isinstance(valor, Decimal) else Decimal(str(valor))
+    # Multiplica por 2, redondea a entero, divide entre 2.
+    pasos = (d * 2).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    return (pasos / 2).quantize(Decimal('0.1'))
 
 # ──────────────────────────────────────────────────────────────
 # MAPEO DE TIPO PERMISO (texto → choice interno)
@@ -488,7 +503,23 @@ class TareoProcessor:
         # Prioridad 5: Falta automática
         return 'FA', 'FALTA_AUTO', None, False
 
-    def _calcular_horas(self, codigo: str, horas_marcadas: Decimal | None,
+    def _calcular_horas(self, *args, **kwargs
+                        ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
+        """Wrapper que redondea cada componente al múltiplo más cercano de 0.5.
+
+        La regla de negocio exige que horas_efectivas, horas_normales y las
+        tres variantes de HE se almacenen siempre como X.0 o X.5. Para mantener
+        la invariante ef = norm + he25 + he35 + he100 redondeamos cada campo
+        de forma independiente (verificado contra el dataset abril 2026).
+        """
+        he, hn, h25, h35, h100 = self._calcular_horas_raw(*args, **kwargs)
+        return (redondear_media_hora(he),
+                redondear_media_hora(hn),
+                redondear_media_hora(h25),
+                redondear_media_hora(h35),
+                redondear_media_hora(h100))
+
+    def _calcular_horas_raw(self, codigo: str, horas_marcadas: Decimal | None,
                         jornada_h: Decimal, es_feriado: bool,
                         grupo: str, es_ss: bool = False,
                         dia_semana: int | None = None,

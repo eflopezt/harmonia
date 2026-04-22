@@ -148,7 +148,13 @@ def reprocesar_asistencia_personal(personal, old_condicion=None, old_grupo=None)
                 to_update.append(r)
             continue
 
+        from asistencia.services.processor import redondear_media_hora
         h_ef, h_norm, he25, he35, he100 = new_vals
+        h_ef = redondear_media_hora(h_ef)
+        h_norm = redondear_media_hora(h_norm)
+        he25 = redondear_media_hora(he25)
+        he35 = redondear_media_hora(he35)
+        he100 = redondear_media_hora(he100)
         if (r.horas_efectivas != h_ef or r.horas_normales != h_norm
                 or r.he_25 != he25 or r.he_35 != he35 or r.he_100 != he100):
             r.horas_efectivas = h_ef
