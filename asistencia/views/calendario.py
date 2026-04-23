@@ -356,6 +356,7 @@ def _recalcular_horas(reg):
     config = ConfiguracionSistema.get()
     personal = reg.personal
     condicion = (reg.condicion or '').upper()
+    CERO = Decimal('0')
 
     # Obtener jornada (misma lógica que processor._obtener_jornada)
     dia_semana = reg.fecha.weekday()
@@ -397,7 +398,6 @@ def _recalcular_horas(reg):
 
     reg.horas_marcadas = horas_marcadas
 
-    CERO = Decimal('0')
     codigo = reg.codigo_dia
     CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF', 'LP',
                       'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FER', 'ATM', 'SAI', 'F',
