@@ -82,6 +82,9 @@ class Command(BaseCommand):
         parser.add_argument('--fecha-fin', required=True,
                             help='YYYY-MM-DD fin del periodo')
         parser.add_argument('--dry-run', action='store_true')
+        parser.add_argument('--merge', action='store_true',
+                            help='Modo agregar: no borra existentes, solo añade las nuevas '
+                                 'y actualiza las que ya existen (por personal+fechas+tipo).')
 
     def handle(self, *args, **opts):
         ruta = Path(opts['archivo'])
@@ -90,6 +93,7 @@ class Command(BaseCommand):
         fecha_ini = date.fromisoformat(opts['fecha_ini'])
         fecha_fin = date.fromisoformat(opts['fecha_fin'])
         dry = opts['dry_run']
+        merge = opts['merge']
 
         df = pd.read_excel(ruta, sheet_name='Sheet', dtype=str)
         df['DNI'] = df['DNI'].astype(str).str.strip()
@@ -107,15 +111,18 @@ class Command(BaseCommand):
             f'Total en archivo: {len(df)} | En rango: {len(df_rango)}'
         )
 
-        # ── 1) Borrar papeletas IMPORTACION del rango ──
-        a_borrar = RegistroPapeleta.objects.filter(
-            origen='IMPORTACION',
-            fecha_inicio__lte=fecha_fin,
-            fecha_fin__gte=fecha_ini,
-        )
-        self.stdout.write(f'Papeletas IMPORTACION a borrar: {a_borrar.count()}')
-        if not dry:
-            a_borrar.delete()
+        # ── 1) Borrar papeletas IMPORTACION del rango (solo si NO es merge) ──
+        if merge:
+            self.stdout.write('Modo MERGE: preservando papeletas existentes.')
+        else:
+            a_borrar = RegistroPapeleta.objects.filter(
+                origen='IMPORTACION',
+                fecha_inicio__lte=fecha_fin,
+                fecha_fin__gte=fecha_ini,
+            )
+            self.stdout.write(f'Papeletas IMPORTACION a borrar: {a_borrar.count()}')
+            if not dry:
+                a_borrar.delete()
 
         # ── 2) Resolver DNIs → Personal ──
         dnis_archivo = set(df_rango['DNI'].tolist())
@@ -140,7 +147,8 @@ class Command(BaseCommand):
 
         # ── 4) Crear papeletas ──
         a_crear = []
-        stats = {'total': 0, 'sin_match': 0, 'sin_fechas': 0, 'sin_tipo': 0}
+        stats = {'total': 0, 'sin_match': 0, 'sin_fechas': 0, 'sin_tipo': 0,
+                 'ya_existian': 0, 'actualizados': 0}
         for _, row in df_rango.iterrows():
             dni = row['DNI']
             if dni in sin_match:
@@ -171,40 +179,82 @@ class Command(BaseCommand):
             personal = personal_map[dni]
             dias = (row['_fin'] - row['_ini']).days + 1
 
-            a_crear.append(RegistroPapeleta(
-                importacion=imp,
-                personal=personal,
-                dni=dni,
-                tipo_permiso=tipo,
-                tipo_permiso_raw=str(row['TipoPermiso'])[:150] if not pd.isna(row['TipoPermiso']) else '',
-                iniciales=iniciales[:10],
-                fecha_inicio=row['_ini'],
-                fecha_fin=row['_fin'],
-                dias_habiles=dias,
-                estado='APROBADA',
-                origen='IMPORTACION',
-                detalle=str(detalle)[:500],
-                area_trabajo=str(area)[:100],
-                cargo=str(cargo)[:150],
-            ))
-            stats['total'] += 1
+            # En modo merge: get_or_create. Sin merge: bulk_create.
+            if merge:
+                if dry:
+                    stats['total'] += 1
+                    continue
+                pap, created = RegistroPapeleta.objects.get_or_create(
+                    personal=personal,
+                    tipo_permiso=tipo,
+                    fecha_inicio=row['_ini'],
+                    fecha_fin=row['_fin'],
+                    defaults=dict(
+                        importacion=imp,
+                        dni=dni,
+                        tipo_permiso_raw=str(row['TipoPermiso'])[:150] if not pd.isna(row['TipoPermiso']) else '',
+                        iniciales=iniciales[:10],
+                        dias_habiles=dias,
+                        estado='APROBADA',
+                        origen='IMPORTACION',
+                        detalle=str(detalle)[:500],
+                        area_trabajo=str(area)[:100],
+                        cargo=str(cargo)[:150],
+                    ),
+                )
+                if created:
+                    stats['total'] += 1
+                else:
+                    # Ya existía: asegurar que está APROBADA
+                    if pap.estado != 'APROBADA':
+                        pap.estado = 'APROBADA'
+                        pap.save(update_fields=['estado'])
+                        stats['actualizados'] += 1
+                    else:
+                        stats['ya_existian'] += 1
+            else:
+                a_crear.append(RegistroPapeleta(
+                    importacion=imp,
+                    personal=personal,
+                    dni=dni,
+                    tipo_permiso=tipo,
+                    tipo_permiso_raw=str(row['TipoPermiso'])[:150] if not pd.isna(row['TipoPermiso']) else '',
+                    iniciales=iniciales[:10],
+                    fecha_inicio=row['_ini'],
+                    fecha_fin=row['_fin'],
+                    dias_habiles=dias,
+                    estado='APROBADA',
+                    origen='IMPORTACION',
+                    detalle=str(detalle)[:500],
+                    area_trabajo=str(area)[:100],
+                    cargo=str(cargo)[:150],
+                ))
+                stats['total'] += 1
 
         self.stdout.write(f'\n=== CREAR ===')
         self.stdout.write(f'A crear: {stats["total"]}')
         self.stdout.write(f'Omitidos sin match DNI: {stats["sin_match"]}')
         self.stdout.write(f'Omitidos sin fechas: {stats["sin_fechas"]}')
         self.stdout.write(f'Omitidos sin tipo: {stats["sin_tipo"]}')
+        if merge:
+            self.stdout.write(f'Ya existían: {stats["ya_existian"]}')
+            self.stdout.write(f'Reactivados (estado→APROBADA): {stats["actualizados"]}')
 
         if dry:
             self.stdout.write(self.style.WARNING('\nDRY RUN - no se guardó nada.'))
             return
 
-        with transaction.atomic():
-            RegistroPapeleta.objects.bulk_create(a_crear, batch_size=300)
+        if not merge:
+            with transaction.atomic():
+                RegistroPapeleta.objects.bulk_create(a_crear, batch_size=300)
+                imp.estado = 'COMPLETADO'
+                imp.registros_ok = stats['total']
+                imp.save()
+        else:
             imp.estado = 'COMPLETADO'
             imp.registros_ok = stats['total']
             imp.save()
 
         self.stdout.write(self.style.SUCCESS(
-            f'\n✓ Importadas {stats["total"]} papeletas.'
+            f'\n✓ Importadas {stats["total"]} papeletas nuevas.'
         ))
