@@ -419,7 +419,7 @@ def exportar_faltas_mes(request):
         ws.cell(row=1, column=1, value=f'REPORTE DE FALTAS — {MESES_ES[mes - 1].upper()} {anio}').font = title_font
         ws.cell(row=2, column=1, value=f'{label_periodo} | Días laborables aprox.: {dias_laborables}').font = sub_font
 
-        headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Cargo', 'Área',
+        headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Cargo', 'Área', 'Grupo',
                    'FA/F', 'LSG', 'Total Días Desc.',
                    'Sueldo Base', 'Valor Día', 'Descuento Estimado', 'Código S10']
         for c, h in enumerate(headers, 1):
@@ -441,11 +441,13 @@ def exportar_faltas_mes(request):
             total_descuento += descuento
 
             fill = alt_fill if i % 2 == 0 else None
-            for c in range(1, 13):
+            for c in range(1, 14):
                 cell = ws.cell(row=row, column=c)
                 if fill:
                     cell.fill = fill
                 cell.border = border
+
+            grupo_label = 'RCO' if p.grupo_tareo == 'RCO' else 'Staff'
 
             ws.cell(row=row, column=1, value=i).font = data_font
             c2 = ws.cell(row=row, column=2, value=p.nro_doc)
@@ -454,42 +456,43 @@ def exportar_faltas_mes(request):
             ws.cell(row=row, column=3, value=p.apellidos_nombres).font = data_font
             ws.cell(row=row, column=4, value=p.cargo or '').font = Font(size=8, color='64748b')
             ws.cell(row=row, column=5, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
-            ws.cell(row=row, column=6, value=dias_fa).font = warn_font if dias_fa else data_font
-            ws.cell(row=row, column=7, value=dias_lsg).font = warn_font if dias_lsg else data_font
-            ws.cell(row=row, column=8, value=total_dias_desc).font = Font(bold=True, size=9)
-            ws.cell(row=row, column=9, value=float(sueldo)).font = data_font
-            ws.cell(row=row, column=9).number_format = '#,##0.00'
-            ws.cell(row=row, column=10, value=float(valor_dia)).font = data_font
+            ws.cell(row=row, column=6, value=grupo_label).font = Font(size=8, bold=True)
+            ws.cell(row=row, column=7, value=dias_fa).font = warn_font if dias_fa else data_font
+            ws.cell(row=row, column=8, value=dias_lsg).font = warn_font if dias_lsg else data_font
+            ws.cell(row=row, column=9, value=total_dias_desc).font = Font(bold=True, size=9)
+            ws.cell(row=row, column=10, value=float(sueldo)).font = data_font
             ws.cell(row=row, column=10).number_format = '#,##0.00'
-            ws.cell(row=row, column=11, value=float(descuento)).font = Font(bold=True, size=9, color='991B1B')
+            ws.cell(row=row, column=11, value=float(valor_dia)).font = data_font
             ws.cell(row=row, column=11).number_format = '#,##0.00'
+            ws.cell(row=row, column=12, value=float(descuento)).font = Font(bold=True, size=9, color='991B1B')
+            ws.cell(row=row, column=12).number_format = '#,##0.00'
             cod_s10 = []
             if dias_fa:
                 cod_s10.append('9800-FA')
             if dias_lsg:
                 cod_s10.append('9810-LSG')
-            ws.cell(row=row, column=12, value=' | '.join(cod_s10)).font = Font(size=8, color='64748b')
+            ws.cell(row=row, column=13, value=' | '.join(cod_s10)).font = Font(size=8, color='64748b')
 
-            for c in [6, 7, 8, 9, 10, 11]:
+            for c in [6, 7, 8, 9, 10, 11, 12]:
                 ws.cell(row=row, column=c).alignment = center
 
         # Fila totales
         total_row = len(pids) + 5
-        for c in range(1, 13):
+        for c in range(1, 14):
             ws.cell(row=total_row, column=c).fill = total_fill
             ws.cell(row=total_row, column=c).font = total_font
         ws.cell(row=total_row, column=3, value='TOTALES').alignment = center
-        ws.cell(row=total_row, column=6, value=sum(fd.get('FA', 0) + fd.get('F', 0) for fd in faltas_map.values())).alignment = center
-        ws.cell(row=total_row, column=7, value=sum(fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
-        ws.cell(row=total_row, column=8, value=sum(fd.get('FA', 0) + fd.get('F', 0) + fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
-        ws.cell(row=total_row, column=11, value=float(total_descuento)).number_format = '#,##0.00'
-        ws.cell(row=total_row, column=11).alignment = center
+        ws.cell(row=total_row, column=7, value=sum(fd.get('FA', 0) + fd.get('F', 0) for fd in faltas_map.values())).alignment = center
+        ws.cell(row=total_row, column=8, value=sum(fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
+        ws.cell(row=total_row, column=9, value=sum(fd.get('FA', 0) + fd.get('F', 0) + fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
+        ws.cell(row=total_row, column=12, value=float(total_descuento)).number_format = '#,##0.00'
+        ws.cell(row=total_row, column=12).alignment = center
 
         ws.cell(row=total_row + 2, column=1,
                 value=f'Total trabajadores con descuentos: {len(pids)} | Descuento total estimado: S/ {total_descuento:,.2f}').font = Font(size=9, color='991B1B', bold=True)
 
         # Anchos de columna
-        widths = [5, 12, 38, 25, 20, 8, 8, 10, 14, 12, 18, 16]
+        widths = [5, 12, 38, 25, 20, 8, 8, 8, 10, 14, 12, 18, 16]
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
@@ -511,7 +514,7 @@ def exportar_faltas_mes(request):
         ws2.cell(row=2, column=1, value=label_periodo).font = sub_font
 
         headers2 = ['N°', 'Fecha', 'Día', 'DNI', 'Apellidos y Nombres',
-                    'Cargo', 'Área', 'Condición', 'Código', 'Observaciones']
+                    'Cargo', 'Área', 'Grupo', 'Condición', 'Código', 'Observaciones']
         for c, h in enumerate(headers2, 1):
             cell = ws2.cell(row=4, column=c, value=h)
             cell.font = header_font
@@ -522,11 +525,13 @@ def exportar_faltas_mes(request):
             row = i + 4
             p = r.personal
             fill = alt_fill if i % 2 == 0 else None
-            for c in range(1, 11):
+            for c in range(1, 12):
                 cell = ws2.cell(row=row, column=c)
                 if fill:
                     cell.fill = fill
                 cell.border = border
+
+            grupo_label = 'RCO' if p.grupo_tareo == 'RCO' else 'Staff'
 
             ws2.cell(row=row, column=1, value=i).font = data_font
             c_fecha = ws2.cell(row=row, column=2, value=r.fecha)
@@ -539,23 +544,24 @@ def exportar_faltas_mes(request):
             ws2.cell(row=row, column=5, value=p.apellidos_nombres).font = data_font
             ws2.cell(row=row, column=6, value=p.cargo or '').font = Font(size=8, color='64748b')
             ws2.cell(row=row, column=7, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
-            ws2.cell(row=row, column=8, value=r.condicion or '').font = Font(size=8, color='64748b')
-            ws2.cell(row=row, column=9, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
-            ws2.cell(row=row, column=10, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
+            ws2.cell(row=row, column=8, value=grupo_label).font = Font(size=8, bold=True)
+            ws2.cell(row=row, column=9, value=r.condicion or '').font = Font(size=8, color='64748b')
+            ws2.cell(row=row, column=10, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
+            ws2.cell(row=row, column=11, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
 
-            for c in [1, 2, 3, 4, 8, 9]:
+            for c in [1, 2, 3, 4, 8, 9, 10]:
                 ws2.cell(row=row, column=c).alignment = center
 
         # Totales hoja 2
         total_row2 = len(regs_detalle) + 5
-        for c in range(1, 11):
+        for c in range(1, 12):
             ws2.cell(row=total_row2, column=c).fill = total_fill
             ws2.cell(row=total_row2, column=c).font = total_font
         ws2.cell(row=total_row2, column=5, value='TOTAL REGISTROS').alignment = center
-        ws2.cell(row=total_row2, column=9, value=len(regs_detalle)).alignment = center
+        ws2.cell(row=total_row2, column=10, value=len(regs_detalle)).alignment = center
 
         # Anchos
-        widths2 = [5, 12, 6, 12, 38, 25, 20, 10, 8, 40]
+        widths2 = [5, 12, 6, 12, 38, 25, 20, 8, 10, 8, 40]
         for i, w in enumerate(widths2, 1):
             ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
         ws2.freeze_panes = 'A5'
