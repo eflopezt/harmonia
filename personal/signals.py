@@ -228,13 +228,12 @@ def _handle_cambio_condicion(personal, condicion_anterior):
             NotificacionService.enviar(
                 destinatario=personal_admin,
                 asunto=f'Condición cambiada: {personal.apellidos_nombres}',
-                mensaje=(
+                cuerpo=(
                     f'{personal.apellidos_nombres} ({personal.nro_doc}) cambió de '
                     f'{condicion_anterior} a {personal.condicion}. '
                     f'{fixed} registros de asistencia reprocesados automáticamente.'
                 ),
-                tipo='INFO',
-                url=f'/personal/{personal.pk}/',
+                tipo='IN_APP',
             )
     except Exception as e:
         logger.warning('[Signal Condicion] Error notificando: %s', e)
