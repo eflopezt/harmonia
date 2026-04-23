@@ -537,10 +537,13 @@ def ajax_calendario_cambiar(request, registro_id):
     if reg.hora_entrada_real and reg.hora_salida_real and reg.codigo_dia == 'SS':
         reg.codigo_dia = 'A'
 
-    # Recalcular horas si cambió entrada/salida o almuerzo
+    # Recalcular horas si cambió entrada/salida o almuerzo.
+    # NO tocar fuente_codigo aquí: solo debe ser 'MANUAL' si el código se
+    # cambió explícitamente (línea 507). Si solo se editan horas, el código
+    # sigue viniendo del reloj/regla/feriado y codigo_fuerza_normal no debe
+    # dispararse en domingos/feriados (LOCAL dom = 100%, no día normal).
     if nueva_entrada or nueva_salida or almuerzo_val != 'auto':
         _recalcular_horas(reg)
-        reg.fuente_codigo = 'MANUAL'
 
     # Log del cambio
     log_obs = ' | '.join(cambios_detalle)
