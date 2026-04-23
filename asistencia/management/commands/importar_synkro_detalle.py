@@ -98,7 +98,7 @@ GRACIA_ROUNDING = Decimal('7') / 60       # 7 minutos en horas
 # Códigos que NO generan horas normales ni HE
 CODIGOS_SIN_HE = {
     'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF',
-    'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI',
+    'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FER', 'ATM', 'SAI',
 }
 
 DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']

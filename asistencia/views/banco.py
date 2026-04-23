@@ -126,7 +126,7 @@ CODE_COLORS = {
     'FA': '#fed7d7', 'F': '#fed7d7', 'SAI': '#fed7d7',
     'VAC': '#bee3f8', 'DL': '#e2e8f0', 'DLA': '#e2e8f0', 'DS': '#e2e8f0',
     'DM': '#fefcbf', 'CHE': '#feebc8', 'CDT': '#feebc8', 'CPF': '#feebc8',
-    'LSG': '#e9d8fd', 'LCG': '#c4f1f9', 'LF': '#c4f1f9', 'FR': '#fed7e2',
+    'LSG': '#e9d8fd', 'LCG': '#c4f1f9', 'LF': '#c4f1f9', 'FER': '#fed7e2',
     'NA': '#edf2f7',
 }
 

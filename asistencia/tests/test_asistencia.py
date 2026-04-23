@@ -498,7 +498,7 @@ class TestHomologacionCodigo(TestCase):
 
     def test_feriado_no_laborado(self):
         h = HomologacionCodigo.objects.get(codigo_origen="FR")
-        assert h.codigo_tareo == "FR"
+        assert h.codigo_tareo == "FER"
         assert h.tipo_evento == "FERIADO"
 
     def test_feriado_laborado(self):

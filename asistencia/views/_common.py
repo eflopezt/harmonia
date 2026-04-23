@@ -77,7 +77,7 @@ def _qs_staff_dedup(mes_ini, mes_fin):
 # Fuente canónica — importar desde aquí en banco.py y reporte_individual.py
 CODIGOS_AUSENCIA_PAGADA = {
     'DL', 'DLA', 'VAC', 'LCG', 'DM', 'LF', 'LP', 'CHE',
-    'CT', 'CDT', 'CPF', 'FR', 'TR',
+    'CT', 'CDT', 'CPF', 'FER', 'TR',
 }
 
 # ── Mapeo tipo_permiso → código tareo para papeletas ─────────

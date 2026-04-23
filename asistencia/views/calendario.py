@@ -40,7 +40,7 @@ COLOR_MAP = {
     'CHE': 'comp', 'CDT': 'comp', 'CPF': 'comp',
     'LSG': 'lsg',
     'LCG': 'licencia', 'LF': 'licencia', 'LP': 'licencia',
-    'FR': 'feriado', 'FER': 'feriado', 'FL': 'feriado',
+    'FER': 'feriado', 'FL': 'feriado',
     'LIM': 'lima', 'ATM': 'lima',
     'NA': 'empty',
 }
@@ -400,8 +400,8 @@ def _recalcular_horas(reg):
     CERO = Decimal('0')
     codigo = reg.codigo_dia
     CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF', 'LP',
-                      'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI', 'F',
-                      'V', 'FER', 'FL', 'SUB', 'DS', 'B', 'LIM', 'NA'}
+                      'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FER', 'ATM', 'SAI', 'F',
+                      'V', 'FL', 'SUB', 'DS', 'B', 'LIM', 'NA'}
 
     # SS: paga jornada completa
     # En LOCAL domingo o feriado: SS también va al 100% (D.Leg. 713)

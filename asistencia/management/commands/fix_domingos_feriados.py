@@ -42,7 +42,7 @@ JORNADA_SABADO_LOCAL = Decimal('5.5')
 
 CODIGOS_SIN_HE = {
     'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF',
-    'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI',
+    'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FER', 'ATM', 'SAI',
 }
 
 DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']

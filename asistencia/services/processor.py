@@ -112,7 +112,7 @@ CODIGOS_DESCUENTO = {'FA', 'LSG', 'SAI'}
 
 # Códigos que NO generan HE (el día se paga pero no suma horas al banco/pago)
 CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF',
-                  'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FR', 'ATM', 'SAI'}
+                  'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FER', 'ATM', 'SAI'}
 
 # Códigos que SÍ cuentan como día trabajado para el resumen mensual
 CODIGOS_ASISTENCIA = {'T', 'TR', 'LCG', 'ATM', 'CPF', 'CDT', 'SS'}
@@ -466,7 +466,7 @@ class TareoProcessor:
 
         # Prioridad 2: Feriado (solo si no hay marcación de trabajo real)
         if fecha in self._feriados and reg.get('codigo') in (None, 'FA', ''):
-            return 'FR', 'FERIADO', None, False
+            return 'FER', 'FERIADO', None, False
 
         # Prioridad 3: Dato del Reloj
         codigo_reloj = reg.get('codigo', '').upper().strip() if reg.get('codigo') else ''

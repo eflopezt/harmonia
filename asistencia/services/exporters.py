@@ -345,7 +345,7 @@ class ReporteCierreExporter:
             cat = 'sai'
         elif cod in ('LF', 'LP', 'LM'):
             cat = 'otros'
-        elif cod in ('DS', 'FR', 'FER', 'DOM'):
+        elif cod in ('DS', 'FER', 'DOM'):
             cat = 'ds_feriado'
         else:
             cat = 'otros'

@@ -48,7 +48,7 @@ CODE_COLORS = {
     'DM': '#fefcbf', 'SUB': '#fefcbf',
     'CHE': '#feebc8', 'CDT': '#feebc8', 'CPF': '#feebc8',
     'LSG': '#e9d8fd', 'LCG': '#c4f1f9', 'LF': '#c4f1f9', 'LP': '#c4f1f9',
-    'FR': '#fed7e2', 'FER': '#fed7e2', 'NA': '#edf2f7',
+    'FER': '#fed7e2', 'NA': '#edf2f7',
     'LIM': '#bee3f8', 'ATM': '#bee3f8',
 }
 
@@ -607,7 +607,7 @@ LEYENDA_DESCRIPCIONES = {
     'LP': 'Licencia por Paternidad',
     'CT': 'Comision de Trabajo',
     'TR': 'Trabajo Remoto',
-    'FR': 'Feriado (no laborable)',
+    'FER': 'Feriado (no laborable)',
     'SAI': 'Suspension por Acto Inseguro',
     'NA': 'No Aplica (fuera de periodo laboral)',
 }
@@ -618,7 +618,7 @@ def _leyenda_codigos(codigos_usados):
     items = []
     for code in ['A', 'T', 'NOR', 'SS', 'DS', 'DL', 'DLA', 'VAC', 'FA', 'F',
                  'DM', 'CHE', 'CDT', 'CPF', 'LSG', 'LCG', 'LF', 'LP', 'CT',
-                 'TR', 'FR', 'SAI', 'NA']:
+                 'TR', 'FER', 'SAI', 'NA']:
         if code in codigos_usados and code in LEYENDA_DESCRIPCIONES:
             items.append((code, LEYENDA_DESCRIPCIONES[code]))
     if not items:
