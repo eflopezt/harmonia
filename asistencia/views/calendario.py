@@ -399,9 +399,11 @@ def _recalcular_horas(reg):
     reg.horas_marcadas = horas_marcadas
 
     codigo = reg.codigo_dia
+    # DS/FER/FL NO están aquí: si tienen horas > 0 significa que el trabajador
+    # laboró su descanso/feriado y todas sus horas van al 100% (D.Leg. 713).
     CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF', 'LP',
-                      'LSG', 'FA', 'TR', 'CDT', 'CPF', 'FER', 'ATM', 'SAI', 'F',
-                      'V', 'FL', 'SUB', 'DS', 'B', 'LIM', 'NA'}
+                      'LSG', 'FA', 'TR', 'CDT', 'CPF', 'ATM', 'SAI', 'F',
+                      'V', 'SUB', 'B', 'LIM', 'NA'}
 
     # SS: paga jornada completa
     # En LOCAL domingo o feriado: SS también va al 100% (D.Leg. 713)
@@ -445,18 +447,25 @@ def _recalcular_horas(reg):
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
     # EXCEPCIÓN: si el código fue cambiado manualmente a NOR/T/A → calcular como día normal
     # (el trabajador tiene descanso semanal en otro día, no el domingo)
-    es_feriado = reg.es_feriado or FeriadoCalendario.objects.filter(
-        fecha=reg.fecha, activo=True).exists()
-    es_descanso_semanal = reg.fecha.weekday() == 6
+    # El código mismo puede indicar descanso/feriado aunque el día calendario
+    # no lo sea (p.ej. DS en miércoles = descanso rotativo).
+    es_feriado = (reg.es_feriado
+                  or FeriadoCalendario.objects.filter(fecha=reg.fecha, activo=True).exists()
+                  or codigo in ('FER', 'FL'))
+    es_descanso_semanal = reg.fecha.weekday() == 6 or codigo == 'DS'
     codigo_fuerza_normal = codigo in ('NOR', 'T', 'A') and reg.fuente_codigo == 'MANUAL'
+    # Si el CÓDIGO dice descanso/feriado (DS/FER/FL), todas las horas al 100%
+    # sin importar la jornada (no aplica reducción FORÁNEO domingo 4h).
+    codigo_fuerza_100 = codigo in ('DS', 'FER', 'FL')
     if (es_feriado or es_descanso_semanal) and not codigo_fuerza_normal:
         reg.horas_efectivas = horas_ef
-        if es_feriado or jornada_h == CERO:
-            # Feriado (toda condición) o LOCAL domingo: TODAS al 100%
+        if es_feriado or codigo_fuerza_100 or jornada_h == CERO:
+            # Feriado (toda condición), código DS/FER/FL o LOCAL domingo: TODAS al 100%
             reg.horas_normales = CERO
             reg.he_100 = horas_ef
         else:
-            # FORÁNEO domingo (4h jornada): normal hasta jornada, exceso HE 100%
+            # FORÁNEO domingo sin código de descanso (4h jornada):
+            # normal hasta jornada, exceso HE 100%
             reg.horas_normales = min(horas_ef, jornada_h)
             reg.he_100 = max(CERO, horas_ef - jornada_h)
         reg.he_25 = reg.he_35 = CERO
