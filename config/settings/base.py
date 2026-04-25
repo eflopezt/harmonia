@@ -311,6 +311,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'asistencia.tasks.enviar_resumen_semanal_asistencia',
         'schedule': crontab(hour=8, minute=0, day_of_week='1'),  # Lunes 08:00
     },
+    'health-check-papeletas-diario': {
+        # Detecta y auto-corrige inconsistencias papeleta ↔ RegistroTareo
+        # (ej: FA con papeleta APROBADA vigente). Salvaguarda contra bulk_create
+        # u otras operaciones que no disparen signals.
+        'task': 'asistencia.tasks.health_check_papeletas',
+        'schedule': crontab(hour=5, minute=30),  # Diario 05:30
+    },
 
     # ── Workflows ───────────────────────────────────────────────
     'verificar-vencimientos-workflows': {

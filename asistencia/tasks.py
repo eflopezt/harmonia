@@ -27,6 +27,28 @@ logger = logging.getLogger('personal.business')
 # EMAILS
 # ──────────────────────────────────────────────────────────────
 
+@shared_task(bind=True, max_retries=1, default_retry_delay=60)
+def health_check_papeletas(self):
+    """Auto-corrige inconsistencias papeleta ↔ RegistroTareo.
+
+    Se ejecuta de madrugada para que el día siguiente arranque consistente.
+    Si detecta y corrige > 0 casos, loggea como warning.
+    """
+    from django.core.management import call_command
+    from io import StringIO
+    out = StringIO()
+    try:
+        call_command('health_check_papeletas', stdout=out)
+        salida = out.getvalue()
+        if 'inconsistencias corregidas' in salida:
+            logger.warning('[health_check_papeletas] %s', salida.strip())
+        else:
+            logger.info('[health_check_papeletas] OK')
+    except Exception as e:
+        logger.error('[health_check_papeletas] Error: %s', e, exc_info=True)
+        raise self.retry(exc=e)
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
 def enviar_resumen_semanal_asistencia(self):
     """
