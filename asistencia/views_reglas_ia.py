@@ -23,7 +23,7 @@ from asistencia.models import ReglaEspecialPersonal, RegistroTareo
 
 
 CODIGOS_VALIDOS = [
-    'T', 'A', 'NOR', 'DL', 'DLA', 'FA', 'DS', 'SS', 'FER',
+    'T', 'A', 'NOR', 'DL', 'DLA', 'FA', 'DS', 'DSL', 'SS', 'FER', 'FL',
     'VAC', 'DM', 'LCG', 'LSG', 'LF', 'LP', 'CHE', 'CDT', 'CPF',
     'TR', 'ATM', 'SAI',
 ]
@@ -47,9 +47,11 @@ CÓDIGOS DE ASISTENCIA disponibles:
 - T / A / NOR = Día trabajado
 - DL / DLA = Día libre / Día libre acumulado
 - FA = Falta
-- DS = Descanso semanal
+- DS = Descanso semanal (no laborado)
+- DSL = Descanso semanal LABORADO (HE 100%)
 - SS = Sin salida (marcó entrada pero no salida)
 - FER = Feriado no laborado
+- FL = Feriado LABORADO (HE 100%)
 - VAC = Vacaciones
 - DM = Descanso médico
 - LCG = Licencia con goce

@@ -328,7 +328,8 @@ class ReporteCierreExporter:
 
         if cod == 'NA':
             cat = 'na'
-        elif cod in ('T', 'NOR', 'TR', 'A', 'SS', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'CT', 'CAP'):
+        elif cod in ('T', 'NOR', 'TR', 'A', 'SS', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'CT', 'CAP',
+                     'DSL', 'FL'):
             cat = 'dias_trabajados'
         elif cod in ('FA', 'F'):
             # Domingo LOCAL/LIMA → DS, no falta

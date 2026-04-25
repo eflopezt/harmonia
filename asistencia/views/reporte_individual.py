@@ -48,7 +48,8 @@ CODE_COLORS = {
     'DM': '#fefcbf', 'SUB': '#fefcbf',
     'CHE': '#feebc8', 'CDT': '#feebc8', 'CPF': '#feebc8',
     'LSG': '#e9d8fd', 'LCG': '#c4f1f9', 'LF': '#c4f1f9', 'LP': '#c4f1f9',
-    'FER': '#fed7e2', 'NA': '#edf2f7',
+    'FER': '#fed7e2', 'FL': '#fbb6ce', 'DSL': '#fbb6ce',
+    'NA': '#edf2f7',
     'LIM': '#bee3f8', 'ATM': '#bee3f8',
 }
 
@@ -608,6 +609,8 @@ LEYENDA_DESCRIPCIONES = {
     'CT': 'Comision de Trabajo',
     'TR': 'Trabajo Remoto',
     'FER': 'Feriado (no laborable)',
+    'FL': 'Feriado Laborado (HE 100%)',
+    'DSL': 'Descanso Semanal Laborado (HE 100%)',
     'SAI': 'Suspension por Acto Inseguro',
     'NA': 'No Aplica (fuera de periodo laboral)',
 }
@@ -616,9 +619,9 @@ LEYENDA_DESCRIPCIONES = {
 def _leyenda_codigos(codigos_usados):
     """Genera leyenda HTML solo con los códigos que aparecen en el reporte."""
     items = []
-    for code in ['A', 'T', 'NOR', 'SS', 'DS', 'DL', 'DLA', 'VAC', 'FA', 'F',
+    for code in ['A', 'T', 'NOR', 'SS', 'DS', 'DSL', 'DL', 'DLA', 'VAC', 'FA', 'F',
                  'DM', 'CHE', 'CDT', 'CPF', 'LSG', 'LCG', 'LF', 'LP', 'CT',
-                 'TR', 'FER', 'SAI', 'NA']:
+                 'TR', 'FER', 'FL', 'SAI', 'NA']:
         if code in codigos_usados and code in LEYENDA_DESCRIPCIONES:
             items.append((code, LEYENDA_DESCRIPCIONES[code]))
     if not items:

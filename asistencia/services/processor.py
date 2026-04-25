@@ -112,12 +112,14 @@ CODIGOS_DESCUENTO = {'FA', 'LSG', 'SAI'}
 
 # Códigos que NO generan HE (el día se paga pero no suma horas al banco/pago)
 CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF',
-                  'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'ATM', 'SAI'}
-# DS/FER/FL NO están aquí: si tienen horas > 0 el trabajador laboró su
-# descanso/feriado y las horas van al 100% (D.Leg. 713 Art. 3-4, 9).
+                  'LP', 'LSG', 'FA', 'TR', 'CDT', 'CPF', 'ATM', 'SAI',
+                  'DS', 'FER'}
+# DS/FER → no laborado (0 horas, fuerza limpia).
+# Para "trabajado en descanso/feriado" usar DSL/FL → 100% por D.Leg. 713
+# Art. 3-4 (descanso semanal) y Art. 9 (feriados).
 
 # Códigos que SÍ cuentan como día trabajado para el resumen mensual
-CODIGOS_ASISTENCIA = {'T', 'TR', 'LCG', 'ATM', 'CPF', 'CDT', 'SS'}
+CODIGOS_ASISTENCIA = {'T', 'TR', 'LCG', 'ATM', 'CPF', 'CDT', 'SS', 'DSL', 'FL'}
 
 
 class TareoProcessor:
@@ -589,16 +591,16 @@ class TareoProcessor:
         # Si el trabajador asiste en estos días, TODAS las horas son al 100%
         # Excepción: si hay papeleta de compensación APROBADA, se trata como día normal
         # (D.Leg. 713 Art. 6 — compensación en lugar de pago HE 100%)
-        # Código DS/FER/FL indica descanso/feriado aunque el día calendario
-        # no lo sea (p.ej. turno con descanso rotativo en miércoles).
+        # Códigos LABORADOS (DSL/FL) indican descanso/feriado trabajado aunque
+        # el día calendario no lo sea (descanso rotativo en miércoles).
         es_descanso_semanal = (
             ((dia_semana == 6) if dia_semana is not None else False)
-            or codigo == 'DS'
+            or codigo == 'DSL'
         )
-        codigo_es_feriado = codigo in ('FER', 'FL')
-        # Si el CÓDIGO dice descanso/feriado, todas las horas al 100%
+        codigo_es_feriado = codigo == 'FL'
+        # Si el CÓDIGO dice laborado en descanso/feriado, todas las horas al 100%
         # (no aplica la jornada reducida de FORÁNEO domingo).
-        codigo_fuerza_100 = codigo in ('DS', 'FER', 'FL')
+        codigo_fuerza_100 = codigo in ('DSL', 'FL')
         if (es_feriado or codigo_es_feriado or es_descanso_semanal) and not tiene_papeleta_comp:
             jornada = Decimal(str(jornada_h))
             if es_feriado or codigo_fuerza_100 or jornada == CERO:

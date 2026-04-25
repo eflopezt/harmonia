@@ -362,6 +362,8 @@ class Command(BaseCommand):
             # ── Feriados ────────────────────────────────────────────────────
             ('FR',   'FER',  '',   'Feriado No Recuperable (no trabajó)',   'FERIADO',          '+', True,  False, False,  5),
             ('FL',   'FL',   '',   'Feriado Laborado (HE 100%)',            'FERIADO_LABORADO', '+', True,  True,  False,  5),
+            # ── Descanso semanal laborado ───────────────────────────────────
+            ('DSL',  'DSL',  '',   'Descanso Semanal Laborado (HE 100%)',   'DESCANSO_LABORADO','+', True,  True,  False,  5),
             # ── Suspensiones ────────────────────────────────────────────────
             ('AS',   'F',    '',   'Amonestación por Suspensión',          'SUSPENSION',       '-', False, False, False,  2),
             ('SAI',  'F',    '',   'Suspensión por Acto Inseguro',          'SUSPENSION',       '-', False, False, False,  2),

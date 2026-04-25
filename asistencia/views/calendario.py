@@ -40,7 +40,7 @@ COLOR_MAP = {
     'CHE': 'comp', 'CDT': 'comp', 'CPF': 'comp',
     'LSG': 'lsg',
     'LCG': 'licencia', 'LF': 'licencia', 'LP': 'licencia',
-    'FER': 'feriado', 'FL': 'feriado',
+    'FER': 'feriado', 'FL': 'feriado_laborado', 'DSL': 'descanso_laborado',
     'LIM': 'lima', 'ATM': 'lima',
     'NA': 'empty',
 }
@@ -384,26 +384,31 @@ def _recalcular_horas(reg):
         return ((h + GRACIA) * 2).to_integral_value(rounding=ROUND_FLOOR) / 2
 
     # Calcular horas marcadas desde entrada/salida
+    # entrada == salida → 0h (caso "limpiar" o sin trabajo). Solo se considera
+    # turno overnight cuando salida es ESTRICTAMENTE menor a entrada.
     horas_marcadas = Decimal('0')
     if reg.hora_entrada_real and reg.hora_salida_real:
-        entrada_dt = datetime.combine(reg.fecha, reg.hora_entrada_real)
-        salida_dt = datetime.combine(reg.fecha, reg.hora_salida_real)
-        if salida_dt <= entrada_dt:
-            from datetime import timedelta
-            salida_dt += timedelta(days=1)
-        diff = Decimal(str((salida_dt - entrada_dt).total_seconds() / 3600))
-        horas_marcadas = _round_half(diff)
+        if reg.hora_entrada_real == reg.hora_salida_real:
+            horas_marcadas = Decimal('0')
+        else:
+            entrada_dt = datetime.combine(reg.fecha, reg.hora_entrada_real)
+            salida_dt = datetime.combine(reg.fecha, reg.hora_salida_real)
+            if salida_dt < entrada_dt:
+                from datetime import timedelta
+                salida_dt += timedelta(days=1)
+            diff = Decimal(str((salida_dt - entrada_dt).total_seconds() / 3600))
+            horas_marcadas = _round_half(diff)
     elif reg.horas_marcadas:
         horas_marcadas = Decimal(str(reg.horas_marcadas))
 
     reg.horas_marcadas = horas_marcadas
 
     codigo = reg.codigo_dia
-    # DS/FER/FL NO están aquí: si tienen horas > 0 significa que el trabajador
-    # laboró su descanso/feriado y todas sus horas van al 100% (D.Leg. 713).
+    # DS/FER aquí (= NO laborado, fuerza 0 horas).
+    # Para "laborado en descanso/feriado" usar DSL/FL → 100% via codigo_fuerza_100.
     CODIGOS_SIN_HE = {'SS', 'DL', 'DLA', 'CHE', 'VAC', 'DM', 'LCG', 'LF', 'LP',
                       'LSG', 'FA', 'TR', 'CDT', 'CPF', 'ATM', 'SAI', 'F',
-                      'V', 'SUB', 'B', 'LIM', 'NA'}
+                      'V', 'SUB', 'B', 'LIM', 'NA', 'DS', 'FER'}
 
     # SS: paga jornada completa
     # En LOCAL domingo o feriado: SS también va al 100% (D.Leg. 713)
@@ -447,16 +452,16 @@ def _recalcular_horas(reg):
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
     # EXCEPCIÓN: si el código fue cambiado manualmente a NOR/T/A → calcular como día normal
     # (el trabajador tiene descanso semanal en otro día, no el domingo)
-    # El código mismo puede indicar descanso/feriado aunque el día calendario
-    # no lo sea (p.ej. DS en miércoles = descanso rotativo).
+    # Códigos LABORADOS (DSL/FL) marcan descanso/feriado trabajado en días que
+    # el calendario no marca (p.ej. DSL miércoles = descanso rotativo trabajado).
     es_feriado = (reg.es_feriado
                   or FeriadoCalendario.objects.filter(fecha=reg.fecha, activo=True).exists()
-                  or codigo in ('FER', 'FL'))
-    es_descanso_semanal = reg.fecha.weekday() == 6 or codigo == 'DS'
+                  or codigo == 'FL')
+    es_descanso_semanal = reg.fecha.weekday() == 6 or codigo == 'DSL'
     codigo_fuerza_normal = codigo in ('NOR', 'T', 'A') and reg.fuente_codigo == 'MANUAL'
-    # Si el CÓDIGO dice descanso/feriado (DS/FER/FL), todas las horas al 100%
+    # Si el CÓDIGO dice laborado en descanso/feriado (DSL/FL), todas las horas al 100%
     # sin importar la jornada (no aplica reducción FORÁNEO domingo 4h).
-    codigo_fuerza_100 = codigo in ('DS', 'FER', 'FL')
+    codigo_fuerza_100 = codigo in ('DSL', 'FL')
     if (es_feriado or es_descanso_semanal) and not codigo_fuerza_normal:
         reg.horas_efectivas = horas_ef
         if es_feriado or codigo_fuerza_100 or jornada_h == CERO:

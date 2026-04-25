@@ -127,6 +127,7 @@ CODE_COLORS = {
     'VAC': '#bee3f8', 'DL': '#e2e8f0', 'DLA': '#e2e8f0', 'DS': '#e2e8f0',
     'DM': '#fefcbf', 'CHE': '#feebc8', 'CDT': '#feebc8', 'CPF': '#feebc8',
     'LSG': '#e9d8fd', 'LCG': '#c4f1f9', 'LF': '#c4f1f9', 'FER': '#fed7e2',
+    'FL': '#fbb6ce', 'DSL': '#fbb6ce',
     'NA': '#edf2f7',
 }
 
