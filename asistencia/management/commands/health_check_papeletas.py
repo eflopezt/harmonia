@@ -41,6 +41,16 @@ class Command(BaseCommand):
 
         self.stdout.write(f'Rango: {fecha_ini} → {fecha_fin}')
 
+        # Períodos CERRADOS: días en estos meses se ignoran (no se modifican).
+        from cierre.models import PeriodoCierre
+        cerrados = set(
+            PeriodoCierre.objects.filter(estado='CERRADO')
+            .values_list('anio', 'mes')
+        )
+
+        def _en_periodo_cerrado(f):
+            return (f.year, f.month) in cerrados
+
         # ── 1) FA con papeleta APROBADA cubriéndolo ─────────────
         fa_problemas = []
         fa_qs = RegistroTareo.objects.filter(
@@ -50,6 +60,8 @@ class Command(BaseCommand):
         ).select_related('personal')
 
         for r in fa_qs.iterator(chunk_size=500):
+            if _en_periodo_cerrado(r.fecha):
+                continue
             pap = RegistroPapeleta.objects.filter(
                 personal_id=r.personal_id,
                 estado__in=['APROBADA', 'EJECUTADA'],
@@ -80,6 +92,8 @@ class Command(BaseCommand):
 
         zombies = []
         for r in zombies_qs.iterator(chunk_size=500):
+            if _en_periodo_cerrado(r.fecha):
+                continue
             tiene_pap = RegistroPapeleta.objects.filter(
                 personal_id=r.personal_id,
                 estado__in=['APROBADA', 'EJECUTADA'],
