@@ -49,6 +49,7 @@ INICIALES_TIPO = {
     'CDT': 'COMP_DIA_TRABAJO',
     'SAI': 'SUSPENSION_ACTO_INSEGURO',
     'SUS': 'SUSPENSION',
+    'AS':  'SUSPENSION',  # Amonestación por Suspensión
     'CAP': 'CAPACITACION',
 }
 
