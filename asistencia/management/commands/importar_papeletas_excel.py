@@ -158,6 +158,13 @@ class Command(BaseCommand):
             if not row['_ini'] or not row['_fin']:
                 stats['sin_fechas'] += 1
                 continue
+            if row['_fin'] < row['_ini']:
+                # Fechas invertidas en el Excel: omitir y avisar
+                stats['sin_fechas'] += 1
+                self.stdout.write(self.style.WARNING(
+                    f'  Fechas invertidas: DNI={dni} ini={row["_ini"]} fin={row["_fin"]} — omitida'
+                ))
+                continue
             iniciales = row['_iniciales']
             tipo = TIPO_PERMISO_MAP.get(row['_tipo_raw']) or INICIALES_TIPO.get(iniciales)
             if not tipo:
