@@ -291,7 +291,9 @@ class TareoProcessor:
                 dia_semana=fecha.weekday(),
                 tiene_papeleta_comp=tiene_papeleta,
                 he_bloqueado=he_bloqueado,
-                almuerzo_manual=almuerzo_manual)
+                almuerzo_manual=almuerzo_manual,
+                fuente_codigo=fuente,
+            )
 
             he_al_banco = (grupo == 'STAFF')
 
@@ -454,6 +456,32 @@ class TareoProcessor:
         Retorna: (codigo_dia, fuente, horas_marcadas, es_ss)
           es_ss=True indica que el día tiene SS (sin salida) en el reloj.
         """
+        codigo, fuente, horas, es_ss = self._determinar_codigo_raw(
+            reg, fecha, papeleta, condicion, personal_id,
+        )
+
+        # #8 fix: FORÁNEO domingo NUNCA debe ser DS (su domingo es jornada 4h
+        # del ciclo 21×7, no descanso). Si el reloj envió DS, normalizar.
+        cond_norm = (condicion or '').upper().replace('Á', 'A')
+        if (codigo == 'DS' and cond_norm == 'FORANEO'
+                and fecha.weekday() == 6):
+            horas_reloj = reg.get('horas')
+            codigo_reloj_raw = (reg.get('codigo') or '').upper().strip()
+            if (horas_reloj and horas_reloj > 0) or codigo_reloj_raw == 'SS':
+                # Marcó horas → asistencia normal
+                return ('A', 'RELOJ', horas_reloj if horas_reloj else None,
+                        codigo_reloj_raw == 'SS')
+            # Sin marca → falta (no DS porque domingo es laborable para FORÁNEO)
+            return 'FA', 'FALTA_AUTO', None, False
+
+        return codigo, fuente, horas, es_ss
+
+    def _determinar_codigo_raw(self, reg: dict, fecha: date,
+                                papeleta: dict | None,
+                                condicion: str,
+                                personal_id: int | None = None,
+                                ) -> tuple[str, str, Decimal | None, bool]:
+        """Implementación interna sin validaciones de coherencia."""
         # Prioridad 1: Papeleta (anula el reloj)
         if papeleta:
             ini = papeleta['iniciales'].upper().strip()
@@ -530,6 +558,7 @@ class TareoProcessor:
                         tiene_papeleta_comp: bool = False,
                         he_bloqueado: bool = False,
                         almuerzo_manual: Decimal | None = None,
+                        fuente_codigo: str = '',
                         ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
         """
         Retorna (horas_efectivas, horas_normales, he_25, he_35, he_100).
@@ -574,15 +603,9 @@ class TareoProcessor:
             return CERO, CERO, CERO, CERO, CERO
 
         # ── Descontar almuerzo ─────────────────────────────────
-        # Override manual tiene prioridad absoluta.
-        # Auto-descuento: solo en jornadas largas (>6h) para evitar descontar
-        # en sábados LOCAL (5.5h) y domingos donde el almuerzo no aplica.
-        if almuerzo_manual is not None:
-            almuerzo_h = Decimal(str(almuerzo_manual))
-        elif horas_marcadas > 7 and jornada_h > Decimal('6'):
-            almuerzo_h = Decimal('1')
-        else:
-            almuerzo_h = CERO
+        # Lógica unificada con _recalcular_horas (UI) via helper compartido.
+        from asistencia.services._helpers import calcular_almuerzo_h
+        almuerzo_h = calcular_almuerzo_h(horas_marcadas, jornada_h, almuerzo_manual)
         horas_ef = max(CERO, horas_marcadas - almuerzo_h)
 
         # ── Feriado laborado o Descanso Semanal trabajado: todo al 100%
@@ -601,7 +624,13 @@ class TareoProcessor:
         # Si el CÓDIGO dice laborado en descanso/feriado, todas las horas al 100%
         # (no aplica la jornada reducida de FORÁNEO domingo).
         codigo_fuerza_100 = codigo in ('DSL', 'FL')
-        if (es_feriado or codigo_es_feriado or es_descanso_semanal) and not tiene_papeleta_comp:
+        # #4 fix: si el admin cambió manualmente a NOR/T/A, calcular como día normal
+        # (el trabajador tiene descanso semanal en otro día, no el domingo)
+        codigo_fuerza_normal = (
+            codigo in ('NOR', 'T', 'A') and fuente_codigo == 'MANUAL'
+        )
+        if ((es_feriado or codigo_es_feriado or es_descanso_semanal)
+                and not tiene_papeleta_comp and not codigo_fuerza_normal):
             jornada = Decimal(str(jornada_h))
             if es_feriado or codigo_fuerza_100 or jornada == CERO:
                 # Feriado (toda condición) o LOCAL domingo: TODAS las horas al 100%

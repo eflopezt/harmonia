@@ -104,9 +104,11 @@ def aplicar_papeleta(pap: RegistroPapeleta) -> dict:
     """Aplica el código derivado de la papeleta a todos los días cubiertos.
 
     Solo sobrescribe registros auto o inexistentes. Retorna stats.
+    Días en período CERRADO se omiten automáticamente.
     """
     stats = {'actualizados': 0, 'creados': 0, 'skip_trabajo_real': 0,
-             'skip_sin_mapeo': 0, 'skip_sin_personal': 0}
+             'skip_sin_mapeo': 0, 'skip_sin_personal': 0,
+             'skip_periodo_cerrado': 0}
     if pap.personal_id is None:
         stats['skip_sin_personal'] = 1
         return stats
@@ -117,10 +119,16 @@ def aplicar_papeleta(pap: RegistroPapeleta) -> dict:
 
     imp = _get_or_create_imp()
     feriados = _feriados_cache(pap.fecha_inicio, pap.fecha_fin)
+    cerrados = _meses_cerrados_cache(pap.fecha_inicio, pap.fecha_fin)
 
     a_crear = []
     d = pap.fecha_inicio
     while d <= pap.fecha_fin:
+        # Período cerrado: no modificar registros bloqueados
+        if (d.year, d.month) in cerrados:
+            stats['skip_periodo_cerrado'] += 1
+            d += timedelta(days=1)
+            continue
         es_feriado = d in feriados
         r = RegistroTareo.objects.filter(personal=pap.personal, fecha=d).first()
         if r is None:
@@ -171,11 +179,13 @@ def revertir_papeleta(pap: RegistroPapeleta) -> dict:
     Si hay otra papeleta aprobada en el mismo día, la respeta.
     """
     stats = {'restaurados': 0, 'skip_trabajo_real': 0,
-             'replazados_otra_pap': 0, 'skip_sin_personal': 0}
+             'replazados_otra_pap': 0, 'skip_sin_personal': 0,
+             'skip_periodo_cerrado': 0}
     if pap.personal_id is None:
         stats['skip_sin_personal'] = 1
         return stats
     feriados = _feriados_cache(pap.fecha_inicio, pap.fecha_fin)
+    cerrados = _meses_cerrados_cache(pap.fecha_inicio, pap.fecha_fin)
 
     ref = f'PAP#{pap.pk}'
     regs = RegistroTareo.objects.filter(
@@ -184,6 +194,10 @@ def revertir_papeleta(pap: RegistroPapeleta) -> dict:
         papeleta_ref=ref,
     )
     for r in regs:
+        # Período cerrado: no modificar
+        if (r.fecha.year, r.fecha.month) in cerrados:
+            stats['skip_periodo_cerrado'] += 1
+            continue
         if _es_trabajo_real(r):
             stats['skip_trabajo_real'] += 1
             continue
@@ -244,7 +258,25 @@ def _feriados_cache(ini: date, fin: date) -> set:
     return _feriados_cache_data['set']
 
 
+_cerrados_cache_data = {'set': None}
+def _meses_cerrados_cache(ini: date, fin: date) -> set:
+    """Set de tuplas (anio, mes) con PeriodoCierre.estado='CERRADO'.
+
+    Cache de proceso (no transaccional): se invalida con reset_caches().
+    El range ini/fin se ignora — cargamos todos los cerrados (son pocos).
+    """
+    if _cerrados_cache_data['set'] is None:
+        from cierre.models import PeriodoCierre
+        _cerrados_cache_data['set'] = set(
+            PeriodoCierre.objects
+            .filter(estado='CERRADO')
+            .values_list('anio', 'mes')
+        )
+    return _cerrados_cache_data['set']
+
+
 def reset_caches():
     _imp_cache['imp'] = None
     _feriados_cache_data['year_range'] = None
     _feriados_cache_data['set'] = None
+    _cerrados_cache_data['set'] = None

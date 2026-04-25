@@ -351,17 +351,27 @@ def ajax_calendario_detalle(request, registro_id):
 
 
 def _recalcular_horas(reg):
-    """Recalcular horas de un RegistroTareo usando la misma lógica del processor."""
-    from datetime import datetime, time as dt_time
+    """Recalcular horas de un RegistroTareo usando la misma lógica del processor.
+
+    Mantiene paridad con TareoProcessor._calcular_horas_raw del processor
+    a través de helpers compartidos en asistencia.services._helpers.
+    """
+    import logging
+    from asistencia.services._helpers import (
+        calcular_almuerzo_h, redondear_media_hora, cap_horas_dia,
+        calcular_horas_marcadas_desde_horarios,
+    )
     config = ConfiguracionSistema.get()
     personal = reg.personal
     condicion = (reg.condicion or '').upper()
     CERO = Decimal('0')
+    logger = logging.getLogger('asistencia')
 
     # Obtener jornada (misma lógica que processor._obtener_jornada)
     dia_semana = reg.fecha.weekday()
-    if (personal and personal.jornada_horas
-            and Decimal(str(personal.jornada_horas)) != Decimal('8')):
+    # #5 fix: override personal aplica si está seteado (cualquier valor),
+    # no solo si es != 8h.
+    if personal and personal.jornada_horas is not None:
         jornada_h = Decimal(str(personal.jornada_horas))
     elif dia_semana == 6:  # domingo
         if condicion.replace('Á', 'A') == 'FORANEO':
@@ -377,30 +387,15 @@ def _recalcular_horas(reg):
     else:
         jornada_h = Decimal(str(config.jornada_local_horas))
 
-    # Redondeo a media hora con gracia de 7 min (misma lógica que importador)
-    GRACIA = Decimal('7') / 60
-    def _round_half(h):
-        from decimal import ROUND_FLOOR
-        return ((h + GRACIA) * 2).to_integral_value(rounding=ROUND_FLOOR) / 2
-
-    # Calcular horas marcadas desde entrada/salida
-    # entrada == salida → 0h (caso "limpiar" o sin trabajo). Solo se considera
-    # turno overnight cuando salida es ESTRICTAMENTE menor a entrada.
-    horas_marcadas = Decimal('0')
-    if reg.hora_entrada_real and reg.hora_salida_real:
-        if reg.hora_entrada_real == reg.hora_salida_real:
-            horas_marcadas = Decimal('0')
-        else:
-            entrada_dt = datetime.combine(reg.fecha, reg.hora_entrada_real)
-            salida_dt = datetime.combine(reg.fecha, reg.hora_salida_real)
-            if salida_dt < entrada_dt:
-                from datetime import timedelta
-                salida_dt += timedelta(days=1)
-            diff = Decimal(str((salida_dt - entrada_dt).total_seconds() / 3600))
-            horas_marcadas = _round_half(diff)
-    elif reg.horas_marcadas:
-        horas_marcadas = Decimal(str(reg.horas_marcadas))
-
+    # Calcular y capar horas marcadas
+    horas_marcadas = calcular_horas_marcadas_desde_horarios(
+        reg.fecha, reg.hora_entrada_real, reg.hora_salida_real,
+        horas_marcadas_fallback=reg.horas_marcadas,
+    )
+    # #6 fix: tope sanitario 16h
+    horas_marcadas = cap_horas_dia(
+        horas_marcadas, dni=reg.dni, fecha=reg.fecha, logger=logger,
+    )
     reg.horas_marcadas = horas_marcadas
 
     codigo = reg.codigo_dia
@@ -410,6 +405,14 @@ def _recalcular_horas(reg):
                       'LSG', 'FA', 'TR', 'CDT', 'CPF', 'ATM', 'SAI', 'F',
                       'V', 'SUB', 'B', 'LIM', 'NA', 'DS', 'FER'}
 
+    def _set_horas(ef, norm, h25, h35, h100):
+        """Asigna componentes redondeados a 0.5h (#3 fix)."""
+        reg.horas_efectivas = redondear_media_hora(ef)
+        reg.horas_normales = redondear_media_hora(norm)
+        reg.he_25 = redondear_media_hora(h25)
+        reg.he_35 = redondear_media_hora(h35)
+        reg.he_100 = redondear_media_hora(h100)
+
     # SS: paga jornada completa
     # En LOCAL domingo o feriado: SS también va al 100% (D.Leg. 713)
     if codigo == 'SS':
@@ -418,35 +421,24 @@ def _recalcular_horas(reg):
             fecha=reg.fecha, activo=True).exists()
         _es_dom = reg.fecha.weekday() == 6
         if (_es_feriado_ss or _es_dom) and (_es_feriado_ss or jornada_h == CERO):
-            reg.horas_efectivas = j
-            reg.horas_normales = CERO
-            reg.he_25 = reg.he_35 = CERO
-            reg.he_100 = j
+            _set_horas(j, CERO, CERO, CERO, j)
         else:
-            reg.horas_efectivas = j
-            reg.horas_normales = j
-            reg.he_25 = reg.he_35 = reg.he_100 = CERO
+            _set_horas(j, j, CERO, CERO, CERO)
         return
 
     # Marcación incompleta: horas < jornada/2 → SS implícito
     if (horas_marcadas > CERO and horas_marcadas < jornada_h / 2
             and codigo not in CODIGOS_SIN_HE):
-        reg.horas_efectivas = jornada_h
-        reg.horas_normales = jornada_h
-        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        _set_horas(jornada_h, jornada_h, CERO, CERO, CERO)
         return
 
     # Códigos sin horas
     if codigo in CODIGOS_SIN_HE or not horas_marcadas or horas_marcadas <= CERO:
-        reg.horas_efectivas = reg.horas_normales = CERO
-        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        _set_horas(CERO, CERO, CERO, CERO, CERO)
         return
 
-    # Descuento almuerzo: manual si se especificó, sino automático (>7h → 1h)
-    if reg.almuerzo_manual is not None:
-        almuerzo = Decimal(str(reg.almuerzo_manual))
-    else:
-        almuerzo = Decimal('1') if horas_marcadas > 7 else CERO
+    # #2 fix: descuento almuerzo unificado (chequea jornada > 6h)
+    almuerzo = calcular_almuerzo_h(horas_marcadas, jornada_h, reg.almuerzo_manual)
     horas_ef = max(CERO, horas_marcadas - almuerzo)
 
     # Feriado/Domingo trabajado → jornada normal + exceso HE 100%
@@ -459,37 +451,44 @@ def _recalcular_horas(reg):
                   or codigo == 'FL')
     es_descanso_semanal = reg.fecha.weekday() == 6 or codigo == 'DSL'
     codigo_fuerza_normal = codigo in ('NOR', 'T', 'A') and reg.fuente_codigo == 'MANUAL'
-    # Si el CÓDIGO dice laborado en descanso/feriado (DSL/FL), todas las horas al 100%
-    # sin importar la jornada (no aplica reducción FORÁNEO domingo 4h).
     codigo_fuerza_100 = codigo in ('DSL', 'FL')
     if (es_feriado or es_descanso_semanal) and not codigo_fuerza_normal:
-        reg.horas_efectivas = horas_ef
         if es_feriado or codigo_fuerza_100 or jornada_h == CERO:
-            # Feriado (toda condición), código DS/FER/FL o LOCAL domingo: TODAS al 100%
-            reg.horas_normales = CERO
-            reg.he_100 = horas_ef
+            # Feriado (toda condición), código DSL/FL o LOCAL domingo: TODAS al 100%
+            _set_horas(horas_ef, CERO, CERO, CERO, horas_ef)
         else:
             # FORÁNEO domingo sin código de descanso (4h jornada):
             # normal hasta jornada, exceso HE 100%
-            reg.horas_normales = min(horas_ef, jornada_h)
-            reg.he_100 = max(CERO, horas_ef - jornada_h)
-        reg.he_25 = reg.he_35 = CERO
+            _set_horas(horas_ef, min(horas_ef, jornada_h), CERO, CERO,
+                       max(CERO, horas_ef - jornada_h))
         return
 
-    # Día normal
+    # #7 fix: he_bloqueado consulta ConfiguracionSistema + SolicitudHE
+    # (misma lógica que el processor — sin solicitud aprobada cuando se requiere)
+    he_bloqueado = False
+    if personal and getattr(config, 'he_requiere_solicitud', False):
+        from asistencia.models import SolicitudHE
+        he_bloqueado = not SolicitudHE.objects.filter(
+            personal=personal, fecha=reg.fecha, estado='APROBADA',
+        ).exists()
+
+    # Día normal: dentro de jornada
     if horas_ef <= jornada_h:
-        reg.horas_efectivas = horas_ef
-        reg.horas_normales = horas_ef
-        reg.he_25 = reg.he_35 = reg.he_100 = CERO
+        _set_horas(horas_ef, horas_ef, CERO, CERO, CERO)
         return
 
-    # Horas extra (exceso redondeado a media hora)
-    exceso = _round_half(horas_ef - jornada_h)
-    reg.horas_efectivas = horas_ef
-    reg.horas_normales = jornada_h
-    reg.he_25 = min(exceso, Decimal('2'))
-    reg.he_35 = max(CERO, exceso - Decimal('2'))
-    reg.he_100 = CERO
+    # Exceso sobre jornada
+    if he_bloqueado:
+        # HE bloqueadas para este empleado: el exceso se descarta
+        _set_horas(jornada_h, jornada_h, CERO, CERO, CERO)
+    # Horas extra (HE25 hasta 2h, resto HE35)
+    exceso = horas_ef - jornada_h
+    _set_horas(
+        horas_ef, jornada_h,
+        min(exceso, Decimal('2')),
+        max(CERO, exceso - Decimal('2')),
+        CERO,
+    )
 
 
 @login_required
@@ -498,7 +497,21 @@ def _recalcular_horas(reg):
 def ajax_calendario_cambiar(request, registro_id):
     """Cambiar código y/o entrada/salida de un registro (justificación)."""
     from datetime import time as dt_time
+    from asistencia.services._helpers import fecha_en_periodo_cerrado
     reg = get_object_or_404(RegistroTareo, pk=registro_id)
+
+    # #1 fix: bloquear edición si el período está CERRADO
+    if fecha_en_periodo_cerrado(reg.fecha):
+        from cierre.models import PeriodoCierre
+        per = PeriodoCierre.objects.filter(
+            anio=reg.fecha.year, mes=reg.fecha.month, estado='CERRADO'
+        ).first()
+        nombre = per.mes_nombre if per else f'{reg.fecha.month:02d}/{reg.fecha.year}'
+        return JsonResponse({
+            'error': f'Período {nombre} {reg.fecha.year} está CERRADO. '
+                     'Reabrir el período antes de modificar.',
+        }, status=409)
+
     nuevo_codigo = request.POST.get('codigo', '').strip().upper()
     observacion = request.POST.get('observacion', '').strip()
     sustento = request.FILES.get('sustento')
