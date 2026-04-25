@@ -124,4 +124,3 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f'\n✓ {total} inconsistencias {modo}.'
             ))
-        return total
