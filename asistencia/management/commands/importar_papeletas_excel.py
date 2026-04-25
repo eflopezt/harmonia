@@ -258,6 +258,15 @@ class Command(BaseCommand):
                 imp.estado = 'COMPLETADO'
                 imp.registros_ok = stats['total']
                 imp.save()
+
+            # bulk_create NO dispara signals → papeletas creadas no aplican el
+            # codigo a RegistroTareo. Sincronizamos manualmente cada papeleta.
+            from asistencia.services.papeletas_sync import aplicar_papeleta
+            aplicadas = 0
+            for pap in RegistroPapeleta.objects.filter(importacion=imp):
+                aplicar_papeleta(pap)
+                aplicadas += 1
+            self.stdout.write(f'Sincronizadas a RegistroTareo: {aplicadas}')
         else:
             imp.estado = 'COMPLETADO'
             imp.registros_ok = stats['total']
