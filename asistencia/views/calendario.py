@@ -296,6 +296,8 @@ def calendario_grid(request):
         'pct_global': pct_global,
         'grupo': grupo, 'area_id': area_id, 'condicion': condicion, 'buscar': buscar,
         'modo': modo,
+        # Para link de Exportar: 'corte' equivale a modo 'ciclo'.
+        'tipo_periodo': 'corte' if modo == 'ciclo' else 'calendario',
         'ciclo_inicio_dia': corte + 1,
         'ciclo_fin_dia': corte,
         'areas': areas,
@@ -705,18 +707,22 @@ def ajax_calendario_crear(request):
 @login_required
 @solo_admin
 def calendario_exportar(request):
-    """Exportar calendario a Excel."""
+    """Exportar calendario a Excel respetando el tipo_periodo (calendario|corte)."""
     from openpyxl import Workbook
     from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
     from io import BytesIO
+    from asistencia.views.exportaciones import _calcular_periodo, _get_corte_config
 
     anio = int(request.GET.get('anio', date.today().year))
     mes = int(request.GET.get('mes', date.today().month))
     grupo = request.GET.get('grupo', 'TODOS')
+    tipo_periodo = request.GET.get('tipo_periodo', 'calendario')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'calendario'
 
-    _, num_dias = calendar.monthrange(anio, mes)
-    mes_ini = date(anio, mes, 1)
-    mes_fin = date(anio, mes, num_dias)
+    d_ini_corte, d_fin_corte = _get_corte_config(request)
+    mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini_corte, d_fin_corte)
+    num_dias = (mes_fin - mes_ini).days + 1
 
     # Query
     if grupo == 'STAFF':
@@ -731,11 +737,13 @@ def calendario_exportar(request):
         'personal_id', 'personal__apellidos_nombres', 'personal__nro_doc',
         'personal__condicion', 'fecha', 'codigo_dia', 'grupo'))
 
+    # pivot keyed por r['fecha'] (date) en lugar de day, así soporta ciclo
+    # 22→21 que cruza mes.
     pivot = defaultdict(dict)
     personal_info = {}
     for r in registros:
         pid = r['personal_id']
-        pivot[pid][r['fecha'].day] = r['codigo_dia']
+        pivot[pid][r['fecha']] = r['codigo_dia']
         if pid not in personal_info:
             personal_info[pid] = {
                 'nombre': r['personal__apellidos_nombres'],
@@ -768,13 +776,21 @@ def calendario_exportar(request):
 
     wb = Workbook()
     ws = wb.active
-    ws.title = f'{MESES[mes]} {anio}'
+    sufijo_titulo = ' Ciclo' if tipo_periodo == 'corte' else ''
+    ws.title = f'{MESES[mes]} {anio}{sufijo_titulo}'[:31]
+
+    # Lista ordenada de fechas del rango (soporta ciclo cross-mes)
+    fechas_rango = []
+    cur = mes_ini
+    while cur <= mes_fin:
+        fechas_rango.append(cur)
+        from datetime import timedelta as _td
+        cur += _td(days=1)
 
     # Header
     headers = ['N°', 'DNI', 'Empleado', 'Cond.', 'Grupo']
-    for d in range(1, num_dias + 1):
-        dt = date(anio, mes, d)
-        headers.append(f'{d}\n{DIAS_SEMANA[dt.weekday()]}')
+    for f in fechas_rango:
+        headers.append(f'{f.day:02d}/{f.month:02d}\n{DIAS_SEMANA[f.weekday()]}')
     headers.extend(['Trab', 'Falta', 'HE'])
 
     for col, h in enumerate(headers, 1):
@@ -795,9 +811,9 @@ def calendario_exportar(request):
         ws.cell(row=row_num, column=5, value=info['grupo']).border = thin_border
 
         trab = falta = 0
-        for d in range(1, num_dias + 1):
-            codigo = pivot[pid].get(d, '')
-            col = 5 + d
+        for i, f in enumerate(fechas_rango, start=1):
+            codigo = pivot[pid].get(f, '')
+            col = 5 + i
             cell = ws.cell(row=row_num, column=col, value=codigo)
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border

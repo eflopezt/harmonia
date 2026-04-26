@@ -359,6 +359,31 @@ def exportar_faltas_mes(request):
         .order_by('fecha', 'personal__apellidos_nombres')
     )
 
+    # Excluir registros con papeleta APROBADA/EJECUTADA cubriendo la fecha.
+    # Esto evita reportar como falta días que en realidad están justificados
+    # (papeletas en períodos cerrados no se pueden re-sincronizar).
+    if regs_detalle:
+        from asistencia.models import RegistroPapeleta
+        # Cargar papeletas vigentes que tocan el rango, indexadas por personal.
+        paps_vigentes = RegistroPapeleta.objects.filter(
+            estado__in=['APROBADA', 'EJECUTADA'],
+            fecha_inicio__lte=mes_fin,
+            fecha_fin__gte=mes_ini,
+        ).values('personal_id', 'fecha_inicio', 'fecha_fin')
+        paps_por_personal: dict[int, list] = {}
+        for p in paps_vigentes:
+            paps_por_personal.setdefault(
+                p['personal_id'], []
+            ).append((p['fecha_inicio'], p['fecha_fin']))
+
+        def _cubierto_por_papeleta(reg) -> bool:
+            for ini, fin in paps_por_personal.get(reg.personal_id, ()):
+                if ini <= reg.fecha <= fin:
+                    return True
+            return False
+
+        regs_detalle = [r for r in regs_detalle if not _cubierto_por_papeleta(r)]
+
     # Agrupar por personal
     faltas_map: dict[int, dict] = {}
     for r in regs_detalle:
