@@ -99,20 +99,28 @@ TIPO_PERMISO_A_CODIGO = {
 }
 
 
-def _qs_sin_papeleta(qs):
+def _qs_sin_papeleta(qs, incluir_pendientes=True):
     """Excluye RegistroTareo cuyas fechas están cubiertas por una papeleta
-    APROBADA/EJECUTADA del mismo personal.
+    vigente del mismo personal.
 
-    Útil para reportes de faltas/HE que NO deben contar días justificados
-    por papeleta (aunque el código_dia haya quedado desincronizado en BD).
+    Por defecto considera APROBADA, EJECUTADA y PENDIENTE — mismo criterio
+    que la matriz asistencial (`_papeletas_bulk`), para que el usuario vea
+    los mismos días excluidos en pantalla y en reportes. Las pendientes se
+    asume "buena fe": si después se rechaza la papeleta, los días vuelven
+    a contar como falta automáticamente.
+
+    Pasar `incluir_pendientes=False` para criterio estricto (solo papeletas
+    aprobadas), útil en cierre de planilla S10 si se requiere.
 
     Implementación: correlated EXISTS subquery — Postgres lo resuelve
     eficientemente con el índice (personal_id, fecha_inicio, fecha_fin).
     """
     from asistencia.models import RegistroPapeleta
+    estados = (['APROBADA', 'EJECUTADA', 'PENDIENTE']
+               if incluir_pendientes else ['APROBADA', 'EJECUTADA'])
     cubre = RegistroPapeleta.objects.filter(
         personal_id=OuterRef('personal_id'),
-        estado__in=['APROBADA', 'EJECUTADA'],
+        estado__in=estados,
         fecha_inicio__lte=OuterRef('fecha'),
         fecha_fin__gte=OuterRef('fecha'),
     )
