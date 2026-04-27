@@ -515,6 +515,9 @@ def ajax_calendario_cambiar(request, registro_id):
         }, status=409)
 
     nuevo_codigo = request.POST.get('codigo', '').strip().upper()
+    # Normalizar 'F' → 'FA' (mismo significado, código canónico)
+    if nuevo_codigo == 'F':
+        nuevo_codigo = 'FA'
     observacion = request.POST.get('observacion', '').strip()
     sustento = request.FILES.get('sustento')
     nueva_entrada = request.POST.get('hora_entrada', '').strip()
@@ -526,6 +529,7 @@ def ajax_calendario_cambiar(request, registro_id):
     codigo_anterior = reg.codigo_dia
     entrada_anterior = str(reg.hora_entrada_real)[:5] if reg.hora_entrada_real else '-'
     salida_anterior = str(reg.hora_salida_real)[:5] if reg.hora_salida_real else '-'
+    papeleta_ref_previa = reg.papeleta_ref or ''
 
     # Construir detalle del cambio para el log
     cambios_detalle = []
@@ -594,14 +598,48 @@ def ajax_calendario_cambiar(request, registro_id):
         reg.observaciones = f'{prev}\n[{request.user.username}] {log_obs}'.strip()
     reg.save()
 
-    # Si el código nuevo es un permiso/licencia, crear papeleta automática
-    # (si no hay ya una APROBADA/EJECUTADA cubriendo el día). Vincula el
-    # registro a la papeleta para reflejarlo en reportes y descontar saldos.
+    # Sync inverso con módulo de papeletas:
+    #   - Si el código nuevo es de papeleta → crear (si no existe ya).
+    #   - Si el código cambió y había papeleta de un día asociada que ya
+    #     no aplica → anularla para no dejarla huérfana.
     papeleta_info = None
+    papeleta_anulada_id = None
     try:
+        from asistencia.models import RegistroPapeleta
         from asistencia.services.papeletas_sync import (
             CODIGO_A_TIPO, crear_papeleta_desde_codigo,
         )
+
+        # Anular papeleta huérfana cuando el usuario cambia el código.
+        # Solo papeletas de un día (auto-creadas desde matriz). Las de
+        # rango se respetan: si el user quiere cancelarlas debe ir al
+        # módulo de Papeletas.
+        if (codigo_anterior != nuevo_codigo
+                and papeleta_ref_previa.startswith('PAP#')):
+            try:
+                pap_id_prev = int(papeleta_ref_previa[4:])
+            except ValueError:
+                pap_id_prev = None
+            if pap_id_prev:
+                pap_prev = RegistroPapeleta.objects.filter(pk=pap_id_prev).first()
+                if (pap_prev
+                        and pap_prev.fecha_inicio == reg.fecha
+                        and pap_prev.fecha_fin == reg.fecha
+                        and pap_prev.estado in ('APROBADA', 'EJECUTADA')):
+                    pap_prev.estado = 'ANULADA'
+                    nota = (f'Anulada al revertir código en matriz '
+                            f'({codigo_anterior}→{nuevo_codigo}) '
+                            f'por {request.user.username}')
+                    pap_prev.observaciones = (
+                        (pap_prev.observaciones or '') + '\n' + nota
+                    ).strip()
+                    pap_prev.save(update_fields=['estado', 'observaciones'])
+                    papeleta_anulada_id = pap_id_prev
+            # Limpiar referencia del registro
+            reg.papeleta_ref = ''
+            reg.save(update_fields=['papeleta_ref'])
+
+        # Auto-crear nueva papeleta si el código nuevo es de permiso.
         if reg.personal_id and nuevo_codigo in CODIGO_A_TIPO:
             obs_pap = (observacion or
                        f'Auto-creada desde matriz: {codigo_anterior}→{nuevo_codigo}')
@@ -637,6 +675,7 @@ def ajax_calendario_cambiar(request, registro_id):
         'he_35': float(reg.he_35 or 0),
         'he_100': float(reg.he_100 or 0),
         'papeleta': papeleta_info,
+        'papeleta_anulada': papeleta_anulada_id,
     })
 
 
@@ -649,6 +688,8 @@ def ajax_calendario_crear(request):
     personal_id = request.POST.get('personal_id')
     fecha_str = request.POST.get('fecha', '')
     nuevo_codigo = request.POST.get('codigo', '').strip().upper()
+    if nuevo_codigo == 'F':
+        nuevo_codigo = 'FA'
     observacion = request.POST.get('observacion', '').strip()
     nueva_entrada = request.POST.get('hora_entrada', '').strip()
     nueva_salida = request.POST.get('hora_salida', '').strip()
