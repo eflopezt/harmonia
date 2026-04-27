@@ -177,11 +177,14 @@ def exportar_horas_rco(request):
     mes_ini, mes_fin = _calcular_periodo(anio, mes, tipo_periodo, d_ini, d_fin)
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
-    # Resumen por persona
+    # Resumen por persona — agrupar SOLO por personal_id para evitar
+    # duplicados causados por variantes de nombre_archivo (espacios extras,
+    # mayúsculas distintas) entre importaciones.
     resumen = list(
         RegistroTareo.objects.filter(
-            grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin
-        ).values('dni', 'nombre_archivo', 'personal_id')
+            grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin,
+            personal__isnull=False,
+        ).values('personal_id')
         .annotate(
             dias_trabajados=Count('id', filter=Q(
                 codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'SS'])),
@@ -195,7 +198,6 @@ def exportar_horas_rco(request):
             total_he_35=Sum('he_35'),
             total_he_100=Sum('he_100'),
         )
-        .order_by('nombre_archivo')
     )
 
     # Faltas reales: excluir días cubiertos por papeleta APROBADA/EJECUTADA
@@ -211,23 +213,28 @@ def exportar_horas_rco(request):
         .annotate(n=Count('id'))
         .values_list('personal_id', 'n')
     )
-    for r in resumen:
-        r['dias_falta'] = faltas_por_pid.get(r['personal_id'], 0)
 
-    # Enriquecer con datos de Personal
-    pids = [r['personal_id'] for r in resumen if r['personal_id']]
+    # Enriquecer con datos canónicos de Personal
+    pids = [r['personal_id'] for r in resumen]
     personal_map = {p.id: p for p in Personal.objects.filter(id__in=pids)}
 
     for r in resumen:
+        p = personal_map.get(r['personal_id'])
+        r['dias_falta'] = faltas_por_pid.get(r['personal_id'], 0)
         r['total_he_25'] = r['total_he_25'] or Decimal('0')
         r['total_he_35'] = r['total_he_35'] or Decimal('0')
         r['total_he_100'] = r['total_he_100'] or Decimal('0')
         r['total_he'] = r['total_he_25'] + r['total_he_35'] + r['total_he_100']
         r['total_horas'] = r['total_horas'] or Decimal('0')
         r['total_hn'] = r['total_hn'] or Decimal('0')
-        p = personal_map.get(r['personal_id'])
+        # Usar siempre el nombre/DNI canónico de Personal (no el denormalizado)
+        r['dni'] = p.nro_doc if p else ''
+        r['nombre_archivo'] = p.apellidos_nombres if p else ''
         r['cargo'] = p.cargo if p else ''
         r['area'] = p.subarea.area.nombre if p and p.subarea else ''
+
+    # Ordenar después del enriquecimiento por nombre canónico
+    resumen.sort(key=lambda r: r['nombre_archivo'])
 
     # ── Excel ──
     wb = openpyxl.Workbook()
