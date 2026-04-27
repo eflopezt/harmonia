@@ -62,6 +62,16 @@ def _get_ciclo(anio, mes):
 
 # ========== VIEWS ==========
 
+def _norm_busqueda(s: str) -> str:
+    """Normaliza para búsqueda case+accent insensitive (acuña == ACUNA)."""
+    import unicodedata
+    if not s:
+        return ''
+    s = unicodedata.normalize('NFKD', s)
+    s = s.encode('ascii', 'ignore').decode('ascii')
+    return s.lower().strip()
+
+
 @login_required
 @solo_admin
 def reporte_panel(request):
@@ -70,22 +80,35 @@ def reporte_panel(request):
     mes = int(request.GET.get('mes', hoy.month))
     grupo = request.GET.get('grupo', 'STAFF')
     area_id = request.GET.get('area', '')
-    buscar = request.GET.get('q', '')
+    buscar = request.GET.get('q', '').strip()
     inicio, fin = _get_ciclo(anio, mes)
     qs = RegistroTareo.objects.filter(fecha__gte=inicio, fecha__lte=fin, personal__isnull=False)
     if grupo != 'TODOS':
         qs = qs.filter(grupo=grupo)
     if area_id:
         qs = qs.filter(personal__subarea__area_id=area_id)
-    if buscar:
-        qs = qs.filter(Q(personal__apellidos_nombres__icontains=buscar) | Q(dni__icontains=buscar))
     pids = list(qs.values_list('personal_id', flat=True).distinct())
-    empleados = Personal.objects.filter(id__in=pids).order_by('apellidos_nombres')
+    empleados_qs = Personal.objects.filter(id__in=pids).order_by('apellidos_nombres')
+
+    # Búsqueda normalizada en Python (case + accent insensitive). Sobre el
+    # set ya filtrado de empleados con registros del período (~200 max).
+    if buscar:
+        bq = _norm_busqueda(buscar)
+        empleados = [
+            e for e in empleados_qs
+            if bq in _norm_busqueda(e.apellidos_nombres or '')
+               or bq in (e.nro_doc or '').lower()
+        ]
+        total = len(empleados)
+    else:
+        empleados = list(empleados_qs)
+        total = len(empleados)
+
     return render(request, 'asistencia/reporte_individual_panel.html', {
         'titulo': f'Reportes Individuales - {MESES[mes]} {anio}',
         'anio': anio, 'mes': mes, 'mes_nombre': MESES[mes],
         'inicio': inicio, 'fin': fin, 'grupo': grupo, 'area_id': area_id, 'buscar': buscar,
-        'empleados': empleados, 'total_empleados': empleados.count(),
+        'empleados': empleados, 'total_empleados': total,
         'areas': Area.objects.all().order_by('nombre'),
         'anios': list(range(hoy.year - 2, hoy.year + 1)),
         'meses_list': [(i, MESES[i]) for i in range(1, 13)],
