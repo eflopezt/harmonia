@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.shortcuts import render
 
-from asistencia.views._common import solo_admin
+from asistencia.views._common import solo_admin, _qs_sin_papeleta
 
 # Códigos de permiso/licencia en RegistroTareo
 CODIGOS_PERMISO = ['PL', 'PC', 'PM', 'PE', 'LCG', 'LSG', 'LF', 'LP', 'LM',
@@ -43,9 +43,14 @@ def kpi_dashboard_view(request):
 
     # KPIs principales
     total_dias_prog = qs.count()
-    dias_trabajados = qs.filter(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM']).count()
-    # Faltas reales: excluir domingos LOCAL (son DS, no faltas)
-    faltas = qs.filter(codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
+    dias_trabajados = qs.filter(codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'SS']).count()
+    # Faltas reales: excluir domingos LOCAL (son DS, no faltas) y
+    # excluir días cubiertos por papeleta APROBADA/EJECUTADA (justificados).
+    faltas_qs = _qs_sin_papeleta(
+        qs.filter(codigo_dia__in=['FA', 'F'])
+          .exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+    )
+    faltas = faltas_qs.count()
     vacaciones = qs.filter(codigo_dia__in=['VAC', 'V']).count()
     dm = qs.filter(codigo_dia='DM').count()
     dl_bajadas = qs.filter(codigo_dia__in=['DL', 'DLA', 'B']).count()
@@ -67,12 +72,18 @@ def kpi_dashboard_view(request):
         dias=Count('id'),
         he25=Sum('he_25'), he35=Sum('he_35'),
     )
-    staff_stats['faltas'] = qs.filter(grupo='STAFF', codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
+    staff_stats['faltas'] = _qs_sin_papeleta(
+        qs.filter(grupo='STAFF', codigo_dia__in=['FA', 'F'])
+          .exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+    ).count()
     rco_stats = qs.filter(grupo='RCO').aggregate(
         dias=Count('id'),
         he25=Sum('he_25'), he35=Sum('he_35'), he100=Sum('he_100'),
     )
-    rco_stats['faltas'] = qs.filter(grupo='RCO', codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6).count()
+    rco_stats['faltas'] = _qs_sin_papeleta(
+        qs.filter(grupo='RCO', codigo_dia__in=['FA', 'F'])
+          .exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+    ).count()
 
     # Tendencia diaria del ciclo (para gráfica de línea principal)
     tendencia = list(
@@ -86,9 +97,12 @@ def kpi_dashboard_view(request):
     for t in tendencia:
         t['fecha'] = t['fecha'].strftime('%d/%m')
 
-    # Top 10 ausentes del mes
+    # Top 10 ausentes del mes (excluye días con papeleta vigente)
     top_ausentes = list(
-        qs.filter(codigo_dia__in=['FA', 'F']).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+        _qs_sin_papeleta(
+            qs.filter(codigo_dia__in=['FA', 'F'])
+              .exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+        )
         .values('personal__apellidos_nombres', 'personal__nro_doc', 'grupo')
         .annotate(total_faltas=Count('id'))
         .order_by('-total_faltas')[:10]
@@ -138,12 +152,14 @@ def kpi_dashboard_view(request):
     top_faltas_area = []
     top_faltas_area_json = '[]'
     try:
-        qs_mes_cal = RegistroTareo.objects.filter(
-            fecha__month=mes,
-            fecha__year=anio,
-            codigo_dia__in=['FA', 'F'],
-            personal__isnull=False,
-        ).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+        qs_mes_cal = _qs_sin_papeleta(
+            RegistroTareo.objects.filter(
+                fecha__month=mes,
+                fecha__year=anio,
+                codigo_dia__in=['FA', 'F'],
+                personal__isnull=False,
+            ).exclude(condicion__in=['LOCAL', 'LIMA', ''], dia_semana=6)
+        )
         top_raw = list(
             qs_mes_cal
             .values('personal__subarea__area__nombre')

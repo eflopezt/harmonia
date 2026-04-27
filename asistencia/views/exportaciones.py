@@ -12,7 +12,7 @@ from django.db.models import Count, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
-from asistencia.views._common import solo_admin
+from asistencia.views._common import solo_admin, _qs_sin_papeleta
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +185,6 @@ def exportar_horas_rco(request):
         .annotate(
             dias_trabajados=Count('id', filter=Q(
                 codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'SS'])),
-            dias_falta=Count('id', filter=Q(codigo_dia__in=['FA', 'F']) & ~Q(dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])),
             dias_dl=Count('id', filter=Q(codigo_dia__in=['DL', 'DLA'])),
             dias_vac=Count('id', filter=Q(codigo_dia__in=['VAC', 'V'])),
             dias_dm=Count('id', filter=Q(codigo_dia='DM')),
@@ -198,6 +197,22 @@ def exportar_horas_rco(request):
         )
         .order_by('nombre_archivo')
     )
+
+    # Faltas reales: excluir días cubiertos por papeleta APROBADA/EJECUTADA
+    # (justificados aunque el codigo_dia haya quedado en FA por desincronía).
+    faltas_por_pid = dict(
+        _qs_sin_papeleta(
+            RegistroTareo.objects.filter(
+                grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin,
+                codigo_dia__in=['FA', 'F'],
+            ).exclude(dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
+        )
+        .values('personal_id')
+        .annotate(n=Count('id'))
+        .values_list('personal_id', 'n')
+    )
+    for r in resumen:
+        r['dias_falta'] = faltas_por_pid.get(r['personal_id'], 0)
 
     # Enriquecer con datos de Personal
     pids = [r['personal_id'] for r in resumen if r['personal_id']]
@@ -348,41 +363,19 @@ def exportar_faltas_mes(request):
     label_periodo = _label_periodo(mes_ini, mes_fin, tipo_periodo)
 
     # Registros de FA/F/LSG del mes (excluir FA en domingos para LOCAL/LIMA)
+    # y excluir días cubiertos por papeleta APROBADA/EJECUTADA — justificados.
     regs_detalle = list(
-        RegistroTareo.objects.filter(
-            fecha__gte=mes_ini, fecha__lte=mes_fin,
-            codigo_dia__in=['FA', 'F', 'LSG'],
-            personal__isnull=False,
+        _qs_sin_papeleta(
+            RegistroTareo.objects.filter(
+                fecha__gte=mes_ini, fecha__lte=mes_fin,
+                codigo_dia__in=['FA', 'F', 'LSG'],
+                personal__isnull=False,
+            )
+            .exclude(codigo_dia__in=['FA', 'F'], dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
         )
-        .exclude(codigo_dia__in=['FA', 'F'], dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
         .select_related('personal__subarea__area')
         .order_by('fecha', 'personal__apellidos_nombres')
     )
-
-    # Excluir registros con papeleta APROBADA/EJECUTADA cubriendo la fecha.
-    # Esto evita reportar como falta días que en realidad están justificados
-    # (papeletas en períodos cerrados no se pueden re-sincronizar).
-    if regs_detalle:
-        from asistencia.models import RegistroPapeleta
-        # Cargar papeletas vigentes que tocan el rango, indexadas por personal.
-        paps_vigentes = RegistroPapeleta.objects.filter(
-            estado__in=['APROBADA', 'EJECUTADA'],
-            fecha_inicio__lte=mes_fin,
-            fecha_fin__gte=mes_ini,
-        ).values('personal_id', 'fecha_inicio', 'fecha_fin')
-        paps_por_personal: dict[int, list] = {}
-        for p in paps_vigentes:
-            paps_por_personal.setdefault(
-                p['personal_id'], []
-            ).append((p['fecha_inicio'], p['fecha_fin']))
-
-        def _cubierto_por_papeleta(reg) -> bool:
-            for ini, fin in paps_por_personal.get(reg.personal_id, ()):
-                if ini <= reg.fecha <= fin:
-                    return True
-            return False
-
-        regs_detalle = [r for r in regs_detalle if not _cubierto_por_papeleta(r)]
 
     # Agrupar por personal
     faltas_map: dict[int, dict] = {}
@@ -393,7 +386,7 @@ def exportar_faltas_mes(request):
         faltas_map[pid][r.codigo_dia] = faltas_map[pid].get(r.codigo_dia, 0) + 1
 
     if not faltas_map:
-        # Sin faltas: crear 2 hojas igual que el caso con datos, solo con
+        # Sin faltas: crear 3 hojas igual que el caso con datos, solo con
         # mensaje informativo. Mantiene estructura consistente del archivo.
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -405,6 +398,15 @@ def exportar_faltas_mes(request):
         ws['A4'] = 'Sin faltas registradas en el período.'
         ws['A4'].font = Font(size=10, italic=True, color='64748b')
         ws.column_dimensions['A'].width = 70
+
+        ws_az = wb.create_sheet(title='Detalle A-Z')
+        ws_az['A1'] = f'DETALLE POR TRABAJADOR (A-Z) — {MESES_ES[mes - 1].upper()} {anio}'
+        ws_az['A1'].font = Font(bold=True, size=14, color='991B1B')
+        ws_az['A2'] = label_periodo
+        ws_az['A2'].font = Font(size=9, color='64748b')
+        ws_az['A4'] = 'Sin faltas registradas en el período.'
+        ws_az['A4'].font = Font(size=10, italic=True, color='64748b')
+        ws_az.column_dimensions['A'].width = 70
 
         ws2 = wb.create_sheet(title='Detalle por fecha')
         ws2['A1'] = f'DETALLE DE FALTAS POR FECHA — {MESES_ES[mes - 1].upper()} {anio}'
@@ -523,16 +525,105 @@ def exportar_faltas_mes(request):
 
         ws.freeze_panes = 'A5'
 
-        # ──────────────────────────────────────────────────────────
-        # HOJA 2 — Detalle por Fecha
-        # ──────────────────────────────────────────────────────────
-        ws2 = wb.create_sheet(title='Detalle por fecha')
+        # Constantes compartidas para hojas de detalle
         dias_es = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
         cod_color = {
             'FA':  Font(size=9, bold=True, color='991B1B'),
             'F':   Font(size=9, bold=True, color='991B1B'),
             'LSG': Font(size=9, bold=True, color='7C2D12'),
         }
+        # Resaltado tenue para alternar grupos por trabajador en la hoja A-Z
+        worker_fill = PatternFill(start_color='FEE2E2', end_color='FEE2E2',
+                                   fill_type='solid')
+
+        # ──────────────────────────────────────────────────────────
+        # HOJA 2 — Detalle por Trabajador (A-Z)
+        # Cada falta del trabajador en filas consecutivas, ordenado
+        # alfabéticamente por apellidos. Filtros automáticos en headers.
+        # ──────────────────────────────────────────────────────────
+        regs_az = sorted(
+            regs_detalle,
+            key=lambda r: (
+                (r.personal.apellidos_nombres or '').upper(),
+                r.fecha,
+            ),
+        )
+
+        ws_az = wb.create_sheet(title='Detalle A-Z')
+        ws_az.cell(row=1, column=1,
+                   value=f'DETALLE POR TRABAJADOR (A-Z) — {MESES_ES[mes - 1].upper()} {anio}'
+                   ).font = title_font
+        ws_az.cell(row=2, column=1, value=label_periodo).font = sub_font
+
+        headers_az = ['N°', 'Apellidos y Nombres', 'DNI', 'Cargo', 'Área',
+                      'Grupo', 'Condición', 'Fecha', 'Día', 'Código',
+                      'Observaciones']
+        for c, h in enumerate(headers_az, 1):
+            cell = ws_az.cell(row=4, column=c, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+
+        # Pintar filas alternando por trabajador (no por fila), para que
+        # cada bloque de un mismo trabajador sea visualmente identificable.
+        prev_pid = None
+        bloque_alt = False
+        for i, r in enumerate(regs_az, 1):
+            row = i + 4
+            p = r.personal
+            if p.pk != prev_pid:
+                bloque_alt = not bloque_alt
+                prev_pid = p.pk
+            fill = worker_fill if bloque_alt else None
+            for c in range(1, 12):
+                cell = ws_az.cell(row=row, column=c)
+                if fill:
+                    cell.fill = fill
+                cell.border = border
+
+            grupo_label = 'RCO' if p.grupo_tareo == 'RCO' else 'Staff'
+
+            ws_az.cell(row=row, column=1, value=i).font = data_font
+            ws_az.cell(row=row, column=2, value=p.apellidos_nombres).font = data_font
+            c_dni = ws_az.cell(row=row, column=3, value=p.nro_doc)
+            c_dni.font = data_font
+            c_dni.number_format = '@'
+            ws_az.cell(row=row, column=4, value=p.cargo or '').font = Font(size=8, color='64748b')
+            ws_az.cell(row=row, column=5, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
+            ws_az.cell(row=row, column=6, value=grupo_label).font = Font(size=8, bold=True)
+            ws_az.cell(row=row, column=7, value=r.condicion or '').font = Font(size=8, color='64748b')
+            c_fecha_az = ws_az.cell(row=row, column=8, value=r.fecha)
+            c_fecha_az.font = data_font
+            c_fecha_az.number_format = 'dd/mm/yyyy'
+            ws_az.cell(row=row, column=9, value=dias_es[r.fecha.weekday()]).font = data_font
+            ws_az.cell(row=row, column=10, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
+            ws_az.cell(row=row, column=11, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
+
+            for c in [1, 3, 6, 7, 8, 9, 10]:
+                ws_az.cell(row=row, column=c).alignment = center
+
+        # Totales hoja A-Z
+        total_row_az = len(regs_az) + 5
+        for c in range(1, 12):
+            ws_az.cell(row=total_row_az, column=c).fill = total_fill
+            ws_az.cell(row=total_row_az, column=c).font = total_font
+        ws_az.cell(row=total_row_az, column=2, value='TOTAL REGISTROS').alignment = center
+        ws_az.cell(row=total_row_az, column=10, value=len(regs_az)).alignment = center
+
+        # Anchos hoja A-Z
+        widths_az = [5, 38, 12, 25, 20, 8, 10, 12, 6, 8, 40]
+        for i, w in enumerate(widths_az, 1):
+            ws_az.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+        # AutoFilter (clic en headers para filtrar/ordenar dentro de Excel)
+        if regs_az:
+            ws_az.auto_filter.ref = f'A4:K{len(regs_az) + 4}'
+        ws_az.freeze_panes = 'A5'
+
+        # ──────────────────────────────────────────────────────────
+        # HOJA 3 — Detalle por Fecha
+        # ──────────────────────────────────────────────────────────
+        ws2 = wb.create_sheet(title='Detalle por fecha')
 
         ws2.cell(row=1, column=1,
                  value=f'DETALLE DE FALTAS POR FECHA — {MESES_ES[mes - 1].upper()} {anio}').font = title_font

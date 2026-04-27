@@ -4,7 +4,7 @@ Utilidades compartidas entre las vistas del módulo Tareo.
 from datetime import timedelta
 
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import Max, OuterRef, Subquery
+from django.db.models import Exists, Max, OuterRef, Subquery
 
 solo_admin = user_passes_test(lambda u: u.is_superuser or u.is_staff, login_url='login')
 
@@ -97,6 +97,26 @@ TIPO_PERMISO_A_CODIGO = {
     'BAJADAS': 'DL',
     'BAJADAS_ACUMULADAS': 'DLA',
 }
+
+
+def _qs_sin_papeleta(qs):
+    """Excluye RegistroTareo cuyas fechas están cubiertas por una papeleta
+    APROBADA/EJECUTADA del mismo personal.
+
+    Útil para reportes de faltas/HE que NO deben contar días justificados
+    por papeleta (aunque el código_dia haya quedado desincronizado en BD).
+
+    Implementación: correlated EXISTS subquery — Postgres lo resuelve
+    eficientemente con el índice (personal_id, fecha_inicio, fecha_fin).
+    """
+    from asistencia.models import RegistroPapeleta
+    cubre = RegistroPapeleta.objects.filter(
+        personal_id=OuterRef('personal_id'),
+        estado__in=['APROBADA', 'EJECUTADA'],
+        fecha_inicio__lte=OuterRef('fecha'),
+        fecha_fin__gte=OuterRef('fecha'),
+    )
+    return qs.annotate(_tiene_pap=Exists(cubre)).filter(_tiene_pap=False)
 
 
 def _papeletas_por_fecha(personal_id, inicio, fin):
