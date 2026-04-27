@@ -48,6 +48,29 @@ TIPO_A_CODIGO = {
     'OTRO':                     'OTR',
 }
 
+# Inverso: codigo_dia → tipo_permiso. Solo códigos que claramente
+# representan un permiso/licencia/compensación (no estados de presencia
+# ni faltas). Se usa para auto-crear papeleta desde matriz de asistencia.
+CODIGO_A_TIPO = {
+    'DL':  'BAJADAS',
+    'DLA': 'BAJADAS_ACUMULADAS',
+    'VAC': 'VACACIONES',
+    'V':   'VACACIONES',
+    'DM':  'DESCANSO_MEDICO',
+    'CHE': 'COMPENSACION_HE',
+    'LCG': 'LICENCIA_CON_GOCE',
+    'LSG': 'LICENCIA_SIN_GOCE',
+    'LF':  'LICENCIA_FALLECIMIENTO',
+    'LP':  'LICENCIA_PATERNIDAD',
+    'LM':  'LICENCIA_MATERNIDAD',
+    'CPF': 'COMPENSACION_FERIADO',
+    'CDT': 'COMP_DIA_TRABAJO',
+    'SUS': 'SUSPENSION',
+    'SAI': 'SUSPENSION_ACTO_INSEGURO',
+    'CAP': 'CAPACITACION',
+    'CT':  'COMISION_TRABAJO',
+}
+
 
 def _cond_norm(c: str) -> str:
     return (c or 'LOCAL').upper().replace('Á', 'A').replace('Ñ', 'N')
@@ -280,3 +303,53 @@ def reset_caches():
     _feriados_cache_data['year_range'] = None
     _feriados_cache_data['set'] = None
     _cerrados_cache_data['set'] = None
+
+
+def crear_papeleta_desde_codigo(personal, fecha: date, codigo: str,
+                                 usuario=None, observacion: str = ''):
+    """Crea una papeleta APROBADA de un día desde un código de RegistroTareo.
+
+    Si ya existe papeleta APROBADA/EJECUTADA con el mismo tipo cubriendo
+    ese día y persona, no crea otra.
+
+    Retorna (papeleta, creada). (None, False) si el código no es de papeleta.
+    """
+    tipo = CODIGO_A_TIPO.get((codigo or '').upper())
+    if not tipo or personal is None:
+        return None, False
+
+    existente = RegistroPapeleta.objects.filter(
+        personal=personal,
+        tipo_permiso=tipo,
+        estado__in=['APROBADA', 'EJECUTADA'],
+        fecha_inicio__lte=fecha,
+        fecha_fin__gte=fecha,
+    ).first()
+    if existente:
+        return existente, False
+
+    area_nombre = ''
+    if getattr(personal, 'subarea_id', None):
+        try:
+            area_nombre = personal.subarea.area.nombre
+        except Exception:
+            area_nombre = ''
+
+    pap = RegistroPapeleta.objects.create(
+        personal=personal,
+        dni=getattr(personal, 'nro_doc', '') or '',
+        nombre_archivo=getattr(personal, 'apellidos_nombres', '') or '',
+        tipo_permiso=tipo,
+        fecha_inicio=fecha,
+        fecha_fin=fecha,
+        dias_habiles=1,
+        estado='APROBADA',
+        origen='SISTEMA',
+        creado_por=usuario,
+        aprobado_por=usuario,
+        fecha_aprobacion=date.today(),
+        observaciones=observacion or 'Generada automáticamente desde matriz de asistencia',
+        area_trabajo=area_nombre[:150],
+        cargo=(getattr(personal, 'cargo', '') or '')[:150],
+    )
+    return pap, True

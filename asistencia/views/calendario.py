@@ -594,6 +594,36 @@ def ajax_calendario_cambiar(request, registro_id):
         reg.observaciones = f'{prev}\n[{request.user.username}] {log_obs}'.strip()
     reg.save()
 
+    # Si el código nuevo es un permiso/licencia, crear papeleta automática
+    # (si no hay ya una APROBADA/EJECUTADA cubriendo el día). Vincula el
+    # registro a la papeleta para reflejarlo en reportes y descontar saldos.
+    papeleta_info = None
+    try:
+        from asistencia.services.papeletas_sync import (
+            CODIGO_A_TIPO, crear_papeleta_desde_codigo,
+        )
+        if reg.personal_id and nuevo_codigo in CODIGO_A_TIPO:
+            obs_pap = (observacion or
+                       f'Auto-creada desde matriz: {codigo_anterior}→{nuevo_codigo}')
+            pap, creada = crear_papeleta_desde_codigo(
+                reg.personal, reg.fecha, nuevo_codigo,
+                usuario=request.user, observacion=obs_pap,
+            )
+            if pap is not None:
+                reg.fuente_codigo = 'PAPELETA'
+                reg.papeleta_ref = f'PAP#{pap.pk}'
+                reg.save(update_fields=['fuente_codigo', 'papeleta_ref'])
+                papeleta_info = {
+                    'id': pap.pk,
+                    'creada': creada,
+                    'tipo': pap.get_tipo_permiso_display(),
+                }
+    except Exception as exc:
+        import logging
+        logging.getLogger('personal.business').warning(
+            f'auto-papeleta error (reg={reg.pk}, cod={nuevo_codigo}): {exc}'
+        )
+
     return JsonResponse({
         'ok': True,
         'codigo': nuevo_codigo,
@@ -606,6 +636,7 @@ def ajax_calendario_cambiar(request, registro_id):
         'he_25': float(reg.he_25 or 0),
         'he_35': float(reg.he_35 or 0),
         'he_100': float(reg.he_100 or 0),
+        'papeleta': papeleta_info,
     })
 
 
