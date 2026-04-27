@@ -724,6 +724,34 @@ def ajax_calendario_crear(request):
         usuario=request.user,
     )
 
+    # Auto-papeleta si el código nuevo es de permiso/licencia/compensación
+    papeleta_info = None
+    try:
+        from asistencia.services.papeletas_sync import (
+            CODIGO_A_TIPO, crear_papeleta_desde_codigo,
+        )
+        if nuevo_codigo in CODIGO_A_TIPO:
+            obs_pap = (observacion or
+                       f'Auto-creada desde matriz: nuevo registro {nuevo_codigo}')
+            pap, creada = crear_papeleta_desde_codigo(
+                personal, fecha, nuevo_codigo,
+                usuario=request.user, observacion=obs_pap,
+            )
+            if pap is not None:
+                reg.fuente_codigo = 'PAPELETA'
+                reg.papeleta_ref = f'PAP#{pap.pk}'
+                reg.save(update_fields=['fuente_codigo', 'papeleta_ref'])
+                papeleta_info = {
+                    'id': pap.pk,
+                    'creada': creada,
+                    'tipo': pap.get_tipo_permiso_display(),
+                }
+    except Exception as exc:
+        import logging
+        logging.getLogger('personal.business').warning(
+            f'auto-papeleta error (reg={reg.pk}, cod={nuevo_codigo}): {exc}'
+        )
+
     return JsonResponse({
         'ok': True,
         'id': reg.id,
@@ -732,6 +760,7 @@ def ajax_calendario_crear(request):
         'entrada': str(reg.hora_entrada_real)[:5] if reg.hora_entrada_real else '-',
         'salida': str(reg.hora_salida_real)[:5] if reg.hora_salida_real else '-',
         'horas_efectivas': float(reg.horas_efectivas or 0),
+        'papeleta': papeleta_info,
     })
 
 
