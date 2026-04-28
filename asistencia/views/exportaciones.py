@@ -8,7 +8,7 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F as DbF, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
@@ -182,12 +182,21 @@ def exportar_horas_rco(request):
     # mayúsculas distintas) entre importaciones.
     # Filtramos por Personal.grupo_tareo (canónico) en lugar del campo
     # denormalizado RegistroTareo.grupo (que puede estar desfasado).
+    # Excluimos registros fuera del período laboral del trabajador (antes
+    # de fecha_alta o después de fecha_cese) — no deberían sumar horas.
+    base_qs = RegistroTareo.objects.filter(
+        personal__grupo_tareo='RCO',
+        fecha__gte=mes_ini, fecha__lte=mes_fin,
+        personal__isnull=False,
+    ).exclude(
+        personal__fecha_alta__isnull=False,
+        fecha__lt=DbF('personal__fecha_alta'),
+    ).exclude(
+        personal__fecha_cese__isnull=False,
+        fecha__gt=DbF('personal__fecha_cese'),
+    )
     resumen = list(
-        RegistroTareo.objects.filter(
-            personal__grupo_tareo='RCO',
-            fecha__gte=mes_ini, fecha__lte=mes_fin,
-            personal__isnull=False,
-        ).values('personal_id')
+        base_qs.values('personal_id')
         .annotate(
             dias_trabajados=Count('id', filter=Q(
                 codigo_dia__in=['T', 'NOR', 'TR', 'A', 'CDT', 'CPF', 'LCG', 'ATM', 'CHE', 'LIM', 'SS'])),
@@ -202,6 +211,16 @@ def exportar_horas_rco(request):
             total_he_100=Sum('he_100'),
         )
     )
+    # Filtrar trabajadores cuya alta es posterior al fin del período o cuyo
+    # cese es anterior al inicio del período (no trabajaron en este corte).
+    pids_validos = set(
+        RegistroTareo.objects.filter(personal__isnull=False, fecha__gte=mes_ini, fecha__lte=mes_fin)
+        .filter(personal__grupo_tareo='RCO')
+        .exclude(personal__fecha_alta__isnull=False, personal__fecha_alta__gt=mes_fin)
+        .exclude(personal__fecha_cese__isnull=False, personal__fecha_cese__lt=mes_ini)
+        .values_list('personal_id', flat=True).distinct()
+    )
+    resumen = [r for r in resumen if r['personal_id'] in pids_validos]
 
     # Faltas reales: excluir días cubiertos por papeleta APROBADA/EJECUTADA
     # (justificados aunque el codigo_dia haya quedado en FA por desincronía).
@@ -211,6 +230,12 @@ def exportar_horas_rco(request):
                 personal__grupo_tareo='RCO',
                 fecha__gte=mes_ini, fecha__lte=mes_fin,
                 codigo_dia__in=['FA', 'F'],
+            ).exclude(
+                personal__fecha_alta__isnull=False,
+                fecha__lt=DbF('personal__fecha_alta'),
+            ).exclude(
+                personal__fecha_cese__isnull=False,
+                fecha__gt=DbF('personal__fecha_cese'),
             ).exclude(dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
         )
         .values('personal_id')
@@ -399,6 +424,13 @@ def exportar_faltas_mes(request):
                 fecha__gte=mes_ini, fecha__lte=mes_fin,
                 codigo_dia__in=['FA', 'F', 'LSG'],
                 personal__isnull=False,
+            )
+            .exclude(
+                personal__fecha_alta__isnull=False,
+                fecha__lt=DbF('personal__fecha_alta'),
+            ).exclude(
+                personal__fecha_cese__isnull=False,
+                fecha__gt=DbF('personal__fecha_cese'),
             )
             .exclude(codigo_dia__in=['FA', 'F'], dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
         )
