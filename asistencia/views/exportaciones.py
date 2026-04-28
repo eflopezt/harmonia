@@ -180,9 +180,12 @@ def exportar_horas_rco(request):
     # Resumen por persona — agrupar SOLO por personal_id para evitar
     # duplicados causados por variantes de nombre_archivo (espacios extras,
     # mayúsculas distintas) entre importaciones.
+    # Filtramos por Personal.grupo_tareo (canónico) en lugar del campo
+    # denormalizado RegistroTareo.grupo (que puede estar desfasado).
     resumen = list(
         RegistroTareo.objects.filter(
-            grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin,
+            personal__grupo_tareo='RCO',
+            fecha__gte=mes_ini, fecha__lte=mes_fin,
             personal__isnull=False,
         ).values('personal_id')
         .annotate(
@@ -205,7 +208,8 @@ def exportar_horas_rco(request):
     faltas_por_pid = dict(
         _qs_sin_papeleta(
             RegistroTareo.objects.filter(
-                grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin,
+                personal__grupo_tareo='RCO',
+                fecha__gte=mes_ini, fecha__lte=mes_fin,
                 codigo_dia__in=['FA', 'F'],
             ).exclude(dia_semana=6, condicion__in=['LOCAL', 'LIMA', ''])
         )

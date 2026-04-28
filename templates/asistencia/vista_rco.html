@@ -39,7 +39,7 @@
                 </span>
             </h2>
             <small class="opacity-60">
-                Período: {{ mes_ini|date:"d/m/Y" }} – {{ mes_fin|date:"d/m/Y" }}
+                {{ label_periodo }}
             </small>
         </div>
         <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -63,9 +63,18 @@
                             style="color:#000;background:#fff">{{ a }}</option>
                     {% endfor %}
                 </select>
+                <select name="tipo_periodo" class="form-select form-select-sm"
+                        style="width:160px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)"
+                        onchange="this.form.submit()"
+                        title="Ciclo HE = mismo período que planilla y exportaciones">
+                    <option value="corte" {% if tipo_periodo == 'corte' %}selected{% endif %}
+                            style="color:#000;background:#fff">Ciclo HE (22→21)</option>
+                    <option value="calendario" {% if tipo_periodo == 'calendario' %}selected{% endif %}
+                            style="color:#000;background:#fff">Mes calendario</option>
+                </select>
             </form>
             <!-- Action buttons -->
-            <a href="{% url 'asistencia_exportar_horas_rco' %}?mes={{ mes_sel }}&anio={{ anio_sel }}"
+            <a href="{% url 'asistencia_exportar_horas_rco' %}?mes={{ mes_sel }}&anio={{ anio_sel }}&tipo_periodo={{ tipo_periodo }}"
                class="btn btn-sm btn-success fw-semibold">
                 <i class="fas fa-file-excel me-1"></i>Exportar Horas
             </a>

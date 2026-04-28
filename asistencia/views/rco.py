@@ -36,15 +36,33 @@ def vista_rco(request):
         reverse=True,
     ) or [hoy.year]
 
-    mes_ini = date(anio_sel, mes_sel, 1)
-    mes_fin = date(anio_sel, mes_sel, calendar.monthrange(anio_sel, mes_sel)[1])
+    # Período: ciclo HE (22→21, default — coincide con planilla y exports)
+    # o mes calendario (1 → fin de mes).
+    tipo_periodo = request.GET.get('tipo_periodo', 'corte')
+    if tipo_periodo not in ('calendario', 'corte'):
+        tipo_periodo = 'corte'
+
+    if tipo_periodo == 'corte':
+        from asistencia.models import ConfiguracionSistema
+        config = ConfiguracionSistema.get()
+        mes_ini, mes_fin = config.get_ciclo_he(anio_sel, mes_sel)
+        label_periodo = (f'Ciclo HE: {mes_ini.strftime("%d/%m/%Y")} → '
+                         f'{mes_fin.strftime("%d/%m/%Y")}')
+    else:
+        mes_ini = date(anio_sel, mes_sel, 1)
+        mes_fin = date(anio_sel, mes_sel, calendar.monthrange(anio_sel, mes_sel)[1])
+        label_periodo = (f'Mes calendario: {mes_ini.strftime("%d/%m/%Y")} → '
+                         f'{mes_fin.strftime("%d/%m/%Y")}')
 
     buscar  = request.GET.get('buscar', '').strip()
     solo_he = request.GET.get('solo_he', '') == '1'
 
-    # Base queryset for the selected period
+    # Base queryset for the selected period.
+    # Filtramos por Personal.grupo_tareo (canónico) en vez del campo
+    # denormalizado RegistroTareo.grupo (que puede quedarse desfasado).
     qs_base = RegistroTareo.objects.filter(
-        grupo='RCO', fecha__gte=mes_ini, fecha__lte=mes_fin
+        personal__grupo_tareo='RCO',
+        fecha__gte=mes_ini, fecha__lte=mes_fin
     ).exclude(
         personal__fecha_cese__isnull=False, fecha__gt=DbF('personal__fecha_cese')
     ).exclude(
@@ -123,6 +141,8 @@ def vista_rco(request):
         'anios_disponibles': anios_disponibles,
         'mes_ini': mes_ini,
         'mes_fin': mes_fin,
+        'tipo_periodo': tipo_periodo,
+        'label_periodo': label_periodo,
         'kpi': kpi,
         'registros': registros_list,
         'resumen': resumen,
