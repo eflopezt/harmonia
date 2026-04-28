@@ -29,10 +29,15 @@ class PerPersona(models.Model):
 
 
 class PPersonal(models.Model):
-    """Vínculo laboral con Synkro: ingreso, contrato, cese."""
+    """Vínculo laboral con Synkro: ingreso, contrato, cese, tipo trabajador.
+
+    IdTipoTrabajador: 2=Obrero (construcción civil, NO importar a Harmoni),
+                      3=Empleado (sí importar).
+    """
     id_personal = models.IntegerField(primary_key=True, db_column='IdPersonal')
     id_persona = models.IntegerField(db_column='IdPersona')
     estado = models.BooleanField(db_column='Estado')
+    id_tipo_trabajador = models.IntegerField(db_column='IdTipoTrabajador', blank=True, null=True)
     fecha_ingreso = models.DateField(db_column='FechaIngreso', blank=True, null=True)
     fecha_termino_contrato = models.DateField(db_column='FechaTerminoContrato', blank=True, null=True)
     motivo_cese = models.CharField(max_length=200, db_column='MotivoCese', blank=True, null=True)

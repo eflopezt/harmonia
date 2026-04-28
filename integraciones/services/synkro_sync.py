@@ -37,6 +37,12 @@ logger = logging.getLogger('asistencia')
 
 CERO = Decimal('0')
 
+# Tipos de trabajador en Synkro (RH_TipoTrabajador):
+#   2 = Obrero (construcción civil) — NO importar a Harmoni
+#   3 = Empleado — sí importar
+TIPO_TRAB_EMPLEADO = 3
+TIPO_TRAB_OBRERO = 2
+
 # Mapeo de motivo_cese de Synkro (texto libre) → choice canónico de Harmoni
 # (Personal.MOTIVO_CESE_CHOICES). Si no matchea, usa 'OTRO'.
 MOTIVO_CESE_MAP = [
@@ -121,11 +127,18 @@ def _build_personal_index_por_dni() -> dict[str, int]:
     }
 
 
-def _build_synkro_personal_to_dni() -> dict[int, str]:
-    """{P_Personal.IdPersonal (Synkro) → DNI}."""
-    # JOIN P_Personal × PER_Personas vía IdPersona
-    qs = PPersonal.objects.using('synkro').values_list('id_personal', 'id_persona')
-    persona_map = dict(qs)  # personal_id → persona_id
+def _build_synkro_personal_to_dni(solo_empleados: bool = True) -> dict[int, str]:
+    """{P_Personal.IdPersonal (Synkro) → DNI}.
+
+    Por defecto filtra solo Empleados (IdTipoTrabajador=3). Los Obreros
+    (construcción civil) NO se importan al ERP Harmoni — viven solo en
+    Synkro/Plame y reciben otra modalidad de pago.
+    """
+    qs = PPersonal.objects.using('synkro')
+    if solo_empleados:
+        qs = qs.filter(id_tipo_trabajador=TIPO_TRAB_EMPLEADO)
+    qs = qs.values_list('id_personal', 'id_persona')
+    persona_map = dict(qs)
     persona_ids = list(persona_map.values())
     dni_map = dict(
         PerPersona.objects.using('synkro')
@@ -164,9 +177,9 @@ def sync_personal() -> dict:
     creados = altas_omitidas_sin_datos = 0
     ceses_actualizados = ingreso_actualizado = sin_cambios = 0
 
-    # JOIN P_Personal × PER_Personas en Synkro
+    # JOIN P_Personal × PER_Personas en Synkro — solo Empleados (excluye Obreros)
     pp_qs = (PPersonal.objects.using('synkro')
-             .all()
+             .filter(id_tipo_trabajador=TIPO_TRAB_EMPLEADO)
              .values('id_personal', 'id_persona', 'estado',
                      'fecha_ingreso', 'fecha_termino_contrato', 'motivo_cese'))
 
