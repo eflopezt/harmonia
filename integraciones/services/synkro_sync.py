@@ -171,9 +171,12 @@ def sync_papeletas(cursor_desde: datetime | None,
             existentes_por_extid[int(marker)] = pap
 
     for permiso in qs.iterator(chunk_size=200):
-        ts = max(permiso.fecha_modifica or datetime.min,
-                 permiso.fecha_registro or datetime.min)
-        if ts != datetime.min:
+        # Cursor: latest de fecha_registro/fecha_modifica (ambos tz-aware
+        # cuando vienen de SQL Server con USE_TZ=True).
+        ts_candidates = [t for t in (permiso.fecha_modifica, permiso.fecha_registro)
+                         if t is not None]
+        if ts_candidates:
+            ts = max(ts_candidates)
             if max_cursor is None or ts > max_cursor:
                 max_cursor = ts
 
