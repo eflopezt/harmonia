@@ -37,6 +37,40 @@ logger = logging.getLogger('asistencia')
 
 CERO = Decimal('0')
 
+# Mapeo de motivo_cese de Synkro (texto libre) → choice canónico de Harmoni
+# (Personal.MOTIVO_CESE_CHOICES). Si no matchea, usa 'OTRO'.
+MOTIVO_CESE_MAP = [
+    ('renuncia voluntaria', 'RENUNCIA'),
+    ('renuncia',            'RENUNCIA'),
+    ('mutuo acuerdo',       'MUTUO_ACUERDO'),
+    ('jubilac',             'JUBILACION'),
+    ('vencimiento',         'VENCIMIENTO'),
+    ('termino de contrato', 'TERMINO_CONTRATO'),
+    ('término de contrato', 'TERMINO_CONTRATO'),
+    ('termino contrato',    'TERMINO_CONTRATO'),
+    ('termino de partida',  'VENCIMIENTO'),
+    ('no renovac',          'NO_RENOVACION'),
+    ('despido',             'DESPIDO_CAUSA'),
+    ('positivo alcotest',   'DESPIDO_CAUSA'),
+    ('cese colectivo',      'CESE_COLECTIVO'),
+    ('liquidac',            'LIQUIDACION'),
+    ('fallec',              'FALLECIMIENTO'),
+    ('invalidez',           'INVALIDEZ'),
+    ('abandono',            'ABANDONO'),
+    ('no inicio',           'OTRO'),
+]
+
+
+def _mapear_motivo_cese(texto: str) -> str:
+    if not texto:
+        return ''
+    t = texto.strip().lower()
+    for needle, canon in MOTIVO_CESE_MAP:
+        if needle in t:
+            return canon
+    return 'OTRO'
+
+
 # Mapeo IdTipoPermiso (Synkro) → tipo_permiso de RegistroPapeleta (Harmoni)
 TIPO_PERMISO_MAP: dict[int, str | None] = {
     1:  'DESCANSO_MEDICO',
@@ -59,10 +93,12 @@ TIPO_PERMISO_MAP: dict[int, str | None] = {
 }
 
 # Fuentes de RegistroTareo que el sync puede sobrescribir con datos de reloj.
-# MANUAL y PAPELETA se respetan siempre (gana edición manual / papeleta vigente).
+# Se respetan: MANUAL (edición humana), PAPELETA (papeleta vigente),
+# EXCEL (operador subió Excel con HE/ajustes; debe ganar sobre picados crudos
+# para no perder horas extra ya pagadas/autorizadas).
 FUENTES_REESCRIBIBLES = {
     'FALTA_AUTO', 'DESCANSO_SEMANAL', 'AUTO_LIMA', 'REGLA_ESPECIAL',
-    'FERIADO', 'EXCEL', 'RELOJ',
+    'FERIADO', 'RELOJ',
 }
 
 
@@ -98,6 +134,136 @@ def _build_synkro_personal_to_dni() -> dict[int, str]:
     )
     return {pid: _normalizar_dni(dni_map.get(pers_id, ''))
             for pid, pers_id in persona_map.items()}
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# SYNC PERSONAL — altas, ceses, fecha_ingreso (NO condicion/grupo/sueldo)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def sync_personal() -> dict:
+    """Sincroniza datos administrativos de personal desde Synkro.
+
+    SÍ sincroniza:
+      - Altas: si hay un DNI en Synkro y no existe en Harmoni → crear
+        Personal con datos básicos (nombres, DNI, fecha_alta, celular).
+      - Ceses: actualiza fecha_cese y motivo_cese si en Synkro Estado=False
+        y FechaTerminoContrato está poblada.
+      - Fecha de ingreso (fecha_alta): si está vacía en Harmoni y poblada
+        en Synkro, la actualiza.
+
+    NO sincroniza (campos sensibles que afectan cálculo de asistencia o
+    que se editan manualmente en el ERP):
+      - condicion (LOCAL/FORANEO/LIMA)
+      - grupo_tareo (STAFF/RCO)
+      - jornada_horas
+      - cargo, área, sueldo, AFP, banco
+    """
+    from personal.models import Personal
+
+    creados = altas_omitidas_sin_datos = 0
+    ceses_actualizados = ingreso_actualizado = sin_cambios = 0
+
+    # JOIN P_Personal × PER_Personas en Synkro
+    pp_qs = (PPersonal.objects.using('synkro')
+             .all()
+             .values('id_personal', 'id_persona', 'estado',
+                     'fecha_ingreso', 'fecha_termino_contrato', 'motivo_cese'))
+
+    persona_map = {pp['id_persona']: pp for pp in pp_qs}
+    personas_qs = (PerPersona.objects.using('synkro')
+                   .filter(id_persona__in=persona_map.keys())
+                   .values('id_persona', 'dni', 'a_paterno', 'a_materno',
+                           'nombres', 'nombre_completo', 'celular'))
+
+    # Index Harmoni
+    personal_existente = {
+        _normalizar_dni(p.nro_doc): p
+        for p in Personal.objects.exclude(nro_doc__isnull=True).exclude(nro_doc='')
+    }
+
+    for psyk in personas_qs:
+        dni = _normalizar_dni(psyk['dni'])
+        if not dni:
+            continue
+        pp = persona_map.get(psyk['id_persona'])
+        if not pp:
+            continue
+
+        existente = personal_existente.get(dni)
+
+        # ── Altas ──
+        if existente is None:
+            # Solo crear si tenemos al menos un nombre y fecha_ingreso
+            apellidos_nombres = (psyk['nombre_completo'] or '').strip()
+            if not apellidos_nombres:
+                ap = (psyk['a_paterno'] or '').strip()
+                am = (psyk['a_materno'] or '').strip()
+                no = (psyk['nombres'] or '').strip()
+                apellidos_nombres = f'{ap} {am}, {no}'.strip(' ,')
+            if not apellidos_nombres or not pp['fecha_ingreso']:
+                altas_omitidas_sin_datos += 1
+                continue
+            try:
+                # Crear con campos mínimos. Los campos sensibles (condicion,
+                # grupo_tareo, cargo) quedan en defaults — el admin los
+                # completa manualmente en el ERP.
+                Personal.objects.create(
+                    nro_doc=dni,
+                    apellidos_nombres=apellidos_nombres[:250],
+                    fecha_alta=pp['fecha_ingreso'],
+                    celular=(psyk['celular'] or '')[:20],
+                    estado='Activo' if pp['estado'] else 'Cesado',
+                    fecha_cese=(pp['fecha_termino_contrato']
+                                if not pp['estado'] and pp['fecha_termino_contrato']
+                                else None),
+                    motivo_cese=(_mapear_motivo_cese(pp['motivo_cese'])
+                                 if not pp['estado'] else ''),
+                )
+                creados += 1
+            except Exception as exc:
+                logger.warning(
+                    f'No se pudo crear Personal DNI {dni}: {type(exc).__name__}: {exc}'
+                )
+                altas_omitidas_sin_datos += 1
+            continue
+
+        # ── Actualizaciones (solo campos administrativos) ──
+        cambios = []
+        # Fecha de ingreso: solo si Harmoni la tiene vacía
+        if existente.fecha_alta is None and pp['fecha_ingreso']:
+            existente.fecha_alta = pp['fecha_ingreso']
+            cambios.append('fecha_alta')
+            ingreso_actualizado += 1
+
+        # Cese: si Synkro dice Estado=False y tiene fecha_termino_contrato,
+        # y en Harmoni la fecha_cese está vacía o es distinta → actualizar.
+        if not pp['estado'] and pp['fecha_termino_contrato']:
+            if existente.fecha_cese != pp['fecha_termino_contrato']:
+                existente.fecha_cese = pp['fecha_termino_contrato']
+                cambios.append('fecha_cese')
+            motivo_canon = _mapear_motivo_cese(pp['motivo_cese'])
+            if motivo_canon and existente.motivo_cese != motivo_canon:
+                existente.motivo_cese = motivo_canon
+                cambios.append('motivo_cese')
+            if existente.estado != 'Cesado':
+                existente.estado = 'Cesado'
+                cambios.append('estado')
+            if cambios and 'fecha_cese' in cambios:
+                ceses_actualizados += 1
+
+        if cambios:
+            existente.save(update_fields=cambios)
+        else:
+            sin_cambios += 1
+
+    return {
+        'altas_creadas': creados,
+        'altas_omitidas_sin_datos': altas_omitidas_sin_datos,
+        'ceses_actualizados': ceses_actualizados,
+        'ingreso_actualizado': ingreso_actualizado,
+        'sin_cambios': sin_cambios,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -452,19 +618,24 @@ def run_sync(usuario=None, origen: str = 'AUTO',
     try:
         cursor_pap_prev, cursor_pic_prev = _ultimo_cursor()
 
-        # 1. Maestros y mapping de DNI
+        # 1. Personal: altas + ceses + fecha_ingreso (NO condicion/grupo).
+        # Se hace antes que feriados/papeletas/picados para que el resto
+        # encuentre a las personas recién creadas.
+        res_personal = sync_personal()
+
+        # 2. Maestros y mapping de DNI (después del sync de personal)
         personal_idx = _build_personal_index_por_dni()
         personal_dni_map = _build_synkro_personal_to_dni()
 
-        # 2. Feriados (full upsert; no necesita cursor)
+        # 3. Feriados (full upsert; no necesita cursor)
         feriados_creados = sync_feriados()
 
-        # 3. Papeletas (incremental). Cada papeleta tiene su propia
+        # 4. Papeletas (incremental). Cada papeleta tiene su propia
         # transacción interna; si una falla por data corrupta no afecta
         # al resto.
         res_pap = sync_papeletas(cursor_pap_prev, personal_dni_map, personal_idx)
 
-        # 4. Picados (incremental)
+        # 5. Picados (incremental)
         res_pic = sync_picados(cursor_pic_prev, personal_dni_map, personal_idx,
                                ventana_dias_max=ventana_picados_dias)
 
@@ -481,6 +652,7 @@ def run_sync(usuario=None, origen: str = 'AUTO',
         log.cursor_picados = res_pic['max_cursor'] or cursor_pic_prev
         log.estado = 'OK'
         log.detalle = {
+            'personal': res_personal,
             'papeletas': res_pap | {'max_cursor': str(res_pap.get('max_cursor') or '')},
             'picados': {**res_pic, 'max_cursor': str(res_pic.get('max_cursor') or '')},
             'feriados': {'creados': feriados_creados},
