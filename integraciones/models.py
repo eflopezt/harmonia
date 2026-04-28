@@ -273,3 +273,76 @@ class PolizaSCTR(models.Model):
     @property
     def proveedor_nombre(self):
         return self.proveedor_otro if self.proveedor == 'OTRO' else self.get_proveedor_display()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sync Synkro (RRHH/Asistencia) — log de cada corrida
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SyncSynkroLog(models.Model):
+    """Bitácora de cada corrida del sync con la BD remota de Synkro.
+
+    Sirve para:
+      - Determinar el cursor incremental (max fecha_registro procesada).
+      - Auditoría: quién/cuándo/qué pasó.
+      - Mostrar 'Última sync' en el panel.
+    """
+    ESTADO_CHOICES = [
+        ('OK', 'Completada'),
+        ('ERROR', 'Error'),
+        ('EN_PROGRESO', 'En progreso'),
+    ]
+    ORIGEN_CHOICES = [
+        ('AUTO', 'Automática (Celery Beat)'),
+        ('MANUAL', 'Manual (usuario)'),
+        ('CLI', 'Comando CLI'),
+    ]
+
+    iniciado_en = models.DateTimeField(default=timezone.now, db_index=True)
+    finalizado_en = models.DateTimeField(null=True, blank=True)
+    estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default='EN_PROGRESO')
+    origen = models.CharField(max_length=10, choices=ORIGEN_CHOICES, default='AUTO')
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='syncs_synkro',
+    )
+
+    # Cursores de corte para esta corrida (límite superior procesado)
+    cursor_papeletas = models.DateTimeField(
+        null=True, blank=True,
+        help_text='max(FechaRegistro/FechaModifica) procesado en PermisosLicencias',
+    )
+    cursor_picados = models.DateTimeField(
+        null=True, blank=True,
+        help_text='max(Fecha) procesado en PicadosPersonal',
+    )
+
+    # Métricas
+    feriados_creados = models.IntegerField(default=0)
+    papeletas_creadas = models.IntegerField(default=0)
+    papeletas_actualizadas = models.IntegerField(default=0)
+    papeletas_omitidas = models.IntegerField(default=0)
+    registros_tareo_creados = models.IntegerField(default=0)
+    registros_tareo_actualizados = models.IntegerField(default=0)
+    personas_no_encontradas = models.IntegerField(
+        default=0,
+        help_text='DNIs de Synkro sin match en Personal de Harmoni',
+    )
+
+    duracion_segundos = models.FloatField(default=0)
+    error_mensaje = models.TextField(blank=True)
+    detalle = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'Sync Synkro'
+        verbose_name_plural = 'Sync Synkro'
+        ordering = ['-iniciado_en']
+
+    def __str__(self):
+        return f'Sync {self.iniciado_en:%Y-%m-%d %H:%M} [{self.estado}]'
+
+    def total_cambios(self):
+        return (self.papeletas_creadas + self.papeletas_actualizadas
+                + self.registros_tareo_creados + self.registros_tareo_actualizados
+                + self.feriados_creados)

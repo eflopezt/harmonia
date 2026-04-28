@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies (build + cairo for xhtml2pdf + mupdf)
+# Install system dependencies (build + cairo for xhtml2pdf + mupdf + unixodbc-dev for pyodbc)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libpango1.0-dev \
     libgdk-pixbuf-2.0-dev \
     libffi-dev \
+    unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies (production only)
@@ -32,6 +33,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Runtime system deps only (no build tools)
+# msodbcsql18 + unixodbc para conectar a SQL Server (integración Synkro RRHH)
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     libpq5 \
@@ -39,6 +41,11 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     libgdk-pixbuf-2.0-0 \
+    curl gnupg ca-certificates apt-transport-https \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder

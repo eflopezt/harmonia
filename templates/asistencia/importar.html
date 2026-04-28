@@ -139,6 +139,39 @@
       </div>
     </div>
 
+    {# Synkro Directo (BD remota) #}
+    <div class="col-lg-6">
+      <div class="import-card card shadow-sm h-100" style="border-left:4px solid #0ea5e9">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#fff"><i class="fas fa-bolt"></i></div>
+            <div>
+              <h5 class="fw-bold mb-0">Synkro Directo
+                <span class="badge ms-1" style="background:#0ea5e9;color:#fff;font-size:.6rem;vertical-align:middle">BETA</span>
+              </h5>
+              <small class="text-muted">Conexión directa a la BD del biométrico — sin Excel</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-2">
+            Lee picados, papeletas y feriados directo de SQL Server (lectura). Sync incremental
+            cada <strong>15 min</strong> automático + botón manual. Respeta papeletas vigentes
+            y ediciones manuales.
+          </p>
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="badge bg-light text-info border" style="font-size:.68rem">SQL Server</span>
+            <span class="badge bg-light text-success border" style="font-size:.68rem">Auto cada 15 min</span>
+            <span class="badge bg-light text-secondary border" style="font-size:.68rem">Read-only</span>
+          </div>
+          <div class="mt-auto">
+            <button id="btnSynkroSync" type="button" class="btn btn-info text-white btn-sm fw-semibold">
+              <i class="fas fa-sync-alt me-1"></i>Sincronizar ahora
+            </button>
+            <span id="synkroStatus" class="text-muted small ms-2"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {# SUNAT #}
     <div class="col-lg-6">
       <div class="import-card card shadow-sm h-100">
@@ -326,5 +359,77 @@ document.getElementById('formReloj').addEventListener('submit', function(e) {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Procesando…';
   btn.disabled = true;
 });
+
+// ── Synkro Directo: estado + sync manual ──────────────────────────────
+(function() {
+  const btn = document.getElementById('btnSynkroSync');
+  const status = document.getElementById('synkroStatus');
+  if (!btn || !status) return;
+
+  function fmtRel(iso) {
+    if (!iso) return '';
+    const t = new Date(iso);
+    const min = Math.round((Date.now() - t.getTime()) / 60000);
+    if (min < 1) return 'hace segundos';
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `hace ${h} h`;
+    return t.toLocaleDateString('es-PE');
+  }
+
+  function refreshStatus() {
+    fetch('{% url "synkro_sync_status" %}')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.has_log) {
+          status.innerHTML = '<i class="fas fa-info-circle me-1"></i>Sin sincronizaciones aún.';
+          return;
+        }
+        const m = d.metricas || {};
+        const cambios = (m.papeletas_creadas || 0) + (m.papeletas_actualizadas || 0)
+                      + (m.registros_tareo_creados || 0) + (m.registros_tareo_actualizados || 0);
+        let cls = 'text-muted', icon = 'fa-check-circle';
+        if (d.estado === 'EN_PROGRESO') { cls = 'text-info'; icon = 'fa-spinner fa-spin'; }
+        else if (d.estado === 'ERROR')  { cls = 'text-danger'; icon = 'fa-exclamation-circle'; }
+        else                            { cls = 'text-success'; }
+        status.className = `small ms-2 ${cls}`;
+        status.innerHTML = `<i class="fas ${icon} me-1"></i>` +
+          `${d.estado === 'EN_PROGRESO' ? 'Sincronizando…' : 'Última: ' + fmtRel(d.iniciado_en)}` +
+          ` · ${cambios} cambios · ${d.duracion}s`;
+        if (d.estado === 'EN_PROGRESO') setTimeout(refreshStatus, 3000);
+      })
+      .catch(() => { status.innerHTML = ''; });
+  }
+
+  btn.addEventListener('click', function() {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Iniciando…';
+    fetch('{% url "synkro_sync_now" %}', {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) {
+          status.className = 'small ms-2 text-danger';
+          status.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i>${d.error || 'Error'}`;
+          return;
+        }
+        setTimeout(refreshStatus, 1500);
+      })
+      .catch(() => {
+        status.className = 'small ms-2 text-danger';
+        status.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Error de conexión';
+      })
+      .finally(() => {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Sincronizar ahora';
+        }, 2000);
+      });
+  });
+
+  refreshStatus();
+})();
 </script>
 {% endblock %}

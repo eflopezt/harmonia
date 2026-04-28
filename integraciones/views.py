@@ -1176,3 +1176,62 @@ def cts_bancos_exportar(request):
     response = HttpResponse(excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename=CTS_Deposito_{date.today().isoformat()}.xlsx'
     return response
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Synkro RRHH — sync directo desde BD remota
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@login_required
+@solo_admin
+@require_POST
+def synkro_sync_now(request):
+    """Dispara una sync con Synkro vía Celery (asíncrono).
+
+    Retorna inmediatamente con el log_id (estado=EN_PROGRESO). El cliente
+    polea con synkro_sync_status para ver progreso.
+    """
+    from django.conf import settings
+    if 'synkro' not in settings.DATABASES:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Synkro no está configurado en este servidor (falta SYNKRO_HOST en .env).',
+        }, status=503)
+
+    from integraciones.tasks import sync_synkro_manual
+    sync_synkro_manual.delay(usuario_id=request.user.id, ventana_dias=60)
+    return JsonResponse({'ok': True, 'mensaje': 'Sincronización iniciada en segundo plano.'})
+
+
+@login_required
+@solo_admin
+def synkro_sync_status(request):
+    """Devuelve el último SyncSynkroLog (cualquier estado) y métricas resumidas."""
+    from .models import SyncSynkroLog
+    last = SyncSynkroLog.objects.order_by('-iniciado_en').first()
+    if not last:
+        return JsonResponse({
+            'has_log': False,
+            'configurado': 'synkro' in settings.DATABASES if hasattr(settings, 'DATABASES') else False,
+        })
+    return JsonResponse({
+        'has_log': True,
+        'log_id': last.id,
+        'estado': last.estado,
+        'origen': last.origen,
+        'iniciado_en': last.iniciado_en.isoformat(),
+        'finalizado_en': last.finalizado_en.isoformat() if last.finalizado_en else None,
+        'duracion': last.duracion_segundos,
+        'metricas': {
+            'feriados_creados': last.feriados_creados,
+            'papeletas_creadas': last.papeletas_creadas,
+            'papeletas_actualizadas': last.papeletas_actualizadas,
+            'papeletas_omitidas': last.papeletas_omitidas,
+            'registros_tareo_creados': last.registros_tareo_creados,
+            'registros_tareo_actualizados': last.registros_tareo_actualizados,
+            'personas_no_encontradas': last.personas_no_encontradas,
+        },
+        'error_mensaje': last.error_mensaje,
+        'usuario': last.usuario.username if last.usuario_id else None,
+    })

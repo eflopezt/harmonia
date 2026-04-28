@@ -70,6 +70,26 @@ if DATABASE_URL:
 else:
     raise ValueError("DATABASE_URL environment variable is required in production")
 
+# Synkro RRHH (Sistema de Control de Personal y Asistencias) — read-only
+# Activar definiendo SYNKRO_HOST en .env. Usado para sync directo de
+# marcaciones/papeletas. Driver mssql-django requiere ODBC Driver 18
+# instalado en el contenedor.
+SYNKRO_HOST = os.environ.get('SYNKRO_HOST')
+if SYNKRO_HOST:
+    DATABASES['synkro'] = {
+        'ENGINE': 'mssql',
+        'NAME': os.environ.get('SYNKRO_DB', 'DB_RRHH'),
+        'HOST': SYNKRO_HOST,
+        'PORT': os.environ.get('SYNKRO_PORT', '1433'),
+        'USER': os.environ.get('SYNKRO_USER', 'rrhh'),
+        'PASSWORD': os.environ.get('SYNKRO_PASSWORD', ''),
+        'OPTIONS': {
+            'driver': os.environ.get('SYNKRO_DRIVER', 'ODBC Driver 18 for SQL Server'),
+            'extra_params': 'TrustServerCertificate=yes;Encrypt=no;',
+        },
+        'CONN_MAX_AGE': 60,
+    }
+
 # Cache: use Redis if available, otherwise database
 REDIS_URL = os.environ.get('REDIS_URL')
 if REDIS_URL:

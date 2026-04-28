@@ -340,4 +340,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'analytics.tasks.generar_snapshot_kpi',
         'schedule': crontab(hour=1, minute=0, day_of_month='1'),  # Día 1 de cada mes 01:00
     },
+
+    # ── Integraciones — Synkro RRHH ────────────────────────────
+    # Sync incremental con la BD remota de Synkro: papeletas, picados,
+    # feriados. Solo corre si SYNKRO_HOST está configurado en .env.
+    'sync-synkro-rrhh-15min': {
+        'task': 'integraciones.tasks.sync_synkro_auto',
+        'schedule': crontab(minute='*/15'),  # cada 15 minutos
+    },
 }

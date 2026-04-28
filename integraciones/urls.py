@@ -51,4 +51,8 @@ urlpatterns = [
     # CTS — Depósito bancario
     path('cts-bancos/', views.cts_bancos_panel, name='cts_bancos_panel'),
     path('cts-bancos/exportar/', views.cts_bancos_exportar, name='cts_bancos_exportar'),
+
+    # Synkro RRHH — sync directo desde BD remota
+    path('synkro/sync-now/', views.synkro_sync_now, name='synkro_sync_now'),
+    path('synkro/sync-status/', views.synkro_sync_status, name='synkro_sync_status'),
 ]
