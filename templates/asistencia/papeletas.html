@@ -131,6 +131,7 @@
     <table class="table table-hover table-sm">
         <thead class="table-dark">
             <tr>
+                <th>DNI</th>
                 <th>Trabajador</th>
                 <th>Tipo</th>
                 <th>Fecha Inicio</th>
@@ -157,7 +158,8 @@
                 data-obs="{{ p.observaciones|escapejs }}"
                 data-origen="{{ p.origen }}"
                 data-importada="{{ p.es_importada|yesno:'1,0' }}">
-                <td class="fw-semibold small">{{ p.personal.apellidos_nombres|default:p.dni }}</td>
+                <td class="text-muted small font-monospace">{{ p.personal.nro_doc|default:p.dni }}</td>
+                <td class="fw-semibold small">{{ p.personal.apellidos_nombres|default:'—' }}</td>
                 <td>
                     {% if p.es_compensacion %}
                     <span class="tipo-pill tipo-comp">{{ p.get_tipo_permiso_display }}</span>
@@ -196,7 +198,7 @@
             </tr>
             {% empty %}
             <tr id="filaVaciaPapeletas">
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="10" class="text-center text-muted py-4">
                     <i class="fas fa-file-contract fa-2x d-block mb-2 opacity-25"></i>
                     Sin papeletas para los filtros seleccionados.
                 </td>
@@ -383,7 +385,7 @@ async function eliminarPapeleta(pk) {
         document.getElementById('fila-p-' + pk)?.remove();
         if (!document.querySelector('#papeletasBody tr[data-pk]')) {
             document.getElementById('papeletasBody').innerHTML =
-                '<tr id="filaVaciaPapeletas"><td colspan="9" class="text-center text-muted py-4">Sin papeletas.</td></tr>';
+                '<tr id="filaVaciaPapeletas"><td colspan="10" class="text-center text-muted py-4">Sin papeletas.</td></tr>';
         }
     } else { alert(data.error); }
 }
