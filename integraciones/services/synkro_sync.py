@@ -194,6 +194,16 @@ def sync_papeletas(cursor_desde: datetime | None,
             no_encontradas += 1
             continue
 
+        # Defensa contra data corrupta en Synkro (fechas invertidas)
+        if permiso.fecha_fin < permiso.fecha_inicio:
+            logger.warning(
+                f'Synkro PermisoLicencia #{permiso.id_permiso}: '
+                f'fechas invertidas {permiso.fecha_inicio}..{permiso.fecha_fin}, omitida.'
+            )
+            omitidas += 1
+            continue
+
+        dias_h = max(1, (permiso.fecha_fin - permiso.fecha_inicio).days + 1)
         defaults = {
             'personal_id': personal_id,
             'dni': dni,
@@ -201,40 +211,51 @@ def sync_papeletas(cursor_desde: datetime | None,
             'fecha_inicio': permiso.fecha_inicio,
             'fecha_fin': permiso.fecha_fin,
             'detalle': (permiso.detalle or '')[:500],
-            'dias_habiles': (permiso.fecha_fin - permiso.fecha_inicio).days + 1,
+            'dias_habiles': dias_h,
             'estado': 'APROBADA',
             'origen': 'IMPORTACION',
             'observaciones': f'SYNKRO#{permiso.id_permiso} | sync auto',
         }
 
         existente = existentes_por_extid.get(permiso.id_permiso)
-        if existente:
-            # Actualizar solo si cambió algo material (rango/tipo/estado base)
-            cambios = []
-            if existente.tipo_permiso != tipo:
-                cambios.append('tipo_permiso')
-                existente.tipo_permiso = tipo
-            if existente.fecha_inicio != permiso.fecha_inicio:
-                cambios.append('fecha_inicio')
-                existente.fecha_inicio = permiso.fecha_inicio
-            if existente.fecha_fin != permiso.fecha_fin:
-                cambios.append('fecha_fin')
-                existente.fecha_fin = permiso.fecha_fin
-            nuevo_detalle = (permiso.detalle or '')[:500]
-            if (existente.detalle or '') != nuevo_detalle:
-                cambios.append('detalle')
-                existente.detalle = nuevo_detalle
-            if cambios:
-                existente.dias_habiles = (existente.fecha_fin - existente.fecha_inicio).days + 1
-                cambios.append('dias_habiles')
-                existente.save(update_fields=cambios)
-                actualizadas += 1
-            else:
-                omitidas += 1
-        else:
-            # Crear (signal aplicar_papeleta sincroniza RegistroTareo)
-            RegistroPapeleta.objects.create(**defaults)
-            creadas += 1
+        try:
+            with transaction.atomic():
+                if existente:
+                    # Actualizar solo si cambió algo material
+                    cambios = []
+                    if existente.tipo_permiso != tipo:
+                        cambios.append('tipo_permiso')
+                        existente.tipo_permiso = tipo
+                    if existente.fecha_inicio != permiso.fecha_inicio:
+                        cambios.append('fecha_inicio')
+                        existente.fecha_inicio = permiso.fecha_inicio
+                    if existente.fecha_fin != permiso.fecha_fin:
+                        cambios.append('fecha_fin')
+                        existente.fecha_fin = permiso.fecha_fin
+                    nuevo_detalle = (permiso.detalle or '')[:500]
+                    if (existente.detalle or '') != nuevo_detalle:
+                        cambios.append('detalle')
+                        existente.detalle = nuevo_detalle
+                    if cambios:
+                        existente.dias_habiles = max(
+                            1, (existente.fecha_fin - existente.fecha_inicio).days + 1
+                        )
+                        cambios.append('dias_habiles')
+                        existente.save(update_fields=cambios)
+                        actualizadas += 1
+                    else:
+                        omitidas += 1
+                else:
+                    # Crear (signal aplicar_papeleta sincroniza RegistroTareo)
+                    RegistroPapeleta.objects.create(**defaults)
+                    creadas += 1
+        except Exception as exc:
+            logger.warning(
+                f'Synkro PermisoLicencia #{permiso.id_permiso} '
+                f'(personal_id={permiso.id_personal}, tipo={tipo}, '
+                f'{permiso.fecha_inicio}..{permiso.fecha_fin}): {type(exc).__name__}: {exc}'
+            )
+            omitidas += 1
 
     return {
         'creadas': creadas,
@@ -438,9 +459,10 @@ def run_sync(usuario=None, origen: str = 'AUTO',
         # 2. Feriados (full upsert; no necesita cursor)
         feriados_creados = sync_feriados()
 
-        # 3. Papeletas (incremental)
-        with transaction.atomic():
-            res_pap = sync_papeletas(cursor_pap_prev, personal_dni_map, personal_idx)
+        # 3. Papeletas (incremental). Cada papeleta tiene su propia
+        # transacción interna; si una falla por data corrupta no afecta
+        # al resto.
+        res_pap = sync_papeletas(cursor_pap_prev, personal_dni_map, personal_idx)
 
         # 4. Picados (incremental)
         res_pic = sync_picados(cursor_pic_prev, personal_dni_map, personal_idx,
