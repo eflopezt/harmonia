@@ -539,6 +539,13 @@ def sync_picados(cursor_desde: datetime | None,
                 continue
         p_obj = personal_obj_cache[pid_harmoni]
 
+        # Respetar período laboral: no crear/actualizar registros fuera del
+        # rango fecha_alta..fecha_cese del trabajador.
+        if p_obj.fecha_alta and fecha < p_obj.fecha_alta:
+            continue
+        if p_obj.fecha_cese and fecha > p_obj.fecha_cese:
+            continue
+
         if not picados:
             continue
         entrada = min(picados).time()
