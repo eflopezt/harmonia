@@ -232,6 +232,8 @@ def exportar_horas_rco(request):
         r['nombre_archivo'] = p.apellidos_nombres if p else ''
         r['cargo'] = p.cargo if p else ''
         r['area'] = p.subarea.area.nombre if p and p.subarea else ''
+        r['fecha_alta'] = p.fecha_alta if p else None
+        r['fecha_cese'] = p.fecha_cese if p else None
 
     # Ordenar después del enriquecimiento por nombre canónico
     resumen.sort(key=lambda r: r['nombre_archivo'])
@@ -259,8 +261,10 @@ def exportar_horas_rco(request):
 
     # Headers
     headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Cargo', 'Area',
+               'F. Ingreso', 'F. Cese',
                'Dias Trab.', 'Faltas', 'DL', 'VAC', 'DM', 'SAI',
                'Hrs Marcadas', 'Hrs Normales', 'HE 25%', 'HE 35%', 'HE 100%', 'Total HE']
+    NCOL = len(headers)  # 19
     for c, h in enumerate(headers, 1):
         cell = ws.cell(row=4, column=c, value=h)
         cell.font = header_font
@@ -277,57 +281,71 @@ def exportar_horas_rco(request):
         ws.cell(row=row, column=3, value=r['nombre_archivo']).font = data_font
         ws.cell(row=row, column=4, value=r['cargo']).font = Font(size=8, color='64748b')
         ws.cell(row=row, column=5, value=r['area']).font = Font(size=8, color='64748b')
-        ws.cell(row=row, column=6, value=r['dias_trabajados']).font = num_font
-        ws.cell(row=row, column=7, value=r['dias_falta']).font = num_font
-        ws.cell(row=row, column=8, value=r['dias_dl']).font = data_font
-        ws.cell(row=row, column=9, value=r['dias_vac']).font = data_font
-        ws.cell(row=row, column=10, value=r['dias_dm']).font = data_font
-        ws.cell(row=row, column=11, value=r['dias_sai']).font = data_font
-        ws.cell(row=row, column=12, value=float(r['total_horas'])).font = num_font
-        ws.cell(row=row, column=13, value=float(r['total_hn'])).font = num_font
-        ws.cell(row=row, column=14, value=float(r['total_he_25'])).font = num_font
-        ws.cell(row=row, column=15, value=float(r['total_he_35'])).font = num_font
-        ws.cell(row=row, column=16, value=float(r['total_he_100'])).font = num_font
-        ws.cell(row=row, column=17, value=float(r['total_he'])).font = Font(bold=True, size=10, color='0f766e')
-        for c in range(1, 18):
+        c_alta = ws.cell(row=row, column=6, value=r.get('fecha_alta'))
+        c_alta.font = data_font
+        c_alta.number_format = 'dd/mm/yyyy'
+        c_cese = ws.cell(row=row, column=7, value=r.get('fecha_cese'))
+        c_cese.font = data_font
+        c_cese.number_format = 'dd/mm/yyyy'
+        ws.cell(row=row, column=8, value=r['dias_trabajados']).font = num_font
+        ws.cell(row=row, column=9, value=r['dias_falta']).font = num_font
+        ws.cell(row=row, column=10, value=r['dias_dl']).font = data_font
+        ws.cell(row=row, column=11, value=r['dias_vac']).font = data_font
+        ws.cell(row=row, column=12, value=r['dias_dm']).font = data_font
+        ws.cell(row=row, column=13, value=r['dias_sai']).font = data_font
+        ws.cell(row=row, column=14, value=float(r['total_horas'])).font = num_font
+        ws.cell(row=row, column=15, value=float(r['total_hn'])).font = num_font
+        ws.cell(row=row, column=16, value=float(r['total_he_25'])).font = num_font
+        ws.cell(row=row, column=17, value=float(r['total_he_35'])).font = num_font
+        ws.cell(row=row, column=18, value=float(r['total_he_100'])).font = num_font
+        ws.cell(row=row, column=19, value=float(r['total_he'])).font = Font(bold=True, size=10, color='0f766e')
+        for c in range(1, NCOL + 1):
             ws.cell(row=row, column=c).border = border
-            if c >= 6:
+            # Centrar números (cols 6-7 fechas ya están en formato y centradas;
+            # cols >= 8 son numéricas)
+            if c in (6, 7) or c >= 8:
                 ws.cell(row=row, column=c).alignment = center
-                ws.cell(row=row, column=c).number_format = '#,##0.00' if c >= 12 else '0'
+                if c >= 14:
+                    ws.cell(row=row, column=c).number_format = '#,##0.00'
+                elif c >= 8:
+                    ws.cell(row=row, column=c).number_format = '0'
 
     # Totals row
     total_row = len(resumen) + 5
-    for c in range(1, 18):
+    for c in range(1, NCOL + 1):
         cell = ws.cell(row=total_row, column=c)
         cell.fill = total_fill
         cell.font = total_font
         cell.alignment = center
     ws.cell(row=total_row, column=3, value='TOTALES')
-    ws.cell(row=total_row, column=6, value=sum(r['dias_trabajados'] for r in resumen))
-    ws.cell(row=total_row, column=7, value=sum(r['dias_falta'] for r in resumen))
-    ws.cell(row=total_row, column=8, value=sum(r['dias_dl'] for r in resumen))
-    ws.cell(row=total_row, column=9, value=sum(r['dias_vac'] for r in resumen))
-    ws.cell(row=total_row, column=10, value=sum(r['dias_dm'] for r in resumen))
-    ws.cell(row=total_row, column=11, value=sum(r['dias_sai'] for r in resumen))
-    ws.cell(row=total_row, column=12, value=float(sum(r['total_horas'] for r in resumen)))
-    ws.cell(row=total_row, column=13, value=float(sum(r['total_hn'] for r in resumen)))
-    ws.cell(row=total_row, column=14, value=float(sum(r['total_he_25'] for r in resumen)))
-    ws.cell(row=total_row, column=15, value=float(sum(r['total_he_35'] for r in resumen)))
-    ws.cell(row=total_row, column=16, value=float(sum(r['total_he_100'] for r in resumen)))
-    ws.cell(row=total_row, column=17, value=float(sum(r['total_he'] for r in resumen)))
-    for c in [12, 13, 14, 15, 16, 17]:
+    ws.cell(row=total_row, column=8, value=sum(r['dias_trabajados'] for r in resumen))
+    ws.cell(row=total_row, column=9, value=sum(r['dias_falta'] for r in resumen))
+    ws.cell(row=total_row, column=10, value=sum(r['dias_dl'] for r in resumen))
+    ws.cell(row=total_row, column=11, value=sum(r['dias_vac'] for r in resumen))
+    ws.cell(row=total_row, column=12, value=sum(r['dias_dm'] for r in resumen))
+    ws.cell(row=total_row, column=13, value=sum(r['dias_sai'] for r in resumen))
+    ws.cell(row=total_row, column=14, value=float(sum(r['total_horas'] for r in resumen)))
+    ws.cell(row=total_row, column=15, value=float(sum(r['total_hn'] for r in resumen)))
+    ws.cell(row=total_row, column=16, value=float(sum(r['total_he_25'] for r in resumen)))
+    ws.cell(row=total_row, column=17, value=float(sum(r['total_he_35'] for r in resumen)))
+    ws.cell(row=total_row, column=18, value=float(sum(r['total_he_100'] for r in resumen)))
+    ws.cell(row=total_row, column=19, value=float(sum(r['total_he'] for r in resumen)))
+    for c in (14, 15, 16, 17, 18, 19):
         ws.cell(row=total_row, column=c).number_format = '#,##0.00'
 
     # Conteo
     ws.cell(row=total_row + 2, column=1,
             value=f'Total trabajadores: {len(resumen)}').font = Font(size=9, color='64748b')
 
-    # Column widths
-    widths = [5, 12, 38, 25, 20, 9, 8, 6, 6, 6, 6, 12, 12, 10, 10, 10, 10]
+    # Column widths (19 cols)
+    widths = [5, 12, 38, 25, 20, 11, 11, 9, 8, 6, 6, 6, 6, 12, 12, 10, 10, 10, 10]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
-    # Freeze panes
+    # AutoFilter en headers (clic en columnas para filtrar/ordenar en Excel)
+    if resumen:
+        last_col = openpyxl.utils.get_column_letter(NCOL)
+        ws.auto_filter.ref = f'A4:{last_col}{len(resumen) + 4}'
     ws.freeze_panes = 'A5'
 
     output = BytesIO()
@@ -454,8 +472,10 @@ def exportar_faltas_mes(request):
         ws.cell(row=2, column=1, value=f'{label_periodo} | Días laborables aprox.: {dias_laborables}').font = sub_font
 
         headers = ['N°', 'DNI', 'Apellidos y Nombres', 'Cargo', 'Área', 'Grupo',
+                   'F. Ingreso', 'F. Cese',
                    'FA/F', 'LSG', 'Total Días Desc.',
                    'Sueldo Base', 'Valor Día', 'Descuento Estimado', 'Código S10']
+        NCOL_H1 = len(headers)  # 15
         for c, h in enumerate(headers, 1):
             cell = ws.cell(row=4, column=c, value=h)
             cell.font = header_font
@@ -475,7 +495,7 @@ def exportar_faltas_mes(request):
             total_descuento += descuento
 
             fill = alt_fill if i % 2 == 0 else None
-            for c in range(1, 14):
+            for c in range(1, NCOL_H1 + 1):
                 cell = ws.cell(row=row, column=c)
                 if fill:
                     cell.fill = fill
@@ -491,45 +511,55 @@ def exportar_faltas_mes(request):
             ws.cell(row=row, column=4, value=p.cargo or '').font = Font(size=8, color='64748b')
             ws.cell(row=row, column=5, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
             ws.cell(row=row, column=6, value=grupo_label).font = Font(size=8, bold=True)
-            ws.cell(row=row, column=7, value=dias_fa).font = warn_font if dias_fa else data_font
-            ws.cell(row=row, column=8, value=dias_lsg).font = warn_font if dias_lsg else data_font
-            ws.cell(row=row, column=9, value=total_dias_desc).font = Font(bold=True, size=9)
-            ws.cell(row=row, column=10, value=float(sueldo)).font = data_font
-            ws.cell(row=row, column=10).number_format = '#,##0.00'
-            ws.cell(row=row, column=11, value=float(valor_dia)).font = data_font
-            ws.cell(row=row, column=11).number_format = '#,##0.00'
-            ws.cell(row=row, column=12, value=float(descuento)).font = Font(bold=True, size=9, color='991B1B')
+            c_alta = ws.cell(row=row, column=7, value=p.fecha_alta)
+            c_alta.font = data_font
+            c_alta.number_format = 'dd/mm/yyyy'
+            c_cese = ws.cell(row=row, column=8, value=p.fecha_cese)
+            c_cese.font = data_font
+            c_cese.number_format = 'dd/mm/yyyy'
+            ws.cell(row=row, column=9, value=dias_fa).font = warn_font if dias_fa else data_font
+            ws.cell(row=row, column=10, value=dias_lsg).font = warn_font if dias_lsg else data_font
+            ws.cell(row=row, column=11, value=total_dias_desc).font = Font(bold=True, size=9)
+            ws.cell(row=row, column=12, value=float(sueldo)).font = data_font
             ws.cell(row=row, column=12).number_format = '#,##0.00'
+            ws.cell(row=row, column=13, value=float(valor_dia)).font = data_font
+            ws.cell(row=row, column=13).number_format = '#,##0.00'
+            ws.cell(row=row, column=14, value=float(descuento)).font = Font(bold=True, size=9, color='991B1B')
+            ws.cell(row=row, column=14).number_format = '#,##0.00'
             cod_s10 = []
             if dias_fa:
                 cod_s10.append('9800-FA')
             if dias_lsg:
                 cod_s10.append('9810-LSG')
-            ws.cell(row=row, column=13, value=' | '.join(cod_s10)).font = Font(size=8, color='64748b')
+            ws.cell(row=row, column=15, value=' | '.join(cod_s10)).font = Font(size=8, color='64748b')
 
-            for c in [6, 7, 8, 9, 10, 11, 12]:
+            for c in (6, 7, 8, 9, 10, 11, 12, 13, 14):
                 ws.cell(row=row, column=c).alignment = center
 
         # Fila totales
         total_row = len(pids) + 5
-        for c in range(1, 14):
+        for c in range(1, NCOL_H1 + 1):
             ws.cell(row=total_row, column=c).fill = total_fill
             ws.cell(row=total_row, column=c).font = total_font
         ws.cell(row=total_row, column=3, value='TOTALES').alignment = center
-        ws.cell(row=total_row, column=7, value=sum(fd.get('FA', 0) + fd.get('F', 0) for fd in faltas_map.values())).alignment = center
-        ws.cell(row=total_row, column=8, value=sum(fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
-        ws.cell(row=total_row, column=9, value=sum(fd.get('FA', 0) + fd.get('F', 0) + fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
-        ws.cell(row=total_row, column=12, value=float(total_descuento)).number_format = '#,##0.00'
-        ws.cell(row=total_row, column=12).alignment = center
+        ws.cell(row=total_row, column=9, value=sum(fd.get('FA', 0) + fd.get('F', 0) for fd in faltas_map.values())).alignment = center
+        ws.cell(row=total_row, column=10, value=sum(fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
+        ws.cell(row=total_row, column=11, value=sum(fd.get('FA', 0) + fd.get('F', 0) + fd.get('LSG', 0) for fd in faltas_map.values())).alignment = center
+        ws.cell(row=total_row, column=14, value=float(total_descuento)).number_format = '#,##0.00'
+        ws.cell(row=total_row, column=14).alignment = center
 
         ws.cell(row=total_row + 2, column=1,
                 value=f'Total trabajadores con descuentos: {len(pids)} | Descuento total estimado: S/ {total_descuento:,.2f}').font = Font(size=9, color='991B1B', bold=True)
 
-        # Anchos de columna
-        widths = [5, 12, 38, 25, 20, 8, 8, 8, 10, 14, 12, 18, 16]
+        # Anchos de columna (15 cols)
+        widths = [5, 12, 38, 25, 20, 8, 11, 11, 8, 8, 10, 14, 12, 18, 16]
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
+        # AutoFilter
+        if pids:
+            last_col = openpyxl.utils.get_column_letter(NCOL_H1)
+            ws.auto_filter.ref = f'A4:{last_col}{len(pids) + 4}'
         ws.freeze_panes = 'A5'
 
         # Constantes compartidas para hojas de detalle
@@ -563,8 +593,9 @@ def exportar_faltas_mes(request):
         ws_az.cell(row=2, column=1, value=label_periodo).font = sub_font
 
         headers_az = ['N°', 'Apellidos y Nombres', 'DNI', 'Cargo', 'Área',
-                      'Grupo', 'Condición', 'Fecha', 'Día', 'Código',
-                      'Observaciones']
+                      'Grupo', 'F. Ingreso', 'F. Cese', 'Condición',
+                      'Fecha', 'Día', 'Código', 'Observaciones']
+        NCOL_AZ = len(headers_az)  # 13
         for c, h in enumerate(headers_az, 1):
             cell = ws_az.cell(row=4, column=c, value=h)
             cell.font = header_font
@@ -582,7 +613,7 @@ def exportar_faltas_mes(request):
                 bloque_alt = not bloque_alt
                 prev_pid = p.pk
             fill = worker_fill if bloque_alt else None
-            for c in range(1, 12):
+            for c in range(1, NCOL_AZ + 1):
                 cell = ws_az.cell(row=row, column=c)
                 if fill:
                     cell.fill = fill
@@ -598,33 +629,40 @@ def exportar_faltas_mes(request):
             ws_az.cell(row=row, column=4, value=p.cargo or '').font = Font(size=8, color='64748b')
             ws_az.cell(row=row, column=5, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
             ws_az.cell(row=row, column=6, value=grupo_label).font = Font(size=8, bold=True)
-            ws_az.cell(row=row, column=7, value=r.condicion or '').font = Font(size=8, color='64748b')
-            c_fecha_az = ws_az.cell(row=row, column=8, value=r.fecha)
+            c_alta_az = ws_az.cell(row=row, column=7, value=p.fecha_alta)
+            c_alta_az.font = data_font
+            c_alta_az.number_format = 'dd/mm/yyyy'
+            c_cese_az = ws_az.cell(row=row, column=8, value=p.fecha_cese)
+            c_cese_az.font = data_font
+            c_cese_az.number_format = 'dd/mm/yyyy'
+            ws_az.cell(row=row, column=9, value=r.condicion or '').font = Font(size=8, color='64748b')
+            c_fecha_az = ws_az.cell(row=row, column=10, value=r.fecha)
             c_fecha_az.font = data_font
             c_fecha_az.number_format = 'dd/mm/yyyy'
-            ws_az.cell(row=row, column=9, value=dias_es[r.fecha.weekday()]).font = data_font
-            ws_az.cell(row=row, column=10, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
-            ws_az.cell(row=row, column=11, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
+            ws_az.cell(row=row, column=11, value=dias_es[r.fecha.weekday()]).font = data_font
+            ws_az.cell(row=row, column=12, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
+            ws_az.cell(row=row, column=13, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
 
-            for c in [1, 3, 6, 7, 8, 9, 10]:
+            for c in (1, 3, 6, 7, 8, 9, 10, 11, 12):
                 ws_az.cell(row=row, column=c).alignment = center
 
         # Totales hoja A-Z
         total_row_az = len(regs_az) + 5
-        for c in range(1, 12):
+        for c in range(1, NCOL_AZ + 1):
             ws_az.cell(row=total_row_az, column=c).fill = total_fill
             ws_az.cell(row=total_row_az, column=c).font = total_font
         ws_az.cell(row=total_row_az, column=2, value='TOTAL REGISTROS').alignment = center
-        ws_az.cell(row=total_row_az, column=10, value=len(regs_az)).alignment = center
+        ws_az.cell(row=total_row_az, column=12, value=len(regs_az)).alignment = center
 
-        # Anchos hoja A-Z
-        widths_az = [5, 38, 12, 25, 20, 8, 10, 12, 6, 8, 40]
+        # Anchos hoja A-Z (13 cols)
+        widths_az = [5, 38, 12, 25, 20, 8, 11, 11, 10, 12, 6, 8, 40]
         for i, w in enumerate(widths_az, 1):
             ws_az.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
         # AutoFilter (clic en headers para filtrar/ordenar dentro de Excel)
         if regs_az:
-            ws_az.auto_filter.ref = f'A4:K{len(regs_az) + 4}'
+            last_col_az = openpyxl.utils.get_column_letter(NCOL_AZ)
+            ws_az.auto_filter.ref = f'A4:{last_col_az}{len(regs_az) + 4}'
         ws_az.freeze_panes = 'A5'
 
         # ──────────────────────────────────────────────────────────
@@ -637,7 +675,9 @@ def exportar_faltas_mes(request):
         ws2.cell(row=2, column=1, value=label_periodo).font = sub_font
 
         headers2 = ['N°', 'Fecha', 'Día', 'DNI', 'Apellidos y Nombres',
-                    'Cargo', 'Área', 'Grupo', 'Condición', 'Código', 'Observaciones']
+                    'Cargo', 'Área', 'Grupo', 'F. Ingreso', 'F. Cese',
+                    'Condición', 'Código', 'Observaciones']
+        NCOL_H3 = len(headers2)  # 13
         for c, h in enumerate(headers2, 1):
             cell = ws2.cell(row=4, column=c, value=h)
             cell.font = header_font
@@ -648,7 +688,7 @@ def exportar_faltas_mes(request):
             row = i + 4
             p = r.personal
             fill = alt_fill if i % 2 == 0 else None
-            for c in range(1, 12):
+            for c in range(1, NCOL_H3 + 1):
                 cell = ws2.cell(row=row, column=c)
                 if fill:
                     cell.fill = fill
@@ -668,25 +708,36 @@ def exportar_faltas_mes(request):
             ws2.cell(row=row, column=6, value=p.cargo or '').font = Font(size=8, color='64748b')
             ws2.cell(row=row, column=7, value=p.subarea.area.nombre if p.subarea else '').font = Font(size=8, color='64748b')
             ws2.cell(row=row, column=8, value=grupo_label).font = Font(size=8, bold=True)
-            ws2.cell(row=row, column=9, value=r.condicion or '').font = Font(size=8, color='64748b')
-            ws2.cell(row=row, column=10, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
-            ws2.cell(row=row, column=11, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
+            c_alta_h3 = ws2.cell(row=row, column=9, value=p.fecha_alta)
+            c_alta_h3.font = data_font
+            c_alta_h3.number_format = 'dd/mm/yyyy'
+            c_cese_h3 = ws2.cell(row=row, column=10, value=p.fecha_cese)
+            c_cese_h3.font = data_font
+            c_cese_h3.number_format = 'dd/mm/yyyy'
+            ws2.cell(row=row, column=11, value=r.condicion or '').font = Font(size=8, color='64748b')
+            ws2.cell(row=row, column=12, value=r.codigo_dia).font = cod_color.get(r.codigo_dia, data_font)
+            ws2.cell(row=row, column=13, value=(r.observaciones or '')[:100]).font = Font(size=8, color='64748b')
 
-            for c in [1, 2, 3, 4, 8, 9, 10]:
+            for c in (1, 2, 3, 4, 8, 9, 10, 11, 12):
                 ws2.cell(row=row, column=c).alignment = center
 
-        # Totales hoja 2
+        # Totales hoja 3
         total_row2 = len(regs_detalle) + 5
-        for c in range(1, 12):
+        for c in range(1, NCOL_H3 + 1):
             ws2.cell(row=total_row2, column=c).fill = total_fill
             ws2.cell(row=total_row2, column=c).font = total_font
         ws2.cell(row=total_row2, column=5, value='TOTAL REGISTROS').alignment = center
-        ws2.cell(row=total_row2, column=10, value=len(regs_detalle)).alignment = center
+        ws2.cell(row=total_row2, column=12, value=len(regs_detalle)).alignment = center
 
-        # Anchos
-        widths2 = [5, 12, 6, 12, 38, 25, 20, 8, 10, 8, 40]
+        # Anchos (13 cols)
+        widths2 = [5, 12, 6, 12, 38, 25, 20, 8, 11, 11, 10, 8, 40]
         for i, w in enumerate(widths2, 1):
             ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+        # AutoFilter
+        if regs_detalle:
+            last_col_h3 = openpyxl.utils.get_column_letter(NCOL_H3)
+            ws2.auto_filter.ref = f'A4:{last_col_h3}{len(regs_detalle) + 4}'
         ws2.freeze_panes = 'A5'
 
     output = BytesIO()
