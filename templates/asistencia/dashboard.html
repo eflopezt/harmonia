@@ -66,7 +66,7 @@
                     <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
                     {% endfor %}
                 </select>
-                <div class="d-flex gap-2 ms-2 flex-wrap">
+                <div class="d-flex gap-2 ms-2 flex-wrap align-items-center">
                     <a href="{% url 'asistencia_staff' %}?mes={{ mes_sel }}&anio={{ anio_sel }}"
                        class="btn btn-sm btn-light fw-semibold">
                         <i class="fas fa-table me-1"></i>STAFF
@@ -77,6 +77,13 @@
                     <a href="{% url 'asistencia_importar' %}" class="btn btn-sm btn-warning text-dark fw-semibold">
                         <i class="fas fa-file-upload me-1"></i>Importar
                     </a>
+                    {# Botón sync directo Synkro (atajo desde dashboard) #}
+                    <button id="btnSynkroSyncDash" type="button" class="btn btn-sm btn-info text-white fw-semibold"
+                            data-bs-toggle="tooltip" data-bs-placement="bottom"
+                            title="Sincroniza picados y papeletas desde Synkro RRHH (BD remota)">
+                        <i class="fas fa-bolt me-1"></i>Sync Synkro
+                    </button>
+                    <small id="synkroStatusDash" class="text-white-50" style="font-size:.72rem"></small>
                 </div>
             </form>
         </div>
@@ -474,4 +481,79 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Botón Sync Synkro en el dashboard de asistencia ─────────────────────
+(function() {
+  const btn = document.getElementById('btnSynkroSyncDash');
+  const status = document.getElementById('synkroStatusDash');
+  if (!btn || !status) return;
+
+  function fmtRel(iso) {
+    if (!iso) return '';
+    const t = new Date(iso);
+    const min = Math.round((Date.now() - t.getTime()) / 60000);
+    if (min < 1) return 'hace segundos';
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `hace ${h} h`;
+    return t.toLocaleDateString('es-PE');
+  }
+
+  function refreshStatus() {
+    fetch('{% url "synkro_sync_status" %}')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.has_log) { status.textContent = 'Sin sync aún'; return; }
+        const m = d.metricas || {};
+        const cambios = (m.papeletas_creadas||0) + (m.papeletas_actualizadas||0)
+                      + (m.registros_tareo_creados||0) + (m.registros_tareo_actualizados||0);
+        let icon = 'fa-check-circle', color = 'rgba(255,255,255,.85)';
+        if (d.estado === 'EN_PROGRESO') { icon = 'fa-spinner fa-spin'; color = '#fef9c3'; }
+        else if (d.estado === 'ERROR')  { icon = 'fa-exclamation-triangle'; color = '#fecaca'; }
+        status.style.color = color;
+        if (d.estado === 'EN_PROGRESO') {
+          status.innerHTML = `<i class="fas ${icon} me-1"></i>Sincronizando…`;
+          setTimeout(refreshStatus, 3000);
+        } else {
+          status.innerHTML = `<i class="fas ${icon} me-1"></i>` +
+            `${fmtRel(d.iniciado_en)} · ${cambios} cambios`;
+        }
+      })
+      .catch(() => { status.textContent = ''; });
+  }
+
+  btn.addEventListener('click', function() {
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Iniciando…';
+    fetch('{% url "synkro_sync_now" %}', {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) {
+          status.style.color = '#fecaca';
+          status.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>${d.error || 'Error'}`;
+          return;
+        }
+        setTimeout(refreshStatus, 1500);
+      })
+      .catch(() => {
+        status.style.color = '#fecaca';
+        status.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Error de conexión';
+      })
+      .finally(() => {
+        setTimeout(() => { btn.disabled = false; btn.innerHTML = orig; }, 2000);
+      });
+  });
+
+  // Cargar estado al inicio + refresh cada 60s
+  refreshStatus();
+  setInterval(refreshStatus, 60000);
+})();
+</script>
 {% endblock %}
