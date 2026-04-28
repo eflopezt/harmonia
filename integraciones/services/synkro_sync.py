@@ -119,7 +119,7 @@ def sync_feriados() -> int:
             continue
         nuevos.append(FeriadoCalendario(
             fecha=f.fecha,
-            descripcion=(f.descripcion or '').strip()[:200],
+            nombre=(f.descripcion or 'Feriado').strip()[:150],
             activo=True,
         ))
     if nuevos:
