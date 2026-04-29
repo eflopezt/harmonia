@@ -26,7 +26,11 @@ _TTL_PERFIL  = 300   # 5 min
 
 
 def harmoni_context(request):
-    base = {'harmoni_version': '1.0.0'}
+    import os
+    base = {
+        'harmoni_version': '1.0.0',
+        'DEMO_MODE': os.environ.get('DEMO_MODE', 'False').lower() in ('true', '1', 'yes'),
+    }
 
     if not hasattr(request, 'user') or not request.user.is_authenticated:
         base.update({
