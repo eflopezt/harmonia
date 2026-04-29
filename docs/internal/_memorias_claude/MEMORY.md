@@ -126,3 +126,4 @@ vacaciones, viaticos, workflows
 - [Estilo de trabajo con CONSORCIO STILER](feedback_cliente_consorcio_stiler.md) — preferencias del usuario
 - [Integración directa Synkro RRHH](project_synkro_integracion.md) — sync SQL Server cada 15 min + botón manual
 - [Plan estabilización Q2 2026](project_plan_estabilizacion.md) — tests, Sentry, backup, turno noche antes de feature work
+- [Demo subdominio demo.harmoni.pe](project_demo_subdominio.md) — instancia aislada con 20 empleados ficticios, esperando DNS+SSL
